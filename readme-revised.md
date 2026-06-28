@@ -1,7 +1,7 @@
 # CalAgent — Architecture & First Principles
 
-> Engineering reference. The full record — Swift struct bodies, the 39-row test
-> matrix, the M0–M6 migration — lives in `plan-4-revised(10).md`; this brief
+> Engineering reference. The full record — Swift struct bodies, the test
+> matrix, the M0–M8 migration — lives in `plan-5-revised.md`; this brief
 > keeps the holdings and cites the plan for the rosters. The role map is
 > engineering-only and never surfaces in user-facing copy.
 
