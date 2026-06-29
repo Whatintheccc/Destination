@@ -1,21 +1,21 @@
 # plan-7-revised.md — Witness Architecture with a Verifiable Corrigible-Plant Controller
 
-**Status:** canonical Plan-7 revised target architecture. This document folds the stable Plan-6 base, the Witness Calculus dynamism review, the Plan-7 controller audit, and the latency-bound hardening pass into one cohesive specification. It is a target architecture, not a claim of shipped implementation.
+**Status:** canonical target architecture. This document is standalone: it contains the static safety base, the dynamism layer, the controller repairs, the latency-bound hardening, the migration sequence, the test matrix, and the definition of done. It is a target architecture, not a claim of shipped implementation.
 
-**Revision decision:** accepted. The Plan-7 doctrine and airframe are sound, but the first Plan-7 controller was not executable enough: its grid compared against unminted thresholds, the self-play cell axis was Zeno-open, the speech-rate actuator did not exist, and one license enum was duplicated. Plan-7-revised makes those seven audit repairs first-class contracts and then rewrites the controller around them.
+**Revision decision:** accepted. The doctrine and airframe are sound, but the first controller shape was not executable enough: its grid compared against unminted thresholds, the self-play cell axis was Zeno-open, the speech-rate actuator did not exist, and one license enum was duplicated. This revision makes those seven repairs first-class contracts and then rewrites the controller around them.
 
 **One-line thesis:** CalAgent remains a witness, not a recommender. It may learn only inside a human-clocked, rate-limited, corrigible plant. It may act only by suppressing itself, confessing its own measurement failure, or returning the pen through deposition. It never becomes an autonomous learner and never optimizes the user.
 
 ```text
-Plan 6 base:          D2 wall + A2 attention + privacy membrane + temporal calculus
+Static base:          D2 wall + A2 attention + privacy membrane + temporal calculus
                       + two-mouth API + deposition + phase gate + structural speech scarcity.
 
-Self-play review:     E1 sealed forecasts, E2 population self-doubt ledger,
+Dynamism layer:       E1 sealed forecasts, E2 population self-doubt ledger,
                       E3 league-vigor gate, E4 vigor-collapse confession.
 
-Controller audit:     sound doctrine, incomplete controller.
+Controller finding:   sound doctrine, incomplete controller.
 
-Plan 7 revised:       same doctrine, completed controller:
+Current revision:     same doctrine, completed controller:
                       minted thresholds, dwell durations, cell-axis hysteresis,
                       robust speech-rate limiter, frozen reference cap, single license enum,
                       shadow-live quarantine, robust T_h latency bound,
@@ -24,11 +24,11 @@ Plan 7 revised:       same doctrine, completed controller:
 
 ## Table of contents
 
-1. [Review verdict and Plan-7-revised changes](#1-review-verdict-and-plan-7-revised-changes)
+1. [Controller verdict and revision changes](#1-controller-verdict-and-revision-changes)
 2. [Preserved airframe](#2-preserved-airframe)
 3. [Signal fates and the empty-maximize slot](#3-signal-fates-and-the-empty-maximize-slot)
 4. [The dynamism doctrine](#4-the-dynamism-doctrine)
-5. [The four Plan-7 edges](#5-the-four-plan-7-edges)
+5. [The four dynamism edges](#5-the-four-dynamism-edges)
 6. [Self-doubt ledger as a population](#6-self-doubt-ledger-as-a-population)
 7. [Sealed deposition forecasts](#7-sealed-deposition-forecasts)
 8. [League vigor and the cell axes](#8-league-vigor-and-the-cell-axes)
@@ -43,15 +43,15 @@ Plan 7 revised:       same doctrine, completed controller:
 17. [Test matrix](#17-test-matrix)
 18. [Definition of done](#18-definition-of-done)
 19. [Self-audit](#19-self-audit)
-20. [Appendix A — Folded Plan-6 base](#20-appendix-a--folded-plan-6-base)
-21. [Appendix B — Inherited D2 wall and reward boundary](#21-appendix-b--inherited-d2-wall-and-reward-boundary)
+20. [Appendix A — Static base](#20-appendix-a--static-base)
+21. [Appendix B — D2 wall and reward boundary](#21-appendix-b--d2-wall-and-reward-boundary)
 22. [Coda](#22-coda)
 
 ---
 
-## 1. Review verdict and Plan-7-revised changes
+## 1. Controller verdict and revision changes
 
-Plan-7-revised accepts the controller audit's flight verdict:
+This specification starts from the controller verdict:
 
 ```text
 The airframe is sound.
@@ -60,23 +60,23 @@ The core thesis is airworthy.
 The controller must be completed before compression or flight.
 ```
 
-This revision completes the controller at the contract layer. It does not merely restate the audit. It turns the audit repairs into minted Plan-7 contracts, deletes conflicting terms, and expands tests so the controller can be re-verified as a hybrid control system.
+This revision completes the controller at the contract layer. It turns the repairs into minted contracts, deletes conflicting terms, and expands tests so the controller can be verified as a hybrid control system.
 
 ### 1.1 The seven repairs, now canonical
 
-| Audit repair | Plan-7-revised contract response |
+| Repair | Contract response |
 |---|---|
 | Freeze `V*` / reference cap under amendment gate. | `StructuralSpeechRegulatorV2.sealedReferenceCap` and `authorizedEnvelope.maxCap` are amendment-gated. Recovery to reference is allowed; raising reference is widening. |
 | Mint grid thresholds. | `MarginThresholdPolicyV1` mints `M_hi`, `M_lo`, residual `θ`, E3 thresholds, and cell-axis thresholds. No guard reads an unminted constant. |
 | Add cell-axis hysteresis. | `CellAxisHysteresisPolicyV1` and `CellAxisStateV1` add `ω_lo/ω_hi`, `κ_enter/κ_exit`, `τ_cell`, `τ_halt`, and dwell-reset semantics. |
 | Add robust speech-rate actuator. | `StructuralSpeechRateLimiterV1` implements `ρ_s^max = λ_h · min(ℓ_κ/e_κ^max, s_h/m_s^max)`. This is a rate limiter, not the cumulative budget. |
-| Reconcile duplicate license enum. | `SlowWitnessLicenseReasonV2` is the only Plan-7 license-reason enum. Legacy Plan-6 cases are compatibility aliases only. |
+| Reconcile duplicate license enum. | `SlowWitnessLicenseReasonV2` is the only live license-reason enum. Legacy cases are compatibility aliases only. |
 | Re-quarantine shadow→live `ω` handoff. | `ShadowLiveOmegaHandoffV1` sends contradictory live `ω` to `watch` or `deterministicDefault`, never to `breathe`. |
 | Mint dwell as durations. | `DynamismDwellPolicyV1` mints `τ_dwell`, `τ_cell`, `τ_halt`, references robust `T_h`, and exposes comparator outputs; booleans are derived, not primitive. |
 
 ### 1.2 The revision boundary
 
-Plan-7-revised changes no Plan-5 write wall and no Plan-6 static safety wall. It changes the dynamism layer and the interpretation of structural-speech scarcity.
+This revision changes no write wall and no static safety wall. It changes the dynamism layer and the interpretation of structural-speech scarcity.
 
 ```text
 Unchanged:
@@ -106,13 +106,13 @@ T_h learned downward from fast replies -> corrigibility margin silently shrinks.
 T_h overestimated -> DEFAULT/HALT recovery becomes needlessly slow.
 ```
 
-Plan-7-revised therefore seals `T_h` as `RobustLatencyBoundV1`: amendment-gated, `learnedFromLiveData == false`, required by the threshold derivation report, and paired with `DwellLatencyCalibrationFalsifierV1` for excessive conservatism.
+This revision therefore seals `T_h` as `RobustLatencyBoundV1`: amendment-gated, `learnedFromLiveData == false`, required by the threshold derivation report, and paired with `DwellLatencyCalibrationFalsifierV1` for excessive conservatism.
 
 ---
 
 ## 2. Preserved airframe
 
-Plan-7-revised inherits the Plan-6 / Plan-5 base as a substrate. These are not restated as aspirations. They are hard compatibility requirements for every Plan-7 implementation.
+The static safety base below is part of this specification. These requirements are not aspirations; they are hard compatibility requirements for every implementation.
 
 ### 2.1 Conservation laws and floors
 
@@ -167,11 +167,11 @@ No runtime path from learned organ to threshold widening.
 
 ## 3. Signal fates and the empty-maximize slot
 
-Plan-7-revised keeps the Witness Calculus fate system and makes it a lintable contract.
+This specification keeps the fate system and makes it a lintable contract.
 
 ```swift
 enum SignalFateV1: String, Codable, Hashable {
-  case maximize              // forbidden for Plan-7 witness invariants
+  case maximize              // forbidden for witness invariants
   case minimizeToFloor
   case conserveStock
   case budgetFlow
@@ -182,7 +182,7 @@ enum SignalFateV1: String, Codable, Hashable {
 
 ### 3.1 Fate table
 
-| Fate | Control form | Plan-7 use | Forbidden misuse |
+| Fate | Control form | Witness use | Forbidden misuse |
 |---|---|---|---|
 | F1 maximize | seek a peak | empty over witness invariants | acceptance, useful votes, low edit distance, deposition rate, confession cadence |
 | F2 minimize-to-floor | drive down but never to blindness | residual error, forecast error, monoculture risk, collapse risk | literal zero residual, zero surprise, zero correction |
@@ -207,7 +207,7 @@ Class S: system-endogenous signals.
   The cheap optimum is a noiseless mirror.
 
 Therefore:
-  no Plan-7 invariant may be fated maximize;
+  no witness invariant may be fated maximize;
   no machine act may be acquisitive;
   reward may rank only downstream of F2–F6 gates;
   no release dashboard, learned organ, or model output may promote a signal into F1.
@@ -222,7 +222,7 @@ var signalFate: SignalFateV1
 var measurementStatus: MeasurementStatusV0
 ```
 
-Fate assignment is a rule. Fate enforcement must be theoremized when the wrong fate would be catastrophic. In Plan-7-revised, the following topology lints are hard blockers:
+Fate assignment is a rule. Fate enforcement must be theoremized when the wrong fate would be catastrophic. The following topology lints are hard blockers:
 
 ```text
 reward -> SignalFate.maximize for a witness invariant;
@@ -241,7 +241,7 @@ owner config -> louder reference without amendment.
 
 ## 4. The dynamism doctrine
 
-The Plan-7 plant is a hybrid control system. Its three moving layers are one automaton:
+The witness plant is a hybrid control system. Its three moving layers are one automaton:
 
 ```text
 machine-learning  = continuous flow within an admitted mode;
@@ -287,7 +287,7 @@ The final dependency remains human speech.
 If the human does not speak, the system must infer less, not more.
 ```
 
-Plan-7-revised makes this a controller law rather than a UX preference:
+This specification makes this a controller law rather than a UX preference:
 
 ```text
 λ_h -> 0  ⇒  ρ_s^max -> 0  ⇒  smooth structural speech slows to zero;
@@ -297,7 +297,7 @@ DEFAULT permits E4/deposition but not autonomous learned smooth placement.
 
 ---
 
-## 5. The four Plan-7 edges
+## 5. The four dynamism edges
 
 The four edges are canonical. They are jointly necessary and individually insufficient.
 
@@ -329,7 +329,7 @@ E2 -> E3 -> E1 -> E4
 population -> gate -> seal -> act
 ```
 
-Plan-7-revised adds the controller audit's stronger order:
+The controller adds the stronger order:
 
 ```text
 κ before ω.
@@ -443,7 +443,7 @@ Monoculture alone is not harm. It becomes part of harm only when conjoined with 
 
 ## 7. Sealed deposition forecasts
 
-The deposition channel is the legal aperture through which human life clocks learning. Plan-7-revised requires a sealed forecast before the aperture opens.
+The deposition channel is the legal aperture through which human life clocks learning. A sealed forecast is required before the aperture opens.
 
 ### 7.1 Rule
 
@@ -518,7 +518,7 @@ kairos.
 
 ## 8. League vigor and the cell axes
 
-Plan-7-revised represents the self-play cell through two hysteretic axes, not instantaneous signs.
+The self-play cell is represented through two hysteretic axes, not instantaneous signs.
 
 ```text
 ω — opponent liveness:
@@ -582,7 +582,7 @@ enum LeagueVigorRegressionActionV1: String, Codable, Hashable {
 
 ### 8.3 Cell-axis snapshots
 
-The audit rejected sign-only `CurriculumSignV1` as too weak. Plan-7-revised uses banded scores with hysteresis.
+Sign-only `CurriculumSignV1` is too weak. The controller uses banded scores with hysteresis.
 
 ```swift
 struct OpponentLivenessAxisSnapshotV1: Codable, Hashable {
@@ -633,7 +633,7 @@ Cell membership is latched by `CellAxisHysteresisPolicyV1`; it is not recomputed
 
 ## 9. Structural speech: budget, reference, and rate
 
-Plan-7-revised preserves structural-speech scarcity but rejects success-driven mutism.
+The architecture preserves structural-speech scarcity but rejects success-driven mutism.
 
 ```text
 A cumulative cap prevents total exposure.
@@ -705,7 +705,7 @@ Widening:
 
 ### 9.4 Robust rate limiter
 
-The audit's keystone repair is a rate actuator distinct from the cumulative cap.
+The keystone controller repair is a rate actuator distinct from the cumulative cap.
 
 ```text
 κ-axis viability:   λ_h · ℓ_κ ≥ ρ_s · e_κ
@@ -715,7 +715,7 @@ Therefore:
   ρ_s^max ≤ λ_h · min(ℓ_κ/e_κ, s_h/m_s)
 ```
 
-The harm coefficients `e_κ` and `m_s` are membrane-irreducible. Plan-7-revised does not learn them. It uses fixed, amendment-gated worst-case bounds.
+The harm coefficients `e_κ` and `m_s` are membrane-irreducible. The plant does not learn them. It uses fixed, amendment-gated worst-case bounds.
 
 ```text
 ρ_s^max := λ_h · min(ℓ_κ/e_κ^max, s_h/m_s^max)
@@ -1283,7 +1283,7 @@ If live `ω` contradicts shadow `ω`, the controller may not enter `breathe`. It
 
 ## 13. Slow license, suppression, and mouth authority
 
-Plan-7-revised has exactly one live slow-license reason enum.
+There is exactly one live slow-license reason enum.
 
 ```swift
 enum SlowWitnessLicenseReasonV2: String, Codable, Hashable {
@@ -1297,7 +1297,7 @@ enum SlowWitnessLicenseReasonV2: String, Codable, Hashable {
 }
 ```
 
-Legacy Plan-6 reasons (`residualLow`, `depositionAnswered`, `residualLowAndDepositionAnswered`) are compatibility aliases only. They are not sufficient for Plan-7 live license.
+Legacy reasons (`residualLow`, `depositionAnswered`, `residualLowAndDepositionAnswered`) are compatibility aliases only. They are not sufficient for live license.
 
 ### 13.1 Slow license contract
 
@@ -1438,7 +1438,7 @@ correction aperture needed
   -> Swift scores DepositionSurprisalScoreV1 against sealed forecast
   -> score feeds E3, margin, rate limiter, budget regulator, and controller
   -> if sufficient: RegimeSeedFactV1 may be minted
-  -> slow license may be issued only through Plan-7-revised predicate
+  -> slow license may be issued only through the controller predicate
 ```
 
 Skips do not become inferred preferences. Total withdrawal routes to default.
@@ -1561,10 +1561,10 @@ reward -> confession cadence KPI.
 
 ## 16. Migration sequence
 
-Plan-7-revised migration lands the controller repairs before compression or public learning expansion.
+Migration lands the controller repairs before compression or public learning expansion.
 
 ```text
-P7R-M0  adopt doctrine, fate lint, and audit verdict
+P7R-M0  adopt doctrine, fate lint, and repair verdict
 P7R-M1  static-base parity: D2/A2/mouth/calculus/phase unchanged
 P7R-M2  E2 population ledger
 P7R-M3  threshold and dwell policies minted
@@ -1578,14 +1578,14 @@ P7R-M10 reward and organ graduation re-enabled only under breathe-in-D
 P7R-M11 public surface rollout
 ```
 
-### P7R-M0 — Doctrine and audit adoption
+### P7R-M0 — Doctrine and repair adoption
 
 Acceptance:
 
 ```text
-Plan-7-revised named canonical target.
-Seven audit repairs tracked as implementation gates.
-No Plan-7 invariant fated maximize.
+This specification named canonical target.
+Seven controller repairs tracked as implementation gates.
+No witness invariant fated maximize.
 Tier-walk audit required for dynamism changes.
 ```
 
@@ -1821,11 +1821,11 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 
 ### Doctrine and base
 
-- [ ] Plan-7-revised adopted as the canonical target architecture.
-- [ ] Plan-5 D2 wall preserved unchanged.
+- [ ] This specification adopted as the canonical target architecture.
+- [ ] D2 wall preserved unchanged.
 - [ ] A2, privacy membrane, phase gate, temporal calculus, two-mouth API, deposition, user-authored programs, and no-notification topology preserved.
 - [ ] Every dynamical signal carries fate and measurement status.
-- [ ] No Plan-7 witness invariant is F1 maximize.
+- [ ] No witness invariant is F1 maximize.
 - [ ] No reward, release, dashboard, or coupling path can re-fate a signal into F1.
 
 ### Controller repair completion
@@ -1918,9 +1918,9 @@ This table must be re-answered for every public surface launch, temporal operato
 
 ---
 
-## 20. Appendix A — Folded Plan-6 base
+## 20. Appendix A — Static base
 
-This appendix makes the file standalone. It is a compact fold of the stable Plan-6 architecture, not a second plan.
+This appendix makes the file standalone. It is the compact static architecture base, not a second plan.
 
 ### 20.1 Theorem, rule, and data taxonomy
 
@@ -1930,7 +1930,7 @@ rule:     expressible, rejected by runtime admission, policy, tests;
 data:     authored conjecture compiled into safe structural program.
 ```
 
-Plan-7-revised keeps the naming convention:
+The specification keeps the naming convention:
 
 ```text
 *TokenV1 / *CapabilityV1 / *MouthV1     theorem-facing type or topology;
@@ -2059,7 +2059,7 @@ struct DepositionQuestionV1: Codable, Hashable {
 }
 ```
 
-Deposition is typed, closed-past anchored, and non-interview by default. It becomes Plan-7's sealed human clock when paired with E1.
+Deposition is typed, closed-past anchored, and non-interview by default. It becomes the sealed human clock when paired with E1.
 
 ### 20.6 User authorship
 
@@ -2067,7 +2067,7 @@ The user may author temporal programs, thresholds, visibility dials, attention-w
 
 ---
 
-## 21. Appendix B — Inherited D2 wall and reward boundary
+## 21. Appendix B — D2 wall and reward boundary
 
 D2 remains the only write-admission seam.
 
@@ -2109,7 +2109,7 @@ struct D2BindingOutputV0 {
 }
 ```
 
-Inherited D2 blockers remain part of the active safety surface:
+D2 blockers remain part of the active safety surface:
 
 ```text
 missing selection;
@@ -2128,7 +2128,7 @@ materialization failure;
 live validatePropose rejection.
 ```
 
-The inherited value/reward/falsifier contracts remain compatibility surfaces for write-bearing moves only:
+The value/reward/falsifier contracts remain compatibility surfaces for write-bearing moves only:
 
 ```text
 RecommendationValueSignalV0;
@@ -2161,13 +2161,13 @@ never admit speech;
 never mint facts, support, attention, mouth choice, margin, thresholds, dwell, rate, or license.
 ```
 
-Reward and contestation remain downstream. Plan-7-revised adds: reward also cannot touch margin status, grid state, threshold policy, dwell policy, robust coefficients, structural-speech reference, structural-speech rate, or mouth choice.
+Reward and contestation remain downstream. Reward also cannot touch margin status, grid state, threshold policy, dwell policy, robust coefficients, structural-speech reference, structural-speech rate, or mouth choice.
 
 ---
 
 ## 22. Coda
 
-Plan 6 made CalAgent a witness. Plan 7 made the witness dynamically honest. Plan-7-revised makes the controller executable enough to verify.
+CalAgent is a witness with a dynamically honest, executable controller.
 
 The witness still cannot see kairos. It cannot know what a moment means. It cannot learn its way into the user's inner timing without building the portrait the membrane forbids. That loss is not patched by a metric. It is carried as a floor.
 
@@ -2182,4 +2182,4 @@ Speech speed is earned by correction bandwidth.
 The pen remains with the human.
 ```
 
-The Plan-7-revised witness breathes only in D: live and aligned, measured and rate-limited, with both bifurcations crossed and held. Everywhere else it narrows, confesses, defaults, or halts.
+The witness breathes only in D: live and aligned, measured and rate-limited, with both bifurcations crossed and held. Everywhere else it narrows, confesses, defaults, or halts.

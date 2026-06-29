@@ -1,13 +1,21 @@
 # CalAgent — Architecture & First Principles
 
-> Engineering **brief**, not the record. The canonical record — the temporal
-> calculus, the two-mouth API, the human-clocked oscillator, full struct rosters,
-> the migration (M0–M11), and the test matrix — lives in `plan-6-revised.md`, which is now self-contained: Plan 5's write wall and
-> reward machinery are folded into its Appendix A, and the Witness design rationale
-> is summarized in §A. This document
-> states the laws that have **no enforcer but the reader**, and cites the plan (by
-> section and test) for everything a type, a test, or a gate already holds. The
-> internal role map never appears in user-facing copy.
+> Engineering **brief**, not the record. The canonical record is now
+> `plan-7-revised.md`: the stable Plan-6 base, the Witness Calculus dynamism
+> review, and the Plan-7 controller audit folded into one target architecture.
+> This document states the product laws at briefing level and records which
+> companion files are active evidence versus archive. The internal role map never
+> appears in user-facing copy.
+
+## Corpus status
+
+| File | Status | Decision |
+|---|---|---|
+| `plan-7-revised.md` | canonical target architecture | Active source of truth for contracts, migration, test matrix, and definition of done. |
+| `plan-7-controller-audit.md` | temporary verification evidence | Keep until the seven controller repairs and hybrid trajectory tests pass; it explains why the revised controller exists but proposes no live contract. |
+| `plan-7.md` | superseded | Safe to remove from the active set after confirming git history or archive storage. Its doctrine is preserved, but its controller gaps are repaired by `plan-7-revised.md`. |
+| `plan-6-revised.md` | historical architecture/provenance | Archive, not active. Its stable D2/A2/Plan-5 compatibility surface has been compactly folded into `plan-7-revised.md`; keep it only for full field-level ancestry. |
+| `self-play.md` | historical dynamism analysis/provenance | Archive, not active. Its active outputs are now E1-E4, fates, tier-walk audit, margin/grid, and coupling tests inside `plan-7-revised.md`. |
 
 **The verb.** CalAgent is no longer a recommender. It does not ask *what should we
 put in your time?* — a value question, and value cannot be verified from behavior.
@@ -24,7 +32,7 @@ Each is a theorem a type holds, and those tests hold them — so this brief does
 re-litigate them. **What follows is the part no test holds:** the deepest cost is
 that a witness which can speak only temporal *structure* may, over years, train you
 out of your own felt sense of *timing*. The system cannot see that, so it cannot
-type it. It is a **floor**, rationed by a budget, not a law. This document spends
+type it. It is a **floor** — rationed by a budget and a speech-rate limiter, never closed by a law. This document spends
 its length on the floor, because there the only enforcer is you.
 
 ---
@@ -77,10 +85,12 @@ facts and may learn which deserve placement — but authors no fact, copy, evide
 attention lease, mouth choice, write, or reward field (*blind composer, Swift
 cantor*). **Swift** owns everything liability-bearing: raw state, the fact minter,
 the copy renderer, D2, the AttentionGate, writes, measurement, the temporal
-calculus, the two mouths, the oscillator, the budget, and the phase gate.
+calculus, the two mouths, the corrigible-plant controller (margin, cell axes, dwell,
+grid), the budget and rate limiter, and the phase gate.
 
-Plan 6's central discipline (§2) is a criterion for telling a **law** from a
-**guess**, because Swift's `enum` makes them look identical on the page:
+The central discipline (`plan-7-revised.md §20.1`, folded from Plan 6) is a criterion
+for telling a **law** from a **guess**, because Swift's `enum` makes them look
+identical on the page:
 
 | Class | Test | Violating it requires |
 |---|---|---|
@@ -105,10 +115,13 @@ and only the *primitives* are genome.
 | `occupation(spoken) ⊆ A(tendered)` | **ATTENTION law** — speak only into attention you opened. `A(tendered)` is typed, short-lived, surface-specific; foreground alone is not consent (`testOccupationSubsetTenderedAttention`, `testForegroundAloneNotWideTender`). |
 | `transmit ⊆ decision-sufficient` | **PRIVACY law / membrane** — move the decision signal, never the raw life. |
 | `D2` / `A2` | Two independent gates: **D2** admits writes (the hand), **A2 / AttentionGate** admits speech (the mouth). Neither launders the other (`testAttentionGateSeparateFromD2`). |
-| `B_structural` | The **kairos budget** — the *integral* of the attention law: a cumulative cap on structural speech, tight, tightening, and a one-way ratchet (§E). |
+| `B_structural` / regulator | The **kairos budget** — the *integral* of the attention law. In `plan-7-revised.md` it is no longer a one-way drain: a cumulative cap against a **sealed reference** (`StructuralSpeechRegulatorV2`) that tightens for free, *recovers* to the reference through margin hysteresis, and widens only by amendment — scarcity without success-driven mutism (§E). |
+| `ρ_s^max` | The **robust speech-rate law** (`StructuralSpeechRateLimiterV1`): speak no faster than the human can correct you — `ρ_s^max = λ_h·min(ℓ_κ/e_κ^max, s_h/m_s^max)`, so `λ_h → 0 ⇒ ρ_s^max → 0`. The harm coefficients are amendment-gated worst-case bounds the plant may never learn downward (§E). |
+| `M` | The **bifurcation margin** — signed distance to the cycle/drain separatrix, `M = α(1 − y/V*) − β·P(r>θ)`. The decision grid reads it; `.notMeasured(M) ≡ M < 0` (a margin you cannot measure is assumed negative). |
+| `ω` / `κ` | The **self-play cell axes** — opponent *liveness* (are you still surprising a sealed forecast?) and curriculum *sign* (does your success strengthen or flatten the user?). Cell B (live × anti-aligned = amputation) dominates the margin; cell membership is hysteretic, not recomputed from noise. |
 | primitives / operators | The calculus genome (closed by law) vs the operators and families composed from it (data). A new operator is data; a new *primitive* is theorem-surface (`testTemporalCalculusPrimitivesClosed`, `testPrimitiveAdditionRequiresPhaseGate`). |
 | two mouths | **Smooth** (subject = your time, places facts) vs **break** (subject = the system's own error, confesses). The subject-switch is a type, not a flag. |
-| residual / break | The self-doubt ledger — the only persistent machine-authored portrait, *of the system's own error*. A **break** = its prior assertions stopped holding. |
+| residual / break | The self-doubt ledger — the only persistent machine-authored portrait, *of the system's own error*, now a **population** (a league of frozen failed regimes, so it can see league collapse a scalar cannot). A **break** = its prior assertions stopped holding. |
 | `u` / `γ` / contestation / earned acceptance | Inherited Plan-5 reward machinery, now scoped to **write-bearing** moves only (§E). |
 
 ---
@@ -156,6 +169,17 @@ Swift mints the facts, renders the copy, owns D2 and the AttentionGate, and owns
 writes. *The part capable enough to read your time is never allowed to occupy it or
 change it.* D2 walls the hand; A2 walls the mouth; the membrane walls the portrait.
 
+**The witness is a corrigible plant — it has no maximand.** `plan-7-revised.md` (§3–§4)
+makes this doctrine: the plant has no independent objective to maximize, only a
+correction channel to conserve. **No membrane-legal signal may be maximized** — F1 is
+empty. A *user-instrumented* signal pushed to a peak acts through the user, who is also
+the sensor, and its cheap optimum is a user reshaped to emit favorable readings; a
+*system-endogenous* signal pushed to a peak re-enters the user as a noiseless mirror.
+So the acting loop is **corrective, never acquisitive** — it suppresses, confesses,
+narrows, defaults, or halts, but never acts to raise a number — and the one reflex is
+corrigibility: *preserve your capacity to surprise, contradict, correct, and relicense
+it.* Compliance is not victory; silence is not proof.
+
 **The fact must be true today, and structural.** *Would it be false on a different
 day?* "You have a free 30 minutes" is stable — weak. "Thursday evenings were occupied
 eight weeks; the last three are open" is true only now — composition. But the gate
@@ -181,20 +205,17 @@ error.*
 
 This is the body — the law with no enforcer but you.
 
-**The dynamism: a human-clocked oscillator.** Machine *learning* is the slow loop
-(the witness of you); machine *acting* is the fast loop (the break confession). They
-govern each other. The fast loop *suppresses* the slow loop on residual-high
-(`testFastResidualSuppressesSlow`). The slow loop *recommits* only on **residual-low
-∨ deposition-answered** (`testResidualLowRelicensesSlow`,
-`testDepositionAnsweredRelicensesSlow`) — never on a release milestone. Two failures
-are thereby barred: the **roadmap clock** (learning bound to the vendor's quarter
-instead of your life) and **latch-up** (a turbulent life suppressing the slow loop
-forever, so the witness falls silent exactly when you are most lost). The escape from
-latch-up is the deep one: **the human is the second clock** — the only membrane-legal
-way for your life to pace the learning is your answering a deposition at the break.
-*Release qualifies an organ; license binds it* — the cadence is yours, not the
-roadmap's. The system's final dependency is that you speak; if you don't, it says
-less, never infers more.
+**The dynamism: a corrigible plant.** Machine *learning* is still the slow loop
+(the witness of you); machine *acting* is still the fast loop (the break confession).
+Plan-7-revised adds the controller between them. A slow license is no longer issued
+by residual-low or deposition-answered alone: those old clocks are compatibility
+inputs under `SlowWitnessLicenseReasonV2`, and live use also requires the league
+vigor gate, sealed forecast health, margin state, cell-axis hysteresis, structural
+speech regulator, robust rate limiter, A2, and the mouth type. Release qualifies an
+organ; the controller binds live use. The system's final dependency is unchanged:
+if you do not speak, it says less, never infers more. In controller terms:
+`lambda_h -> 0 => rho_s^max -> 0`, `.notMeasured(M)` routes negative, and default
+permits deposition/confession but not autonomous learned smooth placement.
 
 **Write-bearing reward (inherited, now scoped).** When a witness card carries a
 write-bearing move, Plan 5's machinery applies, unchanged in force:
@@ -224,18 +245,13 @@ cannot be trusted.* It is named, not solved (`testComfortableFalsePositiveResidu
 **The kairos amputation — the deepest floor.** Every structural fact, however true,
 trains structure-only cognition; integrated over years the medium can dull your own
 sense of *meaningful* timing — the felt right-moment the witness is correctly blind
-to. There is no antidote inside the grammar (a gesture at meaning is still made of
-structure; the disclaimer cannot outrun the distribution). The only defense the
-system's own blindness permits is **scarcity**: the structural-speech budget
-`B_structural`, the integral of the attention law — *the derivative protects the
-tick; the integral protects the years.* It is a **one-way ratchet** — tightening is
-free; loosening above the tightest cap ever held requires a phase-gated,
-user-visible amendment (`testStructuralSpeechBudgetRatchet`), because the adversary
-that matters is not the reward model but the vendor's own growth incentive. The
-budget is **dose-control, not antidote**: it lowers how much chronos the witness
-speaks; it cannot change the fact that what it speaks is chronos. The system never
-claims to measure or conserve kairos — `KairosFloorReportV1` reports only its own
-output (`testKairosFloorReportNeverClaimsKairosMeasured`).
+to. There is no antidote inside the grammar. Plan-7-revised keeps scarcity but
+removes success-driven mutism: `StructuralSpeechRegulatorV2` holds a cumulative cap
+against a sealed reference, while `StructuralSpeechRateLimiterV1` caps speech speed
+by the human deposition rate and worst-case harm coefficients the plant may not
+learn downward. Recovery to a sealed reference is allowed; raising the reference or
+the authorized envelope is widening and requires amendment. The system never claims
+to measure or conserve kairos — the budget and rate law report only system output.
 
 **One hole, four masks.** The proxy gap is not one residual among many: attention
 (foreground ≠ tendered), abandonment (silence may be care or desertion), cruelty (a
@@ -258,14 +274,18 @@ test holds it), or **data** (compiled and proven, never trusted-by-construction)
 | `SmoothMouthV1` / `BreakMouthV1` | subject is a type; a you-fact at the break does not typecheck | theorem |
 | `ReadOnlyTranscriptV1`, phase tokens, absent push channel | back-write / live genome-edit / structural notification are absent capabilities | theorem |
 | `TenderedAttentionLeaseV1`, `A2BindingOutputV1` | `occupation ⊆ A(tendered)`; proxy blindness has a typed failure, not a claimed fix | rule (+ floor) |
-| `StructuralSpeechBudgetV1`, `StructuralSpeechRatchetV1` | the kairos integral; loosening is amendment-gated | rule |
-| `SlowWitnessLicenseV1`, `SelfDoubtLedgerV1`, `BreakSignalV1` | the oscillator; recommit only on residual-low ∨ deposition-answered | rule |
-| `DepositionQuestionV1`, `RegimeSeedFactV1` | the human as second clock; typed, closed-past, no portrait | rule |
-| `ContestationSignalV0`, `EarnedAcceptanceRewardSignalV0`, the falsifier | write-bearing reward; excludes created demand; `.notMeasured` if unprovable | rule |
+| `StructuralSpeechRegulatorV2`, `StructuralSpeechRateLimiterV1` | scarcity without mutism; sealed reference, robust rate cap, amendment-gated widening | rule |
+| `SelfDoubtLedgerV1`, `SealedDepositionForecastV1`, `LeagueVigorRegressionV1`, `VigorCollapseConfessionV1` | E1-E4; the plant conserves the correction channel before it learns | rule |
+| `MarginThresholdPolicyV1`, `DynamismDwellPolicyV1`, `CellAxisHysteresisPolicyV1`, `WitnessDynamismControllerV2` | minted guards, dwell, hysteresis, and state-specific authority | rule |
+| `SlowWitnessLicenseV2` | Plan-6 clocks plus controller, margin, league, budget/rate, A2, and mouth authority | rule |
+| `DepositionQuestionV1`, sealed forecasts, regime-seed facts | the human as second clock; typed, closed-past, no portrait | rule |
+| `ContestationSignalV0`, `EarnedAcceptanceRewardSignalV0`, the falsifier | write-bearing reward; excludes created demand; `.notMeasured` if unprovable; never admits | rule |
 | `D2BindingOutputV0`, `AllowedActionV0` | Swift-hydrated, reward-free, minted only after staging | theorem |
 | `RecommendationVerdictV0` | non-`Codable` — no model / bridge / carrier may transport it | theorem |
 
-Full fields, every contract: `plan-6-revised.md` §12 and its Appendix A (inherited Plan-5 base).
+Full active contracts, migration, tests, and definition of done: `plan-7-revised.md`.
+Older field rosters in `plan-6-revised.md` are provenance unless explicitly named
+as compatibility surfaces in the revised plan.
 
 ---
 
@@ -275,22 +295,25 @@ Full fields, every contract: `plan-6-revised.md` §12 and its Appendix A (inheri
 SMOOTH (place, never send):
   you open a surface → Swift mints A2 attention lease
     → Swift runs temporal programs over private state → mints fact-cells
+    → Swift reads E1/E2/E3 coverage, margin, dwell, budget, and rate state
     → DiffusionGemma selects a fact INDEX only → Swift renders copy from a closed template
-    → A2 admits the exact placement → budget admits the cumulative structural cost
+    → controller permits breathe/watch scope → A2 admits the exact placement
+    → budget admits cumulative exposure → rate limiter admits speech speed
     → smooth mouth places it inline / as a found object
     → (if write-bearing) D2 validates support → confirm tap → live recheck → write
     → settlement records truth, spendability, proxy-gap, budget pressure, verdict
 
 BREAK (confess, then hand back the pen):
-  self-doubt residual rises → slow license revoked → break mouth speaks self-subject only
+  residual, vigor collapse, or margin approach triggers break
+    → slow license revoked → E4 break mouth speaks self-subject only
     → you answer a typed, closed-past deposition → a scoped, expiring regime-seed fact
-    → narrow slow license re-issued because deposition-answered
+    → sealed forecast scored → narrow license may return only through the controller
 ```
 
 No notification path exists; the break mouth cannot speak a you-fact; the slow mouth
-cannot resume from release cadence alone. `u`, reward output, γ, attention lease, and
-budget **do not create support** — D2 is reward-free and attention-free, A2 is
-state-free, and the learning path can reach neither.
+cannot resume from release cadence alone. `u`, reward output, gamma, attention
+lease, margin, grid state, and budget **do not create support** — D2 is reward-free
+and attention-free, A2 is state-free, and the learning path can reach neither.
 
 ---
 
@@ -321,13 +344,14 @@ earn.
 
 ## I. Migration
 
-Shadow-first, owner-gated, deterministic fallback kept permanently. M0–M11
-(theorem/rule/data taxonomy → capability-absence refactor → two-mouth API →
-temporal calculus → structural-speech budget → oscillator license controller →
-deposition as second clock → phase tokens → copy/UX → public surface migration →
-reward under the revised oscillator → amendment petitions) is `plan-6-revised.md`
-§16. The standing self-audit, re-answered every public surface and every operator,
-budget, or mouth change: *does user protection scale with the migrated power, and
-does the wall still cover the relocated risk?* **The hand is walled by D2; the mouth
-by attention; the years by the budget — and what no wall can hold is named, rationed,
-and handed to you.**
+Shadow-first, owner-gated, deterministic fallback kept permanently. The active
+sequence is P7R-M0 through P7R-M11 in `plan-7-revised.md`: adopt doctrine and audit,
+prove static-base parity, build the population ledger, mint thresholds and dwell,
+run E3/E1 in shadow, land the regulator and rate limiter, shadow margin and cell
+hysteresis, bring E4/grid live, quarantine shadow-live omega handoff, re-enable
+reward only under breathe-in-D, then roll out surfaces. The standing self-audit is
+re-answered every public surface and every operator, budget, rate, threshold, dwell,
+or mouth change: *does user protection scale with the migrated power, and does the
+wall still cover the relocated risk?* **The hand is walled by D2; the mouth by
+attention; the years by budget and rate — and what no wall can hold is named,
+rationed, and handed to you.**
