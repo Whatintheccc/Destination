@@ -1,76 +1,99 @@
 # CalAgent — Architecture & First Principles
 
-> Engineering **brief**, not the record. The canonical record — full struct
-> rosters (plan §8), the 15-step D2 algorithm (§9.3), the test matrix (§17), the
-> M0–M8 migration (§16) — lives in `plan-5-revised.md`. This document states the
-> laws that have **no enforcer but the reader**, and cites the plan (by section
-> and test) for everything a test, a type, or D2 already holds. Even its own
-> skeleton is test-pinned (`testOpeningDoctrineIsSingleSentence`,
-> `testFourClauseArchitectureLawExists`, `testThirdRelaxationBooked`) — the README
-> defers to an enforcer wherever one exists. The internal role map never appears in
-> user-facing copy.
+> Engineering **brief**, not the record. The canonical record — the temporal
+> calculus, the two-mouth API, the human-clocked oscillator, full struct rosters,
+> the migration (M0–M11), and the test matrix — lives in `plan-6-revised.md`, which is now self-contained: Plan 5's write wall and
+> reward machinery are folded into its Appendix A, and the Witness design rationale
+> is summarized in §A. This document
+> states the laws that have **no enforcer but the reader**, and cites the plan (by
+> section and test) for everything a type, a test, or a gate already holds. The
+> internal role map never appears in user-facing copy.
 
-**The seam.** `support(staged) ⊆ F(x_live)` (`testSupportStagedSubsetOfLiveF`,
-`testD2InProcessOnly`, `testCannotTouchNonCreatedEvents`): the wall holds
-bit-for-bit at every capability, and those tests hold the wall — so this brief does
-not re-litigate it. **What follows is the part no test holds.** CalAgent now learns
-what you value and accept, which means the machine has a stake in your *yes*; this
-document is the law for that stake.
+**The verb.** CalAgent is no longer a recommender. It does not ask *what should we
+put in your time?* — a value question, and value cannot be verified from behavior.
+It asks *what is already true about your time that you are too close to read?* — a
+**witness**. A recommendation asserts value; a disclosure asserts a fact, and a fact
+is checkable against evidence, copy budget, and live state. The pivot from Plan 5 is
+the verb; almost everything below follows from it.
+
+**Three walls and a floor.** Two harms the system can see are walled by types; one
+it cannot see is named and rationed. `support(staged) ⊆ F(x_live)` walls the
+**hand** (the write); `occupation(spoken) ⊆ A(tendered)` walls the **mouth** (the
+speech); `transmit ⊆ decision-sufficient` walls the **membrane** (the portrait).
+Each is a theorem a type holds, and those tests hold them — so this brief does not
+re-litigate them. **What follows is the part no test holds:** the deepest cost is
+that a witness which can speak only temporal *structure* may, over years, train you
+out of your own felt sense of *timing*. The system cannot see that, so it cannot
+type it. It is a **floor**, rationed by a budget, not a law. This document spends
+its length on the floor, because there the only enforcer is you.
 
 ---
 
-## A. The product and the two holdings
+## A. The product and the holdings
 
-CalAgent is a calendar app. It proposes **one thing worth doing** — *what*, *when*,
-*why it fits today* — as a single card you accept with one tap. It **manufactures**
-that card: it composes a recommendation no list enumerated in advance, instead of
-retrieving the best row from a table. The shape (what / when / why / fit) is the
-product.
+CalAgent is a calendar app. It discloses **one thing already true** about your time
+and places it where your attention already rests — never sent, never pushed. The
+witness card replaces the recommender card:
+
+```
+recommender:  what / when / why-it-fits-today                       (asserts value — unverifiable)
+witness:      what's-true / why-you-can't-see-it / what-you-can-do-once   (asserts a fact — checkable)
+```
+
+The third line is the **mercy clause**: a fact placed at a self who can no longer
+act on it is not a witness, it is a sentence passed (`SpendabilityProofV1`). An
+empty Saturday is no longer valueless — it is among the highest-value surfaces,
+because the fact to disclose there is not *fill this* but *you kept this open, and
+the last three Saturdays filled by Thursday.*
 
 Two holdings govern everything, and they differ in kind:
 
-- **Holding 1 — the wall (a theorem, closed).** Capability rises; authority never
-  does. The most capable component (the model) is never the most *sovereign*;
-  `support(staged) ⊆ F(x_live)`; the confirm tap returns authority to you. Enforced
-  in code (`testSupportStagedSubsetOfLiveF`) — settled law, stated once, never
-  re-argued.
-- **Holding 2 — the stake (a confession, open).** CalAgent now learns, so it
-  benefits in its own objective from your yes. Nothing in the compiler holds this.
-  It is kept honest by three organs — contestation-weighted reward, a user-directed
-  product verdict, a held-out falsifier — and even so, **value remains
-  unverified**: the *comfortable false positive* (§E) is named, not solved.
-  CalAgent is a fiduciary that cannot read out whether it succeeded, so the stake is
-  where honesty is most fragile. This document spends its length here, because here
-  the only enforcer is you.
+- **Holding 1 — the walls (theorems, closed).** Three conservation laws, each held
+  by a type: state, attention, privacy. Capability rises; authority never does. The
+  most capable component (the model) is never the most *sovereign*; the confirm tap
+  returns write-authority to you; the attention you tendered governs what may be
+  said to you. Settled law, stated once, never re-argued.
+- **Holding 2 — the floors (named, open).** Three harms live on *your* side of the
+  membrane, past the skull, where no type can reach: the **proxy gap** (the app is
+  foregrounded ≠ your attention is tendered), the **comfortable false positive** (a
+  true card you accept, never regret, never needed), and the **kairos amputation**
+  (the medium's structural vocabulary, integrated over years, dulling your own sense
+  of meaningful timing). None is solved. Each is named, shrunk, and handed to you to
+  correct.
 
-The old soul — *"the one voice that gains nothing when you stop"* — is honestly
-deprecated to: **the one voice that gains nothing from a yes you did not contest.**
+The deepest structural fact: **the membrane is the boundary of theorem-izability.**
+Harms the system can see become types; harms it cannot see become floors. The same
+wall that keeps it from building a portrait of you is the wall that keeps it from
+typing the harms that matter most. Its virtue and its tragedy are one wall.
 
 ---
 
-## B. Components
+## B. Components and the discipline that keeps a guess from posing as a law
 
-Three components, one doctrine — *capability is separated from authority.*
-**Codex** relays the request and serves only what Swift admits (carrier; no
-admission, grading, writes, or reward visibility). **DiffusionGemma** composes the
-shape and may now learn a preference-conditioned prior and take bounded reward
-guidance — but authors no identity, time, evidence, provenance, fingerprint,
-verdict, action, or reward field. **Swift** owns everything liability-bearing: raw
-state, feasible support, validators, D2, provenance, writes, undo, and — new in
-Plan 5 — contestation, the earned-acceptance reduction, the preference store,
-guidance bounds, and the falsifier. The standing audit: *does user protection scale
-with the migrated power, and does the wall cover the relocated risk?*
+Three components, one doctrine — *capability is separated from authority.* **Codex**
+relays and serves only what Swift admits (carrier; no admission, grading, writes,
+facts, or attention authority). **DiffusionGemma** ranks and selects Swift-minted
+facts and may learn which deserve placement — but authors no fact, copy, evidence,
+attention lease, mouth choice, write, or reward field (*blind composer, Swift
+cantor*). **Swift** owns everything liability-bearing: raw state, the fact minter,
+the copy renderer, D2, the AttentionGate, writes, measurement, the temporal
+calculus, the two mouths, the oscillator, the budget, and the phase gate.
 
-The learner's six organs — Reward Reducer, Contestation Auditor, Product-Verdict
-Channel, Preference Store `u`, Reward Model `r`, Comfortable-FP Falsifier — are
-Swift-owned or Swift-release-gated; none can admit, write, or appear in user copy.
-They are listed as contract owners in §F.
+Plan 6's central discipline (§2) is a criterion for telling a **law** from a
+**guess**, because Swift's `enum` makes them look identical on the page:
 
-A seventh Swift-owned helper, the **Relational Prep Station**, computes topology
-(gaps, adjacency, conflict) into consultable *relation chips* — but **nothing learns
-inside it**: a chip is conditioning only, and if a relation would move offered
-feasibility it is no longer a chip but an owner-gated `F(x)` change. Learning lives
-only in the composer / preference / reward path.
+| Class | Test | Violating it requires |
+|---|---|---|
+| **theorem** | a compiler-enforced law | changing a *type signature / topology edge*, re-checked at every call site |
+| **rule** | a runtime guard | changing a *value, flag, threshold, or policy* |
+| **data** | conjecture, compiled & proven | nothing — it is authored, gate-checked, never code |
+
+A flag is not a wall. Back-write is absent *as a capability*, not denied by a
+`Bool` (`testBackWriteCapabilityAbsent`); a stale you-fact at the break does not
+*typecheck*, it is not suppressed by an `if` (`testBreakMouthCannotAcceptSmoothSubjectFact`).
+The breakfast test sorts the two: if a domain expert can propose a new member over
+coffee, the set is **data**, not law. By it, the temporal *operators* are data (§D)
+and only the *primitives* are genome.
 
 ---
 
@@ -78,284 +101,233 @@ only in the composer / preference / reward path.
 
 | Symbol | Meaning |
 |---|---|
-| `F(x)` / `F(x_live)` | Swift's feasible support; the **live, revalidated** support at admission/confirm. Stale context never confers authority. |
-| `support(staged) ⊆ F(x_live)` | The permanent safety line (`testSupportStagedSubsetOfLiveF`). Its own rationale — no prose states it shorter or truer. |
-| `SELECT` / `PROPOSE` | Swift enumerates the slate, model returns an index (public default, first reward lane) / model proposes a shape, Swift materializes support (target, shadow-until-measured). |
-| `D2` | The single in-process admission wall — lookup, never reconstruction (`testD2InProcessOnly`). Necessary, but **not a value-loop auditor.** |
-| `.notMeasured` | Missing lineage / coverage / fingerprint / contestation. **Never zero, never positive** (`testNotMeasuredNeverZero`). |
-| `u` | Per-user, non-identifying preference vector. Conditioning only; cold-start = population prior, not zeros; never admission; never "we learned you" copy. |
-| `γ` / KL leash | Reward bounds. γ = sampling-time scale on a frozen base (γ=0 = the prior); KL = the training-time analog, leashed to a *contestation-corrected* prior. |
-| Contestation | Banded, Swift-side measure of how much pre-existing, **non-CalAgent-created** demand a card occupied. Never user-facing. |
-| Earned acceptance | The reward target (§E). Guardrail: **non-regret under contestation**; value stays unverified. |
+| `support(staged) ⊆ F(x_live)` | **STATE law** — write only into live, revalidated feasible support (`testSupportStagedSubsetOfLiveF`, `testD2Unchanged`). |
+| `occupation(spoken) ⊆ A(tendered)` | **ATTENTION law** — speak only into attention you opened. `A(tendered)` is typed, short-lived, surface-specific; foreground alone is not consent (`testOccupationSubsetTenderedAttention`, `testForegroundAloneNotWideTender`). |
+| `transmit ⊆ decision-sufficient` | **PRIVACY law / membrane** — move the decision signal, never the raw life. |
+| `D2` / `A2` | Two independent gates: **D2** admits writes (the hand), **A2 / AttentionGate** admits speech (the mouth). Neither launders the other (`testAttentionGateSeparateFromD2`). |
+| `B_structural` | The **kairos budget** — the *integral* of the attention law: a cumulative cap on structural speech, tight, tightening, and a one-way ratchet (§E). |
+| primitives / operators | The calculus genome (closed by law) vs the operators and families composed from it (data). A new operator is data; a new *primitive* is theorem-surface (`testTemporalCalculusPrimitivesClosed`, `testPrimitiveAdditionRequiresPhaseGate`). |
+| two mouths | **Smooth** (subject = your time, places facts) vs **break** (subject = the system's own error, confesses). The subject-switch is a type, not a flag. |
+| residual / break | The self-doubt ledger — the only persistent machine-authored portrait, *of the system's own error*. A **break** = its prior assertions stopped holding. |
+| `u` / `γ` / contestation / earned acceptance | Inherited Plan-5 reward machinery, now scoped to **write-bearing** moves only (§E). |
 
 ---
 
 ## D. First principles
 
-**Manufacturing, not retrieval.** The product is the shape, and the system wins
-only when the shape is a *felt decision variable* — when *what to do* was itself in
-question, not merely *which slot.* Compress the shape to a pick-from-a-list before
-composition and you have retrieval in a manufacturing costume.
+**Witness, not recommender.** The product is a fact made legible, sourced from your
+own evidence returned in a useful shape. Its authority is decidable truth, not the
+system's taste about you. *Truth is not enough* — a true fact can be cruel, late, or
+useless — but truth is a substrate a wall can reason about, and value is not.
 
-**Two failure modes.** *Premature semantic compression* — pre-binning intent into
-categories / templates / fixed slates before the system can compose; `SELECT` made
-*final* is this failure. The cure is neither raw egress nor model authority but a
-narrower split: Swift considers the full private state, transmits only
-decision-sufficient statistics, the model composes a shape, and Swift independently
-materializes and validates support for it. *Low-contestation reward collapse* (new)
-— the loop-level failure, kept whole here because it is a chain: a family graduates
-because survival is cheap in empty space → earned-accepted history goes
-comfortable-FP-rich → the prior clones it → the KL leash holds the corruption → the
-next round finds even lower contestation, and the dashboard *turns greener as it
-rots.* This is success-signed corruption; it is why contestation, the verdict
-channel, and the falsifier are architecture, not analytics.
+**The membrane is the boundary of theorem-izability.** *Type the catastrophes the
+system can see; budget, expose, and invite correction for the ones it cannot.*
+Writing without support, speaking into untendered attention, a portrait persisting,
+a stale you-fact at the break — typeable, and typed. The proxy gap, the cruel-true
+fact, the abandonment at a crisis, the slow dulling of your own kairos — un-typeable,
+because each is defined in a quantity past the skull.
 
-**Capability ≠ authority — but loop coverage must scale.** This is the
-generator/verifier asymmetry with a *decidable* verifier: the model may propose a
-bad shape, overfit a why-line, or learn a flattering prior, and still change
-nothing, because Swift owns the pantry, the validators, admission, and the writes.
-*The part capable enough to compose your day is never allowed to change it; the
-confirm tap is the moment authority returns to you.* But **D2 covers the admission
-seam, not the loop** — it cannot detect a reward that learns to propose
-valid-but-unneeded cards. That risk is Holding 2's, covered by contestation,
-verdicts, and the falsifier, none of which can admit.
+**The temporal calculus — a grammar, not a list.** Facts are generated by a closed
+set of **primitives** over the interval order — selection, windowing, the
+quantifiers (∀/∃/count, duration-sum), the order relation, comparison, residual
+against the system's own ledger, compose. The primitives are the genome (closed *by
+law* — a sixth quantifier is not proposable over coffee). Everything above them —
+density, recurrence, erosion, *and any operator the user or the shadow learner
+authors* — is a **program**: data, compiled and proven, gate-checked, never code.
+The calculus's ceiling is its conscience: it can express temporal **structure** and
+*cannot* express semantic **meaning** — and that unsayable class is exactly the
+class the privacy gene forbids it to know. "You're avoiding your sister" is unsayable
+for the same reason it is forbidden. Structural-only-ness holds **by the input
+types**, not by a proof flag (`testTemporalProgramStructuralByInputType`): a program
+that touched meaning would not typecheck.
 
-**Three authorship positions, one survivor.** AUTHOR — the model writes a full
-proposal, Swift admits what it can verify — is rejected: a full proposal carries
-identity, time, evidence, provenance, verdict, and action, too close to authority,
-and reward makes it *more* dangerous, not less. SELECT — Swift enumerates the slate,
-the model returns an index — is the safe public default and the first reward
-curriculum lane, because influence over an index cannot widen `F(x)`. PROPOSE — the
-model proposes a shape, Swift independently materializes support — is the target,
-shadow-until-measured; if materialization moves the offered `F(x)`, that is no longer
-free sampling but an owner-gated policy change requiring a parity test.
+**Two tempos.** On **smooth life** the witness reports on *you* — it places true
+facts where attention already rests, learns continuity, and stays otherwise silent.
+At the **break** it changes subject to *itself* — *"I've been wrong about your
+mornings four days running"* — and re-deposes. The subject-switch is the safety
+property, and it is a **type**: a you-fact cannot enter the break mouth, the way a
+`String` cannot enter a slot typed for an `Int`. A break is detected from the
+system's *own residual*, never inferred as a portrait of you ("your life changed"
+dies at the membrane).
 
-**The why-line must be true today.** *Would this why-line be wrong on a different
-day?* "You have a free 30 minutes" is stable across days — weak. "A hard social
-block then a narrow low-friction gap, so a quiet reset now protects the evening" is
-true only today — composition. But the gate checks **falsity, not need**: a true
-why-line on an unneeded card still passes. Copy honesty is necessary, not
-sufficient.
+**Capability ≠ authority — across both verbs.** The model may rank a cruel fact, learn
+a flattering selection, or misjudge attention, and still change nothing, because
+Swift mints the facts, renders the copy, owns D2 and the AttentionGate, and owns the
+writes. *The part capable enough to read your time is never allowed to occupy it or
+change it.* D2 walls the hand; A2 walls the mouth; the membrane walls the portrait.
 
-**The membrane.** What crosses to the model is not raw-data-redacted; it is the
-axes that move the decision, never the axes that name the life:
+**The fact must be true today, and structural.** *Would it be false on a different
+day?* "You have a free 30 minutes" is stable — weak. "Thursday evenings were occupied
+eight weeks; the last three are open" is true only now — composition. But the gate
+checks **falsity, not need**, and it speaks **chronos, never kairos**: the witness
+may show the structure of your time; it may never claim *this is the right moment.*
+Copy honesty is necessary, not sufficient.
+
+**The membrane.** What crosses to the model is not raw-data-redacted; it is the axes
+that move the decision, never the axes that name the life:
 
 | Raw (Swift-only) | Model-visible | Forbidden |
 |---|---|---|
-| "Dinner with Marcus, recurring, emotionally loaded, not movable" | `{ socialLoad: high, movable: low, energyCost: high }` | `Marcus`, the title, venue, attendees, notes |
+| "Dinner with Marcus, recurring, emotionally loaded, not movable" | `{ socialLoad: high, movable: low }`, a fact-cell index | `Marcus`, the title, venue, attendees, notes, any semantic predicate |
 
-This dissolves the redaction paradox: redaction self-defeats only when it strips the
-utility gradient, so the membrane *preserves the decision gradient and removes
-identity.* `u` rides the same membrane — a vector, not a dossier. Losing
-decision-sufficient signal fails closed (`ContextProjectionHealthV0`), never
-silently.
-
-**Correctness verifier, no value verifier.** The system can know a card is *valid
-enough to write*; it cannot mechanically know it is *good*. "Survives to write"
-Goodharts — *kept is not loved; deleting is friction* — and in empty space survival
-degrades into **cost-of-removal**: the card lives because removing it costs effort,
-not because you needed it. This is the hinge into Holding 2, and the reason survival
-alone can never be the reward — the guardrail is non-regret *under contestation*, and
-even that is a proxy: value is approximated, never read out.
+User facts cross as **disposable transcripts** — read-only, expiring, no back-write
+path — so the model-visible lane cannot silently accrete a portrait. The only
+persistent machine-authored model is the self-doubt ledger, *about the system's own
+error.*
 
 ---
 
-## E. Earned acceptance, contestation, and the stake
+## E. The learning loop and its floors
 
 This is the body — the law with no enforcer but you.
 
-**The three relaxations (all upstream of D2).** (1) A measured reward may *steer*
-composition (γ-guided denoising or an offline preference objective) — it still
-cannot admit, hydrate, mint evidence, or write. (2) The composer may *learn*:
-Phase-1 behavior-cloning teaches the distribution of shapes you earn-accept, and
-Phase-2b DPO tunes weights; the prep station alone stays frozen. (3) The machine now
-has a *stake in your yes.* The reward is prospective where the old value gauges were
-retrospective and forbidden to steer — that inversion is the whole pivot — and the
-third relaxation is the one to watch, because a system that benefits from your
-agreement is one step from a system that manufactures it. So the old promise — *the
-one voice that gains nothing when you stop* — could not survive intact; what replaces
-it is not the absence of a stake but the absence of an *unauditable* one.
+**The dynamism: a human-clocked oscillator.** Machine *learning* is the slow loop
+(the witness of you); machine *acting* is the fast loop (the break confession). They
+govern each other. The fast loop *suppresses* the slow loop on residual-high
+(`testFastResidualSuppressesSlow`). The slow loop *recommits* only on **residual-low
+∨ deposition-answered** (`testResidualLowRelicensesSlow`,
+`testDepositionAnsweredRelicensesSlow`) — never on a release milestone. Two failures
+are thereby barred: the **roadmap clock** (learning bound to the vendor's quarter
+instead of your life) and **latch-up** (a turbulent life suppressing the slow loop
+forever, so the witness falls silent exactly when you are most lost). The escape from
+latch-up is the deep one: **the human is the second clock** — the only membrane-legal
+way for your life to pace the learning is your answering a deposition at the break.
+*Release qualifies an organ; license binds it* — the cadence is yours, not the
+roadmap's. The system's final dependency is that you speak; if you don't, it says
+less, never infers more.
 
-Two things are learned and one is never claimed. **Acceptance** is what you'll tap;
-**value** is what actually helps your day — and value is never verified, only
-approximated by non-regret under contestation. Optimizing acceptance alone rewards
-pleasant nonsense; the fused target, *earned acceptance*, makes value the constraint
-and acceptance the objective inside it.
-
-**The reward is earned acceptance, not acceptance:**
+**Write-bearing reward (inherited, now scoped).** When a witness card carries a
+write-bearing move, Plan 5's machinery applies, unchanged in force:
 
 ```
 behavioral_earned = accepted AND survived-to-T AND low-edit-distance AND no negative product verdict
 reward_credit     = behavioral_earned × contestation_weight × revealed_reconfirmation_brake × created_event_boundary
 ```
 
-The formula is the law — keep it whole. Its guarantees are enforced elsewhere: raw
-survival can never train reward (`testRawSurvivalCannotTrainReward`), the boundary
-(`testCreatedEventBoundaryReverse`), the brake
-(`testContestationCreditRequiresRevealedReconfirmation`), the `.notMeasured` floor
-(`testNotMeasuredNeverZero`), and a positive verdict cannot self-credit
-(`testPositiveVerdictCannotOvercomeZeroContestation`). The conjunction is the
-flattery guard: a card accepted and then walked back fails *survived-to-T* and
-*low-edit-distance* and earns nothing. What it does not catch is the card you never
-walk back — the residual below.
+Contestation is the audit currency — *the width of what the card had to beat*,
+measured only against demand CalAgent did not create; a free gap earns near-zero
+credit (`testRawSurvivalCannotTrainReward`, `testCreatedEventBoundaryReverse`). The
+product-verdict channel (`useful · not today · wrong · not needed`) flips the
+surveillance relation — *a verdict on the product, not a confession about you* — and
+attention-regret penalizes a fact that was technically admitted but felt like an
+interrupt. None of it can widen `F(x)` or occupy attention; reward never becomes
+admission, and never speech permission.
 
-**Contestation is the audit currency** — and it is unintelligible without the
-concrete gap. *Tuesday, 3pm. CalAgent proposes a 30-minute reset. World A: the slot
-was empty — nothing else wanted it, you keep the card, it cost you nothing to keep.
-World B: you'd half-meant to put a coffee there, and you keep the walk anyway. Same
-card, same yes — only World B is evidence.* **Contestation is the width of what the
-card had to beat**, measured only against demand CalAgent did not create — a free
-gap earns near-zero credit, a card kept over a real alternative earns more, an
-intrusive card that causes regret earns a loud negative. Contestation does not
-*verify* value; it moves the residual from a blind region into an observable one.
-Even its own Goodhart — learning to be *intrusive* to manufacture contestation — is
-a strict improvement over silent comfort, because intrusion is loud and trips the
-regret signals the system already sees. Contestation is not surveillance: Swift
-already owns calendar pressure for validation; the signal is a banded,
-non-identifying reduction of pressure the system did not create, never exposed as
-copy.
+**The comfortable false positive** — the residual no behavioral signal can catch: a
+true, attention-admitted, spendable fact you accept, never regret, *and never
+needed.* Contestation **relocates** it from the blind region to the observable one
+and then runs out of checks. The held-out, contestation-blind **falsifier** (a
+pre-registered raw not-needed rate wired to a SELECT eject) is the answer to a
+residual you cannot detect from inside the metric — *a remedy that cannot fail loud
+cannot be trusted.* It is named, not solved (`testComfortableFalsePositiveResidualNamed`).
 
-**The two brakes.** *Revealed-reconfirmation*
-(`testContestationCreditRequiresRevealedReconfirmation`): never pay high credit on
-passive survival — the initial tap is consent to write, not proof of need, so a
-grudgingly-kept intrusive card stays uncredited. *Created-event boundary in reverse*
-(`testCreatedEventBoundaryReverse`): measure contestation only against demand
-CalAgent did not create, or the system manufactures the demand it later competes
-with; if the boundary cannot be proven, contestation is `.notMeasured`.
+**The kairos amputation — the deepest floor.** Every structural fact, however true,
+trains structure-only cognition; integrated over years the medium can dull your own
+sense of *meaningful* timing — the felt right-moment the witness is correctly blind
+to. There is no antidote inside the grammar (a gesture at meaning is still made of
+structure; the disclaimer cannot outrun the distribution). The only defense the
+system's own blindness permits is **scarcity**: the structural-speech budget
+`B_structural`, the integral of the attention law — *the derivative protects the
+tick; the integral protects the years.* It is a **one-way ratchet** — tightening is
+free; loosening above the tightest cap ever held requires a phase-gated,
+user-visible amendment (`testStructuralSpeechBudgetRatchet`), because the adversary
+that matters is not the reward model but the vendor's own growth incentive. The
+budget is **dose-control, not antidote**: it lowers how much chronos the witness
+speaks; it cannot change the fact that what it speaks is chronos. The system never
+claims to measure or conserve kairos — `KairosFloorReportV1` reports only its own
+output (`testKairosFloorReportNeverClaimsKairosMeasured`).
 
-**The product-verdict channel** (`useful · not today · wrong · not needed`) flips
-the surveillance relation: **a verdict on the product, not a confession about the
-user — you are not watched for compliance; you watch the product.** Availability is
-unthrottled, solicitation rare and owner-gated; negatives penalize, positives count
-only under contestation (`testProductVerdictAvailabilityUnthrottledSolicitationThrottled`,
-`testPositiveVerdictCannotOvercomeZeroContestation`). It is also the deepest
-preference probe in the system, and safe only by what is done with the answer: typed
-flags, no free text by default, and raw verdicts never become copy.
-
-**The comfortable false positive — the residual, kept whole.** Return to World B and
-remove its one detectable feature. A card that is contested, actively re-confirmed,
-never regretted — *and still not needed.* No edit, no delete, no rejection, no
-negative verdict: every behavioral signal is silent, because there is nothing to
-detect. Contestation does not *solve* this — it **relocates** it from the blind
-region to the observable one, and then runs out of checks. There is no example that
-teaches it, because an example would teach that you can recognize it, and you
-cannot. It is the price of learning under unverified value, and the document does
-not pretend otherwise (`testComfortableFalsePositiveRiskDocumented`).
-
-**The falsifier** is the answer to a residual you cannot detect from inside the
-metric: a held-out, contestation-blind cohort with a pre-registered kill condition.
-
-```
-held-out cohort → raw not-needed / not-today / wrong rate → kill condition → SELECT eject
-```
-
-It is measurement-before-mutation applied to the remedy itself — *a remedy that
-cannot fail loud cannot be trusted* (`testHeldOutNotNeededRateWiredToSelectEject`,
-`testComfortableFPFalsifierBuiltBeforeRewardGuidance`). Its primary metric lives
-*outside* the optimized reward, so a green reward dashboard cannot silence it; it can
-freeze a family or eject it to SELECT, but it can never admit a card.
-
-**The learner, briefly.** `u` is conditioning only, cold-started from a population
-prior and sharpening only with measured, contestation-weighted history — a new user
-is composed-for by the population, never by phantom personal zeros, because missing
-history is `.notMeasured`, not a negative preference. The reward model
-`r(shape,state,u)` guides denoising with bounded γ on a **frozen base** (2a, the
-recommended v1, reversible per request) or, optionally and offline, tunes weights
-via KL-leashed Diffusion-DPO (2b, not the v1 default). Curriculum: start in SELECT,
-graduate per family only when the reward reduces edit-distance / rejection *without*
-raising undo, lowering survival, collapsing contestation, or tripping the falsifier.
-**A green dashboard built on low-contestation survival is a failure, not a win** —
-which is Holding 2 in one line: the machine may learn to be *chosen*, never to be
-accepted into the empty places where you would not have contested it.
+**One hole, four masks.** The proxy gap is not one residual among many: attention
+(foreground ≠ tendered), abandonment (silence may be care or desertion), cruelty (a
+fact spendable in state, wrong in meaning), and kairos (chronos crowding out your
+timing) are the same un-typeable gap, seen four ways. The system cannot close it. It
+can name it, shrink it, invite correction, and speak less.
 
 ---
 
-## F. Contracts — five invariant-classes
+## F. Contracts — invariant classes
 
-The plan holds 22 contract rosters (§8). They are instances of five laws; learn the
-laws, look up the fields:
+The plan holds the full rosters; they are instances of a few laws. Learn the laws,
+look up the fields. The class is marked **theorem** (a type holds it), **rule** (a
+test holds it), or **data** (compiled and proven, never trusted-by-construction).
 
-1. **Conditioning-only, never admission** — may shape preference, never mint
-   support: `DecisionSufficientStatisticV0`, `RelationChipV0`,
-   `UserPreferenceEmbeddingV0` (`u`), `SlateCellV0` soft fields,
-   `RewardModelOutputV0`.
-2. **Swift-hydrated, reward-free** — hydrated from Swift support, no
-   reward / preference / contestation / verdict field present: `D2BindingOutputV0`,
-   `ProposalEnvelopeV0`, `AllowedActionV0` (minted only after staging).
-3. **Non-`Codable`, untransportable** — no model / bridge / carrier may move it:
-   `RecommendationVerdictV0`.
-4. **Excludes created demand; `.notMeasured` if unprovable** — measures only against
-   what CalAgent didn't create: `ContestationSignalV0`, `RecommendationValueSignalV0`
-   (raw survival is never reward alone), the created-event boundary.
-5. **Owner-gated, offline, not the v1 default** — release-gated, never admission:
-   `RewardGuidancePolicyV0`, `DiffusionDPOTrainingExampleV0`,
-   `ContestationDistributionReportV0`, `ComfortableFalsePositiveFalsifierV0`.
+| Contract(s) | Holds | Class |
+|---|---|:--:|
+| `TemporalPrimitiveV1` | the closed calculus over the interval order; structural-only by input type | theorem |
+| `TemporalStructureProgramV1`, `FactCellV1`, render templates | operators and families as data; Swift-minted, evidence-bound, spendable | data |
+| `SmoothMouthV1` / `BreakMouthV1` | subject is a type; a you-fact at the break does not typecheck | theorem |
+| `ReadOnlyTranscriptV1`, phase tokens, absent push channel | back-write / live genome-edit / structural notification are absent capabilities | theorem |
+| `TenderedAttentionLeaseV1`, `A2BindingOutputV1` | `occupation ⊆ A(tendered)`; proxy blindness has a typed failure, not a claimed fix | rule (+ floor) |
+| `StructuralSpeechBudgetV1`, `StructuralSpeechRatchetV1` | the kairos integral; loosening is amendment-gated | rule |
+| `SlowWitnessLicenseV1`, `SelfDoubtLedgerV1`, `BreakSignalV1` | the oscillator; recommit only on residual-low ∨ deposition-answered | rule |
+| `DepositionQuestionV1`, `RegimeSeedFactV1` | the human as second clock; typed, closed-past, no portrait | rule |
+| `ContestationSignalV0`, `EarnedAcceptanceRewardSignalV0`, the falsifier | write-bearing reward; excludes created demand; `.notMeasured` if unprovable | rule |
+| `D2BindingOutputV0`, `AllowedActionV0` | Swift-hydrated, reward-free, minted only after staging | theorem |
+| `RecommendationVerdictV0` | non-`Codable` — no model / bridge / carrier may transport it | theorem |
 
-| Contract(s) | Class | Owner |
-|---|:--:|---|
-| `RecommendationContextV1`, `RecommendationShapeProposalV0`, `RecommendationSelectionInfillV0` | shape / context; carry no authority field | Swift / DiffusionGemma |
-| `DecisionSufficientStatisticV0`, `RelationChipV0`, `UserPreferenceEmbeddingV0`, `SlateCellV0` soft fields | 1 | Swift / Preference Store |
-| `EvidenceReceiptV0`, `D2BindingOutputV0`, `ProposalEnvelopeV0`, `AllowedActionV0`, `PickDiscriminatorV0` | 2 | Swift |
-| `RecommendationVerdictV0` | 3 | Swift |
-| `ContestationSignalV0`, `RecommendationValueSignalV0`, `EarnedAcceptanceRewardSignalV0`, `UserProductVerdictSignalV0` | 4 | Swift / Reducer / Auditor / Verdict Channel |
-| `RewardModel*V0`, `RewardGuidancePolicyV0`, `*DriftReportV0`, `ComfortableFalsePositiveFalsifierV0`, `DiffusionDPOTrainingExampleV0` | 5 | Reward Model / Falsifier (release-gated) |
-
-Full fields, every contract: plan §8.
+Full fields, every contract: `plan-6-revised.md` §12 and its Appendix A (inherited Plan-5 base).
 
 ---
 
-## G. How a recommendation is manufactured
+## G. How a witness card is made
 
 ```
-Swift reads all state → decision-sufficient stats + chips → (u + bounded guidance, if enabled)
-  → DiffusionGemma proposes a SHAPE / selects an index
-  → Swift independently materializes support → D2 admits only Swift support
-  → confirm tap → live recheck → post-picker fingerprint → write
-  → Swift measures outcome, contestation, verdict → earned acceptance updates u/r
-      only after owner-gated lineage
+SMOOTH (place, never send):
+  you open a surface → Swift mints A2 attention lease
+    → Swift runs temporal programs over private state → mints fact-cells
+    → DiffusionGemma selects a fact INDEX only → Swift renders copy from a closed template
+    → A2 admits the exact placement → budget admits the cumulative structural cost
+    → smooth mouth places it inline / as a found object
+    → (if write-bearing) D2 validates support → confirm tap → live recheck → write
+    → settlement records truth, spendability, proxy-gap, budget pressure, verdict
+
+BREAK (confess, then hand back the pen):
+  self-doubt residual rises → slow license revoked → break mouth speaks self-subject only
+    → you answer a typed, closed-past deposition → a scoped, expiring regime-seed fact
+    → narrow slow license re-issued because deposition-answered
 ```
 
-D2 is lookup, not reconstruction; the 15-step algorithm is plan §9.3. Its one
-law-bearing step is the live `support(staged) ⊆ F(x_live)` check — every other step
-describes mechanism the plan rosters. `u`, reward output, γ, contestation, and
-verdict **do not create support.** The tap is consent; there is no auto-write; Swift
-never touches calendar objects it did not create; the learning path cannot reach D2.
+No notification path exists; the break mouth cannot speak a you-fact; the slow mouth
+cannot resume from release cadence alone. `u`, reward output, γ, attention lease, and
+budget **do not create support** — D2 is reward-free and attention-free, A2 is
+state-free, and the learning path can reach neither.
 
 ---
 
 ## H. Safety, privacy, and felt safety
 
-The sacred invariants — the *nevers* — are the law; each a test guards is cited, not
-re-argued:
+The sacred invariants — the *nevers* — are the law; each is cited, not re-argued:
 
-- Never write without the confirm tap (`testConfirmTapRequiredForWrite`); never
-  touch what the system did not create (`testCannotTouchNonCreatedEvents`).
-- Never leak who / where / raw strings across the membrane; free-text notes never
-  cross. Raw reward lineage, contestation preimages, and product-verdict text stay
-  Swift-side.
-- Never let measurement become visible surveillance; never let reward or learning
-  become admission authority; never manufacture demand and then reward contesting
-  it.
-- Copy honesty (`CopyHonestyGate`): the why-line must be true today and supported;
-  no reward / contestation / verdict / "you usually accept this" language. A true
-  why-line on an unneeded card is still a bad recommendation — necessary, not
-  sufficient.
+- Never write without the confirm tap (`testWriteBearingWitnessRequiresD2`); never
+  touch what the system did not create; no auto-write.
+- Never speak into untendered attention; **place, never send** — a structural
+  notification channel does not exist as a type (`testStructuralNotificationChannelUnconstructable`).
+- Never leak who / where / raw strings or any semantic predicate across the membrane;
+  free-text notes never cross; the model-visible lane holds no persistent user
+  portrait, only disposable transcripts.
+- Never speak about *you* at the break; never claim *the right moment*; never claim
+  *we learned you*, a reward score, or that a fact was contested. The witness shows
+  chronos and may not claim kairos.
 
-**Felt safety** is the absence of dread at the tap: the block lands where expected;
-undo is instant; nothing private leaks; failures are typed and calm; no auto-write
-exists; **learning never feels like surveillance**, and you can say *not today /
-wrong / not needed* without being graded. Everything before the tap earns it;
-nothing after it asks for attention except instant undo and a way to say the product
-was wrong. This is the UX the whole architecture exists to earn.
+**Felt safety** is the absence of dread: the system sees patterns without naming more
+than it must; places facts only where you are already looking; does not beg for
+usefulness judgments; can admit when it is **stale**; never writes without a tap;
+speaks structurally **seldom**; and can be corrected without your having to confess a
+self-theory. Passive users are told they *can* shape the model — never that they
+*did* (`testPassiveUserCopyHonesty`). This is the UX the whole architecture exists to
+earn.
 
 ---
 
 ## I. Migration
 
-Shadow-first, owner-gated, SELECT default, deterministic fallback kept permanently.
-M0–M8 (instrumentation and falsifier-before-fix → preference store → SELECT/PROPOSE
-reward shadow → per-family public graduation → optional offline DPO) is plan §16.
-The standing self-audit, re-answered every release
-(`testLoopCoverageSelfAuditRequiredEachRelease`): *does user protection scale with
-the migrated power, and does the wall cover the relocated risk?* **The wall handed
-off; the stake kept.**
+Shadow-first, owner-gated, deterministic fallback kept permanently. M0–M11
+(theorem/rule/data taxonomy → capability-absence refactor → two-mouth API →
+temporal calculus → structural-speech budget → oscillator license controller →
+deposition as second clock → phase tokens → copy/UX → public surface migration →
+reward under the revised oscillator → amendment petitions) is `plan-6-revised.md`
+§16. The standing self-audit, re-answered every public surface and every operator,
+budget, or mouth change: *does user protection scale with the migrated power, and
+does the wall still cover the relocated risk?* **The hand is walled by D2; the mouth
+by attention; the years by the budget — and what no wall can hold is named, rationed,
+and handed to you.**

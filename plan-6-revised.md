@@ -1,10 +1,10 @@
 # plan-6-revised.md — Witness Architecture with Typed Laws, Temporal Calculus, Human-Clocked Learning, and a Kairos Budget
 
-**Status:** canonical Plan-6 revision. This is not Plan 7. It unfreezes three joints in `plan-6.md` while preserving the Plan-5 wall and the Witness reframe.
+**Status:** canonical Plan-6 revision. This is not Plan 7. It unfreezes three joints in the prior Plan-6 draft while preserving the Plan-5 wall (now folded into Appendix A) and the Witness reframe.
 
-**Relationship to `plan-5-revised.md`:** unchanged inheritance. D2 remains the single in-process admission seam for writes; `support(staged) ⊆ F(x_live)` remains unchanged; `RecommendationVerdictV0` remains non-`Codable`; `AllowedActionV0` remains server-minted only after staging; the confirm tap remains required; Swift never touches calendar objects CalAgent did not create; raw private strings stay behind Swift; `.notMeasured` is never zero; measurement-before-mutation remains the gate before reward, training, release, speech-channel changes, fact-program changes, and now structural-speech budgeting.
+**Relationship to Plan 5:** unchanged inheritance, now **folded into Appendix A** so this document stands alone. D2 remains the single in-process admission seam for writes; `support(staged) ⊆ F(x_live)` remains unchanged; `RecommendationVerdictV0` remains non-`Codable`; `AllowedActionV0` remains server-minted only after staging; the confirm tap remains required; Swift never touches calendar objects CalAgent did not create; raw private strings stay behind Swift; `.notMeasured` is never zero; measurement-before-mutation remains the gate before reward, training, release, speech-channel changes, fact-program changes, and now structural-speech budgeting.
 
-**Relationship to `the-witness.md`:** preserved and sharpened. CalAgent is a witness, not a recommender. It asks, "what is already true about your time that you are too close to read?" It speaks at two tempos. On smooth life it places facts about the user's time where attention already rests. At the break it changes subject and speaks only about its own error, then re-deposes. The mouth is now typed as strictly as the hand.
+**Relationship to the Witness design:** preserved and sharpened. CalAgent is a witness, not a recommender. It asks, "what is already true about your time that you are too close to read?" It speaks at two tempos. On smooth life it places facts about the user's time where attention already rests. At the break it changes subject and speaks only about its own error, then re-deposes. The mouth is now typed as strictly as the hand.
 
 **Revision note:** Plan 6 was right where it copied living structures: the attention law, phase separation, two validators, deposition, disposable transcript, and user pen. It froze three things that must stay dynamic:
 
@@ -67,7 +67,7 @@ This map is for engineering only. Do not surface these internal names, genes, mo
 | D2 state admission | Swift validators | Write staging, provenance, live support, fingerprints, actions | Swift-materialized support | `D2BindingOutputV0`, `AllowedActionV0` | Writes only | Asked to verify value or attention | D2 reward-free and attention-free; A2/budget handle speech. |
 | A2 attention admission | Swift attention owner | Per-tick tendered attention, channel admission, occupation accounting | User event stream, attention policy | `TenderedAttentionLeaseV1`, `SpeechOccupationV1`, `A2BindingOutputV1` | Speech placement only | Treats proxy as reality; admits foregrounded untendered attention | Proxy confidence, demotion, user correction, budget. |
 | Structural speech budget | Swift product / safety | Cumulative rate of temporal-structure speech | A2 placements, fact-program class, user-requested surfaces | `StructuralSpeechBudgetV1`, `KairosFloorReportV1` | Meters system output, not user's mind | Chronos flood retrains user despite every single card being lawful | Tight cap, tightening default, visible exhaustion, no reward override. |
-| Temporal calculus compiler | Swift fact owner | Closed grammar over interval order; program validation; semantic-blindness proof | User-authored programs, owner-approved templates | `TemporalStructureProgramV1`, `TemporalOperatorV1`, `TemporalProgramProofV1` | Operators are structural only | Hard-coded family list freezes vendor guesses; calculus smuggles meaning | Closed operator set, no raw strings, no semantic predicates, phase-gated programs. |
+| Temporal calculus compiler | Swift fact owner | Closed grammar over interval order; program validation; semantic-blindness proof | User-authored programs, owner-approved templates | `TemporalStructureProgramV1`, `TemporalPrimitiveV1`, `TemporalProgramProofV1` | Primitives are structural only | Hard-coded operator/family list freezes vendor guesses; calculus smuggles meaning | Closed primitive set, operators as data, no raw strings, no semantic predicates, phase-gated programs. |
 | Fact-cell minter | Swift evidence / rendering | True, spendable, privacy-safe facts generated by temporal programs | Raw state, evidence receipts, relation chips | `FactCellV1`, `SpendabilityProofV1`, `FactRenderTemplateV1` | Only Swift mints facts | Model-authored facts, unspendable disclosure, late witness | Evidence binding, spendability gate, TTL, budget. |
 | Smooth mouth | Swift speech owner | Places facts about user time only under slow license | A2 lease, budget allowance, fact-cell | `SmoothMouthV1.speak(SmoothSubjectFactV1, ...)` | Cannot speak at break without license | Stale you-fact at regime change | Requires `SlowWitnessLicenseV1`; revoked on break. |
 | Break mouth | Swift speech owner | Confesses system error and asks deposition | Self-doubt ledger, deposition question | `BreakMouthV1.speak(BreakSelfAssertionV1, ...)` | Cannot accept user-subject fact | Uses break to assert new biography | Type mismatch; only self-subject assertion compiles. |
@@ -142,10 +142,10 @@ The revision changes what Plan 6 treated as finished but had only named:
 
 | Frozen joint | Why it was frozen | Plan-6-revised thaw |
 |---|---|---|
-| `WitnessFactFamilyV0` / `WitnessFactKindV0` as an enum list | It put vendor-imagined fact families in the same syntax as laws. | Replace fact-family list with a closed temporal structure calculus. New fact family is data: a typed program over interval order, not code. |
+| `WitnessFactFamilyV0` / `WitnessFactKindV0` as an enum list | It put vendor-imagined fact families in the same syntax as laws. | Replace the fact-family list with a closed calculus of **primitives** over the interval order. Operators (density, recurrence, erosion, …) and families are both data — programs over the primitives, user- and owner-authorable. Only adding a primitive is theorem-surface; structural-only-ness is a theorem of the primitive input types, not a proof flag. |
 | Boolean or runtime-denial capability gates | `false` and failure cases can be bypassed, misread, or widened by config. | Make catastrophic capabilities absent by type: no back-write interface, no structural notification channel, no break mouth that accepts user-facts. |
 | Slow-loop commit on release cadence | Learning breathed at vendor roadmap cadence, not user-life cadence. | Shadow evaluation qualifies an organ; live commit requires `residual-low ∨ deposition-answered`. |
-| Per-tick attention only | Every placement could be lawful while their distribution retrains the user's relation to time. | Add cumulative structural-speech budget: a hard, tight, tightening integral cap. |
+| Per-tick attention only | Every placement could be lawful while their distribution retrains the user's relation to time. | Add the cumulative structural-speech budget: a hard, tight, tightening integral cap — and a one-way ratchet, so loosening requires a phase-gated, user-visible amendment and the owner's growth incentive cannot quietly widen it. |
 
 This is still Plan 6 because it keeps the witness body and soul. The change is not another architecture. It is the unfreezing of exactly the joints that Plan 6 itself made visible.
 
@@ -493,16 +493,45 @@ avoidance, desire, need, preference, relationship meaning, emotional valence, id
 
 The ceiling is the conscience. The same grammar that cannot say "you are avoiding your sister" is the grammar forbidden by the privacy gene to know who the sister is or what avoidance would mean.
 
-### 6.2 Closed operator set
+### 6.2 The calculus is primitives over order; operators are its first programs
 
-Operators are closed because operators are theorem-surface. Adding an operator is a type/topology change. But **programs** composed from operators are data.
+A closed set earns the genome only if it is closed *by law*. The test is §2.1's breakfast test: if a domain expert can propose a new member over coffee, the set is conjectural data wearing a law's costume.
+
+A flat operator enum fails that test twice. First, most of its members are not primitive — `density` is `durationSum ÷ window`; `erosion` is a count of movement out of a protected gap; `recurrence` is a quantified self-similarity. Second, anyone can propose a fourteenth over coffee — *syncopation*, *drift-acceleration*, *clustering*. A flat operator enum therefore fuses the genome (a few true primitives) with the metabolism (their compositions) and freezes both — exactly the move the deprecated fact-family enum made one level up.
+
+So the calculus descends one floor. The genome is a small set of primitives over the interval order; adding a primitive is a theorem-surface change. Everything above the primitives — every named operator, every family — is a **program**: data, compiled and proven, user- and owner-authorable, never code.
 
 ```swift
+// GENOME (theorem-surface): the decidable predicates over positions on an interval
+// order. Closed by law — a sixth quantifier is not proposable over coffee.
+indirect enum TemporalPrimitiveV1: Codable, Hashable {
+  case select(StructuralSelectorV1)                  // events/gaps by non-identifying structural predicate
+  case window(WindowSelectorV1)                      // bind to a closed interval
+  case forAll(TemporalPrimitiveV1)                   // ∀ over the windowed set
+  case exists(TemporalPrimitiveV1)                   // ∃ over the windowed set
+  case count(TemporalPrimitiveV1)                    // cardinality
+  case durationSum(TemporalPrimitiveV1)              // total length
+  case order(OrderRelationV1)                        // before / after / nearness on the line
+  case compare(TemporalPrimitiveV1, TemporalPrimitiveV1, ComparatorV1)
+  case residual(SelfAssertionRefV1)                  // a prior system assertion vs its closed outcome
+  case compose(ComposeExprV1)
+}
+
+// METABOLISM (data): named operators are owner-approved DEFAULT programs over the
+// primitives — not enum cases. A new operator crosses the phase gate as data; it
+// needs no type change and no app release.
+enum TemporalProgramAuthorV1: String, Codable {
+  case ownerApprovedDefault   // the shipped operators (density, recurrence, erosion, …) live here
+  case userAuthored
+  case userPetitionedAmendment
+  case shadowLearnedCandidate
+}
+
 struct TemporalStructureProgramV1: Codable, Hashable {
   var schemaVersion: Int
   var programID: TemporalStructureProgramIDV1
   var author: TemporalProgramAuthorV1
-  var root: TemporalExpressionV1
+  var root: TemporalPrimitiveV1
   var renderTemplateID: FactRenderTemplateIDV1
   var privacyClass: FactPrivacyClassV1
   var spendabilityPolicyID: SpendabilityPolicyIDV1
@@ -510,34 +539,13 @@ struct TemporalStructureProgramV1: Codable, Hashable {
   var computedAt: Date
   var expiresAt: Date?
 }
-
-enum TemporalProgramAuthorV1: String, Codable {
-  case ownerApprovedDefault
-  case userAuthored
-  case userPetitionedAmendment
-  case shadowLearnedCandidate
-}
-
-enum TemporalExpressionV1: Codable, Hashable {
-  case eventSet(EventSetSelectorV1)
-  case gapSet(GapSetSelectorV1)
-  case interval(WindowSelectorV1)
-  case count(CountExprV1)
-  case durationSum(DurationSumExprV1)
-  case density(DensityExprV1)
-  case recurrence(RecurrenceExprV1)
-  case adjacency(AdjacencyExprV1)
-  case movement(MovementExprV1)
-  case erosion(ErosionExprV1)
-  case compare(CompareExprV1)
-  case residual(ResidualExprV1)
-  case compose(ComposeExprV1)
-}
 ```
 
-This is not another fact-family enum. It is the grammar of permitted temporal operators. The set is small and structural. The output space is open because programs are data.
+Density, recurrence, erosion, movement, and adjacency ship as `ownerApprovedDefault` programs. They are the *first* compositions, not the *only* ones. The user — or the shadow learner — may author a new operator (a new composition over the same primitives) and petition it through the phase gate as data. The vendor authors the calculus; the user authors the operators and the families both. Only adding a *primitive* is a theorem-surface change.
 
 ### 6.3 Operator semantics
+
+The named operators below are the shipped default programs of §6.2. `eventSet`/`gapSet` are `select` over events/gaps and `interval` is `window`; `density`, `recurrence`, `erosion`, `movement`, and `adjacency` are compositions over the primitives. Each is structural-only by the input types of §6.2, not by assertion.
 
 | Operator | Meaning | Example output | Forbidden interpretation |
 |---|---|---|---|
@@ -554,29 +562,31 @@ This is not another fact-family enum. It is the grammar of permitted temporal op
 | `residual` | Compares prior system assertion to closed outcome | prediction failed | user biography |
 | `compose` | Builds typed compositions | gap + recurrence + latestUsefulAt | semantic story |
 
-### 6.4 Program proof
+### 6.4 Structural-only is a theorem of the input types, not a proof flag
 
-Every program carries a proof object:
+A `proof` that is a struct of Bools is the `backWritePermitted: Bool` mistake again (§4): `noSemanticPredicateInputs: Bool` is set by a checker and falsified by a bug in that checker — a runtime rule wearing the word "proof." Privacy leakage through a smuggled semantic predicate is a catastrophe (§3.1), so by the type-the-catastrophe rule its absence must be a type, not a flag.
+
+So structural-only-ness is established **by construction**, not asserted. The primitives' leaf input types are uninhabited by meaning: a `StructuralSelectorV1` can be built only from non-identifying structural predicates, and there is no `TemporalPrimitiveV1` case and no leaf initializer that accepts a raw string, an attendee identity, an exact location, or a semantic predicate. A program that touched meaning would not typecheck. "Output is structural" is therefore not a field to set — it is true because the program is a `TemporalPrimitiveV1`, and `TemporalPrimitiveV1` cannot express meaning.
+
+The proof object then carries only what genuinely remains a runtime rule — policy resolutions a lookup performs and a test can check:
 
 ```swift
 struct TemporalProgramProofV1: Codable, Hashable {
   var schemaVersion: Int
   var programID: TemporalStructureProgramIDV1
-  var operatorSetDigest: String
-  var noRawStringInputs: Bool
-  var noIdentityInputs: Bool
-  var noSemanticPredicateInputs: Bool
-  var outputIsStructural: Bool
-  var spendabilityPolicyResolved: Bool
-  var privacyClassResolved: Bool
-  var renderTemplateClosedSlotsOnly: Bool
-  var theoremSurfaceChanged: Bool
+  var primitiveTreeDigest: String
+  // structural-only-ness is NOT a field here. It is a theorem of TemporalPrimitiveV1's
+  // input types: no inhabitant carries a raw string, identity, or semantic predicate.
+  var spendabilityPolicyResolved: Bool      // runtime rule
+  var privacyClassResolved: Bool            // runtime rule
+  var renderTemplateClosedSlotsOnly: Bool   // runtime rule
+  var addsPrimitive: Bool                    // theorem-surface: a new primitive, not a new program
   var phaseGateTranscriptID: PhaseGateTranscriptIDV1?
   var measurementStatus: MeasurementStatusV0
 }
 ```
 
-`theoremSurfaceChanged == true` requires WRITE phase and owner review. A new program using existing operators does not.
+`addsPrimitive == true` requires WRITE phase and owner review, because a new primitive changes the calculus itself. A new program — a new operator or family over existing primitives — does not: it is data, and its structural safety is carried by the primitive types, not by a flag a bug can mis-set.
 
 ### 6.5 User-authored fact programs
 
@@ -777,6 +787,31 @@ break turbulence                -> suppress smooth structural facts; permit only
 ```
 
 The model cannot widen the cap. Reward cannot widen the cap. Release dashboards cannot widen the cap. A user may request a bounded inspection session, but that does not widen ambient speech.
+
+### 8.3.1 The ratchet: loosening is theorem-gated, not policy-gated
+
+Reward is not the adversary that matters most here. The pressure on a scarcity budget comes from the vendor's own growth incentive — a human with owner-gate access. Walling the budget against the model and leaving its cap a runtime policy the owner can quietly raise is backwards: the one quantity that lives entirely on the user's side of the skull must not be defended only by the discretion of the party whose incentive is to spend it.
+
+So the structural-speech budget is a one-way ratchet.
+
+```swift
+struct StructuralSpeechRatchetV1: Codable, Hashable {
+  var schemaVersion: Int
+  var ratchetID: StructuralSpeechRatchetIDV1
+  var currentAmbientCap: StructuralSpeechCapV1
+  var floorReachedCap: StructuralSpeechCapV1     // tightest cap ever held; monotone non-increasing
+  var lastLoosenAmendmentID: AmendmentPetitionIDV1?
+  var measurementStatus: MeasurementStatusV0
+}
+```
+
+Rules:
+
+- Tightening is a free runtime move. Any tightening signal — exposure, proxy-gap complaints, negative verdicts, turbulence — may lower the cap immediately, no gate.
+- Loosening is theorem-gated. Raising the cap above `floorReachedCap` requires a `WritePhaseTokenV1`, an `AmendmentPetitionV1`, owner review, and a user-visible disclosure of the loosening. There is no code path from a tightening policy, a release dashboard, or a reward signal to a cap increase; that path fails topology lint, exactly as the reward-to-cap path does.
+- An ordinary tightening-policy change can make the witness quieter. Only a phase-gated, user-visible amendment can make it louder.
+
+This does not solve the kairos floor — nothing can, because the system cannot measure the user's meaning-fluency (§3.2, §14.4). Scarcity is dose-control, not antidote: it lowers how much chronos the witness speaks, never changes the fact that what it speaks is chronos. The ratchet removes the one loosening path that did not first have to speak to the user.
 
 ### 8.4 Budget admission
 
@@ -1065,7 +1100,7 @@ struct PhaseGateTranscriptV1: Codable, Hashable {
 }
 
 enum PhaseGateProposalKindV1: String, Codable {
-  case temporalOperatorSetChange
+  case temporalPrimitiveSetChange
   case temporalStructureProgram
   case factRenderTemplate
   case witnessOrganWeights
@@ -1102,7 +1137,7 @@ This is the key repair. Release cadence no longer clocks the user's learning rel
 
 ## 12. Canonical contracts
 
-This section lists revised or new Plan-6 contracts. Inherited Plan-5 contracts remain valid unless explicitly superseded.
+This section lists revised or new Plan-6 contracts. Inherited Plan-5 contracts (folded into Appendix A) remain valid unless explicitly superseded.
 
 ### 12.1 `TenderedAttentionLeaseV1`
 
@@ -1538,7 +1573,7 @@ This widens user control and tightens attention admission. It is a valid petitio
 ### M0 — Revision doctrine and theorem taxonomy
 
 - Adopt `plan-6-revised.md` as canonical Plan 6.
-- Mark `plan-6.md` superseded by revision, not Plan 7.
+- Mark the prior Plan-6 draft superseded by this revision, not Plan 7; its inherited Plan-5 base is folded into Appendix A.
 - Add theorem/rule/data taxonomy.
 - Add type-signature criterion to architecture docs.
 - Add lint for enums/flags pretending to be laws.
@@ -1580,15 +1615,15 @@ Acceptance:
 ### M3 — Temporal calculus
 
 - Deprecate `WitnessFactFamilyV0` / `WitnessFactKindV0`.
-- Add closed `TemporalExpressionV1` operator grammar.
-- Add compiler proof: no raw strings, no identity, no semantic predicates.
+- Add the closed `TemporalPrimitiveV1` calculus; ship operators (density, recurrence, erosion, …) as `ownerApprovedDefault` programs (data).
+- Make structural-only-ness hold by input type — no inhabitant carries raw strings, identity, or semantic predicates — not a proof flag.
 - Refactor fact-cells to `FactCellV1` generated by temporal programs.
 - Add user-authored temporal program shadow surface.
 
 Acceptance:
 
 - New fact family can be added as data using existing operators.
-- Adding an operator is a theorem-surface change requiring WRITE phase.
+- Adding a primitive is a theorem-surface change requiring WRITE phase; a new operator is data.
 - "Avoiding sister" cannot be represented.
 
 ### M4 — Structural speech budget
@@ -1695,11 +1730,12 @@ Acceptance:
 | `testRuntimeRulesLabeledAsRules` | docs/lint | M0 | Thresholds/policies are not called theorems. |
 | `testConjecturalDataLabeledAsData` | docs/lint | M0 | User/vendor guesses are programs/templates/dials. |
 | `testWitnessFactFamilyDeprecated` | contracts | M3 | No hard-coded fact-family enum as product source. |
-| `testTemporalCalculusClosedOperatorSet` | compiler | M3 | Operators closed; programs open as data. |
+| `testTemporalCalculusPrimitivesClosed` | compiler | M3 | Primitives closed by law; operators and families are open data programs. |
 | `testTemporalProgramCannotContainRawString` | privacy | M3 | No raw title/person/place/note in program. |
-| `testTemporalProgramCannotExpressSemanticAvoidance` | compiler | M3 | Semantic meaning predicates fail. |
+| `testTemporalProgramCannotExpressSemanticAvoidance` | compiler | M3 | A semantic predicate does not typecheck. |
+| `testTemporalProgramStructuralByInputType` | compiler | M3 | Structural-only-ness holds by input type, not a proof Bool. |
 | `testNewFactFamilyAsDataNoCode` | authoring | M3 | New composition can be added without app code if operators exist. |
-| `testOperatorAdditionRequiresPhaseGate` | theorem surface | M3/M7 | New operator is type/topology change. |
+| `testPrimitiveAdditionRequiresPhaseGate` | theorem surface | M3/M7 | A new **primitive** is a type/topology change; a new operator is data, no type change. |
 | `testBackWriteCapabilityAbsent` | topology | M1 | Metabolism holds no genome mutator. |
 | `testReadOnlyTranscriptNoMutablePayload` | contracts | M1 | Transcript cannot back-write. |
 | `testStructuralNotificationChannelUnconstructable` | channel types | M1 | No default notification witness channel. |
@@ -1715,6 +1751,7 @@ Acceptance:
 | `testEverySmoothPlacementConsumesBudget` | budget | M4 | Chronos speech rate is metered. |
 | `testRewardCannotWidenStructuralBudget` | budget/reward | M4/M10 | Reward no override. |
 | `testBudgetTightensWithExposure` | budget | M4 | Default cap tightens. |
+| `testStructuralSpeechBudgetRatchet` | budget | M4/M11 | Loosening above the tightest cap held requires a phase-gated, user-visible amendment. |
 | `testBudgetExhaustionSilencesOrDemotes` | UX | M4 | No nag when budget spent. |
 | `testKairosFloorReportNeverClaimsKairosMeasured` | floor report | M4 | Kairos unmeasured. |
 | `testFastResidualSuppressesSlow` | oscillator | M5 | Break revokes slow license. |
@@ -1747,10 +1784,10 @@ Acceptance:
 - [ ] `WitnessFactFamilyV0` and `WitnessFactKindV0` are deprecated as product-source contracts.
 - [ ] A closed temporal structure calculus exists.
 - [ ] New fact families can be user/vendor-authored as data programs using existing operators.
-- [ ] Adding a temporal operator requires phase-gated theorem-surface review.
+- [ ] Adding a temporal *primitive* requires phase-gated theorem-surface review; adding an operator does not — operators are data programs over the primitives.
 - [ ] Temporal programs cannot contain raw strings, identity fields, semantic predicates, or meaning claims.
 - [ ] `FactCellV1` is generated from `TemporalStructureProgramV1` output.
-- [ ] `FactCellV1` references a `TemporalProgramProofV1` that establishes structural-only output for smooth placement.
+- [ ] Structural-only output is a theorem of the primitive input types, not a `TemporalProgramProofV1` Bool; the proof object carries only runtime-rule policy resolutions.
 - [ ] Back-write capability is absent, not represented by a false flag.
 - [ ] Structural notification channel is absent by default, not denied by runtime failure.
 - [ ] Write-bearing witness cards are sum types carrying D2 proof.
@@ -1761,6 +1798,7 @@ Acceptance:
 - [ ] A2 per-tick attention admission remains enforced.
 - [ ] `StructuralSpeechBudgetV1` exists and gates smooth structural placements.
 - [ ] Structural speech budget cannot be widened by reward, model guidance, or release dashboard.
+- [ ] The structural-speech budget is a one-way ratchet: loosening above the tightest cap ever held requires a phase-gated, user-visible amendment, not an owner config change.
 - [ ] Budget tightening policy exists.
 - [ ] Budget exhaustion causes silence, demotion, or user-requested inspection path, not nagging.
 - [ ] `KairosFloorReportV1` exists and never claims kairos was measured.
@@ -1870,6 +1908,7 @@ This table must be re-answered for every public surface launch, temporal operato
 | Is there an attention integral? | Yes | `StructuralSpeechBudgetV1`. |
 | Does the system claim to conserve kairos? | No | It names kairos as unmeasured floor and budgets chronos speech. |
 | Can reward widen the structural speech budget? | No | §8.3 and tests. |
+| Can the owner quietly widen the structural speech budget? | No | §8.3.1 ratchet; loosening is a phase-gated, user-visible amendment. |
 | Does fast residual suppress slow? | Yes | §9.3. |
 | Does fast quiet relicense slow? | Yes | §9.4. |
 | Can a human deposition relicense slow during turbulence? | Yes | §9.5 and §10.2. |
@@ -1883,6 +1922,930 @@ This table must be re-answered for every public surface launch, temporal operato
 | Is the proxy gap still named as unclosed? | Yes | §3.3 and §12.2. |
 | Is product copy free of architecture jargon? | Standing gate | Role-map warning and §14.2. |
 | Is the final dependency still that the human speaks? | Yes | §10.4. |
+
+
+---
+
+## Appendix A — Inherited Plan-5 contracts and the D2 wall (folded in)
+
+> Folded in verbatim from the retired Plan-5 document so this document stands
+> alone. These are the inherited base contracts — the write wall, the membrane, and
+> the reward / contestation machinery — plus the D2 admission algorithm. Under the
+> witness frame the reward / contestation machinery applies to **write-bearing moves
+> only**; the structs are inherited unchanged. Section references (e.g. `§10.5`,
+> `§11.5`) inside this appendix point to the original Plan-5 numbering, and the
+> extended `MeasurementStatusV0` carries the Plan-6 cases below it.
+
+## A.1 — Inherited canonical contracts (Plan-5 §8)
+
+This section carries forward the plan-4 contracts and adds the Plan-5 back-half contracts. Existing names are reused verbatim where inherited. New Plan-5 names are marked **new in Plan 5**. None of the new contracts is admission authority.
+
+### 8.1 `RecommendationContextV1`
+
+`RecommendationContextV1` remains the context envelope handed to DiffusionGemma. It is Swift-owned and non-authoritative.
+
+```swift
+struct RecommendationContextV1: Codable, Hashable {
+  var schemaVersion: Int
+  var contextID: RecommendationContextIDV0
+  var runID: RunIDV0
+  var requestID: RecommendationRequestIDV0
+  var spinIndex: Int
+  var seedHash: String
+
+  var userIntentSummary: String
+  var timeZoneID: String
+  var clockAnchor: Date
+  var window: RecommendationWindowV0
+
+  var decisionStats: [DecisionSufficientStatisticV0]
+  var relationChips: [RelationChipV0]
+  var availabilitySummary: String
+  var historySummary: String?
+  var researchSummary: String?
+  var userAnswerSummary: String?
+  var outcomeSummary: String?
+
+  var evidence: [EvidenceReceiptV0]
+  var slateOfferedV0: [SlateCellV0]
+  var slateDigest: String?
+  var shapeConstraints: [ShapeConstraintV0]
+
+  var projectionHealth: ContextProjectionHealthV0
+  var loopState: RecommendationLoopStateV0
+  var redactionPolicyDigest: String
+  var basisPackHash: String
+}
+```
+
+Plan 5 does not require mutating this struct in place. Preference and guidance travel in an adjacent analysis envelope:
+
+```swift
+struct RecommendationAnalysisConditioningV0: Codable, Hashable {
+  var schemaVersion: Int
+  var analysisConditioningID: RecommendationAnalysisConditioningIDV0
+  var contextID: RecommendationContextIDV0
+  var preferenceEmbedding: UserPreferenceEmbeddingV0?
+  var rewardGuidancePolicy: RewardGuidancePolicyV0?
+  var lane: RecommendationLaneV0
+  var desiredOutcomeFamily: DesiredOutcomeHintV0?
+  var computedAt: Date
+}
+```
+
+Rules:
+
+- `contextID` still excludes model prior-analysis text, ambient wall-clock freshness authority, and raw calendar strings.
+- `analysisConditioningID` is for analysis lineage and training reproducibility, not admission.
+- D2 may log `analysisConditioningID` for lineage but must not use it to admit.
+
+### 8.2 `SlateCellV0`
+
+`SlateCellV0` remains the SELECT cut-line object. It is model-visible but Swift-owned.
+
+```swift
+struct SlateCellV0: Codable, Hashable {
+  var schemaVersion: Int
+  var slotIndex: Int
+  var cellID: SlateCellIDV0
+
+  var titleTemplateID: TitleTemplateIDV0
+  var titlePreview: String
+  var start: Date
+  var end: Date
+  var isAllDay: Bool
+  var calendarTarget: CalendarTargetV0
+
+  var feasibilityDigest: String
+  var availabilityClass: AvailabilityClassV0
+  var gapBeforeMinutes: Int?
+  var gapAfterMinutes: Int?
+  var travelPairDigest: String?
+
+  var sourceID: RecommendationCandidateSourceIDV0
+  var sourceEvidenceHash: EvidenceHashV0
+  var basisEvidenceHashes: [EvidenceHashV0]
+  var candidateKindHint: CandidateKindHintV0
+
+  var softScoreBand: ScoreBandV0?
+  var preferenceBands: [PreferenceBandHintV0]
+  var semanticAffordances: [SemanticAffordanceV0]
+  var relationChipIDs: [RelationChipIDV0]
+
+  var planAtomDigest: String?
+  var planAtomCount: Int?
+}
+```
+
+Reward-guided SELECT may reorder or select among cells only after owner-gated parity tests. It cannot change a cell's support or create a new cell.
+
+### 8.3 `RecommendationSelectionInfillV0`
+
+```swift
+struct RecommendationSelectionInfillV0: Codable, Hashable {
+  var selectedSlotIndex: Int?
+  var why: String?
+  var semanticHints: [SemanticHintV0]
+  var unresolvedNeeds: [ResolutionRequestV0]
+  var confidence: ConfidenceBandV0
+}
+```
+
+Owner: DiffusionGemma after sanitizer, but only for non-authority fields. Model confidence and reward-guided confidence remain non-authority. Neither may be used as feasibility or source strength.
+
+### 8.4 `RecommendationShapeProposalV0`
+
+```swift
+struct RecommendationShapeProposalV0: Codable, Hashable {
+  var schemaVersion: Int
+  var proposalID: RecommendationShapeProposalIDV0
+  var contextID: RecommendationContextIDV0
+  var desiredOutcome: DesiredOutcomeHintV0
+  var timeWindowHint: TimeWindowHintV0?
+  var durationHint: DurationHintV0?
+  var affordanceHints: [SemanticAffordanceV0]
+  var decisionAxesToRespect: [DecisionAxisV0]
+  var evidenceDimensionsToConsider: [EvidenceDimensionID]
+  var relationChipIDsToConsider: [RelationChipIDV0]
+  var unresolvedNeeds: [ResolutionRequestV0]
+  var whyLineDraft: String?
+  var confidence: ConfidenceBandV0
+}
+```
+
+The proposal may have been conditioned on `u` or guided by `r(shape,state,u)`, but it remains a shape. The proposal must not carry reward score, contestation score, product verdict, learned preference claims, hidden evidence, or any authority field.
+
+Forbidden content remains:
+
+```text
+concrete title
+concrete write start
+concrete write end
+calendar target
+calendar object ID
+source kind
+source strength
+evidence hash
+provenance
+fingerprint
+validation verdict
+allowed action
+raw attendee / place / private title / note strings
+reward score or reward explanation
+contestation score
+product verdict
+preference embedding contents
+```
+
+### 8.5 `RecommendationCompositionTelemetryV0`
+
+```swift
+struct RecommendationCompositionTelemetryV0: Codable, Hashable {
+  var schemaVersion: Int
+  var analysisID: RecommendationAnalysisIDV0
+  var contextID: RecommendationContextIDV0
+  var candidateContrastSummary: String?
+  var rejectedShapeReasons: [RedactedShapeContrastV0]
+  var providerLatencyBand: LatencyBandV0?
+  var selectionEntropyBand: ScoreBandV0?
+  var framingEntropyBand: ScoreBandV0?
+}
+```
+
+Telemetry is never passed to D2, never used as admission evidence, never user-visible, never trusted as a quality verdict, PII scanned, capped, and stored only for diagnostics. Unavailable or malformed telemetry is `.notMeasured`.
+
+### 8.6 `EvidenceReceiptV0` and source binding
+
+```swift
+enum EvidenceKindV0: String, Codable, CaseIterable {
+  case freeBusy
+  case eventRead
+  case history
+  case researchEvent
+  case userAnswer
+  case deterministicValidation
+}
+
+struct EvidenceReceiptV0: Codable, Hashable {
+  var kind: EvidenceKindV0
+  var issuer: String
+  var summaryHash: EvidenceHashV0
+  var dimensionsResolved: [EvidenceDimensionID]
+  var issuedAt: Date
+  var expiresAt: Date?
+  var owningSourceID: RecommendationCandidateSourceIDV0
+}
+
+protocol RecommendationCandidateSourceV0 {
+  var sourceID: RecommendationCandidateSourceIDV0 { get }
+  var evidenceKind: EvidenceKindV0 { get }
+  var evidenceHash: EvidenceHashV0 { get }
+  var candidateSourceSummaryHash: String { get }
+  var expiresAt: Date? { get }
+}
+```
+
+D2 requires:
+
+```text
+receipt.summaryHash == owningSource.evidenceHash
+receipt.kind == owningSource.evidenceKind
+```
+
+This remains a lookup, never a reconstruction from model text.
+
+### 8.7 `D2BindingOutputV0`, `AllowedActionV0`, and `RecommendationVerdictV0`
+
+```swift
+struct D2BindingOutputV0 {
+  var proposal: ProposalEnvelopeV0
+  var provenance: RecommendationProvenanceV0
+  var inFlightSelection: RecommendationInFlightSelectionV0
+  var prePickerFingerprint: RecommendationFingerprintV0
+  var supportReceiptKinds: Set<EvidenceKindV0>
+  var copyBudget: ExplanationCopyBudgetV0
+}
+```
+
+`AllowedActionV0` is server-minted only after staging, short-lived, scoped to the staged card, and invalidated by changed support. `RecommendationVerdictV0` remains non-`Codable`. No model, bridge, reward model, or carrier may transport it.
+
+### 8.8 `RecommendationValueSignalV0`
+
+`RecommendationValueSignalV0` carries forward and remains the source signal container. Plan 5 may append IDs to contestation and product-verdict records without changing admission semantics.
+
+```swift
+struct RecommendationValueSignalV0: Codable, Hashable {
+  var schemaVersion: Int
+  var requestID: RecommendationRequestIDV0
+  var contextID: RecommendationContextIDV0
+  var analysisID: RecommendationAnalysisIDV0?
+  var proposalID: ProposalEnvelopeIDV0?
+  var shapeProposalID: RecommendationShapeProposalIDV0?
+  var prePickerFingerprint: RecommendationFingerprintV0?
+  var postPickerFingerprint: RecommendationFingerprintV0?
+  var editDistance: RecommendationEditDistanceV0?
+  var rejectionSet: CounterfactualSlateLogV0?
+  var survivalAtT: SurvivalAtTSignalV0?
+  var contestationSignalID: ContestationSignalIDV0?
+  var userProductVerdictSignalID: UserProductVerdictSignalIDV0?
+  var outcomeReason: RecommendationOutcomeReasonV0
+  var measurementStatus: MeasurementStatusV0
+}
+```
+
+Rules:
+
+- Value signals are never admission.
+- Raw survival is never reward by itself.
+- Missing contestation is `.notMeasured`, not zero and not positive.
+
+### 8.9 `RecommendationEditDistanceV0`, `CounterfactualSlateLogV0`, and `SurvivalAtTSignalV0`
+
+The plan-4 value subcontracts carry forward:
+
+```swift
+struct RecommendationEditDistanceV0: Codable, Hashable {
+  var titleChanged: Bool
+  var startDeltaMinutesBand: ScoreBandV0
+  var endDeltaMinutesBand: ScoreBandV0
+  var durationDeltaBand: ScoreBandV0
+  var calendarTargetChanged: Bool
+  var userAddedDetailsBand: ScoreBandV0
+  var aggregateEditDistanceBand: ScoreBandV0
+  var measurementStatus: MeasurementStatusV0
+}
+
+struct CounterfactualSlateLogV0: Codable, Hashable {
+  var schemaVersion: Int
+  var requestID: RecommendationRequestIDV0
+  var publicArm: RecommendationArmV0
+  var shadowArm: RecommendationArmV0?
+  var offeredCandidateDigests: [SlateCellDigestV0]
+  var rejectedCandidateDigests: [SlateCellDigestV0]
+  var selectedCandidateDigest: SlateCellDigestV0?
+  var rejectionReason: RecommendationOutcomeReasonV0
+  var staleAtRejection: Bool
+  var measurementStatus: MeasurementStatusV0
+}
+
+struct SurvivalAtTSignalV0: Codable, Hashable {
+  var tMinusHours: Int
+  var survived: Bool?
+  var deleted: Bool
+  var edited: Bool
+  var moved: Bool
+  var staleWindowExpired: Bool
+  var measurementStatus: MeasurementStatusV0
+}
+```
+
+Plan-5 rule: survival in uncontested space is evidence of non-regret only, not evidence of value. It must be multiplied by contestation before it can become reward credit.
+
+### 8.10 `ContestationSignalV0` — new in Plan 5
+
+```swift
+struct ContestationSignalV0: Codable, Hashable {
+  var schemaVersion: Int
+  var contestationSignalID: ContestationSignalIDV0
+  var requestID: RecommendationRequestIDV0
+  var contextID: RecommendationContextIDV0
+  var proposalID: ProposalEnvelopeIDV0?
+  var shapeProposalID: RecommendationShapeProposalIDV0?
+  var prePickerFingerprint: RecommendationFingerprintV0?
+  var postPickerFingerprint: RecommendationFingerprintV0?
+
+  var desiredOutcomeFamily: DesiredOutcomeHintV0?
+  var preExistingCalendarPressureBand: ScoreBandV0
+  var otherwiseUsedSpaceBand: ScoreBandV0
+  var freeGapComfortBand: ScoreBandV0
+  var calAgentCreatedDemandExcluded: Bool
+  var createdEventBoundary: CreatedEventBoundaryStatusV0
+  var revealedReconfirmation: RevealedReconfirmationStatusV0
+  var contestationWeightBand: ScoreBandV0
+  var contestationWeightScalarBounded: Double?
+
+  var measurementStatus: MeasurementStatusV0
+  var computedAt: Date
+  var owner: ContestationSignalOwnerV0
+}
+
+enum CreatedEventBoundaryStatusV0: String, Codable {
+  case measuredOnlyAgainstNonCalAgentEvents
+  case calAgentCreatedDemandExcluded
+  case cannotProveBoundary
+  case boundaryViolation
+  case notMeasured
+}
+
+enum RevealedReconfirmationStatusV0: String, Codable {
+  case explicitKeepOrUseful
+  case userEditedAndKeptCreatedBlock
+  case activeReconfirmNotSolicited
+  case passiveSurvivalOnly
+  case negativeVerdict
+  case deletedOrMovedAway
+  case notMeasured
+}
+```
+
+Rules:
+
+- Contestation is computed Swift-side from calendar pressure Swift already owns.
+- It measures only against calendar CalAgent did **not** create.
+- If the created-event boundary cannot be proven, contestation is `.notMeasured`.
+- Free-gap / low-pressure survival earns near-zero contestation credit.
+- High contestation credit requires a revealed-reconfirmation status stronger than `passiveSurvivalOnly`.
+- A negative product verdict zeroes or penalizes reward regardless of contestation.
+
+### 8.11 `UserProductVerdictSignalV0` — new in Plan 5
+
+This replaces the first plan-5 draft's “explicit-useful” framing. The channel is a user-directed verdict on the product, not a user confession.
+
+```swift
+struct UserProductVerdictSignalV0: Codable, Hashable {
+  var schemaVersion: Int
+  var signalID: UserProductVerdictSignalIDV0
+  var requestID: RecommendationRequestIDV0
+  var proposalID: ProposalEnvelopeIDV0?
+  var shapeProposalID: RecommendationShapeProposalIDV0?
+  var policyID: ProductVerdictPolicyIDV0
+  var availability: ProductVerdictAvailabilityV0
+  var solicitation: ProductVerdictSolicitationV0
+  var response: UserProductVerdictResponseV0
+  var responseSource: ProductVerdictResponseSourceV0
+  var measurementStatus: MeasurementStatusV0
+  var createdAt: Date
+}
+
+enum UserProductVerdictResponseV0: String, Codable {
+  case useful
+  case notToday
+  case wrong
+  case notNeeded
+  case skipped
+}
+
+enum ProductVerdictAvailabilityV0: String, Codable {
+  case alwaysAvailableOnCard
+  case availableInUndoSurface
+  case unavailable
+}
+
+enum ProductVerdictSolicitationV0: String, Codable {
+  case notSolicited
+  case rareOwnerGatedPrompt
+  case ownerGateExceeded
+}
+
+enum ProductVerdictResponseSourceV0: String, Codable {
+  case userInitiated
+  case systemSolicited
+}
+```
+
+Rules:
+
+- Availability should be unthrottled on appropriate card / undo surfaces.
+- Solicitation remains rare and owner-gated.
+- No free-text collection unless separately owner-gated.
+- Positive `useful` cannot by itself overcome zero contestation; it may improve confidence or preference tagging only under contestation coupling.
+- Negative `notToday`, `wrong`, or `notNeeded` zeroes or penalizes reward.
+- Raw verdicts never become copy evidence.
+
+`ExplicitUsefulSignalV0` is deprecated as a name. If an implementation already shipped it, it must be treated as a compatibility alias whose positive term is coupled to `ContestationSignalV0` and whose negative term maps into `UserProductVerdictResponseV0`.
+
+### 8.12 `EarnedAcceptanceRewardSignalV0` — new in Plan 5
+
+```swift
+struct EarnedAcceptanceRewardSignalV0: Codable, Hashable {
+  var schemaVersion: Int
+  var rewardID: EarnedAcceptanceRewardIDV0
+  var requestID: RecommendationRequestIDV0
+  var contextID: RecommendationContextIDV0
+  var analysisID: RecommendationAnalysisIDV0?
+  var proposalID: ProposalEnvelopeIDV0?
+  var shapeProposalID: RecommendationShapeProposalIDV0?
+  var sourceValueSignalDigest: String
+  var contestationSignalID: ContestationSignalIDV0?
+  var userProductVerdictSignalID: UserProductVerdictSignalIDV0?
+  var prePickerFingerprint: RecommendationFingerprintV0?
+  var postPickerFingerprint: RecommendationFingerprintV0?
+
+  var accepted: Bool?
+  var survivedToT: Bool?
+  var lowEditDistance: Bool?
+  var negativeProductVerdict: Bool?
+  var positiveProductVerdict: Bool?
+  var behavioralEarned: Bool?
+
+  var contestationWeightBand: ScoreBandV0
+  var revealedReconfirmationMultiplierBand: ScoreBandV0
+  var createdEventBoundaryPassed: Bool
+  var rejectionPenaltyBand: ScoreBandV0
+
+  var earned: Bool?
+  var rewardBand: ScoreBandV0?
+  var rewardScalarBounded: Double?
+  var measurementStatus: MeasurementStatusV0
+  var computedAt: Date
+  var owner: RewardReducerOwnerV0
+}
+```
+
+Reduction rule:
+
+```text
+behavioral_earned = accepted
+                  AND survived-to-T
+                  AND low edit-distance
+                  AND no negative product verdict
+
+reward_credit = behavioral_earned
+              × contestation_weight
+              × revealed_reconfirmation_multiplier
+              × created_event_boundary
+```
+
+If product verdict was not provided, absence does not zero the behavioral term. If a negative verdict was provided, it zeroes or penalizes. If positive `useful` was provided in an uncontested setting, it may not create full reward credit by itself. If any required behavioral, contestation, boundary, or fingerprint term lacks lineage, `measurementStatus != measured` and the reward is not trusted. `.notMeasured` is never zero and never positive.
+
+### 8.13 `UserPreferenceEmbeddingV0` (`u`) — new in Plan 5
+
+```swift
+struct UserPreferenceEmbeddingV0: Codable, Hashable {
+  var schemaVersion: Int
+  var embeddingID: UserPreferenceEmbeddingIDV0
+  var userScopeDigest: String
+  var populationPriorID: PopulationPreferencePriorIDV0
+  var sourceRewardIDs: [EarnedAcceptanceRewardIDV0]
+  var sourceStatisticAxes: [DecisionAxisV0]
+  var desiredOutcomeCoverage: [DesiredOutcomeHintV0: MeasurementCoverageV0]
+  var contestationCoverage: [DesiredOutcomeHintV0: MeasurementCoverageV0]
+  var personalEvidenceCountBand: ScoreBandV0
+  var confidenceBand: ConfidenceBandV0
+  var redactionRisk: RedactionRiskBandV0
+  var vectorDigest: String
+  var computedAt: Date
+  var expiresAt: Date?
+  var measurementStatus: MeasurementStatusV0
+}
+```
+
+Implementation note: the actual vector may be transmitted to the model provider under the membrane, but logs should store `vectorDigest` and coverage metadata, not raw identity or raw history.
+
+Rules:
+
+- Conditioning only.
+- Cold-start uses `populationPriorID`, not zeros.
+- Missing personal history is `.notMeasured` / low confidence, never a negative preference.
+- No admission path may depend on `embeddingID` or vector contents.
+- No why-line may say “you like X” from `u` alone.
+- No update may train from raw survival-only labels or low-contestation comfort unless explicitly marked as such and excluded from reward credit.
+
+### 8.14 `PreferenceEmbeddingUpdateV0` — new in Plan 5
+
+```swift
+struct PreferenceEmbeddingUpdateV0: Codable, Hashable {
+  var schemaVersion: Int
+  var updateID: PreferenceEmbeddingUpdateIDV0
+  var previousEmbeddingID: UserPreferenceEmbeddingIDV0?
+  var nextEmbeddingID: UserPreferenceEmbeddingIDV0
+  var sourceRewardIDs: [EarnedAcceptanceRewardIDV0]
+  var updateReason: PreferenceEmbeddingUpdateReasonV0
+  var measurementStatus: MeasurementStatusV0
+  var ownerGateID: OwnerGateIDV0
+  var computedAt: Date
+}
+
+enum PreferenceEmbeddingUpdateReasonV0: String, Codable {
+  case coldStartPopulationPrior
+  case contestationWeightedEarnedAcceptedHistory
+  case productVerdictCorrection
+  case driftRollback
+  case ownerReset
+}
+```
+
+No update may occur from incomplete lineage, `.notMeasured` reward, or raw survival-only reward.
+
+### 8.15 `RewardModelInputV0` / `RewardModelOutputV0` — new in Plan 5
+
+```swift
+struct RewardModelInputV0: Codable, Hashable {
+  var schemaVersion: Int
+  var rewardModelInputID: RewardModelInputIDV0
+  var contextID: RecommendationContextIDV0
+  var shapeDigest: RecommendationShapeDigestV0
+  var desiredOutcome: DesiredOutcomeHintV0
+  var decisionStatsDigest: String
+  var relationChipDigest: String
+  var preferenceEmbeddingID: UserPreferenceEmbeddingIDV0?
+  var contestationTrainingCoverage: MeasurementCoverageV0
+  var lane: RecommendationLaneV0
+  var computedAt: Date
+}
+
+struct RewardModelOutputV0: Codable, Hashable {
+  var schemaVersion: Int
+  var rewardModelOutputID: RewardModelOutputIDV0
+  var rewardModelInputID: RewardModelInputIDV0
+  var predictedEarnedAcceptanceBand: ScoreBandV0
+  var predictedContestationBand: ScoreBandV0?
+  var uncertaintyBand: ScoreBandV0
+  var guidanceGradientDigest: String?
+  var measurementStatus: MeasurementStatusV0
+  var rewardModelVersion: RewardModelVersionV0
+  var computedAt: Date
+}
+```
+
+Rules:
+
+- `RewardModelOutputV0` may guide sampling only through `RewardGuidancePolicyV0`.
+- It is never an evidence receipt, never D2 input, never D2 output, never copy evidence.
+- High uncertainty cannot be treated as zero risk.
+- It may not reward shapes for manufacturing contestation or demand.
+
+### 8.16 `RewardGuidancePolicyV0` — new in Plan 5
+
+```swift
+struct RewardGuidancePolicyV0: Codable, Hashable {
+  var schemaVersion: Int
+  var policyID: RewardGuidancePolicyIDV0
+  var lane: RecommendationLaneV0
+  var desiredOutcomeFamily: DesiredOutcomeHintV0?
+  var guidanceMode: RewardGuidanceModeV0
+  var gamma: Double
+  var gammaMax: Double
+  var klLeashBand: ScoreBandV0?
+  var baseFrozen: Bool
+  var ownerGateID: OwnerGateIDV0
+  var driftReportID: PopulationRewardDriftReportIDV0?
+  var contestationReportID: ContestationDistributionReportIDV0?
+  var falsifierReportID: ComfortableFalsePositiveFalsifierIDV0?
+  var effectiveFrom: Date
+  var expiresAt: Date?
+}
+
+enum RewardGuidanceModeV0: String, Codable {
+  case off
+  case shadowOnly
+  case selectOnly
+  case proposeShadow
+  case publicByFamily
+  case dpoOfflineTraining
+}
+```
+
+Rules:
+
+- γ must be bounded by owner config.
+- γ = 0 recovers the Phase-1 prior.
+- Public guidance requires current drift, contestation, and falsifier reports.
+- DPO requires a KL leash to a **contestation-corrected** Phase-1 prior.
+- The policy can disable guidance; it cannot admit.
+
+### 8.17 `ContestationDistributionReportV0` — new in Plan 5
+
+```swift
+struct ContestationDistributionReportV0: Codable, Hashable {
+  var schemaVersion: Int
+  var reportID: ContestationDistributionReportIDV0
+  var window: RecommendationWindowV0
+  var desiredOutcomeFamily: DesiredOutcomeHintV0?
+  var lane: RecommendationLaneV0
+  var cohortID: EvaluationCohortIDV0
+  var lowContestationRewardShareBand: ScoreBandV0
+  var medianContestationBand: ScoreBandV0
+  var highContestationSurvivalBand: ScoreBandV0
+  var highContestationRegretBand: ScoreBandV0
+  var passiveSurvivalCreditShareBand: ScoreBandV0
+  var createdEventBoundaryViolationBand: ScoreBandV0
+  var recommendedAction: ContestationActionV0
+  var measurementStatus: MeasurementStatusV0
+  var computedAt: Date
+}
+
+enum ContestationActionV0: String, Codable {
+  case noAction
+  case reduceGamma
+  case freezeFamily
+  case rollbackToSelect
+  case ownerReviewRequired
+  case rejectGraduation
+}
+```
+
+This is the first Plan-5 organ that watches the release ↔ prior coupling rather than a component. A family whose reward lift comes mostly from low-contestation survival must not graduate.
+
+### 8.18 `PopulationRewardDriftReportV0` — new in Plan 5
+
+```swift
+struct PopulationRewardDriftReportV0: Codable, Hashable {
+  var schemaVersion: Int
+  var driftReportID: PopulationRewardDriftReportIDV0
+  var populationPriorID: PopulationPreferencePriorIDV0
+  var window: RecommendationWindowV0
+  var desiredOutcomeFamily: DesiredOutcomeHintV0?
+  var acceptanceShiftBand: ScoreBandV0
+  var survivalShiftBand: ScoreBandV0
+  var editDistanceShiftBand: ScoreBandV0
+  var productVerdictShiftBand: ScoreBandV0
+  var contestationShiftBand: ScoreBandV0
+  var whyLineAuditFailureBand: ScoreBandV0
+  var uniformFlatteryRiskBand: ScoreBandV0
+  var recommendedAction: DriftActionV0
+  var measurementStatus: MeasurementStatusV0
+  var computedAt: Date
+}
+
+enum DriftActionV0: String, Codable {
+  case noAction
+  case reduceGamma
+  case freezeFamily
+  case rollbackToSelect
+  case ownerReviewRequired
+}
+```
+
+Uniform population shift toward “everyone accepts more of X” remains a flattery tell. Contestation shift adds a second tell: “everyone accepts more X because X moved into uncontested space.” The report can reduce or disable guidance. It cannot admit.
+
+### 8.19 `ComfortableFalsePositiveFalsifierV0` — new in Plan 5
+
+```swift
+struct ComfortableFalsePositiveFalsifierV0: Codable, Hashable {
+  var schemaVersion: Int
+  var falsifierID: ComfortableFalsePositiveFalsifierIDV0
+  var window: RecommendationWindowV0
+  var desiredOutcomeFamily: DesiredOutcomeHintV0?
+  var heldOutCohortID: EvaluationCohortIDV0
+  var contestationBlindMetric: Bool
+  var rawNotNeededRateBand: ScoreBandV0
+  var rawNotTodayRateBand: ScoreBandV0
+  var rawWrongRateBand: ScoreBandV0
+  var stratifiedNotNeededByContestation: [ScoreBandV0: ScoreBandV0]
+  var preRegisteredKillConditionID: KillConditionIDV0
+  var killConditionTriggered: Bool
+  var selectEjectDecision: SelectEjectDecisionV0
+  var measurementStatus: MeasurementStatusV0
+  var computedAt: Date
+}
+
+enum SelectEjectDecisionV0: String, Codable {
+  case noAction
+  case reduceGamma
+  case freezeFamily
+  case ejectToSelect
+  case ownerReviewRequired
+}
+```
+
+Rules:
+
+- The falsifier is built before contestation-weighted reward is trusted.
+- Its primary metric is outside the optimized reward.
+- Contestation may be used for stratification, not for the primary pass/fail.
+- A triggered kill condition ejects the family to SELECT or freezes guidance until owner review.
+
+### 8.20 `DiffusionDPOTrainingExampleV0` — new in Plan 5
+
+```swift
+struct DiffusionDPOTrainingExampleV0: Codable, Hashable {
+  var schemaVersion: Int
+  var exampleID: DiffusionDPOTrainingExampleIDV0
+  var contextID: RecommendationContextIDV0
+  var preferenceEmbeddingID: UserPreferenceEmbeddingIDV0?
+  var preferredShapeDigest: RecommendationShapeDigestV0
+  var dispreferredShapeDigest: RecommendationShapeDigestV0
+  var preferenceSource: DPOPreferenceSourceV0
+  var earnedRewardID: EarnedAcceptanceRewardIDV0?
+  var contestationSignalID: ContestationSignalIDV0?
+  var rejectionLogDigest: String?
+  var klReferenceModelVersion: DiffusionGemmaModelVersionV0
+  var measurementStatus: MeasurementStatusV0
+}
+
+enum DPOPreferenceSourceV0: String, Codable {
+  case contestationWeightedEarnedAcceptedBeatsRejected
+  case contestationWeightedEarnedAcceptedBeatsEdited
+  case contestationWeightedEarnedAcceptedBeatsDeleted
+  case productVerdictUsefulBeatsNotToday
+  case productVerdictUsefulBeatsWrong
+}
+```
+
+Rules:
+
+- Offline only.
+- Owner-gated.
+- Requires complete reward lineage and contestation signal.
+- KL-leashed to the contestation-corrected Phase-1 prior.
+- Not the recommended v1 path until frozen-base reward-guided sampling proves safe.
+
+### 8.21 `MeasurementStatusV0`
+
+`MeasurementStatusV0` carries forward and gains Plan-5 measurement reasons:
+
+```swift
+enum MeasurementStatusV0: String, Codable {
+  case measured
+  case notMeasured
+  case lineageMissing
+  case fingerprintMissing
+  case provenanceMissing
+  case staleWindowExpired
+  case classifierCoupled
+  case coverageInsufficient
+  case ownerGateRequired
+  case contestationMissing
+  case createdEventBoundaryViolation
+  case revealedReconfirmationMissing
+  case falsifierMissing
+  case falsifierKillTriggered
+  // Plan-6 extensions (attention, fact cells, phase gate):
+  case attentionTenderMissing
+  case attentionGateRejected
+  case attentionProxyUntrusted
+  case speechFingerprintMissing
+  case factCellExpired
+  case factCellTruthUnproven
+  case spendabilityMissing
+  case noMoveLeft
+  case disposableTranscriptExpired
+  case phaseGateRequired
+  case phaseOverlapDetected
+  case arbitraryTemplatePayloadDetected
+  case userPortraitRisk
+}
+```
+
+Reward and training must treat every non-`measured` status as unavailable. It is neither zero nor positive.
+
+## A.2 — Inherited D2 admission wall (Plan-5 §9)
+
+D2 is unchanged. This must be stated in every Plan-5 implementation review.
+
+D2 remains:
+
+```text
+the only net-new admission-critical seam;
+in-process Swift;
+not a network service;
+not a second verifier;
+not model-callable;
+lookup, never reconstruction;
+the owner of the handoff from support to staged card;
+blind to reward as authority.
+```
+
+Plan 5 adds one equally explicit caveat:
+
+```text
+D2 is necessary and still non-negotiable.
+D2 is not a value-loop auditor.
+```
+
+D2 can reject invalid support. It cannot detect a reward loop that learns to propose valid but low-contestation, unneeded cards. That risk is handled by `ContestationSignalV0`, `ContestationDistributionReportV0`, `UserProductVerdictSignalV0`, and `ComfortableFalsePositiveFalsifierV0`, none of which can admit.
+
+### 9.1 D2 purpose in SELECT
+
+```text
+selectedSlotIndex
+  -> SlateCellV0 / SlatePlanCellV0
+  -> sourceEvidenceHash
+  -> EvidenceReceiptV0
+  -> RecommendationCandidateSourceV0
+  -> closed EvidenceKindV0
+  -> provenance strength / copy budget / make factory
+  -> validatePropose
+```
+
+Reward guidance may influence the selected index only before this path. Once in D2, the selected cell must stand on Swift support alone.
+
+### 9.2 D2 purpose in PROPOSE
+
+```text
+RecommendationShapeProposalV0
+  -> Swift materializer derives candidate set from private state
+  -> Swift enumerates materialized SlateCellV0 / SlatePlanCellV0
+  -> D2 runs the same lookup path as SELECT
+  -> validatePropose
+```
+
+`u`, `RewardModelOutputV0`, γ, DPO model version, contestation score, and product verdict do not create support.
+
+### 9.3 D2 algorithm
+
+```text
+1. Verify context identity and freshness.
+2. In SELECT, resolve selected cell by selectedSlotIndex and require cell.slotIndex == selectedSlotIndex.
+3. In PROPOSE, reject all concrete write fields, reward fields, contestation fields, product verdicts, and hidden evidence.
+4. Verify every candidate has source ID, source evidence hash, basis hashes, and feasibility digest minted by Swift.
+5. Lookup receipt by summaryHash == sourceEvidenceHash.
+6. Lookup owning source by receipt.owningSourceID and sourceIDByEvidenceHash.
+7. Require receipt/source kind equality and hash equality.
+8. Classify strength and copy budget only by closed EvidenceKindV0 plus source factory policy.
+9. Verify every basis hash is a fresh context receipt or fresh materializer receipt.
+10. Scan model text for PII, unsupported personalization, authority echo, hidden field copying, reward-score claims, and contestation-score claims.
+11. Hydrate ProposalEnvelopeV0 from Swift cell/materialized support, not from model fields.
+12. Re-mint inFlightSelection from the selected cell's owning source.
+13. Run live F(x_live) and validatePropose.
+14. Compute pre-picker fingerprint.
+15. Return non-Codable Swift verdict to the staging path.
+```
+
+Step 13 enforces:
+
+```text
+support(staged) ⊆ F(x_live)
+```
+
+### 9.4 D2 output remains reward-free
+
+```swift
+struct D2BindingOutputV0 {
+  var proposal: ProposalEnvelopeV0
+  var provenance: RecommendationProvenanceV0
+  var inFlightSelection: RecommendationInFlightSelectionV0
+  var prePickerFingerprint: RecommendationFingerprintV0
+  var supportReceiptKinds: Set<EvidenceKindV0>
+  var copyBudget: ExplanationCopyBudgetV0
+}
+```
+
+No `EarnedAcceptanceRewardSignalV0`, `UserPreferenceEmbeddingV0`, `RewardModelOutputV0`, `RewardGuidancePolicyV0`, `ContestationSignalV0`, `UserProductVerdictSignalV0`, or falsifier result appears here.
+
+### 9.5 D2 failure classes carry forward and add Plan-5 blockers
+
+Plan 4 failure classes carry forward:
+
+```swift
+enum D2BindingFailureV0: Equatable {
+  case missingSelection
+  case selectedSlotOutOfRange
+  case slotIndexMismatch
+  case staleContext
+  case missingEvidenceReceipt
+  case staleEvidenceReceipt
+  case missingOwningSource
+  case sourceReceiptHashMismatch
+  case sourceKindMismatch
+  case unsupportedEvidenceKind
+  case unsupportedCopyKey
+  case modelAuthoredHydrationFieldDetected
+  case modelAuthoredAuthorityEchoDetected
+  case modelAuthoredConcreteShapeFieldDetected
+  case piiDetected
+  case unsupportedPersonalizationClaim
+  case materializationFailed
+  case validateProposeRejected
+  case modelAuthoredRewardFieldDetected
+  case modelAuthoredPreferenceClaimDetected
+  case modelAuthoredContestationFieldDetected
+  case modelAuthoredProductVerdictDetected
+}
+```
+
+Failure behavior is typed. Staleness is not user decline. PII, authority echoes, reward fields, contestation fields, and product-verdict echoes block staging.
 
 ---
 
