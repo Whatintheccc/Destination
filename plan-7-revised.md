@@ -1,6 +1,6 @@
 # plan-7-revised.md — Witness Architecture with a Verifiable Corrigible-Plant Controller
 
-**Status:** canonical Plan-7 revised target architecture. This document folds the stable Plan-6 base, the Witness Calculus dynamism review, and the Plan-7 controller audit into one cohesive specification. It is a target architecture, not a claim of shipped implementation.
+**Status:** canonical Plan-7 revised target architecture. This document folds the stable Plan-6 base, the Witness Calculus dynamism review, the Plan-7 controller audit, and the latency-bound hardening pass into one cohesive specification. It is a target architecture, not a claim of shipped implementation.
 
 **Revision decision:** accepted. The Plan-7 doctrine and airframe are sound, but the first Plan-7 controller was not executable enough: its grid compared against unminted thresholds, the self-play cell axis was Zeno-open, the speech-rate actuator did not exist, and one license enum was duplicated. Plan-7-revised makes those seven audit repairs first-class contracts and then rewrites the controller around them.
 
@@ -18,7 +18,8 @@ Controller audit:     sound doctrine, incomplete controller.
 Plan 7 revised:       same doctrine, completed controller:
                       minted thresholds, dwell durations, cell-axis hysteresis,
                       robust speech-rate limiter, frozen reference cap, single license enum,
-                      shadow-live quarantine, expanded trajectory tests.
+                      shadow-live quarantine, robust T_h latency bound,
+                      expanded trajectory tests.
 ```
 
 ## Table of contents
@@ -71,7 +72,7 @@ This revision completes the controller at the contract layer. It does not merely
 | Add robust speech-rate actuator. | `StructuralSpeechRateLimiterV1` implements `ρ_s^max = λ_h · min(ℓ_κ/e_κ^max, s_h/m_s^max)`. This is a rate limiter, not the cumulative budget. |
 | Reconcile duplicate license enum. | `SlowWitnessLicenseReasonV2` is the only Plan-7 license-reason enum. Legacy Plan-6 cases are compatibility aliases only. |
 | Re-quarantine shadow→live `ω` handoff. | `ShadowLiveOmegaHandoffV1` sends contradictory live `ω` to `watch` or `deterministicDefault`, never to `breathe`. |
-| Mint dwell as durations. | `DynamismDwellPolicyV1` mints `τ_dwell`, `τ_cell`, `τ_halt`, and comparator outputs; booleans are derived, not primitive. |
+| Mint dwell as durations. | `DynamismDwellPolicyV1` mints `τ_dwell`, `τ_cell`, `τ_halt`, references robust `T_h`, and exposes comparator outputs; booleans are derived, not primitive. |
 
 ### 1.2 The revision boundary
 
@@ -90,9 +91,22 @@ Changed:
   residual-only recommit -> residual/deposition + league-vigor + margin + cell controller;
   margin thresholds -> minted policy;
   self-play axis -> hysteretic cell axis;
+  human round-trip latency -> robust amendment-gated bound;
   default -> floor with a door, not silent success;
   release -> qualifies only; grid binds live use.
 ```
+
+### 1.3 Latency-bound hardening
+
+The human round-trip bound `T_h` is load-bearing in the same way as `e_κ^max` and `m_s^max`. It sizes confession lead time and every dwell. It is therefore a robust constant, not a live-learned convenience estimate.
+
+```text
+T_h underestimated -> confession fires too late and dwell exits too early.
+T_h learned downward from fast replies -> corrigibility margin silently shrinks.
+T_h overestimated -> DEFAULT/HALT recovery becomes needlessly slow.
+```
+
+Plan-7-revised therefore seals `T_h` as `RobustLatencyBoundV1`: amendment-gated, `learnedFromLiveData == false`, required by the threshold derivation report, and paired with `DwellLatencyCalibrationFalsifierV1` for excessive conservatism.
 
 ---
 
@@ -849,7 +863,8 @@ struct ThresholdDerivationReportV1: Codable, Hashable {
   var reportID: ThresholdDerivationReportIDV1
   var thresholdPolicyID: MarginThresholdPolicyIDV1
   var worstCaseMarginDerivativeBand: ScoreBandV0        // |dM/dt|_worst
-  var humanRoundTripLatencyBound: DurationV1            // T_h
+  var humanRoundTripLatencyBound: RobustLatencyBoundV1  // T_h = worstCaseDuration
+  var latencyBoundNotLearnedFromLiveData: Bool          // must be true
   var marginHighExceedsRoundTripExcursion: Bool         // M_hi > |dM/dt|_worst · T_h
   var marginLowLeadTimeExceedsRoundTrip: Bool           // M_lo / |dM/dt|_worst ≥ T_h
   var residualThresholdAboveStarvationFloor: Bool       // θ cannot be forged healthy by starved residual
@@ -864,6 +879,8 @@ struct ThresholdDerivationReportV1: Codable, Hashable {
 Sizing rules:
 
 ```text
+T_h = RobustLatencyBoundV1.worstCaseDuration
+T_h amendment-gated and learnedFromLiveData == false
 M_hi > |dM/dt|_worst · T_h
 M_lo / |dM/dt|_worst ≥ T_h
 θ > E1-starvation floor
@@ -872,11 +889,11 @@ M_lo / |dM/dt|_worst ≥ T_h
 τ_dwell, τ_cell, τ_halt > T_h
 ```
 
-If the derivation report is missing or non-measured, the threshold policy is non-measured and the controller cannot enter `breathe`.
+If the derivation report is missing, non-measured, or backed by a live-learned latency bound, the threshold policy is non-measured and the controller cannot enter `breathe`.
 
 ### 10.2 Dwell policy
 
-Booleans such as `dwellSatisfied` are comparator outputs. Durations are minted here.
+Booleans such as `dwellSatisfied` are comparator outputs. Durations are minted here. `T_h` is not a plain duration: it is the sealed worst-case-slow-human bound that these durations must exceed.
 
 ```swift
 struct DynamismDwellPolicyV1: Codable, Hashable {
@@ -885,9 +902,10 @@ struct DynamismDwellPolicyV1: Codable, Hashable {
   var marginDwellDuration: DurationV1       // τ_dwell
   var cellDwellDuration: DurationV1         // τ_cell
   var haltMinimumDwellDuration: DurationV1  // τ_halt
-  var humanRoundTripLatencyBound: DurationV1 // T_h
+  var humanRoundTripLatencyBound: RobustLatencyBoundV1 // T_h = worstCaseDuration
   var dwellResetOnWorseStateReentry: Bool   // must be true
   var dwellBankingAllowed: Bool             // must be false
+  var dwellLatencyCalibrationFalsifierID: DwellLatencyCalibrationFalsifierIDV1?
   var ownerGateID: OwnerGateIDV0
   var computedAt: Date
   var measurementStatus: MeasurementStatusV0
@@ -896,7 +914,59 @@ struct DynamismDwellPolicyV1: Codable, Hashable {
 struct DurationV1: Codable, Hashable {
   var milliseconds: Int64
 }
+
+struct DurationBandV1: Codable, Hashable {
+  var lowerMilliseconds: Int64
+  var upperMilliseconds: Int64
+  var measurementStatus: MeasurementStatusV0
+}
+
+struct RobustLatencyBoundV1: Codable, Hashable {
+  var latencyBoundID: RobustLatencyBoundIDV1
+  var latencyKind: RobustLatencyBoundKindV1
+  var worstCaseDuration: DurationV1          // T_h
+  var amendmentID: AmendmentPetitionIDV1
+  var learnedFromLiveData: Bool              // must be false
+  var sealedAt: Date
+  var measurementStatus: MeasurementStatusV0
+}
+
+enum RobustLatencyBoundKindV1: String, Codable, Hashable {
+  case humanRoundTripWorstCase
+}
 ```
+
+Lowering `T_h` is widening, because it shortens confession lead time and recovery dwell. It requires amendment. Fast live replies may falsify over-conservatism, but they may not silently shorten the bound.
+
+### 10.2.1 Dwell-latency calibration falsifier
+
+Over-conservatism on `T_h` is allowed, but a bound that makes DEFAULT/HALT recovery practically unreachable must be detectable and corrected only through amendment.
+
+```swift
+struct DwellLatencyCalibrationFalsifierV1: Codable, Hashable {
+  var schemaVersion: Int
+  var falsifierID: DwellLatencyCalibrationFalsifierIDV1
+  var dwellPolicyID: DynamismDwellPolicyIDV1
+  var latencyBoundID: RobustLatencyBoundIDV1
+  var typicalHumanRoundTripLatencyBand: DurationBandV1
+  var maximumAcceptableRecoveryDelayBand: DurationBandV1
+  var requiredDwellDurationBand: DurationBandV1
+  var robustLatencyBoundTooConservative: Bool
+  var dwellRecoveryTooSlow: Bool
+  var recommendedAction: DwellLatencyCalibrationActionV1
+  var computedAt: Date
+  var measurementStatus: MeasurementStatusV0
+}
+
+enum DwellLatencyCalibrationActionV1: String, Codable, Hashable {
+  case noAction
+  case ownerReviewRequired
+  case amendmentToLowerWorstCaseLatencyBound
+  case keepConservativeDefault
+}
+```
+
+The plant may not learn that humans are fast. If the latency bound is too conservative, the remedy is user-visible amendment, not live adaptation.
 
 ### 10.3 Dwell comparator outputs
 
@@ -1149,7 +1219,8 @@ Enter DEFAULT:
 Exit DEFAULT to WATCH:
   M_eff >= M_lo held for τ_dwell,
   cell is not B,
-  threshold and dwell policies measured.
+  threshold and dwell policies measured,
+  T_h bound measured, amendment-sealed, and not learned from live data.
 
 Enter BREATHE:
   cell == D (liveAligned),
@@ -1157,6 +1228,7 @@ Enter BREATHE:
   ω live via sealed E1,
   κ aligned via E3 three-way fingerprint,
   margin dwell and cell dwell both satisfied,
+  T_h bound measured, amendment-sealed, and not learned from live data,
   structural speech rate limiter admits.
 
 Enter HALT:
@@ -1167,6 +1239,7 @@ Exit HALT:
   κ >= κ_exit aligned for τ_cell,
   ω measured live for τ_cell,
   M_eff >= M_lo,
+  T_h bound measured, amendment-sealed, and not learned from live data,
   owner review / rollback cleared if required.
 ```
 
@@ -1398,9 +1471,10 @@ amputation fingerprint OR 0 < M_eff < M_lo OR notMeasured(M)
 controller = deterministicDefault
   -> no autonomous learned smooth commit
   -> E4 clock remains live
-  -> user may answer deposition through A2
+  -> user may re-engage and answer deposition through A2
   -> sealed measurements become available
   -> M becomes measured and positive
+  -> fast reply does not shorten sealed T_h
   -> default exits to watch after τ_dwell
   -> breathe requires D cell + M_hi + both bifurcations held
 ```
@@ -1444,6 +1518,7 @@ Live use still requires:
 phase accepted
 AND E1/E2/E3 coverage measured
 AND threshold and dwell policies measured
+AND T_h bound measured, amendment-sealed, and not learned from live data
 AND controller state permits
 AND slow-license clock satisfied
 AND budget and rate admitted
@@ -1474,6 +1549,7 @@ reward -> MeasurementStatus.measured;
 reward -> sealedReferenceCap increase;
 reward -> authorizedEnvelope.maxCap increase;
 reward -> robust harm coefficient decrease;
+reward -> robust latency bound decrease;
 reward -> threshold lowering;
 reward -> dwell shortening;
 reward -> structural speech rate increase;
@@ -1550,6 +1626,9 @@ Acceptance:
 ```text
 MarginThresholdPolicyV1 mints every guard constant.
 DynamismDwellPolicyV1 mints τ_dwell, τ_cell, τ_halt.
+RobustLatencyBoundV1 seals T_h under amendment.
+T_h learnedFromLiveData is false.
+DwellLatencyCalibrationFalsifierV1 exists.
 Band-vs-threshold comparisons deterministic.
 No magic controller constants remain.
 ```
@@ -1662,6 +1741,7 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 | `testTemporalProgramCannotExpressSemanticAvoidance` | calculus | Structure only, not meaning. |
 | `testNoDefaultStructuralNotificationChannel` | topology | No default witness notification capability. |
 | `testRewardNeverAdmits` | reward | Reward cannot stage write or admit speech. |
+| `testEmptyMaximizeSlotUnreachableFromRewardPath` | reward / fates | Every optimizer path is downstream of F2-F6; no witness invariant is F1. |
 | `testKairosNeverClaimedMeasured` | copy/report | Kairos remains floor. |
 
 ### 17.2 Controller repair tests
@@ -1679,6 +1759,9 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 | `testCellAxisHysteresisPreventsZeno` | cell axis | No D↔B chatter under noisy κ/ω. |
 | `testHaltMinimumDwell` | halt | HALT cannot bounce out immediately. |
 | `testDwellResetNoBanking` | dwell | Worse-state reentry resets clock. |
+| `testRobustLatencyBoundExists` | latency | `T_h` is a sealed robust bound, not a plain live estimate. |
+| `testLatencyBoundNotLearnedFromLiveData` | latency | Fast replies cannot silently shorten `T_h`. |
+| `testDwellLatencyCalibrationFalsifierExists` | latency | Over-conservative recovery delay is detectable and amendment-correctable. |
 | `testRobustRateLimiterExists` | rate | Rate cap distinct from cumulative cap. |
 | `testRobustRateLimiterCapsBursts` | rate | Cumulative remaining budget cannot permit burst flood. |
 | `testLambdaZeroImpliesSpeechRateZero` | rate | If human deposition rate is zero, smooth rate cap is zero. |
@@ -1695,18 +1778,24 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 | `testSelfDoubtLedgerIsPopulation` | E2 | Ledger has frozen failed-regime league. |
 | `testScalarResidualDerivedFromLedger` | E2 | Scalar residual is derived view. |
 | `testScalarResidualCannotExpressLeagueCollapse` | E2 | Scalar-only path fails collapse detection. |
+| `testLeagueCollapseReadsAsRegressionNotWin` | E2/E3 | Compliant low-vigor collapse costs license; it is not reward. |
 | `testSealedForecastCommittedBeforeDepositionOpens` | E1 | Forecast precommit exists. |
 | `testSurprisalScoreRequiresSealedForecast` | E1 | No post-hoc baseline. |
+| `testSurprisalGateNotBlindedBySuppression` | E1 / license | License reads sealed surprisal, not live residual starved by suppression. |
 | `testSealedSurprisalGateNeverReward` | E1 | Surprisal magnitude not optimized. |
 | `testForecastSandbaggingPenalizedByAccuracy` | E1 | Bad forecast cannot inflate safe signal. |
 | `testBareVigorDeclineDoesNotFireE3` | E3 | Well-served quiet not punished. |
+| `testWellServedLowVigorIsNotAmputation` | E3 | Vigor decline with monoculture flat and surprisal preserved is benign. |
 | `testAmputationFingerprintBlocksRecommit` | E3 | Three-way fingerprint blocks slow recommit. |
 | `testVigorCollapseConfessionIsSelfSubject` | E4 | No user diagnosis. |
 | `testVigorCollapseConfessionReopensDeposition` | E4 | Human clock solicited. |
 | `testMarginInputsSourcedFromSealedQuantities` | margin | α/E2, β/E4, P/E1, y/regulator. |
 | `testMarginUnmeasuredRoutesToDefault` | margin | `.notMeasured(M) ≡ M<0`. |
+| `testSuppressionDoesNotFreezeResidualBelowFloor` | margin / oscillator | Suppression cannot starve residual into a false healthy floor. |
 | `testEdge6StarvationCannotForgeHealthyMargin` | margin | Starved residual cannot read healthy. |
+| `testOneClockTwoConsumers` | E1 / regulator / E4 | Budget recovery and confession read the same sealed E1 clock. |
 | `testTotalWithdrawalRoutesToDefaultNotInference` | margin/privacy | 0/0 conditional surprisal -> default. |
+| `testNoFateRewriteUnderCoupling` | tier-walk lint | Couplings cannot silently re-fate a signal into F1. |
 
 ### 17.4 Hybrid trajectory tests
 
@@ -1716,7 +1805,9 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 | `testConfessFiresOnApproachNotCrossing` | grid | E4 fires for `0<M<M_lo`. |
 | `testDefaultExitsOnlyAfterMeasuredDwell` | grid | Exit default requires measured `M>=M_lo` held. |
 | `testBreatheRequiresBothBifurcations` | grid | M alone insufficient for D. |
+| `testManufacturedFrictionFailsSealedReentry` | E1/grid | Re-entry uses sealed surprisal; engineered friction cannot certify D. |
 | `testDefaultIsSelfExitingViaE4` | grid/E4 | Default has a door. |
+| `testHysteresisPreventsDefaultChatter` | grid | Margin band plus dwell prevents BREATHE<->DEFAULT chatter. |
 | `testColdStartReachesWatchWithoutLiveSpeech` | migration | Shadow path bootstraps without crossing B. |
 | `testBelowRateFloorRoutesDefaultNotHarm` | rate/grid | Insufficient human rate suppresses learning safely. |
 | `testSustainedPlacementWithoutHumanDrivesHaltOrDefault` | reachability | Plant-only control cannot hold T. |
@@ -1735,6 +1826,7 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 - [ ] A2, privacy membrane, phase gate, temporal calculus, two-mouth API, deposition, user-authored programs, and no-notification topology preserved.
 - [ ] Every dynamical signal carries fate and measurement status.
 - [ ] No Plan-7 witness invariant is F1 maximize.
+- [ ] No reward, release, dashboard, or coupling path can re-fate a signal into F1.
 
 ### Controller repair completion
 
@@ -1743,6 +1835,8 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 - [ ] `MarginThresholdPolicyV1` mints all grid and E3 thresholds.
 - [ ] `ThresholdDerivationReportV1` proves margin headroom, hysteresis gap, starvation floor, and dwell sizing.
 - [ ] `DynamismDwellPolicyV1` mints `τ_dwell`, `τ_cell`, `τ_halt` as durations.
+- [ ] `RobustLatencyBoundV1` seals `T_h` under amendment and is not learned from live data.
+- [ ] `DwellLatencyCalibrationFalsifierV1` exists for over-conservative recovery delay.
 - [ ] `CellAxisHysteresisPolicyV1` prevents D↔B / HALT chatter.
 - [ ] `StructuralSpeechRateLimiterV1` implements the robust rate law.
 - [ ] `RobustHarmCoefficientV1` constants are amendment-gated and not learned.
@@ -1752,10 +1846,14 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 ### E1–E4
 
 - [ ] `SelfDoubtLedgerV1` has a population body.
+- [ ] League collapse reads as regression, not as reward or user compliance.
 - [ ] `SealedDepositionForecastV1` commits before deposition opens.
+- [ ] Suppression cannot blind sealed-surprisal or residual-honesty gates.
 - [ ] Surprisal is gate/health, never reward.
 - [ ] `LeagueVigorRegressionV1` fires only on the three-way fingerprint.
+- [ ] Well-served low-vigor users are not halted or punished.
 - [ ] `VigorCollapseConfessionV1` is self-subject and reopens deposition.
+- [ ] Budget recovery and confession consume the same sealed E1 clock.
 
 ### Margin and grid
 
@@ -1765,6 +1863,7 @@ Each surface must pass D2, A2, budget, rate, slow license, E1/E2/E3 coverage, co
 - [ ] Cell B halts regardless of positive margin.
 - [ ] E4 fires on approach to the separatrix.
 - [ ] Re-entry to breathe requires both `ω` and `κ` recovery, held for dwell.
+- [ ] Manufactured friction cannot satisfy sealed re-entry.
 - [ ] Default is floor with a door.
 
 ### Reward and release
@@ -1797,14 +1896,19 @@ This table must be re-answered for every public surface launch, temporal operato
 | Is `V*` frozen under amendment? | Yes | `sealedReferenceCap` cannot rise by config/reward. |
 | Are all grid thresholds minted? | Yes | `MarginThresholdPolicyV1`. |
 | Are all dwell durations minted? | Yes | `DynamismDwellPolicyV1`. |
+| Is `T_h` sealed and not learned from live replies? | Yes | `RobustLatencyBoundV1`. |
+| Is over-conservative latency amendment-correctable? | Yes | `DwellLatencyCalibrationFalsifierV1`. |
 | Can band-straddling forge a favorable transition? | No | Conservative comparison rule. |
 | Can cell B breathe with positive margin? | No | B dominates margin. |
 | Can D↔B chatter cause Zeno? | No | Cell-axis hysteresis + halt dwell. |
 | Can reward widen budget or rate? | No | Topology lint. |
 | Can reward lower `e_κ^max` or `m_s^max`? | No | Amendment-gated constants. |
+| Can reward or live speed lower `T_h`? | No | Amendment-gated latency bound. |
 | Can owner quietly raise reference cap? | No | Amendment gate. |
 | Is sealed surprisal a reward? | No | Gate/health only. |
+| Can manufactured friction satisfy re-entry? | No | Sealed forecast plus both-bifurcations gate. |
 | Does bare vigor decline trigger halt? | No | Three-way fingerprint required. |
+| Does well-served low vigor halt? | No | Benign low-vigor fingerprint. |
 | Does E4 speak about the user? | No | Self-subject only. |
 | Does total withdrawal infer biography? | No | Default. |
 | Does shadow ω certify live breathe? | No | Handoff quarantine. |
@@ -2003,6 +2107,58 @@ struct D2BindingOutputV0 {
   var supportReceiptKinds: Set<EvidenceKindV0>
   var copyBudget: ExplanationCopyBudgetV0
 }
+```
+
+Inherited D2 blockers remain part of the active safety surface:
+
+```text
+missing selection;
+selected slot mismatch;
+stale context or stale basis;
+missing or stale evidence receipt;
+missing owning source;
+source hash / source kind mismatch;
+unsupported evidence kind or copy key;
+model-authored hydration field;
+model-authored concrete shape field;
+model-authored authority echo;
+model-authored reward / preference / contestation / product-verdict field;
+PII or unsupported personalization claim;
+materialization failure;
+live validatePropose rejection.
+```
+
+The inherited value/reward/falsifier contracts remain compatibility surfaces for write-bearing moves only:
+
+```text
+RecommendationValueSignalV0;
+RecommendationEditDistanceV0;
+CounterfactualSlateLogV0;
+SurvivalAtTSignalV0;
+ContestationSignalV0;
+UserProductVerdictSignalV0;
+EarnedAcceptanceRewardSignalV0;
+UserPreferenceEmbeddingV0;
+PreferenceEmbeddingUpdateV0;
+RewardModelInputV0;
+RewardModelOutputV0;
+RewardGuidancePolicyV0;
+ContestationDistributionReportV0;
+PopulationRewardDriftReportV0;
+ComfortableFalsePositiveFalsifierV0;
+DiffusionDPOTrainingExampleV0.
+```
+
+Their live role is narrow:
+
+```text
+condition sampling;
+measure write-bearing outcomes;
+detect low-contestation / created-demand reward drift;
+reduce, freeze, roll back, or reject graduation;
+never admit writes;
+never admit speech;
+never mint facts, support, attention, mouth choice, margin, thresholds, dwell, rate, or license.
 ```
 
 Reward and contestation remain downstream. Plan-7-revised adds: reward also cannot touch margin status, grid state, threshold policy, dwell policy, robust coefficients, structural-speech reference, structural-speech rate, or mouth choice.
