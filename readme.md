@@ -9,14 +9,6 @@
 
 ## Corpus status
 
-| File | Status | Decision |
-|---|---|---|
-| `plan-7-revised.md` | canonical target architecture | Active source of truth for contracts, migration, test matrix, and definition of done. |
-| `plan-7-controller-audit.md` | temporary verification evidence | Keep until the seven controller repairs and hybrid trajectory tests pass; it explains why the revised controller exists but proposes no live contract. |
-| `plan-7.md` | superseded | Safe to remove from the active set after confirming git history or archive storage. Its doctrine is preserved, but its controller gaps are repaired by `plan-7-revised.md`. |
-| `plan-6-revised.md` | historical architecture/provenance | Archive, not active. Its stable D2/A2/Plan-5 compatibility surface has been compactly folded into `plan-7-revised.md`; keep it only for full field-level ancestry. |
-| `self-play.md` | historical dynamism analysis/provenance | Archive, not active. Its active outputs are now E1-E4, fates, tier-walk audit, margin/grid, and coupling tests inside `plan-7-revised.md`. |
-
 **The verb.** CalAgent is no longer a recommender. It does not ask *what should we
 put in your time?* — a value question, and value cannot be verified from behavior.
 It asks *what is already true about your time that you are too close to read?* — a
