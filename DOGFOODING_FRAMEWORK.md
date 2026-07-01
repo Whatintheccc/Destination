@@ -182,7 +182,7 @@ Acceptance criteria:
 
 ## P2 macOS App And Release Readiness
 
-Status: In review
+Status: Done
 Owner: Codex
 Goal: deliver a local macOS app bundle that can run the same dogfood workflows as the browser.
 
@@ -275,8 +275,8 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | 2026-07-01 | P0 baseline checks | Ran root `make py-test`, `make swift-test`, `make browser-e2e`, and `make mac-app-build`. | Python 46 tests, Swift 16 tests, browser smoke, app build, bundle layout, and launcher syntax passed. |
 | 2026-07-01 | P1 live frontend | Reworked `scripts/run_browser_e2e.py` to start the real Python server, verify live restart persistence, drive live HTTP endpoints, write replay/bug-report artifacts, and require a rendered browser gate by default. | `make browser-e2e` passed with `browser CDP e2e passed`. |
 | 2026-07-01 | P1 controls | Browser/API E2E covers goal entry, candidate rendering, stage, commit, undo, feedback, replay export, profile propose/apply, authority edit, real low-authority commit denial, denial explanation, self-play, reset, and invalid route handling. | `browser_replay_export.json` contains 81 records before reset; reset evidence is captured afterward. |
-| 2026-07-01 | P2 release gate | Added `scripts/run_dogfood_release.py` and `make dogfood-release` to run Python tests, Swift tests, mandatory browser E2E, macOS app build, app bundle launch/API sanity, and secret scan. | Release report passed at `calendar-pilot-frontend 2/runs/release/dogfood_release_report.json`. |
-| 2026-07-01 | P2 app bundle | Built `dist/CalendarPilot.app`, verified bundled source/static/data layout, launched the bundle executable on a free port with run state outside the bundle, and exercised plan/commit/replay/reset through the app server. | `mac_app_sanity` passed in the release report. |
+| 2026-07-01 | P2 release gate | Added `scripts/run_dogfood_release.py` and `make dogfood-release` to run Python tests, Swift tests, mandatory browser E2E, macOS app build, app bundle rendered-browser sanity, LaunchServices smoke, artifact validation, and tracked/generated secret scan. | Release report passed at `calendar-pilot-frontend 2/runs/release/dogfood_release_report.json`. |
+| 2026-07-01 | P2 app bundle | Built `dist/CalendarPilot.app`, verified bundled source/static/data layout, launched the bundle executable on a free port with run state outside the bundle, ran the rendered browser workflow against the bundled app server, and smoke-tested `open -n CalendarPilot.app` on default port `8787`. | `mac_app_sanity` and `launchservices_smoke` passed in the release report. |
 | 2026-07-01 | P2 desktop shortcut | Updated `/Users/temp/Desktop/CalendarPilot.app` to point at `calendar-pilot-frontend 2/dist/CalendarPilot.app`. | Shortcut target verified with `readlink`. |
 | 2026-07-01 | P2 credentials | Confirmed local fixture dogfood requires no Codex Auth, provider OAuth, or DiffusionGemma/NVIDIA NIM credentials. | `secret_scan` passed in the release report. |
 
@@ -288,6 +288,8 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | 2026-07-01 | P0 | Epicurus | Found premature review bookkeeping, missing HTTP API coverage, root command ambiguity, weak app bundle evidence, and stale browser run risk. | Fixed with review log, HTTP tests, root Makefile delegation, packaged app source layout, and browser run-dir cleanup. |
 | 2026-07-01 | P1 | Hilbert | Found optional browser false pass, synthetic CDP interaction, startup cleanup leak, ambiguous artifacts, and stale low-authority card risk. | Made browser mandatory by default, added visible hit-tested mouse/input events, fixed startup cleanup, wrote browser replay artifacts, and waits for the new candidate card. |
 | 2026-07-01 | P1 | Sagan | Found premature P1 status, missing live restart proof, weak denial evidence, and replay artifacts written before browser controls. | Added actual stop/start restart check, real low-authority denial, browser-generated replay export before reset, and review log entries. |
+| 2026-07-01 | P2 | Volta | Found browser skip could leak into release, app sanity did not prove bundled UI, generated artifacts were not scanned, and expected artifacts were not validated. | Release gate clears skip env, runs bundled-app rendered browser workflow, validates artifacts, scans tracked plus generated `runs/` and `dist/`, and adds command timeouts. |
+| 2026-07-01 | P2 | Boyle | Found LaunchServices path was not verified, app sanity did not exercise P1 workflows, credential gate was hardcoded, and desktop shortcut replacement was brittle. | Added `open -n` LaunchServices smoke, reused rendered browser workflow against bundled app, derives credential refs from runtime/frontend code, and backs up existing Desktop app directories before linking. |
 
 ## Open Risks
 
