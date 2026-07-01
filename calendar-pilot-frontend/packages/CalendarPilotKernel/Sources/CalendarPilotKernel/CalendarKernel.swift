@@ -35,7 +35,8 @@ public final class CalendarKernel: @unchecked Sendable {
     }
 
     public func authorizeAndMaterialize(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int) -> (CalendarActionReceipt, [RawCalendarEvent]) {
-        let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: authorityGrant, desiredTier: requestedAuthorityTier, commit: true)
+        let resolved = authorityGrant.flatMap { grants[$0.grantID] }
+        let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: resolved, desiredTier: requestedAuthorityTier, commit: true)
         let output = materializer.materialize(candidate: candidate, observation: observation, authority: decision)
         if let undo = output.undo {
             undoLedger[undo.rollbackHandleID] = undo
@@ -51,7 +52,8 @@ public final class CalendarKernel: @unchecked Sendable {
     }
 
     public func stage(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int) -> CalendarActionReceipt {
-        let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: authorityGrant, desiredTier: requestedAuthorityTier, commit: false)
+        let resolved = authorityGrant.flatMap { grants[$0.grantID] }
+        let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: resolved, desiredTier: requestedAuthorityTier, commit: false)
         let stagedIDs = decision.admitted ? candidate.actions.enumerated().map { idx, action in "stage_\(action.actionType.rawValue)_\(candidate.candidateID.suffix(8))_\(idx)" } : []
         let peopleConfirm = authorityBroker.isPeopleAffectingMutation(candidate: candidate)
         return CalendarActionReceipt(
@@ -77,10 +79,15 @@ public final class CalendarKernel: @unchecked Sendable {
     }
 
     public func undo(rollbackHandleID: String, authorityGrant: AuthorityGrant?, observedAt: Date = Date()) -> CalendarActionReceipt {
+        let resolved = authorityGrant.flatMap { grants[$0.grantID] }
         let denied: String?
-        if authorityGrant == nil {
+        if resolved == nil {
             denied = "missing Swift-issued authority grant for undo"
-        } else if !authorityGrant!.allows("undo") {
+        } else if !resolved!.isLive(at: observedAt) {
+            denied = "authority grant expired before undo"
+        } else if !resolved!.confirmedByUser {
+            denied = "authority grant lacks user confirmation provenance for undo"
+        } else if !resolved!.allows("undo") {
             denied = "authority grant scope does not include undo"
         } else if undoLedger.removeValue(forKey: rollbackHandleID) == nil {
             denied = "rollback handle not found"
@@ -92,15 +99,15 @@ public final class CalendarKernel: @unchecked Sendable {
             candidateID: rollbackHandleID,
             executedAt: observedAt,
             executedBy: "CalendarPilotKernel.undo",
-            authorityTierUsed: authorityGrant?.maxAuthorityTier ?? 0,
+            authorityTierUsed: resolved?.maxAuthorityTier ?? 0,
             syncStatus: denied == nil ? .reverted : .denied,
             rollbackHandleID: rollbackHandleID,
             conflictCheckPassed: true,
             providerID: "local_swift",
             actuationMode: denied == nil ? .noOp : .denied,
             deniedReason: denied,
-            authorityGrantID: authorityGrant?.grantID,
-            confirmationProvenance: authorityGrant?.confirmationProvenance,
+            authorityGrantID: resolved?.grantID,
+            confirmationProvenance: resolved?.confirmationProvenance,
             stageState: denied == nil ? .committed : .denied,
             correlationID: rollbackHandleID
         )

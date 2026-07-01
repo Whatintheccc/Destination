@@ -1,2 +1,4 @@
 from .client import SwiftKernelStub
-__all__ = ["SwiftKernelStub"]
+from .ipc import SwiftKernelIPCClient, SwiftKernelIPCError
+
+__all__ = ["SwiftKernelStub", "SwiftKernelIPCClient", "SwiftKernelIPCError"]

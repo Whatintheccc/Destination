@@ -8,7 +8,7 @@ public struct CodexToolBridge: Sendable {
     }
 
     private func grant(from call: CodexToolCall) -> AuthorityGrant? {
-        if let grant = call.authorityGrant { return grant }
+        if let id = call.authorityGrantID { return kernel.resolveGrant(id) }
         if let id = call.input["authority_grant_id"]?.stringValue { return kernel.resolveGrant(id) }
         return nil
     }

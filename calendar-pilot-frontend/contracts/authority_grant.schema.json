@@ -24,7 +24,8 @@
     },
     "max_authority_tier": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 6
     },
     "scopes": {
       "type": "array",

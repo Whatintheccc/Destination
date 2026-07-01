@@ -33,7 +33,7 @@ class AgentLoopTests(unittest.TestCase):
         candidate = policy.generate_candidates(self.observation, self.biography)[0]
         kernel = SwiftKernelStub()
         grant = kernel.issue_authority_grant(user_scope_id=self.observation.user_scope_id, max_authority_tier=3, issued_at=self.observation.observed_at)
-        receipt = kernel.authorize_and_materialize(candidate, self.observation, authority_grant=grant, requested_authority_tier=3)
+        receipt = kernel.authorize_and_materialize(candidate, self.observation, authority_grant=grant.grant_id, requested_authority_tier=3)
         text = CodexExecutiveAgent().explain(candidate, receipt, self.biography)
         self.assertIn("Reward anatomy", text)
         self.assertIn("Counterfactual", text)

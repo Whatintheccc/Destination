@@ -166,3 +166,52 @@ PYTHONPATH=src python3 scripts/train_offline_policy.py \
 ```
 
 Read `docs/SAFETY_CONTRACT_PASS.md` for the authority-grant, staging, replay, and contract-parity details.
+
+## Latest revision: frontend control surface and hard authority boundary
+
+This pass adds a small non-chat frontend and fixes the grant boundary bugs found in `calendar-pilot-executive 2`.
+
+Frontend surfaces now treat machine learning and machine acting as first-class app state:
+
+```text
+calendar pressure map;
+DiffusionGemma candidate futures;
+reward/right-moment anatomy;
+Swift acting queue;
+authority-grant panel;
+self-play failure modes;
+learned-biography repair.
+```
+
+Generate and view the demo surface:
+
+```bash
+PYTHONPATH=src python3 -m calendar_pilot.app frontend --write-snapshot
+# open frontend/static/index.html
+
+PYTHONPATH=src python3 -m calendar_pilot.app frontend --serve
+# then open http://127.0.0.1:8787
+```
+
+Boundary fixes:
+
+- `CodexToolCall` now carries only `authority_grant_id`; embedded `AuthorityGrant` payloads are ignored.
+- Python and Swift resolve authority from kernel-issued grant registries before stage/commit/undo.
+- `confirmed_by_user` / `confirmedByUser` is enforced for commits and undo.
+- Swift undo now checks grant registry, liveness, confirmation, scope, and rollback ledger.
+- Safe private prep/focus writes can commit through the default Codex-executive path.
+- People-affecting mutations still stage/deny rather than silently committing.
+- Mixed packets with a write plus staged sidecar keep materialized status and rollback handles.
+- `python3 -m pytest -q` now works without manually setting `PYTHONPATH`.
+
+
+Optional Swift IPC boundary:
+
+```bash
+swift build --package-path packages/CalendarPilotKernel --product CalendarPilotKernelServer
+# Python integrations can use SwiftKernelIPCClient to keep grants and commit/undo ledgers in the Swift process.
+```
+
+This is still not a real Google/Apple/Microsoft provider. It is the concrete kernel boundary for grant issuance, stage, commit, undo, and receipts. Provider tokens and provider truth remain future Swift/provider-adapter work.
+
+Read `docs/FRONTEND_SURFACES.md` for the product split between chat, learning surfaces, acting surfaces, authority, self-play, and profile repair.

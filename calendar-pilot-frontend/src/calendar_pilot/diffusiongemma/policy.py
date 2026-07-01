@@ -141,7 +141,9 @@ class DiffusionGemmaPolicy:
                         actions=[action],
                         target_calendars=[event.calendar_id],
                         affected_event_ids=[event.event_id],
-                        affected_people_ids=list(event.attendees),
+                        # This creates a private prep block; it references the
+                        # parent meeting for context but does not mutate attendees.
+                        affected_people_ids=[],
                         reversibility=Reversibility.HIGH,
                         required_authority_tier=3,
                         predicted_acceptance=0.58 + 0.30 * prep_conf,
@@ -188,7 +190,9 @@ class DiffusionGemmaPolicy:
                     actions=[action],
                     target_calendars=[event.calendar_id],
                     affected_event_ids=[event.event_id],
-                    affected_people_ids=list(event.attendees),
+                    # Transition/setup buffers are private calendar objects;
+                    # attendees are not affected unless an attendee event is moved.
+                    affected_people_ids=[],
                     reversibility=Reversibility.HIGH,
                     required_authority_tier=3,
                     predicted_acceptance=0.66,
@@ -281,7 +285,9 @@ class DiffusionGemmaPolicy:
                     actions=[action],
                     target_calendars=[event.calendar_id],
                     affected_event_ids=[event.event_id],
-                    affected_people_ids=list(event.attendees),
+                    # Transition/setup buffers are private calendar objects;
+                    # attendees are not affected unless an attendee event is moved.
+                    affected_people_ids=[],
                     reversibility=Reversibility.MEDIUM,
                     required_authority_tier=3,
                     predicted_acceptance=0.68,

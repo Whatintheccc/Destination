@@ -191,7 +191,7 @@ class SelfPlayRunner:
         episodes: int = 10,
         authority_tier: int = 3,
         top_k: int = 4,
-        authority_grant: AuthorityGrant | None = None,
+        authority_grant: AuthorityGrant | str | None = None,
     ) -> SelfPlayMetrics:
         metrics = SelfPlayMetrics()
         for idx in range(episodes):
@@ -206,7 +206,7 @@ class SelfPlayRunner:
         episode_index: int,
         authority_tier: int = 3,
         top_k: int = 4,
-        authority_grant: AuthorityGrant | None = None,
+        authority_grant: AuthorityGrant | str | None = None,
     ) -> SelfPlayEpisode:
         candidates = self.policy.generate_candidates(observation, biography)
         for rank, candidate in enumerate(candidates[: max(1, top_k)]):

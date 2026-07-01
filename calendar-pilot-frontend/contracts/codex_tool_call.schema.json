@@ -42,7 +42,8 @@
     },
     "requested_authority_tier": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 6
     },
     "user_visible_reason": {
       "type": "string"
@@ -51,21 +52,18 @@
       "type": "string",
       "format": "date-time"
     },
-    "authority_grant": {
-      "anyOf": [
-        {
-          "$ref": "authority_grant.schema.json"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "correlation_id": {
       "type": [
         "string",
         "null"
       ]
+    },
+    "authority_grant_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Kernel-issued AuthorityGrant id. Embedded grant objects are not authority."
     }
   },
   "additionalProperties": false

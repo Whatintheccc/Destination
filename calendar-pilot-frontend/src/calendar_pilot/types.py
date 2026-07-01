@@ -503,21 +503,30 @@ class CodexToolCall:
     input: dict[str, Any]
     requested_authority_tier: int = 0
     user_visible_reason: str = ""
-    authority_grant: Optional[AuthorityGrant] = None
+    authority_grant_id: Optional[str] = None
     correlation_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CodexToolCall":
         created = parse_dt(data.get("created_at")) or datetime.now()
-        grant_payload = data.get("authority_grant")
+        input_payload = dict(data.get("input", {}))
+        # Legacy payload compatibility: an embedded AuthorityGrant is not parsed
+        # as authority. At most, its id is copied into the non-authoritative input
+        # payload for diagnostics; the kernel still resolves only issued grant IDs.
+        embedded = data.get("authority_grant")
+        grant_id = data.get("authority_grant_id")
+        if grant_id is None and isinstance(input_payload.get("authority_grant_id"), str):
+            grant_id = input_payload.get("authority_grant_id")
+        if grant_id is None and isinstance(embedded, dict) and embedded.get("grant_id"):
+            input_payload.setdefault("embedded_authority_grant_id", embedded.get("grant_id"))
         return cls(
             tool_call_id=data["tool_call_id"],
             tool_name=CodexToolName(data.get("tool_name", "inspect_week")),
-            input=dict(data.get("input", {})),
+            input=input_payload,
             requested_authority_tier=int(data.get("requested_authority_tier", 0)),
             user_visible_reason=data.get("user_visible_reason", ""),
-            authority_grant=AuthorityGrant.from_dict(grant_payload) if isinstance(grant_payload, dict) else None,
+            authority_grant_id=str(grant_id) if grant_id is not None else None,
             correlation_id=data.get("correlation_id"),
             created_at=created,
         )

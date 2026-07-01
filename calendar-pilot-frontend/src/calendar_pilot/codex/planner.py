@@ -6,7 +6,7 @@ import hashlib
 from typing import Any
 
 from calendar_pilot.codex.tools import CodexToolRuntime
-from calendar_pilot.types import AuthorityGrant, CodexToolCall, CodexToolName, CodexToolReceipt, RawCalendarObservation, UserBiography
+from calendar_pilot.types import CodexToolCall, CodexToolName, CodexToolReceipt, RawCalendarObservation, UserBiography
 
 
 @dataclass
@@ -57,24 +57,24 @@ class CodexToolPlanner:
             confirmed_by_user=commit,
             issued_at=observation.observed_at,
         )
-        inspect = self._call(CodexToolName.INSPECT_WEEK, {"goal": goal}, authority_tier, "Inspect the raw calendar before asking the model to act.", grant=grant, correlation_id=plan.plan_id)
+        inspect = self._call(CodexToolName.INSPECT_WEEK, {"goal": goal}, authority_tier, "Inspect the raw calendar before asking the model to act.", grant_id=grant.grant_id, correlation_id=plan.plan_id)
         self._run(plan, inspect, observation, biography)
-        frontier = self._call(CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"goal": goal, "limit": 6}, authority_tier, "Ask DiffusionGemma for candidate futures.", grant=grant, correlation_id=plan.plan_id)
+        frontier = self._call(CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"goal": goal, "limit": 6}, authority_tier, "Ask DiffusionGemma for candidate futures.", grant_id=grant.grant_id, correlation_id=plan.plan_id)
         frontier_receipt = self._run(plan, frontier, observation, biography)
         ids = frontier_receipt.output.get("frontier_ids", [])
-        compare = self._call(CodexToolName.COMPARE_CANDIDATES, {"candidate_ids": ids}, authority_tier, "Compare model futures under reward, regret, and authority.", grant=grant, correlation_id=plan.plan_id)
+        compare = self._call(CodexToolName.COMPARE_CANDIDATES, {"candidate_ids": ids}, authority_tier, "Compare model futures under reward, regret, and authority.", grant_id=grant.grant_id, correlation_id=plan.plan_id)
         compare_receipt = self._run(plan, compare, observation, biography)
         winner = (compare_receipt.output.get("winner") or {}).get("candidate_id")
         if winner:
-            simulate = self._call(CodexToolName.SIMULATE_ACTION_PROGRAM, {"candidate_id": winner}, authority_tier, "Simulate the winning action without committing provider state.", grant=grant, correlation_id=winner)
+            simulate = self._call(CodexToolName.SIMULATE_ACTION_PROGRAM, {"candidate_id": winner}, authority_tier, "Simulate the winning action without committing provider state.", grant_id=grant.grant_id, correlation_id=winner)
             sim_receipt = self._run(plan, simulate, observation, biography)
             needs_confirm = bool(sim_receipt.output.get("would_require_confirmation"))
             if commit and not needs_confirm:
-                commit_call = self._call(CodexToolName.REQUEST_COMMIT, {"candidate_id": winner}, authority_tier, "Request Swift to commit the selected packet.", grant=grant, correlation_id=winner)
+                commit_call = self._call(CodexToolName.REQUEST_COMMIT, {"candidate_id": winner}, authority_tier, "Request Swift to commit the selected packet.", grant_id=grant.grant_id, correlation_id=winner)
                 commit_receipt = self._run(plan, commit_call, observation, biography)
                 plan.recommended_next_action = "committed" if not commit_receipt.denied_reason else "commit_denied_stage_instead"
             else:
-                stage_call = self._call(CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": winner}, authority_tier, "Stage the packet so the user or authority policy can confirm.", grant=grant, correlation_id=winner)
+                stage_call = self._call(CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": winner}, authority_tier, "Stage the packet so the user or authority policy can confirm.", grant_id=grant.grant_id, correlation_id=winner)
                 self._run(plan, stage_call, observation, biography)
                 plan.recommended_next_action = "stage_for_confirmation" if needs_confirm else "staged_draft"
         else:
@@ -94,7 +94,7 @@ class CodexToolPlanner:
         tier: int,
         reason: str,
         *,
-        grant: AuthorityGrant | None = None,
+        grant_id: str | None = None,
         correlation_id: str | None = None,
     ) -> CodexToolCall:
         raw = f"{tool_name.value}|{datetime.now(timezone.utc).isoformat()}|{payload}"
@@ -104,7 +104,7 @@ class CodexToolPlanner:
             input=payload,
             requested_authority_tier=tier,
             user_visible_reason=reason,
-            authority_grant=grant,
+            authority_grant_id=grant_id,
             correlation_id=correlation_id,
             created_at=datetime.now(timezone.utc),
         )

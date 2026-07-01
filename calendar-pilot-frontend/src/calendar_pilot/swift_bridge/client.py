@@ -82,9 +82,12 @@ class SwiftKernelStub:
         return grant
 
     def resolve_authority_grant(self, grant: AuthorityGrant | str | None) -> AuthorityGrant | None:
+        # Authority grants are Swift/kernel-issued capabilities. Passing an
+        # embedded object is never enough: the id must already exist in the
+        # kernel registry. This prevents Codex/Python payloads from minting
+        # authority by value.
         if isinstance(grant, AuthorityGrant):
-            self.authority_grants.setdefault(grant.grant_id, grant)
-            return grant
+            return self.authority_grants.get(grant.grant_id)
         if isinstance(grant, str):
             return self.authority_grants.get(grant)
         return None
@@ -160,7 +163,7 @@ class SwiftKernelStub:
             staged_ids = [self._stage_id(candidate.candidate_id, idx, action.action_type.value) for idx, action in enumerate(candidate.actions)]
         else:
             rejected_types = [a.action_type.value for a in candidate.actions]
-        social = any(a.action_type in SOCIAL_MUTATION_ACTIONS for a in candidate.actions) and bool(candidate.affected_people_ids)
+        social = self.is_people_affecting_mutation(candidate)
         requires_confirmation = social or candidate.required_authority_tier > (grant.max_authority_tier if grant else 0)
         state = StageState.DENIED if denied else (StageState.REQUIRES_CONFIRMATION if requires_confirmation else StageState.STAGEABLE)
         return CalendarActionReceipt(
@@ -197,8 +200,12 @@ class SwiftKernelStub:
         ledger_candidate_id = self.undo_ledger.get(rollback_handle_id or "")
         if grant is None:
             denied = "missing Swift-issued authority grant for undo"
+        elif grant.user_scope_id != observation.user_scope_id:
+            denied = "authority grant user scope mismatch for undo"
         elif not grant.is_live_at(observation.observed_at):
             denied = "authority grant expired before undo"
+        elif not grant.confirmed_by_user:
+            denied = "authority grant lacks user confirmation provenance for undo"
         elif desired_tier > grant.max_authority_tier:
             denied = "out-of-band authority tier rejected before undo"
         elif not grant.allows_scope("undo"):
@@ -240,6 +247,8 @@ class SwiftKernelStub:
         staged_ids: list[str] = []
         rejected_types: list[str] = []
         rollback = None
+        materialized_write = False
+        staged_only_or_sidecar = False
         mode = ActuationMode.NO_OP
         sync_status = "materialized" if commit else "simulated"
         stage_state = StageState.COMMITTED if commit else StageState.SIMULATED
@@ -256,23 +265,29 @@ class SwiftKernelStub:
             for idx, action in enumerate(candidate.actions):
                 if action.action_type in {AtomicActionType.CREATE_EVENT, AtomicActionType.CREATE_FOCUS_BLOCK, AtomicActionType.ADD_BUFFER, AtomicActionType.BATCH_TASKS}:
                     generated_ids.append(self._event_id(candidate.candidate_id, idx))
-                    mode = ActuationMode.MATERIALIZED_WRITE
+                    materialized_write = True
                 elif action.action_type in {AtomicActionType.MOVE_EVENT, AtomicActionType.RESIZE_EVENT, AtomicActionType.DELETE_OWN_EVENT}:
-                    mode = ActuationMode.MATERIALIZED_WRITE
+                    materialized_write = True
                 elif action.action_type in STAGED_ACTIONS:
+                    staged_only_or_sidecar = True
                     staged_ids.append(self._stage_id(candidate.candidate_id, idx, action.action_type.value))
-                    mode = ActuationMode.STAGED_NOTIFICATION if action.action_type == AtomicActionType.NOTIFY else ActuationMode.STAGED_DRAFT
-                    sync_status = "staged"
-                    stage_state = StageState.REQUIRES_CONFIRMATION if action.action_type == AtomicActionType.DRAFT_SCHEDULE_PLAN else StageState.STAGEABLE
-                elif action.action_type == AtomicActionType.DO_NOTHING:
-                    mode = ActuationMode.NO_OP
-                    stage_state = StageState.NO_OP
                 elif action.action_type in {AtomicActionType.AUTO_APPLY_PLAN, AtomicActionType.UNDO}:
                     rejected_types.append(action.action_type.value)
 
-            if staged_ids and not generated_ids:
+            if materialized_write:
+                mode = ActuationMode.MATERIALIZED_WRITE
+                sync_status = "materialized"
+                stage_state = StageState.COMMITTED
+            elif staged_only_or_sidecar:
                 sync_status = "staged"
-            rollback = self._rollback_id(candidate.candidate_id) if candidate.reversibility != Reversibility.NONE and mode == ActuationMode.MATERIALIZED_WRITE else None
+                mode = ActuationMode.STAGED_NOTIFICATION if any("notify" in sid for sid in staged_ids) else ActuationMode.STAGED_DRAFT
+                stage_state = StageState.REQUIRES_CONFIRMATION if any("draft_schedule_plan" in sid for sid in staged_ids) else StageState.STAGEABLE
+            else:
+                mode = ActuationMode.NO_OP
+                sync_status = "materialized"
+                stage_state = StageState.NO_OP
+
+            rollback = self._rollback_id(candidate.candidate_id) if candidate.reversibility != Reversibility.NONE and materialized_write else None
             if rollback:
                 self.undo_ledger[rollback] = candidate.candidate_id
 
@@ -298,6 +313,16 @@ class SwiftKernelStub:
         )
 
     @staticmethod
+    def is_people_affecting_mutation(candidate: CandidateCalendarAction) -> bool:
+        if not candidate.affected_people_ids:
+            return False
+        return any(action.action_type in SOCIAL_MUTATION_ACTIONS for action in candidate.actions)
+
+    @staticmethod
+    def has_write_action(candidate: CandidateCalendarAction) -> bool:
+        return any(action.action_type in WRITE_ACTIONS for action in candidate.actions)
+
+    @staticmethod
     def _grant_denied_reason(
         candidate: CandidateCalendarAction,
         observation: RawCalendarObservation,
@@ -316,13 +341,15 @@ class SwiftKernelStub:
             return "out-of-band authority tier rejected before materialization"
         if candidate.required_authority_tier > grant.max_authority_tier and commit:
             return "required authority tier exceeds Swift-issued grant"
-        if commit and not grant.allows_scope("commit_private") and any(a.action_type in WRITE_ACTIONS for a in candidate.actions):
+        if commit and SwiftKernelStub.has_write_action(candidate) and not grant.confirmed_by_user:
+            return "authority grant lacks user confirmation provenance for commit"
+        if commit and not grant.allows_scope("commit_private") and SwiftKernelStub.has_write_action(candidate):
             return "authority grant scope does not include commit_private"
         if not commit and not grant.allows_scope("stage"):
             return "authority grant scope does not include stage"
         if any(a.action_type == AtomicActionType.AUTO_APPLY_PLAN for a in candidate.actions):
             return "auto_apply_plan requires product-specific tier 6 policy and is not kernel-v1 materialized"
-        if commit and any(a.action_type in SOCIAL_MUTATION_ACTIONS for a in candidate.actions) and candidate.affected_people_ids:
+        if commit and SwiftKernelStub.is_people_affecting_mutation(candidate):
             return "social actuation boundary: people-affecting calendar mutation must be explicitly confirmed outside kernel-v1"
         if commit and candidate.required_authority_tier >= 3 and candidate.reversibility == Reversibility.NONE:
             return "auto-write requires a rollback or reversible action"

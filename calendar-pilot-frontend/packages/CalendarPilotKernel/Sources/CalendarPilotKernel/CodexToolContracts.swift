@@ -98,7 +98,7 @@ public struct CodexToolCall: Codable, Hashable, Sendable {
     public var input: [String: JSONValue]
     public var requestedAuthorityTier: Int
     public var userVisibleReason: String
-    public var authorityGrant: AuthorityGrant?
+    public var authorityGrantID: String?
     public var correlationID: String?
     public var createdAt: Date
 
@@ -108,18 +108,18 @@ public struct CodexToolCall: Codable, Hashable, Sendable {
         case input
         case requestedAuthorityTier = "requested_authority_tier"
         case userVisibleReason = "user_visible_reason"
-        case authorityGrant = "authority_grant"
+        case authorityGrantID = "authority_grant_id"
         case correlationID = "correlation_id"
         case createdAt = "created_at"
     }
 
-    public init(toolCallID: String, toolName: CodexToolName, input: [String: JSONValue] = [:], requestedAuthorityTier: Int = 0, userVisibleReason: String = "", authorityGrant: AuthorityGrant? = nil, correlationID: String? = nil, createdAt: Date = Date()) {
+    public init(toolCallID: String, toolName: CodexToolName, input: [String: JSONValue] = [:], requestedAuthorityTier: Int = 0, userVisibleReason: String = "", authorityGrantID: String? = nil, correlationID: String? = nil, createdAt: Date = Date()) {
         self.toolCallID = toolCallID
         self.toolName = toolName
         self.input = input
         self.requestedAuthorityTier = requestedAuthorityTier
         self.userVisibleReason = userVisibleReason
-        self.authorityGrant = authorityGrant
+        self.authorityGrantID = authorityGrantID
         self.correlationID = correlationID
         self.createdAt = createdAt
     }

@@ -70,7 +70,7 @@ def run_demo(args: argparse.Namespace) -> None:
             confirmed_by_user=True,
             issued_at=observation.observed_at,
         )
-        metrics = SelfPlayRunner(policy=policy, kernel=kernel, replay=replay).run(observation, biography, episodes=args.self_play, authority_grant=grant)
+        metrics = SelfPlayRunner(policy=policy, kernel=kernel, replay=replay).run(observation, biography, episodes=args.self_play, authority_grant=grant.grant_id)
         print("\nSelf-play metrics:")
         print(json.dumps(asdict(metrics) | {"acceptance_rate": metrics.acceptance_rate, "undo_rate": metrics.undo_rate, "average_reward": metrics.average_reward}, indent=2))
         print("\nCodex self-play summary:")
@@ -78,6 +78,17 @@ def run_demo(args: argparse.Namespace) -> None:
     if args.replay_out:
         replay.save_jsonl(args.replay_out)
         print(f"\nReplay written to {args.replay_out}")
+
+
+def run_frontend(args: argparse.Namespace) -> None:
+    from calendar_pilot.frontend.server import serve, write_demo_snapshot
+
+    if args.write_snapshot or not args.serve:
+        path = write_demo_snapshot(args.out, commit=args.commit)
+        print(f"Frontend snapshot written to {path}")
+    if args.serve:
+        print(f"Serving frontend on http://{args.host}:{args.port}")
+        serve(host=args.host, port=args.port)
 
 
 def main() -> None:
@@ -93,6 +104,16 @@ def main() -> None:
     demo.add_argument("--goal", default="Make next week less chaotic")
     demo.add_argument("--commit", action="store_true", help="allow Codex planner to request Swift commit when simulation does not require confirmation")
     demo.set_defaults(func=run_demo)
+
+    frontend = sub.add_parser("frontend")
+    frontend.add_argument("--out", default="frontend/static/frontend_state.sample.json")
+    frontend.add_argument("--write-snapshot", action="store_true", help="write a demo frontend snapshot JSON")
+    frontend.add_argument("--serve", action="store_true", help="serve frontend/static with Python's built-in HTTP server")
+    frontend.add_argument("--host", default="127.0.0.1")
+    frontend.add_argument("--port", type=int, default=8787)
+    frontend.add_argument("--commit", action="store_true", default=True, help="demo snapshot includes a committed safe private write")
+    frontend.set_defaults(func=run_frontend)
+
     args = parser.parse_args()
     args.func(args)
 

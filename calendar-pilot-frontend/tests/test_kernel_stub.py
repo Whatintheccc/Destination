@@ -24,7 +24,7 @@ class KernelStubTests(unittest.TestCase):
         self.candidate.reversibility = Reversibility.HIGH
         kernel = SwiftKernelStub()
         grant = kernel.issue_authority_grant(user_scope_id=self.observation.user_scope_id, max_authority_tier=3, issued_at=self.observation.observed_at)
-        receipt = kernel.authorize_and_materialize(self.candidate, self.observation, authority_grant=grant, requested_authority_tier=3)
+        receipt = kernel.authorize_and_materialize(self.candidate, self.observation, authority_grant=grant.grant_id, requested_authority_tier=3)
         self.assertEqual(receipt.sync_status, "materialized")
         self.assertIsNotNone(receipt.rollback_handle_id)
 

@@ -59,7 +59,7 @@ class SafetyContractPassTests(unittest.TestCase):
             reversibility=Reversibility.HIGH,
             required_authority_tier=3,
         )
-        receipt = kernel.authorize_and_materialize(candidate, obs, authority_grant=grant, requested_authority_tier=3)
+        receipt = kernel.authorize_and_materialize(candidate, obs, authority_grant=grant.grant_id, requested_authority_tier=3)
         self.assertEqual(receipt.sync_status, "denied")
         self.assertIn("out-of-band", receipt.denied_reason or "")
         self.assertEqual(receipt.authority_grant_id, grant.grant_id)
@@ -78,9 +78,9 @@ class SafetyContractPassTests(unittest.TestCase):
         bio = load_bio()
         runtime = CodexToolRuntime()
         grant = runtime.kernel.issue_authority_grant(user_scope_id=obs.user_scope_id, max_authority_tier=3, issued_at=obs.observed_at)
-        frontier = runtime.execute(CodexToolCall("frontier_grant", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 2}, 3, "frontier", authority_grant=grant), obs, bio)
+        frontier = runtime.execute(CodexToolCall("frontier_grant", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 2}, 3, "frontier", authority_grant_id=grant.grant_id), obs, bio)
         cid = frontier.output["frontier_ids"][0]
-        staged = runtime.execute(CodexToolCall("stage_grant", CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": cid}, 3, "stage", authority_grant=grant), obs, bio)
+        staged = runtime.execute(CodexToolCall("stage_grant", CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": cid}, 3, "stage", authority_grant_id=grant.grant_id), obs, bio)
         self.assertEqual(staged.status, CodexToolStatus.STAGEABLE)
         self.assertIn(staged.stage_state.value, {"stageable", "requires_confirmation"})
 
@@ -102,7 +102,7 @@ class SafetyContractPassTests(unittest.TestCase):
         replay = ReplayBuffer()
         grant = SwiftKernelStub().issue_authority_grant(user_scope_id=obs.user_scope_id, max_authority_tier=1, issued_at=obs.observed_at)
         from calendar_pilot.diffusiongemma import SelfPlayRunner
-        SelfPlayRunner(replay=replay).run(obs, bio, episodes=3, authority_grant=grant)
+        SelfPlayRunner(replay=replay).run(obs, bio, episodes=3, authority_grant=grant.grant_id)
         normalized = sum(1 for r in replay.records if r.record_type == "adversary_finding")
         self.assertEqual(sum(replay.summarize().failure_modes.values()), normalized)
 

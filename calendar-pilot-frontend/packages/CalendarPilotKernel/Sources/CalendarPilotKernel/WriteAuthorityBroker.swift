@@ -79,6 +79,9 @@ public struct WriteAuthorityBroker: Sendable {
         if commit && candidate.requiredAuthorityTier > grant.maxAuthorityTier {
             return AuthorityDecision(admitted: false, reason: "required authority tier exceeds Swift-issued grant", tierUsed: grant.maxAuthorityTier, grantID: grant.grantID, confirmationProvenance: grant.confirmationProvenance)
         }
+        if commit && candidate.actions.contains(where: { isWriteAction($0.actionType) }) && !grant.confirmedByUser {
+            return AuthorityDecision(admitted: false, reason: "authority grant lacks user confirmation provenance for commit", tierUsed: grant.maxAuthorityTier, grantID: grant.grantID, confirmationProvenance: grant.confirmationProvenance)
+        }
         if commit && candidate.actions.contains(where: { isWriteAction($0.actionType) }) && !grant.allows("commit_private") {
             return AuthorityDecision(admitted: false, reason: "authority grant scope does not include commit_private", tierUsed: grant.maxAuthorityTier, grantID: grant.grantID, confirmationProvenance: grant.confirmationProvenance)
         }
