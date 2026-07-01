@@ -43,6 +43,9 @@ class DogfoodP2Tests(unittest.TestCase):
             self.assertGreater(exported["replay_export"]["record_count"], 0)
             self.assertTrue(Path(exported["replay_export"]["path"]).exists())
 
+            confirmed = session.confirm_candidate(candidate_id)
+            self.assertTrue(any(action["status"] == "committed" for action in confirmed["snapshot"]["action_queue"]))
+
             proposed = session.propose_profile_patch("evenings are fine during travel weeks")
             pending = proposed["pending_profile_patch"]
             self.assertIsNotNone(pending)
@@ -54,6 +57,8 @@ class DogfoodP2Tests(unittest.TestCase):
             self_play = session.run_self_play(episodes=2)
             gate = self_play["self_play_history"][-1]["release_decision"]
             self.assertIn(gate["decision"], {"hold_autonomy", "ship_fixture_gate"})
+            self.assertIn("average_reward", self_play["self_play_history"][-1]["metrics"])
+            self.assertIn("undo_rate", self_play["self_play_history"][-1]["metrics"])
 
             reloaded = self.make_session(Path(td))
             state = reloaded.state()
@@ -80,6 +85,62 @@ class DogfoodP2Tests(unittest.TestCase):
             self.assertIsNone(reset["last_replay_query"])
             self.assertIsNone(reset["last_replay_export"])
             self.assertEqual(reset["replay_summary"]["records"], 0)
+
+    def test_reset_clears_kernel_grants_and_undo_ledger(self):
+        with tempfile.TemporaryDirectory() as td:
+            session = self.make_session(Path(td))
+            planned = session.create_plan("Make next week less chaotic", authority_tier=3, commit=True)
+            committed = next(action for action in planned["snapshot"]["action_queue"] if action.get("rollback_handle_id"))
+            self.assertTrue(planned["authority_grants"])
+
+            reset = session.reset_fixture()
+            self.assertEqual(reset["authority_grants"], [])
+
+            stale_undo = session.undo(committed["rollback_handle_id"])
+            self.assertEqual(stale_undo["undo_receipt"]["status"], "denied")
+            self.assertEqual(stale_undo["undo_history"], [])
+
+    def test_self_play_rejects_invalid_episode_count_and_holds_on_bad_metrics(self):
+        with tempfile.TemporaryDirectory() as td:
+            session = self.make_session(Path(td))
+            invalid = session.run_self_play(episodes=0)
+            self.assertIn("self-play episodes must be at least 1", invalid["error"])
+            self.assertFalse(invalid["self_play_history"])
+            bad_reward = DogfoodSessionState._self_play_release_decision({"average_reward": -0.01, "undo_rate": 0.0, "failure_modes": {}})
+            self.assertEqual(bad_reward["decision"], "hold_autonomy")
+            high_undo = DogfoodSessionState._self_play_release_decision({"average_reward": 1.0, "undo_rate": 0.2, "failure_modes": {}})
+            self.assertEqual(high_undo["decision"], "hold_autonomy")
+
+    def test_replay_export_is_complete_and_does_not_mutate_replay(self):
+        with tempfile.TemporaryDirectory() as td:
+            session = self.make_session(Path(td))
+            planned = session.create_plan("Make next week less chaotic", authority_tier=3, commit=True)
+            grant_id = planned["authority_grants"][0]["grant_id"]
+            session.run_self_play(episodes=3)
+            before = session.state()["replay_summary"]["records"]
+
+            exported = session.export_replay()
+            after = session.state()["replay_summary"]["records"]
+            self.assertEqual(after, before)
+            self.assertEqual(exported["replay_export"]["record_count"], before)
+
+            by_grant = session.replay_trace(authority_grant_id=grant_id)
+            tool_names = [
+                record["payload"].get("call", {}).get("tool_name")
+                for record in by_grant["last_replay_query"]["traces"]
+                if record["record_type"] == "codex_tool_call"
+            ]
+            self.assertIn("inspect_week", tool_names)
+            self.assertIn("generate_candidate_frontier", tool_names)
+            self.assertIn("compare_candidates", tool_names)
+
+    def test_stage_scope_denial_updates_recommended_next_action(self):
+        with tempfile.TemporaryDirectory() as td:
+            session = self.make_session(Path(td))
+            session.update_authority(authority_tier=3, scopes=["recommend"])
+            planned = session.create_plan("Make next week less chaotic", authority_tier=3, commit=False)
+            self.assertEqual(planned["snapshot"]["summary"]["recommended_next_action"], "stage_denied")
+            self.assertTrue(any(action["status"] == "denied" for action in planned["snapshot"]["action_queue"]))
 
 
 if __name__ == "__main__":

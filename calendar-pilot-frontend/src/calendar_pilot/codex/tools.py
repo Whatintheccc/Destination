@@ -166,10 +166,18 @@ class CodexToolRuntime:
             return self._receipt(call, CodexToolStatus.SUCCEEDED, {"biography": updated.to_dict(), "last_update": updated.profile_update_events[-1]})
         if name == CodexToolName.RUN_SELF_PLAY_PROBE:
             episodes = int(call.input.get("episodes", 3))
+            if episodes < 1:
+                return self._receipt(call, CodexToolStatus.DENIED, {"error": "self-play episodes must be at least 1"}, denied="self-play episodes must be at least 1")
             grant = self._resolve_grant(call)
             runner = SelfPlayRunner(policy=self.policy, kernel=self.kernel, replay=self.replay)
             metrics = runner.run(observation, biography, episodes=episodes, authority_grant=grant.grant_id if grant else None)
-            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"metrics": to_jsonable(metrics), "top_failure_modes": metrics.top_failure_modes}, authority_grant=grant, correlation_id=call.correlation_id)
+            metrics_payload = to_jsonable(metrics)
+            metrics_payload.update({
+                "acceptance_rate": metrics.acceptance_rate,
+                "undo_rate": metrics.undo_rate,
+                "average_reward": metrics.average_reward,
+            })
+            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"metrics": metrics_payload, "top_failure_modes": metrics.top_failure_modes}, authority_grant=grant, correlation_id=call.correlation_id)
         if name == CodexToolName.PROPOSE_AUTONOMY_SCOPE:
             candidate = self._candidate_from_input(call)
             proposal = self._autonomy_scope(candidate)
@@ -330,11 +338,12 @@ class CodexToolRuntime:
                 "causal_parent_id": record.causal_parent_id,
                 "payload": record.payload,
             })
-        return {"summary": to_jsonable(summary), "query": filters, "traces": traces[-25:]}
+        return {"summary": to_jsonable(summary), "query": filters, "traces": traces}
 
     @staticmethod
     def _replay_record_matches(record: Any, filters: dict[str, str]) -> bool:
         payload = record.payload
+        call = payload.get("call", {}) if isinstance(payload.get("call"), dict) else {}
         candidate = payload.get("candidate", {}) if isinstance(payload.get("candidate"), dict) else {}
         receipt = payload.get("receipt", {}) if isinstance(payload.get("receipt"), dict) else {}
         reward = payload.get("reward", {}) if isinstance(payload.get("reward"), dict) else {}
@@ -345,7 +354,7 @@ class CodexToolRuntime:
             "candidate_id": candidate.get("candidate_id") or receipt.get("candidate_id") or swift_receipt.get("candidate_id"),
             "trace_id": record.trace_id or payload.get("trace_id"),
             "receipt_id": receipt.get("receipt_id") or swift_receipt.get("receipt_id"),
-            "authority_grant_id": receipt.get("authority_grant_id") or swift_receipt.get("authority_grant_id") or tool_receipt.get("authority_grant_id"),
+            "authority_grant_id": call.get("authority_grant_id") or receipt.get("authority_grant_id") or swift_receipt.get("authority_grant_id") or tool_receipt.get("authority_grant_id"),
             "rollback_handle_id": receipt.get("rollback_handle_id") or swift_receipt.get("rollback_handle_id"),
             "reward_event_id": reward.get("reward_event_id"),
         }

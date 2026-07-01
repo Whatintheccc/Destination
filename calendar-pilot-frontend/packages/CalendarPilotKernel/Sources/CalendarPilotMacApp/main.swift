@@ -61,6 +61,10 @@ struct ContentView: View {
 struct CalendarPilotWebView: NSViewRepresentable {
     let url: URL
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeNSView(context: Context) -> WKWebView {
         let preferences = WKWebpagePreferences()
         preferences.allowsContentJavaScript = true
@@ -70,6 +74,7 @@ struct CalendarPilotWebView: NSViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
+        webView.uiDelegate = context.coordinator
         webView.load(URLRequest(url: url))
         return webView
     }
@@ -77,6 +82,52 @@ struct CalendarPilotWebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         if webView.url != url {
             webView.load(URLRequest(url: url))
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, WKUIDelegate {
+        func webView(
+            _ webView: WKWebView,
+            runJavaScriptAlertPanelWithMessage message: String,
+            initiatedByFrame frame: WKFrameInfo,
+            completionHandler: @escaping @MainActor @Sendable () -> Void
+        ) {
+            let alert = NSAlert()
+            alert.messageText = message
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            completionHandler()
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            runJavaScriptConfirmPanelWithMessage message: String,
+            initiatedByFrame frame: WKFrameInfo,
+            completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
+        ) {
+            let alert = NSAlert()
+            alert.messageText = message
+            alert.addButton(withTitle: "OK")
+            alert.addButton(withTitle: "Cancel")
+            completionHandler(alert.runModal() == .alertFirstButtonReturn)
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            runJavaScriptTextInputPanelWithPrompt prompt: String,
+            defaultText: String?,
+            initiatedByFrame frame: WKFrameInfo,
+            completionHandler: @escaping @MainActor @Sendable (String?) -> Void
+        ) {
+            let alert = NSAlert()
+            alert.messageText = prompt
+            let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+            input.stringValue = defaultText ?? ""
+            alert.accessoryView = input
+            alert.addButton(withTitle: "OK")
+            alert.addButton(withTitle: "Cancel")
+            completionHandler(alert.runModal() == .alertFirstButtonReturn ? input.stringValue : nil)
         }
     }
 }
@@ -88,6 +139,8 @@ final class FrontendServerController: ObservableObject {
     @Published var detail: String?
 
     private var process: Process?
+    private var logFileHandle: FileHandle?
+    private var logFileURL: URL?
     private var port = 8787
 
     init() {
@@ -123,6 +176,31 @@ final class FrontendServerController: ObservableObject {
         port = selectedPort
         status = "Starting local API server..."
         detail = root.path
+        guard let supportDirectory = prepareAppSupportDirectory() else {
+            status = "CalendarPilot could not create Application Support state."
+            detail = "~/Library/Application Support/CalendarPilot"
+            return
+        }
+        let runDirectory = supportDirectory.appendingPathComponent("runs/macos-app", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: runDirectory, withIntermediateDirectories: true)
+        } catch {
+            status = "CalendarPilot could not create a writable run directory."
+            detail = error.localizedDescription
+            return
+        }
+        let logURL = supportDirectory.appendingPathComponent("server.log")
+        do {
+            FileManager.default.createFile(atPath: logURL.path, contents: nil)
+            let handle = try FileHandle(forWritingTo: logURL)
+            try handle.truncate(atOffset: 0)
+            logFileHandle = handle
+            logFileURL = logURL
+        } catch {
+            status = "CalendarPilot could not open its server log."
+            detail = error.localizedDescription
+            return
+        }
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -138,7 +216,7 @@ final class FrontendServerController: ObservableObject {
             "--port",
             String(port),
             "--run-dir",
-            "runs/macos-app",
+            runDirectory.path,
         ]
         var environment = ProcessInfo.processInfo.environment
         environment["PYTHONPATH"] = "src"
@@ -146,18 +224,16 @@ final class FrontendServerController: ObservableObject {
         environment["CALENDAR_PILOT_ROOT"] = root.path
         proc.environment = environment
 
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = pipe
+        proc.standardOutput = logFileHandle
+        proc.standardError = logFileHandle
         proc.terminationHandler = { [weak self] process in
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data.suffix(4000), encoding: .utf8) ?? ""
             Task { @MainActor in
                 if self?.process === process {
+                    self?.closeLogFile()
                     self?.process = nil
                     self?.frontendURL = nil
                     self?.status = "CalendarPilot server stopped."
-                    self?.detail = output.isEmpty ? "Process exited with status \(process.terminationStatus)." : output
+                    self?.detail = "Process exited with status \(process.terminationStatus). Log: \(self?.logFileURL?.path ?? logURL.path)"
                 }
             }
         }
@@ -166,6 +242,7 @@ final class FrontendServerController: ObservableObject {
             try proc.run()
             process = proc
         } catch {
+            closeLogFile()
             status = "Could not start Python frontend server."
             detail = error.localizedDescription
             return
@@ -179,6 +256,7 @@ final class FrontendServerController: ObservableObject {
             return
         }
         process.terminate()
+        closeLogFile()
         self.process = nil
     }
 
@@ -206,9 +284,27 @@ final class FrontendServerController: ObservableObject {
             }
             await MainActor.run {
                 self.status = "CalendarPilot API did not become ready."
-                self.detail = "Check that python3 can run the bundled frontend package."
+                self.detail = "Check that python3 can run the bundled frontend package. Log: \(self.logFileURL?.path ?? "")"
             }
         }
+    }
+
+    private func prepareAppSupportDirectory() -> URL? {
+        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let directory = base.appendingPathComponent("CalendarPilot", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return directory
+        } catch {
+            return nil
+        }
+    }
+
+    private func closeLogFile() {
+        try? logFileHandle?.close()
+        logFileHandle = nil
     }
 
     private func findFrontendRoot() -> URL? {

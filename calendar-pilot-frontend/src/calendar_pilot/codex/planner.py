@@ -76,8 +76,11 @@ class CodexToolPlanner:
                 plan.recommended_next_action = "committed" if not commit_receipt.denied_reason else "commit_denied_stage_instead"
             else:
                 stage_call = self._call(CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": winner}, authority_tier, "Stage the packet so the user or authority policy can confirm.", grant_id=grant.grant_id, correlation_id=winner)
-                self._run(plan, stage_call, observation, biography)
-                plan.recommended_next_action = "stage_for_confirmation" if needs_confirm else "staged_draft"
+                stage_receipt = self._run(plan, stage_call, observation, biography)
+                if stage_receipt.denied_reason:
+                    plan.recommended_next_action = "stage_denied"
+                else:
+                    plan.recommended_next_action = "stage_for_confirmation" if needs_confirm else "staged_draft"
         else:
             plan.recommended_next_action = "no_candidate_available"
         return plan

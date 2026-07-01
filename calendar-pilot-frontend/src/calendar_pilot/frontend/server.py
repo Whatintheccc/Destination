@@ -111,6 +111,8 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                         return session.stage_candidate(candidate_id)
                     if op == "commit":
                         return session.commit_candidate(candidate_id)
+                    if op == "confirm":
+                        return session.confirm_candidate(candidate_id)
             if path.startswith("/api/receipts/") and path.endswith("/confirm"):
                 parts = path.strip("/").split("/")
                 if len(parts) == 4:

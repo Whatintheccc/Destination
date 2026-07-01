@@ -121,12 +121,16 @@ class DogfoodSessionState:
     def commit_candidate(self, candidate_id: str) -> dict[str, Any]:
         return self._execute_candidate_tool(CodexToolName.REQUEST_COMMIT, candidate_id, confirmed=True)
 
+    def confirm_candidate(self, candidate_id: str) -> dict[str, Any]:
+        scopes = sorted(set(self.authority_scopes) | {"commit_private"})
+        return self._execute_candidate_tool(CodexToolName.REQUEST_COMMIT, candidate_id, confirmed=True, scopes=scopes)
+
     def confirm_receipt(self, receipt_id: str) -> dict[str, Any]:
         with self.lock:
             candidate_id = self._candidate_id_for_receipt(receipt_id)
         if not candidate_id:
             return self._error_state(f"receipt {receipt_id} does not contain a candidate to confirm")
-        return self.commit_candidate(candidate_id)
+        return self.confirm_candidate(candidate_id)
 
     def undo(self, rollback_handle_id: str) -> dict[str, Any]:
         with self.lock:
@@ -218,23 +222,18 @@ class DogfoodSessionState:
         q: str | None = None,
     ) -> dict[str, Any]:
         with self.lock:
-            payload: dict[str, Any] = {}
-            for key, value in {
-                "candidate_id": candidate_id,
-                "trace_id": trace_id,
-                "receipt_id": receipt_id,
-                "authority_grant_id": authority_grant_id,
-                "rollback_handle_id": rollback_handle_id,
-                "reward_event_id": reward_event_id,
-                "q": q,
-            }.items():
-                if value:
-                    payload[key] = value
-            call = self._new_call(CodexToolName.QUERY_REPLAY_TRACE, payload, correlation_id=trace_id or candidate_id or receipt_id or q)
-            receipt = self._execute(call)
-            self.last_replay_query = receipt.output
+            filters = self._replay_filters(
+                candidate_id=candidate_id,
+                trace_id=trace_id,
+                receipt_id=receipt_id,
+                authority_grant_id=authority_grant_id,
+                rollback_handle_id=rollback_handle_id,
+                reward_event_id=reward_event_id,
+                q=q,
+            )
+            self.last_replay_query = self._query_replay_unlocked(filters)
             self._save()
-            return self._state_unlocked(extra={"replay": receipt.output})
+            return self._state_unlocked(extra={"replay": self.last_replay_query})
 
     def export_replay(
         self,
@@ -248,7 +247,7 @@ class DogfoodSessionState:
         q: str | None = None,
     ) -> dict[str, Any]:
         with self.lock:
-            self.replay_trace(
+            filters = self._replay_filters(
                 candidate_id=candidate_id,
                 trace_id=trace_id,
                 receipt_id=receipt_id,
@@ -257,7 +256,8 @@ class DogfoodSessionState:
                 reward_event_id=reward_event_id,
                 q=q,
             )
-            query = self.last_replay_query or {"traces": []}
+            query = self._query_replay_unlocked(filters)
+            self.last_replay_query = query
             digest = hashlib.sha1(json.dumps(query.get("query", {}), sort_keys=True).encode()).hexdigest()[:12]
             export_path = self.run_dir / "exports" / f"replay_export_{digest}.jsonl"
             export_path.parent.mkdir(parents=True, exist_ok=True)
@@ -275,17 +275,20 @@ class DogfoodSessionState:
 
     def run_self_play(self, *, episodes: int = 3) -> dict[str, Any]:
         with self.lock:
+            episodes = int(episodes)
+            if episodes < 1:
+                return self._error_state("self-play episodes must be at least 1")
             grant_id = self._issue_grant(confirmed=True)
             call = self._new_call(
                 CodexToolName.RUN_SELF_PLAY_PROBE,
-                {"episodes": int(episodes)},
+                {"episodes": episodes},
                 grant_id=grant_id,
                 correlation_id=f"self_play:{len(self.self_play_history) + 1}",
             )
             receipt = self._execute(call)
             metrics = receipt.output.get("metrics", {}) if isinstance(receipt.output, dict) else {}
             self.self_play_history.append({
-                "episodes": int(episodes),
+                "episodes": episodes,
                 "metrics": metrics,
                 "top_failure_modes": receipt.output.get("top_failure_modes", []),
                 "release_decision": self._self_play_release_decision(metrics),
@@ -330,15 +333,16 @@ class DogfoodSessionState:
             self.replay = ReplayBuffer()
             self.runtime.replay = self.replay
             self.runtime.frontier.clear()
+            self._clear_kernel_state()
             self.last_error = None
             self._save()
             return self._state_unlocked(extra={"reset": True})
 
-    def _execute_candidate_tool(self, tool_name: CodexToolName, candidate_id: str, *, confirmed: bool) -> dict[str, Any]:
+    def _execute_candidate_tool(self, tool_name: CodexToolName, candidate_id: str, *, confirmed: bool, scopes: list[str] | None = None) -> dict[str, Any]:
         with self.lock:
             if candidate_id not in self.runtime.frontier:
                 return self._error_state(f"unknown candidate_id {candidate_id}")
-            grant_id = self._issue_grant(confirmed=confirmed)
+            grant_id = self._issue_grant(confirmed=confirmed, scopes=scopes)
             call = self._new_call(tool_name, {"candidate_id": candidate_id}, grant_id=grant_id, correlation_id=candidate_id)
             receipt = self._execute(call)
             if tool_name == CodexToolName.REQUEST_COMMIT:
@@ -443,12 +447,12 @@ class DogfoodSessionState:
             }
         return build_frontend_snapshot(self.current_plan, self.observation, self.biography, self.replay).to_dict()
 
-    def _issue_grant(self, *, confirmed: bool) -> str:
+    def _issue_grant(self, *, confirmed: bool, scopes: list[str] | None = None) -> str:
         observation = self.observation
         grant = self.runtime.kernel.issue_authority_grant(
             user_scope_id=observation.user_scope_id,
             max_authority_tier=self.authority_tier,
-            scopes=self.authority_scopes,
+            scopes=scopes or self.authority_scopes,
             confirmation_provenance="dogfood_user_confirmed" if confirmed else "dogfood_stage_scope",
             confirmed_by_user=confirmed,
             issued_at=observation.observed_at,
@@ -652,6 +656,51 @@ class DogfoodSessionState:
             return
         for rollback_handle_id, candidate_id in self.provider.rollback_records().items():
             ledger.setdefault(rollback_handle_id, candidate_id)
+
+    def _clear_kernel_state(self) -> None:
+        for attr in ("authority_grants", "undo_ledger", "_grants"):
+            registry = getattr(self.runtime.kernel, attr, None)
+            if isinstance(registry, dict):
+                registry.clear()
+
+    @staticmethod
+    def _replay_filters(
+        *,
+        candidate_id: str | None = None,
+        trace_id: str | None = None,
+        receipt_id: str | None = None,
+        authority_grant_id: str | None = None,
+        rollback_handle_id: str | None = None,
+        reward_event_id: str | None = None,
+        q: str | None = None,
+    ) -> dict[str, str]:
+        return {
+            key: str(value)
+            for key, value in {
+                "candidate_id": candidate_id,
+                "trace_id": trace_id,
+                "receipt_id": receipt_id,
+                "authority_grant_id": authority_grant_id,
+                "rollback_handle_id": rollback_handle_id,
+                "reward_event_id": reward_event_id,
+                "q": q,
+            }.items()
+            if value
+        }
+
+    def _query_replay_unlocked(self, filters: dict[str, str]) -> dict[str, Any]:
+        traces = []
+        for record in self.replay.records:
+            if filters and not CodexToolRuntime._replay_record_matches(record, filters):
+                continue
+            traces.append({
+                "record_type": record.record_type,
+                "record_id": record.record_id,
+                "trace_id": record.trace_id,
+                "causal_parent_id": record.causal_parent_id,
+                "payload": record.payload,
+            })
+        return {"summary": to_jsonable(self.replay.summarize()), "query": filters, "traces": traces}
 
     def _authority_grants(self) -> list[dict[str, Any]]:
         registry = getattr(self.runtime.kernel, "authority_grants", None)

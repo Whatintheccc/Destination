@@ -87,10 +87,11 @@ function renderAction(action) {
   const confirm = action.receipt_id && ['stageable', 'staged', 'requires_confirmation'].includes(action.status)
     ? `<button data-action="confirm" data-receipt="${receipt}">Confirm</button>` : '';
   const denialReason = action.denied_reason || action.why_user_sees_it || '';
+  const canAskConfirmation = action.candidate_id && !/social|people-affecting/i.test(denialReason);
   const deniedControls = action.status === 'denied' ? `<div class="controls denial-controls">
     <button data-action="explain-denial" data-denial="${escapeHtml(denialReason)}">Explain denial</button>
     ${action.candidate_id ? `<button data-action="stage-denied" data-candidate="${escapeHtml(action.candidate_id)}">Stage instead</button>` : ''}
-    ${action.candidate_id ? `<button data-action="confirm-denied" data-candidate="${escapeHtml(action.candidate_id)}">Ask confirmation</button>` : ''}
+    ${canAskConfirmation ? `<button data-action="confirm-denied" data-candidate="${escapeHtml(action.candidate_id)}">Ask confirmation</button>` : ''}
     <button data-action="narrow-scope">Narrow scope</button>
     <button data-action="repair-denial" data-denial="${escapeHtml(denialReason)}">Repair profile</button>
   </div>` : '';
@@ -276,7 +277,7 @@ document.addEventListener('click', event => {
   if (action === 'explain-denial') post('/api/denials/explain', { denied_reason: button.dataset.denial });
   if (action === 'apply-profile-patch') post('/api/profile/patch/apply', { claim: button.dataset.claim, correction: button.dataset.correction, confirmed: true });
   if (action === 'stage-denied') post(`/api/candidates/${encodeURIComponent(button.dataset.candidate)}/stage`);
-  if (action === 'confirm-denied') post(`/api/candidates/${encodeURIComponent(button.dataset.candidate)}/commit`);
+  if (action === 'confirm-denied') post(`/api/candidates/${encodeURIComponent(button.dataset.candidate)}/confirm`);
   if (action === 'narrow-scope') post('/api/authority', { authority_tier: 2, scopes: ['recommend', 'stage', 'undo'] });
   if (action === 'repair-denial') {
     const correction = window.prompt('Profile correction for this denial:', button.dataset.denial || '');
