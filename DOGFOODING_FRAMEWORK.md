@@ -336,7 +336,7 @@ Acceptance criteria:
 
 ## P5 Live Codex Executive
 
-Status: Review fixes implemented; architecture re-review pending
+Status: Done
 Owner: product engineering and model integration
 Goal: replace the deterministic local Codex planner/explainer path with a live model-backed executive while preserving the existing tool, authority, replay, and safety contracts.
 
@@ -588,7 +588,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P3+ planning | Gauss | Independently confirmed P2 certifies fixture dogfood only; live Codex/OpenAI, DiffusionGemma/NIM, Swift IPC app selection, provider OAuth, and stale-port launch are not solved. | Incorporated the proposed P3-P8 phase gates into this framework. |
 | 2026-07-01 | P3 | Locke | Found invalid runtime modes could be silently coerced to fixture-safe and noted weaker bundled build provenance plus fixture credential false-positive. | Fixed invalid-mode reporting/gating, persisted requested/effective mode, bundled `build_id`, and runtime-derived credential reporting. Locke re-reviewed and cleared P3. |
 | 2026-07-01 | P4 | Jason | Found three blockers: Swift IPC undo was not restart-truthful, JSONL IPC was unsafe under threaded HTTP, and correlation IDs were not preserved across IPC. | Fixed all three with Swift restore RPCs, Python-side IPC rehydration, serialized/id-checked RPC, and correlation propagation. Jason re-reviewed commit `8af7fd7` and cleared P4. |
-| 2026-07-01 | P5 | Locke | Found two blockers: model-plan validation could happen inline after side-effecting execution, and `live_codex` restores did not rehydrate Swift IPC authority/undo state. | Fixed with pre-execution model-plan shape validation, replayed validation failures, and IPC restore rehydration for `live_codex`/`production`; re-review pending. |
+| 2026-07-01 | P5 | Locke | Found two blockers: model-plan validation could happen inline after side-effecting execution, and `live_codex` restores did not rehydrate Swift IPC authority/undo state. | Fixed with pre-execution model-plan shape validation, replayed validation failures, and IPC restore rehydration for `live_codex`/`production`. Locke re-reviewed commit `2d566f3` and cleared P5 for P6. |
 
 ## Open Risks
 
@@ -596,7 +596,7 @@ Run these additional scenarios as P3-P8 come online:
 |---|---|---|
 | Fixture mode can be mistaken for production integration. | P3 | Add explicit runtime mode UI, health endpoint, replay provenance, and release-mode gates. |
 | Swift IPC can regress to the Python stub if mode selection or app packaging breaks. | P4 | Shared kernel protocol, packaged IPC binary, `swift_ipc_runtime_mode_gate`, `swift-ipc-test`, and `mac_app_swift_ipc_sanity` now fail if Swift IPC falls back to `SwiftKernelStub`. |
-| Live Codex subscription-auth review fixes need re-review before P6 starts. | P5 | Review blockers have fixes and passing gates; Locke must re-review and clear P5 before P6 begins. |
+| Live Codex subscription-auth planning can regress into unsafe model execution order. | P5 | Pre-execution model-plan validation, replayed validation failures, `test_terminal_commit_plan_is_validated_before_any_execution`, and `make live-codex-e2e` now guard this boundary. |
 | DiffusionGemma/NIM policy serving is not integrated. | P6 | Add NIM endpoint configuration, credential gate, health checks, candidate provenance, and failure behavior. |
 | Real provider/OAuth behavior is not included in fixture dogfood. | P7 | Add deterministic provider state first, then one real OAuth provider with external IDs, idempotency, conflict truth, and rollback verification. |
 | Fixed-port desktop launch can show a stale server. | P8 | Add port ownership or free-port launch, process identity handshake, and occupied-port release checks. |
