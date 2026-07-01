@@ -504,6 +504,7 @@ class LiveCodexToolPlanner:
                 commit=commit,
                 plan_id=plan_id,
             )
+            self._validate_model_plan_before_execution(model_plan.calls)
             plan = CodexExecutivePlan(
                 plan_id=plan_id,
                 goal=goal,
@@ -615,6 +616,27 @@ class LiveCodexToolPlanner:
                 "redaction_policy": "no raw prompt, token, or model response persisted",
             },
         )
+
+    @staticmethod
+    def _validate_model_plan_before_execution(calls: list[ModelPlannedCall]) -> None:
+        if not calls:
+            raise LiveCodexSchemaError("live Codex returned no tool calls")
+        saw_frontier = False
+        saw_compare = False
+        terminal_tool: CodexToolName | None = None
+        for idx, planned in enumerate(calls):
+            if terminal_tool is not None:
+                raise LiveCodexSchemaError(f"{planned.tool_name.value} appeared after terminal tool {terminal_tool.value}")
+            if planned.tool_name == CodexToolName.GENERATE_CANDIDATE_FRONTIER:
+                saw_frontier = True
+            if planned.tool_name == CodexToolName.COMPARE_CANDIDATES:
+                if not saw_frontier:
+                    raise LiveCodexSchemaError("compare_candidates appeared before generate_candidate_frontier")
+                saw_compare = True
+            if planned.tool_name in {CodexToolName.SIMULATE_ACTION_PROGRAM, CodexToolName.STAGE_ACTION_PACKET, CodexToolName.REQUEST_COMMIT} and not saw_compare:
+                raise LiveCodexSchemaError(f"{planned.tool_name.value} appeared before compare_candidates")
+            if planned.tool_name in {CodexToolName.STAGE_ACTION_PACKET, CodexToolName.REQUEST_COMMIT}:
+                terminal_tool = planned.tool_name
 
     @staticmethod
     def _recommended_action(plan: CodexExecutivePlan) -> str:

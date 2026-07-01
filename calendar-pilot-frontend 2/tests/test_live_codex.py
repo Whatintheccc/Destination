@@ -151,6 +151,27 @@ class LiveCodexTests(unittest.TestCase):
         self.assertEqual(plan.receipts[-1].output["error_category"], "model_tool_schema_failure")
         self.assertEqual([record.record_type for record in replay.records[-2:]], ["codex_tool_call", "codex_tool_receipt"])
 
+    def test_terminal_commit_plan_is_validated_before_any_execution(self) -> None:
+        invalid_calls = [
+            ModelPlannedCall(CodexToolName.INSPECT_WEEK, {"goal": "Make next week less chaotic"}, 3, "Inspect.", "trace_inspect"),
+            ModelPlannedCall(CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"goal": "Make next week less chaotic"}, 3, "Generate.", "trace_frontier"),
+            ModelPlannedCall(CodexToolName.COMPARE_CANDIDATES, {}, 3, "Compare.", "trace_compare"),
+            ModelPlannedCall(CodexToolName.REQUEST_COMMIT, {"candidate_ref": "winner"}, 3, "Commit.", "trace_commit"),
+            ModelPlannedCall(CodexToolName.SIMULATE_ACTION_PROGRAM, {"candidate_ref": "winner"}, 3, "Invalid after commit.", "trace_late"),
+        ]
+        replay = ReplayBuffer()
+        planner = LiveCodexToolPlanner(runtime=CodexToolRuntime(replay=replay), client=FakeLiveCodexClient(invalid_calls))
+        plan = planner.plan_goal("Make next week less chaotic", load_obs(), load_bio(), authority_tier=3, commit=True)
+
+        self.assertEqual(plan.recommended_next_action, "live_codex_unavailable")
+        self.assertEqual(plan.receipts[-1].tool_name, CodexToolName.VALIDATE_MODEL_PLAN)
+        replayed_calls = [
+            record.payload.get("call", {}).get("tool_name")
+            for record in replay.records
+            if record.record_type == "codex_tool_call"
+        ]
+        self.assertEqual(replayed_calls, [CodexToolName.VALIDATE_MODEL_PLAN.value])
+
     def test_missing_codex_subscription_degrades_live_codex_plan_without_secret_output(self) -> None:
         planner = LiveCodexToolPlanner(runtime=CodexToolRuntime(), client=MissingSubscriptionClient())
         plan = planner.plan_goal("Make next week less chaotic", load_obs(), load_bio(), authority_tier=3, commit=False)

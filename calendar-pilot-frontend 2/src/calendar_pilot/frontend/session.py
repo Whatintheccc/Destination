@@ -485,7 +485,7 @@ class DogfoodSessionState:
         self.kernel.undo_ledger = {}
         undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
         active_undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
-        if self.runtime_mode == "swift_ipc":
+        if self.runtime_mode in {"swift_ipc", "live_codex", "production"}:
             restore_grant = getattr(self.kernel, "restore_authority_grant", None)
             if callable(restore_grant):
                 for grant in grants:
