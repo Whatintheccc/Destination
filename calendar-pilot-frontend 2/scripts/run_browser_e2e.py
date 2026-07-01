@@ -48,7 +48,9 @@ def assert_static_chat_shell() -> None:
 
 
 def run_fixture_api_loop() -> None:
-    session = DogfoodSessionState(run_dir=ROOT / "runs" / "browser_e2e")
+    run_dir = ROOT / "runs" / "browser_e2e"
+    shutil.rmtree(run_dir, ignore_errors=True)
+    session = DogfoodSessionState(run_dir=run_dir)
     state = session.snapshot()
     if state["chat"]["layout"] != "chat_first":
         raise AssertionError("state did not expose chat_first layout")

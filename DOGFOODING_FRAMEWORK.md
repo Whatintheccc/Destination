@@ -270,18 +270,21 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 |---|---|---|---|
 | 2026-07-01 | Archive | Moved tracked `calendar-pilot-frontend/` and old framework to `Do-not-reference/`. | Active root now targets `calendar-pilot-frontend 2/`. |
 | 2026-07-01 | P0 framing | Replaced the chat-specific dogfood mandate with this general validation framework. | Done. |
-| 2026-07-01 | P0 persistence | Added `session_state.json` persistence/reload for session metadata, plan, transcript, feedback, denials, profile patches, self-play history, authority grants, undo ledger, and replay. | `test_frontend_session_persistence.py` passes. |
-| 2026-07-01 | P0 baseline checks | Ran `make py-test`, `make swift-test`, `make browser-e2e`, and `make mac-app-build`. | Python 44 tests, Swift 16 tests, browser smoke, and app build passed. |
+| 2026-07-01 | P0 persistence | Added `session_state.json` persistence/reload for session metadata, plan, transcript, feedback, denials, profile patches, self-play history, authority grants, undo ledger, replay, and corrupt-state recovery. | `test_frontend_session_persistence.py` passes. |
+| 2026-07-01 | P0 API contract | Added HTTP-level route coverage for state, plans, candidates, receipt confirmation, undo, feedback, replay, profile patch, denial explanation, self-play, authority, reset, and invalid POST JSON. | `test_frontend_server_api.py` passes. |
+| 2026-07-01 | P0 baseline checks | Ran root `make py-test`, `make swift-test`, `make browser-e2e`, and `make mac-app-build`. | Python 46 tests, Swift 16 tests, browser smoke, app build, bundle layout, and launcher syntax passed. |
 
 ## Review Log
 
 | Date | Phase | Reviewer | Result | Follow-up |
 |---|---|---|---|---|
+| 2026-07-01 | P0 | Bohr | Found string boolean authority confirmation risk, missing HTTP API coverage, incomplete persistence assertions, and corrupt-state risk. | Fixed with `body_bool`, `test_frontend_server_api.py`, stronger restart assertions, and visible corrupt restore recovery. |
+| 2026-07-01 | P0 | Epicurus | Found premature review bookkeeping, missing HTTP API coverage, root command ambiguity, weak app bundle evidence, and stale browser run risk. | Fixed with review log, HTTP tests, root Makefile delegation, packaged app source layout, and browser run-dir cleanup. |
 
 ## Open Risks
 
 | Risk | Phase | Mitigation |
 |---|---|---|
-| App bundle may launch from a copied location without source dependencies. | P2 | Package source or resolve paths robustly. |
+| App bundle launch needs end-to-end app-open verification. | P2 | Launch built `.app`, confirm the local server opens, then run critical dogfood workflow through it. |
 | Browser E2E currently has a direct-session smoke path. | P1 | Make live server/browser the primary path where supported. |
 | Real provider/OAuth behavior is not included in fixture dogfood. | P2 | Keep fixture gate explicit and require manual credential setup only when scope expands. |

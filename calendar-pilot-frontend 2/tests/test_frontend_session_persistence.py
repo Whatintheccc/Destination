@@ -35,6 +35,9 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
             self.assertTrue(snapshot["inspector"]["profile"]["patch_history"])
             self.assertTrue(snapshot["inspector"]["self_play"]["history"])
             self.assertTrue(snapshot["inspector"]["denials"])
+            self.assertEqual(snapshot["session"]["authority_tier"], 2)
+            self.assertEqual(snapshot["session"]["authority_scopes"], ["recommend", "stage", "undo"])
+            self.assertTrue(snapshot["inspector"]["authority"]["history"])
             self.assertIn(rollback, reloaded.kernel.undo_ledger)
             self.assertIn(candidate_id, reloaded.runtime.frontier)
 
@@ -42,6 +45,9 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
             latest = undone["action_queue"][-1]
             self.assertEqual(latest["status"], "committed")
             self.assertEqual(latest["rollback_handle_id"], rollback)
+            reverted = [record.payload.get("receipt", {}) for record in reloaded.replay.records if record.payload.get("receipt", {}).get("rollback_handle_id") == rollback]
+            self.assertEqual(reverted[-1]["sync_status"], "reverted")
+            self.assertNotIn(rollback, reloaded.kernel.undo_ledger)
 
     def test_reset_persists_clean_state_for_next_launch(self):
         with tempfile.TemporaryDirectory() as td:
@@ -60,6 +66,19 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
             self.assertFalse(snapshot["chat"]["candidate_cards"])
             self.assertEqual(len(reloaded.kernel.undo_ledger), 0)
             self.assertIn("Reset complete", snapshot["chat"]["messages"][0]["title"])
+
+    def test_corrupt_session_state_recovers_with_visible_restore_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            run_dir = Path(td)
+            run_dir.mkdir(parents=True, exist_ok=True)
+            (run_dir / "session_state.json").write_text("{not valid json", encoding="utf-8")
+
+            session = DogfoodSessionState(run_dir=run_dir)
+            snapshot = session.snapshot()
+
+            self.assertIn("failed to restore session_state.json", snapshot["session"]["restore_error"])
+            self.assertEqual(snapshot["chat"]["messages"][0]["title"], "Session restore failed")
+            self.assertTrue((run_dir / "session_state.json").exists())
 
 
 if __name__ == "__main__":

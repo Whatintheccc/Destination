@@ -2,21 +2,35 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist/CalendarPilot.app"
-mkdir -p "$DIST/Contents/MacOS" "$DIST/Contents/Resources/frontend/static"
+APP_ROOT="$DIST/Contents/Resources/app"
+rm -rf "$DIST"
+mkdir -p "$DIST/Contents/MacOS" "$APP_ROOT"
 cat > "$DIST/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict><key>CFBundleName</key><string>CalendarPilot</string><key>CFBundleIdentifier</key><string>dev.calendarpilot.fixture</string><key>CFBundleExecutable</key><string>CalendarPilot</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>
 PLIST
-cp -R "$ROOT/frontend/static/"* "$DIST/Contents/Resources/frontend/static/"
+cp -R "$ROOT/src" "$APP_ROOT/src"
+cp -R "$ROOT/data" "$APP_ROOT/data"
+cp -R "$ROOT/frontend" "$APP_ROOT/frontend"
+cp "$ROOT/pyproject.toml" "$APP_ROOT/pyproject.toml"
 cat > "$DIST/Contents/MacOS/CalendarPilot" <<'APP'
 #!/usr/bin/env bash
-DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-cd "$DIR" 2>/dev/null || true
+APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
+RUN_DIR="${CALENDAR_PILOT_RUN_DIR:-$HOME/Library/Application Support/CalendarPilot}"
+HOST="${CALENDAR_PILOT_HOST:-127.0.0.1}"
+PORT="${CALENDAR_PILOT_PORT:-8787}"
+URL="http://$HOST:$PORT"
+mkdir -p "$RUN_DIR"
+cd "$APP_ROOT" 2>/dev/null || exit 1
 if command -v python3 >/dev/null 2>&1; then
-  PYTHONPATH=src python3 -m calendar_pilot.app frontend --serve --host 127.0.0.1 --port 8787 --run-dir runs/macos-app
+  if command -v open >/dev/null 2>&1; then
+    (sleep 1; open "$URL") >/dev/null 2>&1 &
+  fi
+  exec env PYTHONPATH="$APP_ROOT/src" python3 -m calendar_pilot.app frontend --serve --host "$HOST" --port "$PORT" --run-dir "$RUN_DIR"
 else
-  echo "python3 not found; open frontend/static/index.html from the repo checkout."
+  echo "python3 not found; install Python 3 or run from the repository checkout."
+  exit 1
 fi
 APP
 chmod +x "$DIST/Contents/MacOS/CalendarPilot"

@@ -15,6 +15,22 @@ STATIC_DIR = ROOT / "frontend" / "static"
 _DEFAULT_SESSION: DogfoodSessionState | None = None
 
 
+def body_bool(value: Any, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off", ""}:
+            return False
+    return default
+
+
 def get_session() -> DogfoodSessionState:
     global _DEFAULT_SESSION
     if _DEFAULT_SESSION is None:
@@ -90,12 +106,12 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             parts = [p for p in path.split("/") if p]
             if path == "/api/plans":
                 tier = body.get("authority_tier", body.get("max_authority_tier"))
-                return session.create_plan(str(body.get("goal", "")), commit=bool(body.get("commit", False)), authority_tier=tier)
+                return session.create_plan(str(body.get("goal", "")), commit=body_bool(body.get("commit"), default=False), authority_tier=tier)
             if len(parts) == 4 and parts[1] == "candidates":
                 candidate_id = parts[2]
                 action = parts[3]
                 if action in {"simulate", "stage", "commit"}:
-                    return session.candidate_action(candidate_id, action, confirmed=bool(body.get("confirmed", action == "commit")))
+                    return session.candidate_action(candidate_id, action, confirmed=body_bool(body.get("confirmed"), default=action == "commit"))
                 if action == "confirm":
                     return session.candidate_action(candidate_id, "commit", confirmed=True)
             if len(parts) == 4 and parts[1] == "receipts" and parts[3] == "confirm":
@@ -105,7 +121,7 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             if path == "/api/profile/patch/propose":
                 return session.propose_profile_patch(str(body.get("correction", "")))
             if path == "/api/profile/patch/apply":
-                return session.apply_profile_patch(str(body.get("claim", "")), str(body.get("correction", "")), confirmed=bool(body.get("confirmed", False)))
+                return session.apply_profile_patch(str(body.get("claim", "")), str(body.get("correction", "")), confirmed=body_bool(body.get("confirmed"), default=False))
             if path == "/api/denials/explain":
                 return session.explain_denial(str(body.get("denied_reason", "")))
             if path == "/api/self-play":
@@ -115,7 +131,7 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                 if isinstance(scopes, str):
                     scopes = [s.strip() for s in scopes.split(",") if s.strip()]
                 tier = body.get("max_authority_tier", body.get("authority_tier"))
-                return session.update_authority(tier=tier, scopes=scopes if isinstance(scopes, list) else None, confirmed=bool(body.get("confirmed", True)))
+                return session.update_authority(tier=tier, scopes=scopes if isinstance(scopes, list) else None, confirmed=body_bool(body.get("confirmed"), default=True))
             if path == "/api/feedback":
                 return session.feedback(str(body.get("receipt_id", "")), str(body.get("feedback", "useful")), reason=str(body.get("reason", "")))
             if path == "/api/reset":

@@ -61,6 +61,7 @@ class DogfoodSessionState:
     profile_patch_history: list[dict[str, Any]] = field(default_factory=list)
     self_play_history: list[dict[str, Any]] = field(default_factory=list)
     authority_history: list[dict[str, Any]] = field(default_factory=list)
+    restore_error: str | None = None
 
     def __post_init__(self) -> None:
         self.observation_path = Path(self.observation_path)
@@ -306,6 +307,7 @@ class DogfoodSessionState:
             "authority_tier": self.authority_tier,
             "authority_scopes": self.authority_scopes,
             "run_dir": str(self.run_dir),
+            "restore_error": self.restore_error,
         }
         snapshot["chat"]["messages"] = self._chat_messages(snapshot)
         snapshot["inspector"]["authority"]["history"] = self.authority_history[-10:]
@@ -340,6 +342,7 @@ class DogfoodSessionState:
             "profile_patch_history": self.profile_patch_history,
             "self_play_history": self.self_play_history,
             "authority_history": self.authority_history,
+            "restore_error": self.restore_error,
             "kernel": {
                 "authority_grants": [grant.to_dict() for grant in self.kernel.authority_grants.values()],
                 "undo_ledger": self.kernel.undo_ledger,
@@ -351,8 +354,19 @@ class DogfoodSessionState:
         path = self.run_dir / "session_state.json"
         if not path.exists():
             return False
-        data = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, TypeError, ValueError) as exc:
+            self.restore_error = f"failed to restore {path.name}: {exc}"
+            self.transcript_events.append({
+                "kind": "assistant",
+                "title": "Session restore failed",
+                "body": self.restore_error,
+                "created_at": _now().isoformat(),
+            })
+            return False
         self.session_id = str(data.get("session_id") or self.session_id)
+        self.restore_error = data.get("restore_error")
         self.authority_tier = int(data.get("authority_tier", self.authority_tier))
         scopes = data.get("authority_scopes")
         if isinstance(scopes, list):
