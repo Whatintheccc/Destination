@@ -176,6 +176,10 @@ class UserBiography:
             return 0.5
         return max(float(c.get("confidence", 0.5)) for c in matches)
 
+    def has_claim(self, *phrases: str) -> bool:
+        haystack = " ".join(c.get("claim", "") for c in self.preference_claims).lower()
+        return any(p.lower() in haystack for p in phrases)
+
 
 @dataclass(frozen=True)
 class AtomicCalendarAction:
@@ -210,6 +214,16 @@ class CandidateCalendarAction:
     recommended_execution_time: Optional[datetime] = None
     right_moment_decision: RightMomentDecision = RightMomentDecision.DO_NOTHING
     explanation: str = ""
+
+    # Revised agent-loop fields. These make policy output inspectable instead of
+    # a dry scalar: the policy carries a hypothesis, a counterfactual, and the
+    # reward anatomy that made the action win.
+    model_story: list[str] = field(default_factory=list)
+    counterfactual: str = ""
+    control_notes: list[str] = field(default_factory=list)
+    reward_breakdown: dict[str, float] = field(default_factory=dict)
+    right_moment_score: float = 0.0
+    simulated_outcomes: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         def convert(obj: Any) -> Any:

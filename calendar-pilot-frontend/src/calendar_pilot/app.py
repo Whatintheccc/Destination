@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from calendar_pilot.codex import CodexExecutiveAgent
@@ -42,7 +43,9 @@ def run_demo(args: argparse.Namespace) -> None:
     if args.self_play:
         metrics = SelfPlayRunner(policy=policy, kernel=kernel).run(observation, biography, episodes=args.self_play, authority_tier=args.authority_tier)
         print("\nSelf-play metrics:")
-        print(json.dumps(metrics.__dict__ | {"acceptance_rate": metrics.acceptance_rate, "undo_rate": metrics.undo_rate}, indent=2))
+        print(json.dumps(asdict(metrics) | {"acceptance_rate": metrics.acceptance_rate, "undo_rate": metrics.undo_rate, "average_reward": metrics.average_reward}, indent=2))
+        print("\nCodex self-play summary:")
+        print(codex.summarize_self_play(metrics))
 
 
 def main() -> None:

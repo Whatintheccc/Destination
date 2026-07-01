@@ -1,34 +1,47 @@
 from __future__ import annotations
 
+from calendar_pilot.diffusiongemma.reward import RewardModel
+from calendar_pilot.diffusiongemma.self_play import SelfPlayMetrics
 from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RightMomentDecision, UserBiography
 
 
 class CodexExecutiveAgent:
     """Conversation/explanation layer for CalendarPilot.
 
-    This reference agent is deterministic. A production Codex layer can call a
-    language model, but it should preserve the same explanation contract.
+    This version is intentionally more agentic than the first pass: Codex does
+    not just echo a score. It tells the action story: what the model saw, why it
+    acted now, how Swift bounded the write, and which reward heads were doing the
+    work. A production Codex layer can be model-backed, but this deterministic
+    contract keeps explanations inspectable.
     """
 
     def explain(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt, biography: UserBiography) -> str:
         if receipt.denied_reason:
-            return f"I did not apply '{candidate.intent}' because {receipt.denied_reason}."
-        authority = f"tier {receipt.authority_tier_used}"
-        if candidate.right_moment_decision == RightMomentDecision.AUTO_WRITE_THEN_NOTIFY:
-            action_phrase = "I applied it now and kept an undo handle."
-        elif candidate.right_moment_decision == RightMomentDecision.NOTIFY_NOW:
-            action_phrase = "I would notify now before applying it."
-        elif candidate.right_moment_decision == RightMomentDecision.BUNDLE_INTO_DIGEST:
-            action_phrase = "I would bundle this into a later digest to reduce interruption."
-        elif candidate.right_moment_decision == RightMomentDecision.ASK_CLARIFICATION:
-            action_phrase = "I need confirmation because the action affects other people or a higher authority tier."
-        else:
-            action_phrase = "I would wait for a better response window."
-        reward = f"expected reward {candidate.expected_reward:.2f}"
+            return self._denied(candidate, receipt)
+        action_phrase = self._action_phrase(candidate, receipt)
+        positives = ", ".join(RewardModel.top_positive_heads(candidate)) or "no positive head dominated"
+        negatives = ", ".join(RewardModel.top_negative_heads(candidate)) or "no major penalty"
+        story = " ".join(candidate.model_story[:3]) or candidate.explanation
+        counterfactual = candidate.counterfactual or "No counterfactual was attached."
+        notes = self._compact_notes(candidate.control_notes)
         return (
-            f"{candidate.explanation} {action_phrase} "
-            f"Authority: {authority}. Score: {reward}. "
+            f"I chose `{candidate.intent}`. {story} "
+            f"Counterfactual: {counterfactual} "
+            f"Actuation: {action_phrase} "
+            f"Reward anatomy: +[{positives}] / -[{negatives}], total {candidate.expected_reward:.2f}. "
+            f"Timing: {candidate.right_moment_decision.value} at score {candidate.right_moment_score:.2f}. "
+            f"Control notes: {notes} "
             f"Rollback: {receipt.rollback_handle_id or 'none'}."
+        )
+
+    def summarize_self_play(self, metrics: SelfPlayMetrics) -> str:
+        failures = ", ".join(metrics.top_failure_modes) or "none"
+        intents = ", ".join(f"{k}:{v}" for k, v in sorted(metrics.chosen_intents.items())) or "none"
+        return (
+            f"Self-play ran {metrics.episodes} episode(s): acceptance={metrics.acceptance_rate:.2f}, "
+            f"undo={metrics.undo_rate:.2f}, avg_reward={metrics.average_reward:.2f}, "
+            f"adversarial_delta={metrics.adversarial_delta:.2f}. "
+            f"Chosen intents: {intents}. Failure modes: {failures}."
         )
 
     def ask_for_autonomy(self, candidate: CandidateCalendarAction, current_tier: int) -> str:
@@ -36,11 +49,41 @@ class CodexExecutiveAgent:
             return "No extra autonomy needed."
         return (
             f"This needs autonomy tier {candidate.required_authority_tier}, "
-            f"but current tier is {current_tier}. Grant a narrower scope or confirm this action once?"
+            f"but current tier is {current_tier}. Grant a narrower scope, stage it as a draft, or confirm once?"
         )
 
     def profile_repair_prompt(self, biography: UserBiography, correction: str) -> str:
         return (
-            "I will update the profile as a correction, not as a hidden preference. "
-            f"Correction received: {correction}. Current fatigue={biography.notification_fatigue:.2f}."
+            "I will treat this as an explicit profile correction, not a hidden preference. "
+            f"Correction received: {correction}. Current notification fatigue={biography.notification_fatigue:.2f}."
         )
+
+    @staticmethod
+    def _action_phrase(candidate: CandidateCalendarAction, receipt: CalendarActionReceipt) -> str:
+        authority = f"Swift used tier {receipt.authority_tier_used} authority"
+        if candidate.right_moment_decision == RightMomentDecision.AUTO_WRITE_THEN_NOTIFY:
+            return f"I applied the reversible write now; {authority}."
+        if candidate.right_moment_decision == RightMomentDecision.NOTIFY_NOW:
+            return f"I would notify now; {authority}."
+        if candidate.right_moment_decision == RightMomentDecision.SILENTLY_DRAFT:
+            return f"I would stage this silently as a draft; {authority}."
+        if candidate.right_moment_decision == RightMomentDecision.BUNDLE_INTO_DIGEST:
+            return f"I would bundle this into the next digest; {authority}."
+        if candidate.right_moment_decision == RightMomentDecision.ASK_CLARIFICATION:
+            return f"I would ask before touching people-affecting time; {authority}."
+        if candidate.right_moment_decision == RightMomentDecision.WAIT:
+            return f"I would wait for the predicted response window; {authority}."
+        return f"I left the calendar unchanged; {authority}."
+
+    @staticmethod
+    def _denied(candidate: CandidateCalendarAction, receipt: CalendarActionReceipt) -> str:
+        return (
+            f"I did not apply `{candidate.intent}` because Swift denied actuation: {receipt.denied_reason}. "
+            f"The candidate can still be staged or rerun with a narrower authority scope."
+        )
+
+    @staticmethod
+    def _compact_notes(notes: list[str], limit: int = 3) -> str:
+        if not notes:
+            return "none"
+        return "; ".join(notes[:limit])

@@ -19,6 +19,9 @@ class RewardWeights:
     undo: float = -2.5
     ignored: float = -0.4
     explicit_wrong: float = -3.0
+    authority_cost: float = -0.18
+    reversibility_bonus: float = 0.22
+    narrative_bonus: float = 0.06
 
     @classmethod
     def from_json(cls, path: str | Path) -> "RewardWeights":
@@ -27,10 +30,12 @@ class RewardWeights:
 
 
 class RewardModel:
-    """Reference reward model with separate visible reward heads.
+    """Visible multi-head reward model for the agentic optimizer.
 
-    This is intentionally simple: in production, replace this class with a model
-    serving client while preserving the head decomposition in CandidateCalendarAction.
+    The first repo collapsed the policy into a single dry scalar. This revision
+    still returns a scalar for ranking, but it leaves the anatomy attached to the
+    candidate so self-play, Codex, and offline training can argue about the same
+    decision without reverse-engineering it.
     """
 
     def __init__(self, weights: RewardWeights | None = None) -> None:
@@ -38,17 +43,22 @@ class RewardModel:
 
     def score(self, candidate: CandidateCalendarAction) -> float:
         w = self.weights
-        score = (
-            w.acceptance * candidate.predicted_acceptance
-            + w.utility * candidate.predicted_utility
-            + w.engagement * candidate.predicted_engagement
-            + w.long_horizon * candidate.predicted_long_horizon_value
-            + w.regret * candidate.predicted_regret
-            + w.interruption * candidate.predicted_interruption_cost
-            + w.social_risk * candidate.predicted_social_risk
-        )
-        candidate.expected_reward = round(score, 4)
-        return candidate.expected_reward
+        breakdown = {
+            "acceptance": w.acceptance * candidate.predicted_acceptance,
+            "utility": w.utility * candidate.predicted_utility,
+            "engagement": w.engagement * candidate.predicted_engagement,
+            "long_horizon": w.long_horizon * candidate.predicted_long_horizon_value,
+            "regret": w.regret * candidate.predicted_regret,
+            "interruption": w.interruption * candidate.predicted_interruption_cost,
+            "social_risk": w.social_risk * candidate.predicted_social_risk,
+            "authority_cost": w.authority_cost * max(0, candidate.required_authority_tier - 2),
+            "reversibility": w.reversibility_bonus * _reversibility_factor(candidate),
+            "model_story": w.narrative_bonus * min(3, len(candidate.model_story)),
+        }
+        score = round(sum(breakdown.values()), 4)
+        candidate.reward_breakdown = {k: round(v, 4) for k, v in breakdown.items()}
+        candidate.expected_reward = score
+        return score
 
     def reward_from_event(self, event: RewardEvent) -> float:
         w = self.weights
@@ -59,4 +69,25 @@ class RewardModel:
             total += w.ignored
         if event.explicit_wrong:
             total += w.explicit_wrong
+        if event.notification_dismissed:
+            total += w.interruption
         return round(total, 4)
+
+    @staticmethod
+    def top_positive_heads(candidate: CandidateCalendarAction, n: int = 3) -> list[str]:
+        heads = sorted(candidate.reward_breakdown.items(), key=lambda kv: kv[1], reverse=True)
+        return [f"{k} {v:+.2f}" for k, v in heads[:n] if v > 0]
+
+    @staticmethod
+    def top_negative_heads(candidate: CandidateCalendarAction, n: int = 3) -> list[str]:
+        heads = sorted(candidate.reward_breakdown.items(), key=lambda kv: kv[1])
+        return [f"{k} {v:+.2f}" for k, v in heads[:n] if v < 0]
+
+
+def _reversibility_factor(candidate: CandidateCalendarAction) -> float:
+    return {
+        "none": -1.0,
+        "low": 0.0,
+        "medium": 0.5,
+        "high": 1.0,
+    }.get(candidate.reversibility.value, 0.0)
