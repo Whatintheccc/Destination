@@ -43,17 +43,20 @@ def main() -> None:
                 raise AssertionError("reset did not clear replay summary before browser run")
             run_live_browser_check(restarted.base_url, ARTIFACT_DIR)
             final_state = api_get(restarted.base_url, "/api/state")
+            final_health = api_get(restarted.base_url, "/api/health")
             final_replay = api_get(restarted.base_url, "/api/replay/export")
             write_artifact("latest_state.json", final_state)
+            write_artifact("health.json", final_health)
             write_artifact("replay_export.json", final_replay)
             write_artifact("dogfood_bug_report.json", {
                 "summary": "CalendarPilot browser dogfood replay export",
                 "base_url": restarted.base_url,
                 "session_id": final_replay.get("session_id"),
+                "runtime": final_replay.get("runtime"),
                 "api_replay_summary_before_browser": result["replay_export"].get("summary"),
                 "restored_replay_summary": restored["inspector"]["replay"]["summary"],
                 "final_replay_summary": final_replay.get("summary"),
-                "artifact_files": ["latest_state.json", "replay_export.json", "browser_replay_export.json", "browser_success.png", "server.log"],
+                "artifact_files": ["latest_state.json", "health.json", "replay_export.json", "browser_replay_export.json", "browser_success.png", "server.log"],
             })
     except Exception as exc:
         (ARTIFACT_DIR / "failure.txt").write_text(str(exc), encoding="utf-8")
@@ -134,6 +137,8 @@ def assert_static_shell() -> None:
         'data-testid="goal-input"',
         'data-testid="send-goal"',
         'data-testid="inspector-toggle"',
+        'data-testid="runtime-chip"',
+        'id="tab-runtime"',
         'id="tab-replay"',
         'id="inspector-content"',
     ]
@@ -142,6 +147,7 @@ def assert_static_shell() -> None:
             raise AssertionError(f"missing frontend marker: {marker}")
     required_js = [
         "/api/plans",
+        "offline_fixture_fallback",
         "stage-candidate",
         "commit-candidate",
         "feedback-useful",
@@ -159,6 +165,13 @@ def run_live_api_loop(base_url: str) -> dict[str, Any]:
     state = api_get(base_url, "/api/state")
     if "session" not in state:
         raise AssertionError("/api/state did not return session state")
+    health = api_get(base_url, "/api/health")
+    if state.get("runtime", {}).get("runtime_mode") != health.get("runtime_mode"):
+        raise AssertionError("/api/state and /api/health disagree on runtime mode")
+    if health.get("runtime_mode") != "fixture":
+        raise AssertionError(f"browser e2e expected fixture mode, got {health.get('runtime_mode')}")
+    if state.get("runtime", {}).get("backends", {}).get("kernel") != "SwiftKernelStub":
+        raise AssertionError("fixture state did not expose SwiftKernelStub backend")
 
     planned = api_post(base_url, "/api/plans", {"goal": "Make next week less chaotic", "authority_tier": 3})
     cards = planned.get("chat", {}).get("candidate_cards", [])
@@ -215,6 +228,8 @@ def run_live_api_loop(base_url: str) -> dict[str, Any]:
     replay_export = api_get(base_url, "/api/replay/export")
     if not replay_export.get("records"):
         raise AssertionError("replay export is empty")
+    if replay_export.get("runtime", {}).get("runtime_mode") != "fixture":
+        raise AssertionError("replay export did not include fixture runtime provenance")
 
     error = api_post(base_url, "/api/not-a-route", {}, expected_status=400)
     if "error" not in error or "state" not in error:

@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist/CalendarPilot.app"
 APP_ROOT="$DIST/Contents/Resources/app"
+BUILD_ID="${CALENDAR_PILOT_BUILD_ID:-$(git -C "$ROOT/.." rev-parse --short=12 HEAD 2>/dev/null || echo unknown)}"
 rm -rf "$DIST"
 mkdir -p "$DIST/Contents/MacOS" "$APP_ROOT"
 cat > "$DIST/Contents/Info.plist" <<'PLIST'
@@ -14,6 +15,7 @@ cp -R "$ROOT/src" "$APP_ROOT/src"
 cp -R "$ROOT/data" "$APP_ROOT/data"
 cp -R "$ROOT/frontend" "$APP_ROOT/frontend"
 cp "$ROOT/pyproject.toml" "$APP_ROOT/pyproject.toml"
+printf '%s\n' "$BUILD_ID" > "$APP_ROOT/build_id"
 cat > "$DIST/Contents/MacOS/CalendarPilot" <<'APP'
 #!/usr/bin/env bash
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"

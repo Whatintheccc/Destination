@@ -256,13 +256,13 @@ Acceptance criteria:
 
 ## P3 Runtime Mode Truth
 
-Status: Not started
+Status: In review
 Owner: dogfood team
 Goal: make the app impossible to mistake for a production-integrated build when it is running fixture or local-stub dependencies.
 
 ### P3.1 Runtime Mode Contract
 
-Status: Not started
+Status: In review
 
 Required work:
 
@@ -280,7 +280,7 @@ Acceptance criteria:
 
 ### P3.2 Fixture Boundary Warnings
 
-Status: Not started
+Status: In review
 
 Required work:
 
@@ -563,6 +563,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P2 credentials | Confirmed local fixture dogfood requires no Codex Auth, provider OAuth, or DiffusionGemma/NVIDIA NIM credentials. | `secret_scan` passed in the release report. |
 | 2026-07-01 | P2 final release hardening | Added timeout bounds to release-gate subprocesses, made timeout log capture bytes-safe, validated logs and current release report artifacts, and added a release-report secret scan. | `make dogfood-release` passed with `artifact_validation`, `secret_scan`, `release_report_validation`, and `release_report_secret_scan` all true. |
 | 2026-07-01 | P3+ gap audit | Inspected the desktop-launched `http://127.0.0.1:8787/` app and verified it is the current v2 bundle, but fixture-backed: `dev.calendarpilot.fixture`, sample calendar/profile data, `SwiftKernelStub`, deterministic `CodexToolPlanner`, heuristic `DiffusionGemmaPolicy`, provider stubs, and fixed-port launch. | Added P3-P8 gates for runtime mode truth, Swift IPC, live Codex, DiffusionGemma/NIM, provider OAuth, and production desktop launch. |
+| 2026-07-01 | P3 runtime mode truth | Added explicit runtime reporting, `/api/health`, first-viewport runtime chip, runtime inspector rows, replay runtime provenance, `health.json` browser artifact, and release `runtime_mode_gate`. Production-targeted mode now fails when still backed by fixtures/stubs. | `make py-test`, `make browser-e2e`, and `make dogfood-release` passed in fixture mode; production gate probe returned blockers for sample fixtures, `SwiftKernelStub`, deterministic planner, heuristic policy, and `local_stub`. |
 
 ## Review Log
 

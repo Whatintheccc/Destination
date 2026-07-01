@@ -35,6 +35,11 @@ class FrontendServerApiTests(unittest.TestCase):
     def test_http_api_routes_and_error_contract(self):
         state = self.get("/api/state")
         self.assertIn("session", state)
+        self.assertEqual(state["runtime"]["runtime_mode"], "fixture")
+        self.assertEqual(state["runtime"]["backends"]["kernel"], "SwiftKernelStub")
+        health = self.get("/api/health")
+        self.assertEqual(health["runtime_mode"], state["runtime"]["runtime_mode"])
+        self.assertEqual(health["backends"]["provider"], "local_stub")
 
         planned = self.post("/api/plans", {"goal": "Make next week less chaotic", "authority_tier": 3})
         candidate_id = planned["chat"]["candidate_cards"][0]["candidate_id"]
@@ -76,6 +81,7 @@ class FrontendServerApiTests(unittest.TestCase):
         self.assertGreater(replay["summary"]["records"], 0)
         exported = self.get("/api/replay/export")
         self.assertEqual(exported["session_id"], authority["session"]["session_id"])
+        self.assertEqual(exported["runtime"]["runtime_mode"], "fixture")
         self.assertTrue(exported["records"])
 
         undone = self.post("/api/undo", {"rollback_handle_id": rollback})

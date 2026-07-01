@@ -22,6 +22,7 @@ from calendar_pilot.types import (
     to_jsonable,
 )
 from calendar_pilot.frontend.surface import build_frontend_snapshot
+from calendar_pilot.frontend.runtime import RuntimeBackends, runtime_mode_from_env, runtime_report
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -47,6 +48,7 @@ class DogfoodSessionState:
     session_id: str = field(default_factory=lambda: "sess_" + hashlib.sha1(str(_now()).encode()).hexdigest()[:10])
     authority_tier: int = DEFAULT_AUTHORITY_TIER
     authority_scopes: list[str] = field(default_factory=lambda: list(DEFAULT_AUTHORITY_SCOPES))
+    runtime_mode: str = field(default_factory=runtime_mode_from_env)
 
     observation: RawCalendarObservation = field(init=False)
     biography: UserBiography = field(init=False)
@@ -101,6 +103,7 @@ class DogfoodSessionState:
         self.latest_plan = None
         self.authority_tier = DEFAULT_AUTHORITY_TIER
         self.authority_scopes = list(DEFAULT_AUTHORITY_SCOPES)
+        self.runtime_mode = runtime_mode_from_env(self.runtime_mode)
         self.feedback_history.clear()
         self.denial_history.clear()
         self.profile_patch_history.clear()
@@ -300,9 +303,20 @@ class DogfoodSessionState:
     def replay_export(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
+            "runtime": self.runtime_report(),
             "summary": to_jsonable(self.replay.summarize()),
             "records": [record.envelope() for record in self.replay.records],
         }
+
+    def runtime_report(self) -> dict[str, Any]:
+        return runtime_report(
+            mode=self.runtime_mode,
+            run_dir=self.run_dir,
+            observation_path=self.observation_path,
+            profile_path=self.profile_path,
+            session_id=self.session_id,
+            backends=RuntimeBackends(),
+        )
 
     def snapshot(self) -> dict[str, Any]:
         plan = self.latest_plan
@@ -311,15 +325,42 @@ class DogfoodSessionState:
             from calendar_pilot.codex.planner import CodexExecutivePlan
             plan = CodexExecutivePlan(plan_id="plan_empty", goal="")
         snapshot = build_frontend_snapshot(plan, self.observation, self.biography, self.replay).to_dict()
+        runtime = self.runtime_report()
         snapshot["session"] = {
             "session_id": self.session_id,
+            "runtime_mode": runtime["runtime_mode"],
+            "requested_runtime_mode": runtime["requested_runtime_mode"],
             "authority_tier": self.authority_tier,
             "authority_scopes": self.authority_scopes,
             "run_dir": str(self.run_dir),
             "restore_error": self.restore_error,
         }
+        snapshot["runtime"] = runtime
+        snapshot["summary"]["runtime_mode"] = runtime["runtime_mode"]
+        snapshot["summary"]["requested_runtime_mode"] = runtime["requested_runtime_mode"]
+        snapshot["summary"]["runtime_backends"] = runtime["backends"]
+        snapshot["summary"]["runtime_live_blockers"] = runtime["live_blockers"]
         snapshot["chat"]["messages"] = self._chat_messages(snapshot)
+        snapshot["chat"]["runtime"] = {
+            "mode": runtime["runtime_mode"],
+            "requested_mode": runtime["requested_runtime_mode"],
+            "label": runtime["mode_label"],
+            "backends": runtime["backends"],
+            "live_blockers": runtime["live_blockers"],
+        }
         snapshot["inspector"]["authority"]["history"] = self.authority_history[-10:]
+        snapshot["inspector"]["runtime"] = {
+            "title": "Runtime mode",
+            "report": runtime,
+            "rows": [
+                {"key": "mode", "value": runtime["mode_label"]},
+                {"key": "kernel", "value": runtime["backends"]["kernel"]},
+                {"key": "codex", "value": runtime["backends"]["codex"]},
+                {"key": "diffusiongemma", "value": runtime["backends"]["diffusiongemma"]},
+                {"key": "provider", "value": runtime["backends"]["provider"]},
+                {"key": "live_blockers", "value": runtime["live_blockers"] or "none"},
+            ],
+        }
         snapshot["inspector"]["profile"]["patch_history"] = self.profile_patch_history[-10:]
         snapshot["inspector"]["self_play"]["history"] = self.self_play_history[-5:]
         snapshot["inspector"]["replay"]["records"] = [record.envelope() for record in self.replay.records[-40:]]
@@ -341,6 +382,7 @@ class DogfoodSessionState:
         return {
             "version": 1,
             "session_id": self.session_id,
+            "runtime_mode": self.runtime_mode,
             "authority_tier": self.authority_tier,
             "authority_scopes": self.authority_scopes,
             "biography": self.biography.to_dict(),
@@ -375,6 +417,7 @@ class DogfoodSessionState:
             })
             return False
         self.session_id = str(data.get("session_id") or self.session_id)
+        self.runtime_mode = str(data.get("runtime_mode") or self.runtime_mode)
         self.restore_error = data.get("restore_error")
         self.authority_tier = int(data.get("authority_tier", self.authority_tier))
         scopes = data.get("authority_scopes")

@@ -360,7 +360,11 @@ def _sidebar_surface(plan: CodexExecutivePlan, replay: ReplayBuffer) -> dict[str
 def _inspector_surface(panels: list[FrontendPanel], replay_summary: Any, trace: list[dict[str, Any]], action_queue: list[FrontendAction]) -> dict[str, Any]:
     by_id = {panel.panel_id: panel for panel in panels}
     return {
-        "tabs": ["authority", "profile", "replay", "self_play", "provider", "debug"],
+        "tabs": ["runtime", "authority", "profile", "replay", "self_play", "provider", "debug"],
+        "runtime": {
+            "title": "Runtime mode",
+            "rows": [],
+        },
         "authority": {
             "title": "Authority & autonomy",
             "rows": by_id.get("authority_boundary").rows if by_id.get("authority_boundary") else [],

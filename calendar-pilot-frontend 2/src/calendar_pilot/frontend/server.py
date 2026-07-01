@@ -89,6 +89,9 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             if path == "/api/state":
                 self._json(session.snapshot())
                 return
+            if path == "/api/health":
+                self._json(session.runtime_report())
+                return
             if path == "/api/replay":
                 candidate = query.get("candidate_id", [""])[0]
                 records = [record.envelope() for record in session.replay.records]

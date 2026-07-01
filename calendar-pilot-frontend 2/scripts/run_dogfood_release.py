@@ -12,6 +12,7 @@ import time
 from typing import Any
 from urllib.request import Request, urlopen
 
+from calendar_pilot.frontend.runtime import RuntimeBackends, credential_state, runtime_is_release_safe, runtime_mode_from_env, runtime_report
 from run_external_browser_flow import run_live_browser_check
 
 
@@ -38,8 +39,10 @@ def main() -> None:
         "checks": [],
         "artifacts": artifacts,
         "credential_gate": credential_gate(),
+        "runtime": release_runtime_report(),
     }
     checks = report["checks"]
+    checks.append(runtime_mode_gate(report["runtime"]))
     checks.append(run_command("python_tests", ["make", "py-test"], timeout=60))
     checks.append(run_command("swift_tests", ["make", "swift-test"], timeout=60))
     checks.append(run_command("browser_e2e", ["make", "browser-e2e"], timeout=120, env_overrides={"CALENDAR_PILOT_ALLOW_BROWSER_SKIP": ""}))
@@ -128,10 +131,13 @@ def run_app_bundle_sanity() -> dict[str, Any]:
         proc = subprocess.Popen([str(app_exe)], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
         try:
             wait_for_state(base_url, proc, log_path)
+            health = api_get(base_url, "/api/health")
             page = http_get_text(base_url, "/")
             app_js = http_get_text(base_url, "/app.js")
-            if 'data-testid="chat-transcript"' not in page or "/api/plans" not in app_js:
+            if 'data-testid="chat-transcript"' not in page or 'data-testid="runtime-chip"' not in page or "/api/plans" not in app_js:
                 raise AssertionError("bundled app did not serve expected frontend assets")
+            if health.get("runtime_mode") != runtime_mode_from_env():
+                raise AssertionError(f"bundled app health returned wrong runtime mode: {health.get('runtime_mode')}")
             run_live_browser_check(base_url, RUN_DIR / "app_browser_artifacts")
             ok = True
             reason = ""
@@ -178,9 +184,10 @@ def run_launchservices_smoke() -> dict[str, Any]:
         return {"name": "launchservices_smoke", "ok": False, "exit_code": proc.returncode, "log": str(log_path), "reason": "`open` failed"}
     try:
         wait_for_default_app(base_url, default_port, log_path)
+        health = api_get(base_url, "/api/health")
         page = http_get_text(base_url, "/")
-        ok = 'data-testid="chat-transcript"' in page
-        reason = "" if ok else "LaunchServices app did not serve frontend"
+        ok = 'data-testid="chat-transcript"' in page and health.get("runtime_mode") == runtime_mode_from_env()
+        reason = "" if ok else "LaunchServices app did not serve frontend/runtime health"
     except Exception as exc:
         ok = False
         reason = str(exc)
@@ -210,6 +217,7 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         LOG_DIR / "mac_app_sanity.log",
         LOG_DIR / "launchservices_smoke.log",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_success.png",
+        ROOT / "runs" / "browser_e2e" / "artifacts" / "health.json",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_replay_export.json",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "dogfood_bug_report.json",
         RUN_DIR / "app_browser_artifacts" / "browser_success.png",
@@ -218,6 +226,7 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "frontend" / "static" / "index.html",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot" / "app.py",
+        APP_BUNDLE / "Contents" / "Resources" / "app" / "build_id",
     ]
     missing = [str(path) for path in expected if not path.exists() or path.stat().st_size == 0]
     bad_json: list[str] = []
@@ -234,7 +243,7 @@ def validate_release_report() -> dict[str, Any]:
         data = json.loads(REPORT.read_text(encoding="utf-8"))
     except Exception as exc:
         return {"name": "release_report_validation", "ok": False, "reason": str(exc), "report": str(REPORT)}
-    missing = [key for key in ["started_at", "finished_at", "root", "checks", "artifacts", "credential_gate"] if key not in data]
+    missing = [key for key in ["started_at", "finished_at", "root", "checks", "artifacts", "credential_gate", "runtime"] if key not in data]
     return {
         "name": "release_report_validation",
         "ok": not missing and isinstance(data.get("checks"), list) and bool(data.get("checks")),
@@ -248,13 +257,40 @@ def scan_release_report() -> dict[str, Any]:
     return {"name": "release_report_secret_scan", "ok": not findings, "findings": findings, "scanned_roots": [str(REPORT)]}
 
 
+def release_runtime_report() -> dict[str, Any]:
+    return runtime_report(
+        mode=runtime_mode_from_env(),
+        run_dir=RUN_DIR,
+        observation_path=ROOT / "data" / "sample_calendar.json",
+        profile_path=ROOT / "data" / "sample_profile.json",
+        session_id="release_gate",
+        backends=RuntimeBackends(),
+    )
+
+
+def runtime_mode_gate(report: dict[str, Any]) -> dict[str, Any]:
+    blockers = list(report.get("live_blockers", []))
+    return {
+        "name": "runtime_mode_gate",
+        "ok": runtime_is_release_safe(report),
+        "runtime_mode": report.get("runtime_mode"),
+        "backends": report.get("backends"),
+        "live_blockers": blockers,
+        "reason": "; ".join(blockers),
+    }
+
+
 def credential_gate() -> dict[str, Any]:
+    mode = runtime_mode_from_env()
+    credentials = credential_state(mode)
     runtime_refs = find_runtime_credential_refs()
     return {
-        "fixture_dogfood_requires_credentials": bool(runtime_refs),
-        "codex_auth_required": any("CODEX" in ref for ref in runtime_refs),
-        "provider_oauth_required": any("OAUTH" in ref or "GOOGLE" in ref or "MICROSOFT" in ref or "APPLE" in ref for ref in runtime_refs),
-        "diffusiongemma_nim_required": any("NVIDIA" in ref or "NIM" in ref for ref in runtime_refs),
+        "runtime_mode": mode,
+        "fixture_dogfood_requires_credentials": mode == "fixture" and any(item["required"] for item in credentials.values()),
+        "codex_auth_required": bool(credentials["codex_openai"]["required"]),
+        "provider_oauth_required": bool(credentials["provider_oauth"]["required"]),
+        "diffusiongemma_nim_required": bool(credentials["diffusiongemma_nim"]["required"]),
+        "credential_state": credentials,
         "runtime_credential_refs": runtime_refs,
     }
 

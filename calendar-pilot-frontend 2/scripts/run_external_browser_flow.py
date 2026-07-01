@@ -39,6 +39,7 @@ def run_live_browser_check(base_url: str, artifact_dir: str | Path, *, allow_ski
             page = browser.new_page(viewport={"width": 1360, "height": 900})
             page.goto(base_url, wait_until="networkidle")
             expect(page.get_by_test_id("chat-transcript")).to_be_visible()
+            expect(page.get_by_test_id("runtime-chip")).to_contain_text("Fixture mode")
             page.get_by_test_id("goal-input").fill("Make next week less chaotic")
             page.get_by_test_id("send-goal").click()
             expect(page.get_by_test_id("candidate-card").first).to_be_visible(timeout=10000)
@@ -80,6 +81,8 @@ def run_live_browser_check(base_url: str, artifact_dir: str | Path, *, allow_ski
             browser_replay = api_get(base_url, "/api/replay/export")
             if not browser_replay.get("records"):
                 raise AssertionError("browser replay export was empty before reset")
+            if browser_replay.get("runtime", {}).get("runtime_mode") != "fixture":
+                raise AssertionError("browser replay export did not include fixture runtime provenance")
             (artifact_path / "browser_replay_export.json").write_text(json.dumps(browser_replay, indent=2, sort_keys=True), encoding="utf-8")
             page.locator("#tab-debug").click()
             page.locator("#reset-fixture").click()

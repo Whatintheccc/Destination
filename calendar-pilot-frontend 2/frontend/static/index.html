@@ -36,7 +36,10 @@
           <p class="eyebrow">Chat-first machine acting</p>
           <h1>Calendar assistant with real actions</h1>
         </div>
-        <button id="inspector-toggle" class="secondary" data-testid="inspector-toggle" aria-expanded="true">Inspector</button>
+        <div class="topbar-actions">
+          <div id="runtime-chip" class="runtime-chip" data-testid="runtime-chip">Fixture mode</div>
+          <button id="inspector-toggle" class="secondary" data-testid="inspector-toggle" aria-expanded="true">Inspector</button>
+        </div>
       </header>
 
       <section id="chat-transcript" class="chat-transcript" aria-live="polite" data-testid="chat-transcript"></section>
@@ -57,6 +60,7 @@
         <button id="close-inspector" class="icon-button" aria-label="Close inspector">×</button>
       </div>
       <nav class="tabs" aria-label="Inspector tabs">
+        <button data-tab="runtime" id="tab-runtime" class="tab">Runtime</button>
         <button data-tab="authority" id="tab-authority" class="tab active">Authority</button>
         <button data-tab="profile" id="tab-profile" class="tab">Profile</button>
         <button data-tab="replay" id="tab-replay" class="tab">Replay</button>

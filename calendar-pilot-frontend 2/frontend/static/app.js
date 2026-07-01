@@ -1,6 +1,6 @@
 const app = {
   state: null,
-  inspectorTab: 'authority',
+  inspectorTab: 'runtime',
   pending: false,
 };
 
@@ -35,6 +35,19 @@ async function loadState() {
     const response = await fetch('frontend_state.sample.json', { cache: 'no-cache' });
     const state = await response.json();
     state.offline = true;
+    state.runtime = {
+      runtime_mode: 'fixture',
+      mode_label: 'Offline fixture fallback',
+      offline_fixture_fallback: true,
+      backends: {
+        kernel: 'static_sample',
+        codex: 'static_sample',
+        diffusiongemma: 'static_sample',
+        provider: 'static_sample',
+      },
+      live_blockers: ['backend /api/state unavailable'],
+    };
+    state.session = {...(state.session || {}), runtime_mode: 'fixture'};
     return state;
   }
 }
@@ -57,9 +70,19 @@ function render() {
   renderSidebar(state.sidebar || {});
   renderChat((state.chat || {}).messages || []);
   renderInspector(state.inspector || {});
+  renderRuntimeChip(state.runtime || state.chat?.runtime || {});
   const tier = state.session?.authority_tier ?? '—';
   const scopes = (state.session?.authority_scopes || []).join(', ') || 'no scopes';
   $('#authority-chip').textContent = `Tier ${tier}: ${scopes}`;
+}
+
+function renderRuntimeChip(runtime) {
+  const label = runtime.mode_label || runtime.label || runtime.runtime_mode || 'Fixture mode';
+  const chip = $('#runtime-chip');
+  if (!chip) return;
+  chip.textContent = label;
+  chip.title = runtime.live_blockers?.length ? `Blocked: ${runtime.live_blockers.join('; ')}` : label;
+  chip.classList.toggle('danger', Boolean(runtime.live_blockers?.length));
 }
 
 function renderSidebar(sidebar) {
@@ -154,12 +177,27 @@ function renderInspector(inspector) {
   document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === app.inspectorTab));
   const data = inspector[app.inspectorTab] || {};
   const content = $('#inspector-content');
-  if (app.inspectorTab === 'authority') content.innerHTML = renderAuthority(data);
+  if (app.inspectorTab === 'runtime') content.innerHTML = renderRuntime(data, app.state?.runtime || {});
+  else if (app.inspectorTab === 'authority') content.innerHTML = renderAuthority(data);
   else if (app.inspectorTab === 'profile') content.innerHTML = renderProfile(data);
   else if (app.inspectorTab === 'replay') content.innerHTML = renderReplay(data);
   else if (app.inspectorTab === 'self_play') content.innerHTML = renderSelfPlay(data);
   else if (app.inspectorTab === 'provider') content.innerHTML = renderRows(data.title || 'Provider', data.rows || []);
   else content.innerHTML = renderDebug(data);
+}
+
+function renderRuntime(data, runtime) {
+  const report = data.report || runtime || {};
+  const rows = data.rows?.length ? data.rows : [
+    {key: 'mode', value: report.mode_label || report.runtime_mode || 'Fixture mode'},
+    {key: 'kernel', value: report.backends?.kernel},
+    {key: 'codex', value: report.backends?.codex},
+    {key: 'diffusiongemma', value: report.backends?.diffusiongemma},
+    {key: 'provider', value: report.backends?.provider},
+    {key: 'live_blockers', value: report.live_blockers?.length ? report.live_blockers : 'none'},
+  ];
+  return `${renderRows(data.title || 'Runtime mode', rows)}
+    <div class="inspector-card"><h3>Runtime report</h3><pre>${escapeHtml(JSON.stringify(report, null, 2))}</pre></div>`;
 }
 
 function renderRows(title, rows) {
