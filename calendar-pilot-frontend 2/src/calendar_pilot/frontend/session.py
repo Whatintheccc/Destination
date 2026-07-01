@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import hashlib
 import json
 from dataclasses import dataclass, field
@@ -10,7 +11,8 @@ from typing import Any
 from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, SelfPlayRunner
 from calendar_pilot.replay import ReplayBuffer
-from calendar_pilot.swift_bridge import SwiftKernelStub
+from calendar_pilot.swift_bridge import SwiftKernelIPCClient, SwiftKernelStub
+from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
 from calendar_pilot.types import (
     AuthorityGrant,
     CandidateCalendarAction,
@@ -52,7 +54,7 @@ class DogfoodSessionState:
 
     observation: RawCalendarObservation = field(init=False)
     biography: UserBiography = field(init=False)
-    kernel: SwiftKernelStub = field(init=False)
+    kernel: CalendarKernelProtocol = field(init=False)
     policy: DiffusionGemmaPolicy = field(init=False)
     replay: ReplayBuffer = field(init=False)
     runtime: CodexToolRuntime = field(init=False)
@@ -73,11 +75,11 @@ class DogfoodSessionState:
         self.run_dir = Path(self.run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self._load_primitives()
-        self.kernel = SwiftKernelStub()
+        self.kernel = self._new_kernel_for_mode()
         self.policy = DiffusionGemmaPolicy()
         self.replay = ReplayBuffer.load_jsonl(self.run_dir / "replay.jsonl")
-        self.runtime = CodexToolRuntime(policy=self.policy, kernel=self.kernel, replay=self.replay)
-        self.planner = CodexToolPlanner(runtime=self.runtime)
+        self._rebuild_runtime()
+        atexit.register(self.close)
         if not self._restore_session_state():
             self.transcript_events.append({
                 "kind": "assistant",
@@ -93,17 +95,37 @@ class DogfoodSessionState:
         self.observation = RawCalendarObservation.from_dict(json.loads(self.observation_path.read_text(encoding="utf-8")))
         self.biography = UserBiography.from_dict(json.loads(self.profile_path.read_text(encoding="utf-8")))
 
-    def reset(self) -> dict[str, Any]:
-        self._load_primitives()
-        self.kernel = SwiftKernelStub()
-        self.policy = DiffusionGemmaPolicy()
-        self.replay = ReplayBuffer()
+    def _new_kernel_for_mode(self) -> CalendarKernelProtocol:
+        if self.runtime_mode == "swift_ipc":
+            kernel = SwiftKernelIPCClient()
+            kernel.start()
+            return kernel
+        return SwiftKernelStub()
+
+    def _replace_kernel_for_mode(self) -> None:
+        self.close()
+        self.kernel = self._new_kernel_for_mode()
+        if hasattr(self, "runtime"):
+            self._rebuild_runtime()
+
+    def _rebuild_runtime(self) -> None:
         self.runtime = CodexToolRuntime(policy=self.policy, kernel=self.kernel, replay=self.replay)
         self.planner = CodexToolPlanner(runtime=self.runtime)
+
+    def close(self) -> None:
+        close = getattr(getattr(self, "kernel", None), "close", None)
+        if callable(close):
+            close()
+
+    def reset(self) -> dict[str, Any]:
+        self._load_primitives()
+        self.policy = DiffusionGemmaPolicy()
+        self.replay = ReplayBuffer()
         self.latest_plan = None
         self.authority_tier = DEFAULT_AUTHORITY_TIER
         self.authority_scopes = list(DEFAULT_AUTHORITY_SCOPES)
         self.runtime_mode = runtime_mode_from_env(self.runtime_mode)
+        self._replace_kernel_for_mode()
         self.feedback_history.clear()
         self.denial_history.clear()
         self.profile_patch_history.clear()
@@ -315,8 +337,11 @@ class DogfoodSessionState:
             observation_path=self.observation_path,
             profile_path=self.profile_path,
             session_id=self.session_id,
-            backends=RuntimeBackends(),
+            backends=self._runtime_backends(),
         )
+
+    def _runtime_backends(self) -> RuntimeBackends:
+        return RuntimeBackends(kernel=type(self.kernel).__name__)
 
     def snapshot(self) -> dict[str, Any]:
         plan = self.latest_plan
@@ -417,7 +442,12 @@ class DogfoodSessionState:
             })
             return False
         self.session_id = str(data.get("session_id") or self.session_id)
-        self.runtime_mode = str(data.get("runtime_mode") or self.runtime_mode)
+        restored_runtime_mode = str(data.get("runtime_mode") or self.runtime_mode)
+        if restored_runtime_mode != self.runtime_mode:
+            self.runtime_mode = restored_runtime_mode
+            self._replace_kernel_for_mode()
+        else:
+            self.runtime_mode = restored_runtime_mode
         self.restore_error = data.get("restore_error")
         self.authority_tier = int(data.get("authority_tier", self.authority_tier))
         scopes = data.get("authority_scopes")
@@ -437,12 +467,14 @@ class DogfoodSessionState:
         kernel = data.get("kernel", {})
         grants = kernel.get("authority_grants", []) if isinstance(kernel, dict) else []
         self.kernel.authority_grants = {}
-        for grant in grants:
-            if isinstance(grant, dict) and grant.get("grant_id"):
-                restored = AuthorityGrant.from_dict(grant)
-                self.kernel.authority_grants[restored.grant_id] = restored
-        undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
-        self.kernel.undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
+        self.kernel.undo_ledger = {}
+        if self.runtime_mode != "swift_ipc":
+            for grant in grants:
+                if isinstance(grant, dict) and grant.get("grant_id"):
+                    restored = AuthorityGrant.from_dict(grant)
+                    self.kernel.authority_grants[restored.grant_id] = restored
+            undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
+            self.kernel.undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
         if not self.transcript_events:
             self.transcript_events.append({
                 "kind": "assistant",

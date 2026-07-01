@@ -52,7 +52,7 @@ Conclusion: P0-P2 certify a working local fixture macOS app. They do not certify
 2. Every phase must leave runnable evidence: tests, browser/API checks, app build artifacts, replay exports, or logs.
 3. Prefer deterministic fixture state until provider truth, idempotency, and rollback checks are proven.
 4. Credential setup is manual and user-owned. When Codex Auth, OAuth, or DiffusionGemma/NVIDIA NIM keys are required, open the browser for the user and pause at the credential field.
-5. Do not proceed from one phase to the next until the completed phase is committed and reviewed by two subagents.
+5. Do not proceed from one phase to the next until the completed phase is committed and reviewed by one architecture-focused subagent.
 6. Reviews are blockers only for correctness, data loss, broken launch, hidden failures, unsafe authority, or missing phase acceptance criteria.
 7. Keep this document current when a phase starts, when evidence is collected, and when a gate changes.
 
@@ -65,7 +65,7 @@ For each phase:
 3. Run the phase checks.
 4. Update this document with evidence and remaining risks.
 5. Commit the completed phase.
-6. Ask two subagents to review the committed phase independently.
+6. Ask one subagent to read the repository and review the committed phase from an architectural design perspective.
 7. Address blocking findings before starting the next phase.
 8. Mark the phase `Done` only after the review findings are resolved or explicitly accepted as non-blocking.
 
@@ -296,13 +296,13 @@ Acceptance criteria:
 
 ## P4 Swift IPC Runtime
 
-Status: Not started
+Status: In review
 Owner: runtime engineering
 Goal: run planner stage, commit, and undo paths through compiled Swift instead of the Python stub.
 
 ### P4.1 Kernel Interface Adapter
 
-Status: Not started
+Status: In review
 
 Required work:
 
@@ -319,7 +319,7 @@ Acceptance criteria:
 
 ### P4.2 App Packaging And Lifecycle
 
-Status: Not started
+Status: In review
 
 Required work:
 
@@ -564,6 +564,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P2 final release hardening | Added timeout bounds to release-gate subprocesses, made timeout log capture bytes-safe, validated logs and current release report artifacts, and added a release-report secret scan. | `make dogfood-release` passed with `artifact_validation`, `secret_scan`, `release_report_validation`, and `release_report_secret_scan` all true. |
 | 2026-07-01 | P3+ gap audit | Inspected the desktop-launched `http://127.0.0.1:8787/` app and verified it is the current v2 bundle, but fixture-backed: `dev.calendarpilot.fixture`, sample calendar/profile data, `SwiftKernelStub`, deterministic `CodexToolPlanner`, heuristic `DiffusionGemmaPolicy`, provider stubs, and fixed-port launch. | Added P3-P8 gates for runtime mode truth, Swift IPC, live Codex, DiffusionGemma/NIM, provider OAuth, and production desktop launch. |
 | 2026-07-01 | P3 runtime mode truth | Added explicit runtime reporting, `/api/health`, first-viewport runtime chip, runtime inspector rows, replay runtime provenance, `health.json` browser artifact, and release `runtime_mode_gate`. Production-targeted mode now fails when still backed by fixtures/stubs. | `make py-test`, `make browser-e2e`, and `make dogfood-release` passed in fixture mode; production gate probe returned blockers for sample fixtures, `SwiftKernelStub`, deterministic planner, heuristic policy, and `local_stub`. |
+| 2026-07-01 | P4 Swift IPC runtime | Added a shared Python kernel protocol, made `SwiftKernelIPCClient` match the stub-shaped planner interface, added Swift `preview` RPC support, selected IPC in `swift_ipc` runtime mode, packaged a release-built `CalendarPilotKernelServer` binary in the app, and added Swift IPC release lanes. | `make py-test`, `make swift-test`, `make swift-ipc-test`, `make browser-e2e`, `make mac-app-build`, and `make dogfood-release` passed. Release report shows `mac_app_swift_ipc_sanity` passed with runtime `swift_ipc`, kernel `SwiftKernelIPCClient`, no live blockers, and no orphaned `CalendarPilotKernelServer` process. |
 
 ## Review Log
 
@@ -584,7 +585,7 @@ Run these additional scenarios as P3-P8 come online:
 | Risk | Phase | Mitigation |
 |---|---|---|
 | Fixture mode can be mistaken for production integration. | P3 | Add explicit runtime mode UI, health endpoint, replay provenance, and release-mode gates. |
-| Swift IPC exists but the app path still uses `SwiftKernelStub`. | P4 | Add a shared kernel protocol/adapter, package the IPC server, and require IPC receipts in Swift IPC mode. |
+| Swift IPC can regress to the Python stub if mode selection or app packaging breaks. | P4 | Shared kernel protocol, packaged IPC binary, `swift_ipc_runtime_mode_gate`, `swift-ipc-test`, and `mac_app_swift_ipc_sanity` now fail if Swift IPC falls back to `SwiftKernelStub`. |
 | Live Codex/OpenAI planning is not integrated. | P5 | Add model-backed planner client, credential gate, tool-call validation, redaction, and live-mode E2E. |
 | DiffusionGemma/NIM policy serving is not integrated. | P6 | Add NIM endpoint configuration, credential gate, health checks, candidate provenance, and failure behavior. |
 | Real provider/OAuth behavior is not included in fixture dogfood. | P7 | Add deterministic provider state first, then one real OAuth provider with external IDs, idempotency, conflict truth, and rollback verification. |

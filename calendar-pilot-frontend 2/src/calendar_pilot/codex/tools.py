@@ -11,6 +11,7 @@ from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner
 from calendar_pilot.diffusiongemma.signals import extract_signals
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
+from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
 from calendar_pilot.types import (
     CalendarActionReceipt,
     AuthorityGrant,
@@ -42,7 +43,7 @@ class CodexToolRuntime:
         self,
         *,
         policy: DiffusionGemmaPolicy | None = None,
-        kernel: SwiftKernelStub | None = None,
+        kernel: CalendarKernelProtocol | None = None,
         replay: ReplayBuffer | None = None,
         biography_store: BiographyStore | None = None,
     ) -> None:

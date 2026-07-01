@@ -7,6 +7,7 @@ from typing import Protocol
 
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
+from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.types import AuthorityGrant, CandidateCalendarAction, RawCalendarObservation, RewardEvent, UserBiography
 
@@ -174,7 +175,7 @@ class UserSimulator:
 @dataclass
 class SelfPlayRunner:
     policy: DiffusionGemmaPolicy = field(default_factory=DiffusionGemmaPolicy)
-    kernel: SwiftKernelStub = field(default_factory=SwiftKernelStub)
+    kernel: CalendarKernelProtocol = field(default_factory=SwiftKernelStub)
     user_simulator: UserSimulator = field(default_factory=UserSimulator)
     adversaries: list[SelfPlayAdversary] = field(default_factory=lambda: [
         ConflictAdversary(),

@@ -14,6 +14,8 @@ if (!baseUrl || !artifactDir) {
 }
 
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const expectedRuntimeMode = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_MODE || 'fixture';
+const expectedRuntimeLabel = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL || (expectedRuntimeMode === 'swift_ipc' ? 'Swift IPC mode' : 'Fixture mode');
 await mkdir(artifactDir, { recursive: true });
 
 async function main() {
@@ -47,7 +49,7 @@ async function main() {
   });
   await client.send('Page.navigate', { url: baseUrl });
   await waitFor(client, 'document.querySelector("[data-testid=\\"chat-transcript\\"]") !== null');
-  await waitFor(client, 'document.querySelector("[data-testid=\\"runtime-chip\\"]")?.textContent.includes("Fixture mode")');
+  await waitFor(client, `document.querySelector("[data-testid=\\"runtime-chip\\"]")?.textContent.includes(${JSON.stringify(expectedRuntimeLabel)})`);
 
   await fill(client, '#goal-input', 'Make next week less chaotic');
   await click(client, '#send-goal');
@@ -98,8 +100,8 @@ async function main() {
   if (!browserReplay.records || browserReplay.records.length === 0) {
     throw new Error('browser replay export was empty before reset');
   }
-  if (browserReplay.runtime?.runtime_mode !== 'fixture') {
-    throw new Error('browser replay export did not include fixture runtime provenance');
+  if (browserReplay.runtime?.runtime_mode !== expectedRuntimeMode) {
+    throw new Error(`browser replay export did not include ${expectedRuntimeMode} runtime provenance`);
   }
   await writeFile(path.join(artifactDir, 'browser_replay_export.json'), JSON.stringify(browserReplay, null, 2), 'utf8');
 

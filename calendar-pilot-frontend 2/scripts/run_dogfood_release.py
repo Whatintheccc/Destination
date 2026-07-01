@@ -30,6 +30,7 @@ def main() -> None:
         "release_report": str(REPORT),
         "browser_artifacts": str(ROOT / "runs" / "browser_e2e" / "artifacts"),
         "app_browser_artifacts": str(RUN_DIR / "app_browser_artifacts"),
+        "app_swift_ipc_browser_artifacts": str(RUN_DIR / "app_swift_ipc_browser_artifacts"),
         "mac_app": str(APP_BUNDLE),
         "logs": str(LOG_DIR),
     }
@@ -45,13 +46,23 @@ def main() -> None:
     checks.append(runtime_mode_gate(report["runtime"]))
     checks.append(run_command("python_tests", ["make", "py-test"], timeout=60))
     checks.append(run_command("swift_tests", ["make", "swift-test"], timeout=60))
+    checks.append(run_command("swift_ipc_tests", ["make", "swift-ipc-test"], timeout=120))
     checks.append(run_command("browser_e2e", ["make", "browser-e2e"], timeout=120, env_overrides={"CALENDAR_PILOT_ALLOW_BROWSER_SKIP": ""}))
-    checks.append(run_command("mac_app_build", ["make", "mac-app-build"], timeout=60))
+    checks.append(run_command("mac_app_build", ["make", "mac-app-build"], timeout=120))
     if checks[-1]["ok"]:
         checks.append(run_app_bundle_sanity())
+        checks.append(swift_ipc_runtime_mode_gate())
+        checks.append(run_app_bundle_sanity(
+            name="mac_app_swift_ipc_sanity",
+            runtime_mode="swift_ipc",
+            expected_kernel="SwiftKernelIPCClient",
+            artifact_dir=RUN_DIR / "app_swift_ipc_browser_artifacts",
+        ))
         checks.append(run_launchservices_smoke())
     else:
         checks.append({"name": "mac_app_sanity", "ok": False, "skipped": True, "reason": "app build failed"})
+        checks.append({"name": "swift_ipc_runtime_mode_gate", "ok": False, "skipped": True, "reason": "app build failed"})
+        checks.append({"name": "mac_app_swift_ipc_sanity", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "launchservices_smoke", "ok": False, "skipped": True, "reason": "app build failed"})
     report["finished_at"] = utc_now()
     report["ok"] = False
@@ -105,28 +116,42 @@ def run_command(name: str, command: list[str], *, timeout: int, env_overrides: d
     }
 
 
-def run_app_bundle_sanity() -> dict[str, Any]:
+def run_app_bundle_sanity(
+    *,
+    name: str = "mac_app_sanity",
+    runtime_mode: str | None = None,
+    expected_kernel: str | None = None,
+    artifact_dir: Path | None = None,
+) -> dict[str, Any]:
+    runtime_mode = runtime_mode or runtime_mode_from_env()
+    expected_kernel = expected_kernel or ("SwiftKernelIPCClient" if runtime_mode == "swift_ipc" else "SwiftKernelStub")
+    artifact_dir = artifact_dir or RUN_DIR / "app_browser_artifacts"
     app_exe = APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot"
     app_src = APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot"
     app_index = APP_BUNDLE / "Contents" / "Resources" / "app" / "frontend" / "static" / "index.html"
+    app_swift_server = APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotKernelServer"
     if not app_exe.exists() or not os.access(app_exe, os.X_OK):
-        return {"name": "mac_app_sanity", "ok": False, "reason": "app executable missing or not executable"}
+        return {"name": name, "ok": False, "reason": "app executable missing or not executable"}
     if not app_src.exists():
-        return {"name": "mac_app_sanity", "ok": False, "reason": "bundled Python source missing"}
+        return {"name": name, "ok": False, "reason": "bundled Python source missing"}
     if not app_index.exists():
-        return {"name": "mac_app_sanity", "ok": False, "reason": "bundled frontend static assets missing"}
+        return {"name": name, "ok": False, "reason": "bundled frontend static assets missing"}
+    if runtime_mode == "swift_ipc" and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
+        return {"name": name, "ok": False, "reason": "bundled Swift IPC server missing or not executable"}
     port = free_port()
     base_url = f"http://127.0.0.1:{port}"
-    run_dir = RUN_DIR / "mac_app_state"
+    run_dir = RUN_DIR / f"mac_app_state_{runtime_mode}"
     run_dir.mkdir(parents=True, exist_ok=True)
-    log_path = LOG_DIR / "mac_app_sanity.log"
+    log_path = LOG_DIR / f"{name}.log"
     env = os.environ.copy()
     env.update({
         "CALENDAR_PILOT_PORT": str(port),
         "CALENDAR_PILOT_RUN_DIR": str(run_dir),
         "CALENDAR_PILOT_OPEN_BROWSER": "0",
+        "CALENDAR_PILOT_RUNTIME_MODE": runtime_mode,
     })
     started = time.time()
+    swift_before = pids_for_command_pattern(str(app_swift_server)) if runtime_mode == "swift_ipc" else []
     with log_path.open("w", encoding="utf-8") as log:
         proc = subprocess.Popen([str(app_exe)], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
         try:
@@ -136,9 +161,13 @@ def run_app_bundle_sanity() -> dict[str, Any]:
             app_js = http_get_text(base_url, "/app.js")
             if 'data-testid="chat-transcript"' not in page or 'data-testid="runtime-chip"' not in page or "/api/plans" not in app_js:
                 raise AssertionError("bundled app did not serve expected frontend assets")
-            if health.get("runtime_mode") != runtime_mode_from_env():
+            if health.get("runtime_mode") != runtime_mode:
                 raise AssertionError(f"bundled app health returned wrong runtime mode: {health.get('runtime_mode')}")
-            run_live_browser_check(base_url, RUN_DIR / "app_browser_artifacts")
+            if health.get("backends", {}).get("kernel") != expected_kernel:
+                raise AssertionError(f"bundled app used wrong kernel backend: {health.get('backends', {}).get('kernel')}")
+            if health.get("live_blockers"):
+                raise AssertionError(f"runtime blockers present: {health.get('live_blockers')}")
+            run_live_browser_check(base_url, artifact_dir, expected_runtime_mode=runtime_mode)
             ok = True
             reason = ""
         except Exception as exc:
@@ -146,11 +175,20 @@ def run_app_bundle_sanity() -> dict[str, Any]:
             reason = str(exc)
         finally:
             terminate(proc)
+            if runtime_mode == "swift_ipc":
+                swift_after = pids_for_command_pattern(str(app_swift_server))
+                orphaned = sorted(set(swift_after) - set(swift_before))
+                if orphaned:
+                    terminate_pid_list(orphaned)
+                    ok = False
+                    reason = f"{reason}; orphaned Swift kernel processes: {orphaned}" if reason else f"orphaned Swift kernel processes: {orphaned}"
     return {
-        "name": "mac_app_sanity",
+        "name": name,
         "ok": ok,
         "seconds": round(time.time() - started, 3),
         "base_url": base_url,
+        "runtime_mode": runtime_mode,
+        "expected_kernel": expected_kernel,
         "run_dir": str(run_dir),
         "log": str(log_path),
         "reason": reason,
@@ -212,9 +250,11 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         REPORT,
         LOG_DIR / "python_tests.log",
         LOG_DIR / "swift_tests.log",
+        LOG_DIR / "swift_ipc_tests.log",
         LOG_DIR / "browser_e2e.log",
         LOG_DIR / "mac_app_build.log",
         LOG_DIR / "mac_app_sanity.log",
+        LOG_DIR / "mac_app_swift_ipc_sanity.log",
         LOG_DIR / "launchservices_smoke.log",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_success.png",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "health.json",
@@ -222,15 +262,22 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         ROOT / "runs" / "browser_e2e" / "artifacts" / "dogfood_bug_report.json",
         RUN_DIR / "app_browser_artifacts" / "browser_success.png",
         RUN_DIR / "app_browser_artifacts" / "browser_replay_export.json",
+        RUN_DIR / "app_swift_ipc_browser_artifacts" / "browser_success.png",
+        RUN_DIR / "app_swift_ipc_browser_artifacts" / "browser_replay_export.json",
         APP_BUNDLE / "Contents" / "Info.plist",
         APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "frontend" / "static" / "index.html",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot" / "app.py",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "build_id",
+        APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotKernelServer",
     ]
     missing = [str(path) for path in expected if not path.exists() or path.stat().st_size == 0]
     bad_json: list[str] = []
-    for path in [ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_replay_export.json", RUN_DIR / "app_browser_artifacts" / "browser_replay_export.json"]:
+    for path in [
+        ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_replay_export.json",
+        RUN_DIR / "app_browser_artifacts" / "browser_replay_export.json",
+        RUN_DIR / "app_swift_ipc_browser_artifacts" / "browser_replay_export.json",
+    ]:
         if path.exists():
             data = json.loads(path.read_text(encoding="utf-8"))
             if not data.get("records"):
@@ -272,6 +319,26 @@ def runtime_mode_gate(report: dict[str, Any]) -> dict[str, Any]:
     blockers = list(report.get("live_blockers", []))
     return {
         "name": "runtime_mode_gate",
+        "ok": runtime_is_release_safe(report),
+        "runtime_mode": report.get("runtime_mode"),
+        "backends": report.get("backends"),
+        "live_blockers": blockers,
+        "reason": "; ".join(blockers),
+    }
+
+
+def swift_ipc_runtime_mode_gate() -> dict[str, Any]:
+    report = runtime_report(
+        mode="swift_ipc",
+        run_dir=RUN_DIR / "swift_ipc_mode_gate",
+        observation_path=ROOT / "data" / "sample_calendar.json",
+        profile_path=ROOT / "data" / "sample_profile.json",
+        session_id="release_gate_swift_ipc",
+        backends=RuntimeBackends(kernel="SwiftKernelIPCClient"),
+    )
+    blockers = list(report.get("live_blockers", []))
+    return {
+        "name": "swift_ipc_runtime_mode_gate",
         "ok": runtime_is_release_safe(report),
         "runtime_mode": report.get("runtime_mode"),
         "backends": report.get("backends"),
@@ -418,6 +485,21 @@ def terminate_pids(pids: list[int], port: int) -> None:
         subprocess.run(["kill", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
     time.sleep(0.5)
     for pid in pids_for_port(port):
+        subprocess.run(["kill", "-9", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+
+
+def pids_for_command_pattern(pattern: str) -> list[int]:
+    if not pattern:
+        return []
+    proc = subprocess.run(["pgrep", "-f", pattern], text=True, capture_output=True, timeout=5)
+    return [int(line) for line in proc.stdout.splitlines() if line.strip().isdigit() and int(line) != os.getpid()]
+
+
+def terminate_pid_list(pids: list[int]) -> None:
+    for pid in pids:
+        subprocess.run(["kill", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    time.sleep(0.5)
+    for pid in pids:
         subprocess.run(["kill", "-9", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
 
 

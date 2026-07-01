@@ -1,10 +1,13 @@
-.PHONY: test py-test swift-test browser-e2e mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e mac-app-build desktop-shortcut dogfood-release demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
 
 swift-test:
 	swift test --package-path packages/CalendarPilotKernel
+
+swift-ipc-test:
+	CALENDAR_PILOT_RUN_SWIFT_IPC_TESTS=1 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_swift_ipc_runtime.py'
 
 browser-e2e:
 	PYTHONPATH=src python3 scripts/run_browser_e2e.py

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import signal
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -155,4 +156,21 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             self.end_headers()
             self.wfile.write(data)
 
-    ThreadingHTTPServer((host, port), Handler).serve_forever()
+    httpd = ThreadingHTTPServer((host, port), Handler)
+
+    def stop_server(_signum: int, _frame: object) -> None:
+        raise KeyboardInterrupt
+
+    try:
+        signal.signal(signal.SIGTERM, stop_server)
+        signal.signal(signal.SIGINT, stop_server)
+    except ValueError:
+        pass
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()
+        if _DEFAULT_SESSION is not None:
+            _DEFAULT_SESSION.close()

@@ -3,9 +3,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist/CalendarPilot.app"
 APP_ROOT="$DIST/Contents/Resources/app"
+APP_BIN="$APP_ROOT/bin"
 BUILD_ID="${CALENDAR_PILOT_BUILD_ID:-$(git -C "$ROOT/.." rev-parse --short=12 HEAD 2>/dev/null || echo unknown)}"
 rm -rf "$DIST"
-mkdir -p "$DIST/Contents/MacOS" "$APP_ROOT"
+mkdir -p "$DIST/Contents/MacOS" "$APP_ROOT" "$APP_BIN"
 cat > "$DIST/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -16,6 +17,10 @@ cp -R "$ROOT/data" "$APP_ROOT/data"
 cp -R "$ROOT/frontend" "$APP_ROOT/frontend"
 cp "$ROOT/pyproject.toml" "$APP_ROOT/pyproject.toml"
 printf '%s\n' "$BUILD_ID" > "$APP_ROOT/build_id"
+SWIFT_BIN_DIR="$(swift build --package-path "$ROOT/packages/CalendarPilotKernel" -c release --product CalendarPilotKernelServer --show-bin-path)"
+swift build --package-path "$ROOT/packages/CalendarPilotKernel" -c release --product CalendarPilotKernelServer
+cp "$SWIFT_BIN_DIR/CalendarPilotKernelServer" "$APP_BIN/CalendarPilotKernelServer"
+chmod +x "$APP_BIN/CalendarPilotKernelServer"
 cat > "$DIST/Contents/MacOS/CalendarPilot" <<'APP'
 #!/usr/bin/env bash
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
@@ -26,6 +31,9 @@ URL="http://$HOST:$PORT"
 mkdir -p "$RUN_DIR"
 cd "$APP_ROOT" 2>/dev/null || exit 1
 if command -v python3 >/dev/null 2>&1; then
+  if [ -x "$APP_ROOT/bin/CalendarPilotKernelServer" ]; then
+    export CALENDAR_PILOT_SWIFT_KERNEL_SERVER="$APP_ROOT/bin/CalendarPilotKernelServer"
+  fi
   if command -v open >/dev/null 2>&1 && [ "${CALENDAR_PILOT_OPEN_BROWSER:-1}" != "0" ]; then
     (sleep 1; open "$URL") >/dev/null 2>&1 &
   fi

@@ -9,6 +9,7 @@ import platform
 ROOT = Path(__file__).resolve().parents[3]
 KNOWN_MODES = {"fixture", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
 LIVE_MODES = {"swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
+MODES_REQUIRING_NON_FIXTURE_DATA = {"live_provider", "production"}
 
 
 @dataclass(frozen=True)
@@ -107,10 +108,12 @@ def runtime_report(
     if not valid_mode:
         blockers.append(f"invalid runtime mode requested: {requested_mode}")
     if effective_mode in LIVE_MODES:
-        if uses_fixture:
-            blockers.append("live-targeted mode is using sample fixture data")
+        if uses_fixture and effective_mode in MODES_REQUIRING_NON_FIXTURE_DATA:
+            blockers.append("live provider/production mode is using sample fixture data")
         if backends.kernel == "SwiftKernelStub":
-            blockers.append("live-targeted mode is using SwiftKernelStub")
+            blockers.append(f"{effective_mode} mode is using SwiftKernelStub")
+        if effective_mode == "swift_ipc" and backends.kernel != "SwiftKernelIPCClient":
+            blockers.append("swift_ipc mode is not using SwiftKernelIPCClient")
         if backends.codex == "deterministic_codex_tool_planner" and effective_mode in {"live_codex", "production"}:
             blockers.append("live Codex mode is using deterministic planner")
         if backends.diffusiongemma == "heuristic_diffusiongemma_policy" and effective_mode in {"live_diffusiongemma", "production"}:

@@ -110,6 +110,15 @@ final class KernelRPCServer {
                 requestedAuthorityTier: payload.requestedAuthorityTier
             )
             return try ok(request, ["receipt": toJSONValue(receipt)])
+        case "preview":
+            let payload = try decode(ActuationPayload.self, from: request.payload)
+            let receipt = kernel.preview(
+                candidate: payload.candidate,
+                observation: payload.observation,
+                authorityGrant: payload.authorityGrantID.flatMap { kernel.resolveGrant($0) },
+                requestedAuthorityTier: payload.requestedAuthorityTier
+            )
+            return try ok(request, ["receipt": toJSONValue(receipt)])
         case "commit":
             let payload = try decode(ActuationPayload.self, from: request.payload)
             let (receipt, _) = kernel.authorizeAndMaterialize(

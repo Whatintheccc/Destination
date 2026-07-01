@@ -14,7 +14,14 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_live_browser_check(base_url: str, artifact_dir: str | Path, *, allow_skip: bool = False) -> None:
+def run_live_browser_check(
+    base_url: str,
+    artifact_dir: str | Path,
+    *,
+    allow_skip: bool = False,
+    expected_runtime_mode: str = "fixture",
+    expected_runtime_label: str | None = None,
+) -> None:
     artifact_path = Path(artifact_dir)
     artifact_path.mkdir(parents=True, exist_ok=True)
     if allow_skip and os.environ.get("CALENDAR_PILOT_ALLOW_BROWSER_SKIP") == "1":
@@ -23,8 +30,12 @@ def run_live_browser_check(base_url: str, artifact_dir: str | Path, *, allow_ski
     node = shutil.which("node")
     chrome = os.environ.get("CHROME_PATH") or "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     cdp_script = ROOT / "scripts" / "browser_cdp_e2e.mjs"
+    expected_runtime_label = expected_runtime_label or ("Swift IPC mode" if expected_runtime_mode == "swift_ipc" else "Fixture mode")
     if node and Path(chrome).exists():
-        subprocess.run([node, str(cdp_script), base_url, str(artifact_path)], cwd=ROOT, check=True, timeout=90)
+        env = os.environ.copy()
+        env["CALENDAR_PILOT_EXPECTED_RUNTIME_MODE"] = expected_runtime_mode
+        env["CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL"] = expected_runtime_label
+        subprocess.run([node, str(cdp_script), base_url, str(artifact_path)], cwd=ROOT, env=env, check=True, timeout=90)
         return
     try:
         from playwright.sync_api import expect, sync_playwright
@@ -39,7 +50,7 @@ def run_live_browser_check(base_url: str, artifact_dir: str | Path, *, allow_ski
             page = browser.new_page(viewport={"width": 1360, "height": 900})
             page.goto(base_url, wait_until="networkidle")
             expect(page.get_by_test_id("chat-transcript")).to_be_visible()
-            expect(page.get_by_test_id("runtime-chip")).to_contain_text("Fixture mode")
+            expect(page.get_by_test_id("runtime-chip")).to_contain_text(expected_runtime_label)
             page.get_by_test_id("goal-input").fill("Make next week less chaotic")
             page.get_by_test_id("send-goal").click()
             expect(page.get_by_test_id("candidate-card").first).to_be_visible(timeout=10000)
@@ -81,8 +92,8 @@ def run_live_browser_check(base_url: str, artifact_dir: str | Path, *, allow_ski
             browser_replay = api_get(base_url, "/api/replay/export")
             if not browser_replay.get("records"):
                 raise AssertionError("browser replay export was empty before reset")
-            if browser_replay.get("runtime", {}).get("runtime_mode") != "fixture":
-                raise AssertionError("browser replay export did not include fixture runtime provenance")
+            if browser_replay.get("runtime", {}).get("runtime_mode") != expected_runtime_mode:
+                raise AssertionError(f"browser replay export did not include {expected_runtime_mode} runtime provenance")
             (artifact_path / "browser_replay_export.json").write_text(json.dumps(browser_replay, indent=2, sort_keys=True), encoding="utf-8")
             page.locator("#tab-debug").click()
             page.locator("#reset-fixture").click()
