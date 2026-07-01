@@ -128,7 +128,9 @@ class DogfoodSessionState:
                 undo_reward = None
                 if original_receipt_id:
                     undo_reward = self._reward_from_feedback(original_receipt_id, {"undone": True})
-                    self.replay.attach_reward(original_receipt_id, undo_reward)
+                    candidate, original_receipt = self._candidate_and_receipt_for_reward(original_receipt_id)
+                    if candidate is not None and original_receipt is not None:
+                        self.replay.append_reward(undo_reward, candidate, original_receipt, trace_id=candidate.candidate_id, causal_parent_id=original_receipt.receipt_id)
                 self.undo_history.append({
                     "rollback_handle_id": rollback_handle_id,
                     "original_receipt_id": original_receipt_id,
@@ -186,9 +188,7 @@ class DogfoodSessionState:
             if candidate is None or receipt is None:
                 return self._error_state(f"cannot attach feedback: unknown receipt_id {receipt_id}")
             reward = self._reward_from_feedback(receipt_id, feedback)
-            attached = self.replay.attach_reward(receipt_id, reward)
-            if not attached:
-                self.replay.append_reward(reward, candidate, receipt, trace_id=candidate.candidate_id if candidate else receipt_id)
+            self.replay.append_reward(reward, candidate, receipt, trace_id=candidate.candidate_id, causal_parent_id=receipt.receipt_id)
             self.biography = self.runtime.biography_store.update_from_reward(self.biography, reward, source="dogfood_feedback")
             self.feedback_history.append({
                 "receipt_id": receipt_id,
@@ -198,7 +198,7 @@ class DogfoodSessionState:
                 "created_at": reward.observed_at.isoformat(),
             })
             self._save()
-            return self._state_unlocked(extra={"feedback": {"attached": attached, "reward": reward.to_dict()}})
+            return self._state_unlocked(extra={"feedback": {"appended": True, "reward": reward.to_dict()}})
 
     def reset_fixture(self) -> dict[str, Any]:
         with self.lock:
@@ -209,6 +209,9 @@ class DogfoodSessionState:
             self.applied_swift_receipts.clear()
             self.undo_history.clear()
             self.feedback_history.clear()
+            self.replay = ReplayBuffer()
+            self.runtime.replay = self.replay
+            self.runtime.frontier.clear()
             self.last_error = None
             self._save()
             return self._state_unlocked(extra={"reset": True})

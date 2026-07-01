@@ -22,7 +22,8 @@ test('goal to stage confirm commit undo feedback training loop', async ({ page }
   await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
   await page.getByRole('heading', { name: 'Undo journey' }).waitFor({ timeout: 15000 });
   await page.getByText('reverted').first().waitFor({ timeout: 15000 });
-  await page.getByRole('button', { name: 'Accepted' }).first().click();
+  const committedAction = page.locator('.action').filter({ has: page.getByRole('button', { name: 'Undo', exact: true }) }).first();
+  await committedAction.getByRole('button', { name: 'Accepted', exact: true }).click();
   await page.waitForFunction(() => {
     return Array.from(document.querySelectorAll('.summary div')).some((node) => {
       const text = node.textContent || '';

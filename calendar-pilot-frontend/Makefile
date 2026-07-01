@@ -9,7 +9,7 @@ swift-test:
 browser-e2e:
 	PYTHONPATH=src python3 scripts/run_browser_e2e.py
 
-test: py-test swift-test
+test: py-test swift-test browser-e2e
 
 demo:
 	PYTHONPATH=src python3 -m calendar_pilot.app demo --observation data/sample_calendar.json

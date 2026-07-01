@@ -112,8 +112,11 @@ class DogfoodP0Tests(unittest.TestCase):
             self.assertEqual(undone["undo_history"][-1]["provider_status"], "reverted")
             self.assertGreaterEqual(undone["replay_summary"]["rewards"], 1)
             feedback = session.feedback(committed["receipt_id"], {"explicit_useful": True, "accepted": True})
-            self.assertGreater(feedback["replay_summary"]["rewards"], 0)
+            self.assertGreaterEqual(feedback["replay_summary"]["rewards"], 2)
             self.assertGreater(len(feedback["training_rows"]), 0)
+            observed_rewards = [row["observed_reward"] for row in feedback["training_rows"]]
+            self.assertIn(-2.5, observed_rewards)
+            self.assertIn(2.25, observed_rewards)
             self.assertTrue(feedback["feedback_history"])
 
     def test_dogfood_session_can_undo_after_reload(self):
@@ -149,6 +152,22 @@ class DogfoodP0Tests(unittest.TestCase):
             self.assertIn("unknown receipt_id", response["error"])
             self.assertEqual(response["replay_summary"]["rewards"], 0)
             self.assertEqual(response["training_rows"], [])
+
+    def test_reset_clears_replay_training_rows_and_frontier(self):
+        with tempfile.TemporaryDirectory() as td:
+            session = DogfoodSessionState(
+                observation_path=ROOT / "data/sample_calendar.json",
+                profile_path=ROOT / "data/sample_profile.json",
+                run_dir=Path(td),
+            )
+            planned = session.create_plan("Make next week less chaotic", authority_tier=3, commit=True)
+            committed = next(action for action in planned["snapshot"]["action_queue"] if action.get("rollback_handle_id"))
+            session.feedback(committed["receipt_id"], {"explicit_useful": True})
+            self.assertTrue(session.runtime.frontier)
+            reset = session.reset_fixture()
+            self.assertEqual(reset["replay_summary"]["records"], 0)
+            self.assertEqual(reset["training_rows"], [])
+            self.assertFalse(session.runtime.frontier)
 
 
 if __name__ == "__main__":

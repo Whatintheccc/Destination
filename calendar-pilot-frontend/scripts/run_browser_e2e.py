@@ -81,8 +81,11 @@ def main() -> int:
                 return install.returncode
         browser_marker = npm_dir / ".chromium-installed"
         if not browser_marker.exists():
+            install_args = [str(npm_dir / "node_modules/.bin/playwright"), "install", "chromium"]
+            if sys.platform.startswith("linux"):
+                install_args.insert(2, "--with-deps")
             install_browser = subprocess.run(
-                [str(npm_dir / "node_modules/.bin/playwright"), "install", "chromium"],
+                install_args,
                 cwd=npm_dir,
                 text=True,
                 check=False,
