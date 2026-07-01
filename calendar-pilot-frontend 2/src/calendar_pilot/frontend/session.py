@@ -25,6 +25,8 @@ from calendar_pilot.frontend.surface import build_frontend_snapshot
 
 
 ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_AUTHORITY_TIER = 3
+DEFAULT_AUTHORITY_SCOPES = ["recommend", "stage", "commit_private", "undo"]
 
 
 def _now() -> datetime:
@@ -43,8 +45,8 @@ class DogfoodSessionState:
     profile_path: Path = ROOT / "data" / "sample_profile.json"
     run_dir: Path = ROOT / "runs" / "dogfood"
     session_id: str = field(default_factory=lambda: "sess_" + hashlib.sha1(str(_now()).encode()).hexdigest()[:10])
-    authority_tier: int = 3
-    authority_scopes: list[str] = field(default_factory=lambda: ["recommend", "stage", "commit_private", "undo"])
+    authority_tier: int = DEFAULT_AUTHORITY_TIER
+    authority_scopes: list[str] = field(default_factory=lambda: list(DEFAULT_AUTHORITY_SCOPES))
 
     observation: RawCalendarObservation = field(init=False)
     biography: UserBiography = field(init=False)
@@ -97,6 +99,8 @@ class DogfoodSessionState:
         self.runtime = CodexToolRuntime(policy=self.policy, kernel=self.kernel, replay=self.replay)
         self.planner = CodexToolPlanner(runtime=self.runtime)
         self.latest_plan = None
+        self.authority_tier = DEFAULT_AUTHORITY_TIER
+        self.authority_scopes = list(DEFAULT_AUTHORITY_SCOPES)
         self.feedback_history.clear()
         self.denial_history.clear()
         self.profile_patch_history.clear()

@@ -80,6 +80,8 @@ class FrontendServerApiTests(unittest.TestCase):
 
         reset = self.post("/api/reset", {})
         self.assertEqual(reset["inspector"]["replay"]["summary"]["records"], 0)
+        self.assertEqual(reset["session"]["authority_tier"], 3)
+        self.assertEqual(reset["session"]["authority_scopes"], ["recommend", "stage", "commit_private", "undo"])
 
         error = self.post("/api/not-a-route", {}, expected_status=400)
         self.assertIn("error", error)

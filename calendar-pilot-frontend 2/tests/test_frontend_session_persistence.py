@@ -65,6 +65,8 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
             self.assertEqual(snapshot["inspector"]["replay"]["summary"]["records"], 0)
             self.assertFalse(snapshot["chat"]["candidate_cards"])
             self.assertEqual(len(reloaded.kernel.undo_ledger), 0)
+            self.assertEqual(snapshot["session"]["authority_tier"], 3)
+            self.assertEqual(snapshot["session"]["authority_scopes"], ["recommend", "stage", "commit_private", "undo"])
             self.assertIn("Reset complete", snapshot["chat"]["messages"][0]["title"])
 
     def test_corrupt_session_state_recovers_with_visible_restore_error(self):

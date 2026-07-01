@@ -125,13 +125,13 @@ Acceptance criteria:
 
 ## P1 Interactive Dogfood Workflows
 
-Status: Not started
+Status: Done
 Owner: Codex
 Goal: prove that a dogfood user can exercise the real frontend/backend workflows without touching Python internals.
 
 ### P1.1 Live Browser E2E
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -148,7 +148,7 @@ Acceptance criteria:
 
 ### P1.2 Replay And Feedback Evidence
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -164,7 +164,7 @@ Acceptance criteria:
 
 ### P1.3 Profile, Authority, Denial, And Self-Play Controls
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -273,6 +273,8 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | 2026-07-01 | P0 persistence | Added `session_state.json` persistence/reload for session metadata, plan, transcript, feedback, denials, profile patches, self-play history, authority grants, undo ledger, replay, and corrupt-state recovery. | `test_frontend_session_persistence.py` passes. |
 | 2026-07-01 | P0 API contract | Added HTTP-level route coverage for state, plans, candidates, receipt confirmation, undo, feedback, replay, profile patch, denial explanation, self-play, authority, reset, and invalid POST JSON. | `test_frontend_server_api.py` passes. |
 | 2026-07-01 | P0 baseline checks | Ran root `make py-test`, `make swift-test`, `make browser-e2e`, and `make mac-app-build`. | Python 46 tests, Swift 16 tests, browser smoke, app build, bundle layout, and launcher syntax passed. |
+| 2026-07-01 | P1 live frontend | Reworked `scripts/run_browser_e2e.py` to start the real Python server, drive live HTTP endpoints, write replay/bug-report artifacts, and run a dependency-free Chrome/CDP rendered-browser flow when Chrome is available. | `make browser-e2e` passed with `browser CDP e2e passed`. |
+| 2026-07-01 | P1 controls | Browser/API E2E covers goal entry, candidate rendering, stage, commit, undo, feedback, replay export, profile propose/apply, authority edit, denial explanation, self-play, reset, and invalid route handling. | Artifacts written under `calendar-pilot-frontend 2/runs/browser_e2e/artifacts/`. |
 
 ## Review Log
 
@@ -286,5 +288,4 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | Risk | Phase | Mitigation |
 |---|---|---|
 | App bundle launch needs end-to-end app-open verification. | P2 | Launch built `.app`, confirm the local server opens, then run critical dogfood workflow through it. |
-| Browser E2E currently has a direct-session smoke path. | P1 | Make live server/browser the primary path where supported. |
 | Real provider/OAuth behavior is not included in fixture dogfood. | P2 | Keep fixture gate explicit and require manual credential setup only when scope expands. |

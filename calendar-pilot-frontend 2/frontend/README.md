@@ -1,6 +1,6 @@
 # CalendarPilot frontend
 
-The frontend is now a chat-first product shell over the dogfood loop.
+The frontend is a browser product shell for the local dogfood app.
 
 Run a static snapshot:
 
