@@ -50,11 +50,19 @@ def main() -> None:
     else:
         checks.append({"name": "mac_app_sanity", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "launchservices_smoke", "ok": False, "skipped": True, "reason": "app build failed"})
+    report["finished_at"] = utc_now()
+    report["ok"] = False
+    write_report(report)
     checks.append(validate_artifacts(artifacts))
     checks.append(scan_for_secrets())
     report["finished_at"] = utc_now()
     report["ok"] = all(check.get("ok") for check in checks)
-    REPORT.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    write_report(report)
+    checks.append(validate_release_report())
+    checks.append(scan_release_report())
+    report["finished_at"] = utc_now()
+    report["ok"] = all(check.get("ok") for check in checks)
+    write_report(report)
     print(f"release report written to {REPORT}")
     if not report["ok"]:
         failed = [check["name"] for check in checks if not check.get("ok")]
@@ -78,7 +86,7 @@ def run_command(name: str, command: list[str], *, timeout: int, env_overrides: d
         exit_code = proc.returncode
         reason = ""
     except subprocess.TimeoutExpired as exc:
-        output = (exc.stdout or "") + (exc.stderr or "") + f"\nTIMEOUT after {timeout}s\n"
+        output = output_text(exc.stdout) + output_text(exc.stderr) + f"\nTIMEOUT after {timeout}s\n"
         ok = False
         exit_code = None
         reason = f"timeout after {timeout}s"
@@ -149,13 +157,23 @@ def run_launchservices_smoke() -> dict[str, Any]:
     if shutil_which("open") is None:
         return {"name": "launchservices_smoke", "ok": False, "reason": "`open` command not found"}
     default_port = 8787
-    if pids_for_port(default_port):
+    try:
+        existing_pids = pids_for_port(default_port)
+    except Exception as exc:
+        return {"name": "launchservices_smoke", "ok": False, "reason": f"could not inspect default port {default_port}: {exc}"}
+    if existing_pids:
         return {"name": "launchservices_smoke", "ok": False, "reason": f"default port {default_port} is already in use"}
     started = time.time()
     log_path = LOG_DIR / "launchservices_smoke.log"
     base_url = f"http://127.0.0.1:{default_port}"
-    proc = subprocess.run(["open", "-n", str(APP_BUNDLE)], cwd=ROOT, text=True, capture_output=True)
-    log_path.write_text(proc.stdout + proc.stderr, encoding="utf-8")
+    try:
+        proc = subprocess.run(["open", "-n", str(APP_BUNDLE)], cwd=ROOT, text=True, capture_output=True, timeout=10)
+    except subprocess.TimeoutExpired as exc:
+        output = output_text(exc.stdout) + output_text(exc.stderr) + "\nTIMEOUT after 10s\n"
+        log_path.write_text(output, encoding="utf-8")
+        return {"name": "launchservices_smoke", "ok": False, "exit_code": None, "log": str(log_path), "reason": "`open` timed out"}
+    open_output = proc.stdout + proc.stderr
+    log_path.write_text(open_output if open_output else f"open exited {proc.returncode}\n", encoding="utf-8")
     if proc.returncode != 0:
         return {"name": "launchservices_smoke", "ok": False, "exit_code": proc.returncode, "log": str(log_path), "reason": "`open` failed"}
     try:
@@ -167,7 +185,11 @@ def run_launchservices_smoke() -> dict[str, Any]:
         ok = False
         reason = str(exc)
     finally:
-        terminate_pids(pids_for_port(default_port))
+        try:
+            terminate_pids(pids_for_port(default_port), default_port)
+        except Exception as exc:
+            ok = False
+            reason = f"{reason}; cleanup failed: {exc}" if reason else f"cleanup failed: {exc}"
     return {
         "name": "launchservices_smoke",
         "ok": ok,
@@ -180,6 +202,13 @@ def run_launchservices_smoke() -> dict[str, Any]:
 
 def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
     expected = [
+        REPORT,
+        LOG_DIR / "python_tests.log",
+        LOG_DIR / "swift_tests.log",
+        LOG_DIR / "browser_e2e.log",
+        LOG_DIR / "mac_app_build.log",
+        LOG_DIR / "mac_app_sanity.log",
+        LOG_DIR / "launchservices_smoke.log",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_success.png",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_replay_export.json",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "dogfood_bug_report.json",
@@ -198,6 +227,25 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
             if not data.get("records"):
                 bad_json.append(str(path))
     return {"name": "artifact_validation", "ok": not missing and not bad_json, "missing": missing, "empty_replay_exports": bad_json, "artifacts": artifacts}
+
+
+def validate_release_report() -> dict[str, Any]:
+    try:
+        data = json.loads(REPORT.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"name": "release_report_validation", "ok": False, "reason": str(exc), "report": str(REPORT)}
+    missing = [key for key in ["started_at", "finished_at", "root", "checks", "artifacts", "credential_gate"] if key not in data]
+    return {
+        "name": "release_report_validation",
+        "ok": not missing and isinstance(data.get("checks"), list) and bool(data.get("checks")),
+        "missing": missing,
+        "report": str(REPORT),
+    }
+
+
+def scan_release_report() -> dict[str, Any]:
+    findings = secret_findings([REPORT])
+    return {"name": "release_report_secret_scan", "ok": not findings, "findings": findings, "scanned_roots": [str(REPORT)]}
 
 
 def credential_gate() -> dict[str, Any]:
@@ -229,19 +277,24 @@ def find_runtime_credential_refs() -> list[str]:
 
 
 def scan_for_secrets() -> dict[str, Any]:
+    paths: list[Path] = []
+    proc = subprocess.run(["git", "ls-files"], cwd=ROOT.parent, text=True, capture_output=True, check=True, timeout=10)
+    for rel in proc.stdout.splitlines():
+        paths.append(ROOT.parent / rel)
+    for generated_root in [ROOT / "runs", ROOT / "dist"]:
+        if generated_root.exists():
+            paths.extend(path for path in generated_root.rglob("*") if path.is_file())
+    findings = secret_findings(paths)
+    return {"name": "secret_scan", "ok": not findings, "findings": findings, "scanned_roots": ["tracked files", "calendar-pilot-frontend 2/runs", "calendar-pilot-frontend 2/dist"]}
+
+
+def secret_findings(paths: list[Path]) -> list[str]:
     patterns = [
         re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
         re.compile(r"nvapi-[A-Za-z0-9_-]{20,}", re.IGNORECASE),
         re.compile(r"(OPENAI_API_KEY|NVIDIA_API_KEY|NIM_API_KEY)\s*=\s*['\"]?[A-Za-z0-9_-]{12,}", re.IGNORECASE),
     ]
     findings: list[str] = []
-    paths: list[Path] = []
-    proc = subprocess.run(["git", "ls-files"], cwd=ROOT.parent, text=True, capture_output=True, check=True)
-    for rel in proc.stdout.splitlines():
-        paths.append(ROOT.parent / rel)
-    for generated_root in [ROOT / "runs", ROOT / "dist"]:
-        if generated_root.exists():
-            paths.extend(path for path in generated_root.rglob("*") if path.is_file())
     for path in paths:
         if not path.is_file() or path.stat().st_size > 1_000_000:
             continue
@@ -253,7 +306,7 @@ def scan_for_secrets() -> dict[str, Any]:
             if pattern.search(text):
                 findings.append(str(path.relative_to(ROOT.parent)))
                 break
-    return {"name": "secret_scan", "ok": not findings, "findings": sorted(set(findings)), "scanned_roots": ["tracked files", "calendar-pilot-frontend 2/runs", "calendar-pilot-frontend 2/dist"]}
+    return sorted(set(findings))
 
 
 def wait_for_state(base_url: str, proc: subprocess.Popen[str], log_path: Path) -> None:
@@ -320,16 +373,28 @@ def terminate(proc: subprocess.Popen[str]) -> None:
 
 
 def pids_for_port(port: int) -> list[int]:
-    proc = subprocess.run(["lsof", "-ti", f"tcp:{port}"], text=True, capture_output=True)
+    proc = subprocess.run(["lsof", "-ti", f"tcp:{port}"], text=True, capture_output=True, timeout=5)
     return [int(line) for line in proc.stdout.splitlines() if line.strip().isdigit()]
 
 
-def terminate_pids(pids: list[int]) -> None:
+def terminate_pids(pids: list[int], port: int) -> None:
     for pid in pids:
-        subprocess.run(["kill", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["kill", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
     time.sleep(0.5)
-    for pid in pids_for_port(8787):
-        subprocess.run(["kill", "-9", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for pid in pids_for_port(port):
+        subprocess.run(["kill", "-9", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+
+
+def output_text(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+def write_report(report: dict[str, Any]) -> None:
+    REPORT.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def shutil_which(name: str) -> str | None:
