@@ -279,6 +279,7 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | 2026-07-01 | P2 app bundle | Built `dist/CalendarPilot.app`, verified bundled source/static/data layout, launched the bundle executable on a free port with run state outside the bundle, ran the rendered browser workflow against the bundled app server, and smoke-tested `open -n CalendarPilot.app` on default port `8787`. | `mac_app_sanity` and `launchservices_smoke` passed in the release report. |
 | 2026-07-01 | P2 desktop shortcut | Updated `/Users/temp/Desktop/CalendarPilot.app` to point at `calendar-pilot-frontend 2/dist/CalendarPilot.app`. | Shortcut target verified with `readlink`. |
 | 2026-07-01 | P2 credentials | Confirmed local fixture dogfood requires no Codex Auth, provider OAuth, or DiffusionGemma/NVIDIA NIM credentials. | `secret_scan` passed in the release report. |
+| 2026-07-01 | P2 final release hardening | Added timeout bounds to release-gate subprocesses, made timeout log capture bytes-safe, validated logs and current release report artifacts, and added a release-report secret scan. | `make dogfood-release` passed with `artifact_validation`, `secret_scan`, `release_report_validation`, and `release_report_secret_scan` all true. |
 
 ## Review Log
 
@@ -290,10 +291,10 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | 2026-07-01 | P1 | Sagan | Found premature P1 status, missing live restart proof, weak denial evidence, and replay artifacts written before browser controls. | Added actual stop/start restart check, real low-authority denial, browser-generated replay export before reset, and review log entries. |
 | 2026-07-01 | P2 | Volta | Found browser skip could leak into release, app sanity did not prove bundled UI, generated artifacts were not scanned, and expected artifacts were not validated. | Release gate clears skip env, runs bundled-app rendered browser workflow, validates artifacts, scans tracked plus generated `runs/` and `dist/`, and adds command timeouts. |
 | 2026-07-01 | P2 | Boyle | Found LaunchServices path was not verified, app sanity did not exercise P1 workflows, credential gate was hardcoded, and desktop shortcut replacement was brittle. | Added `open -n` LaunchServices smoke, reused rendered browser workflow against bundled app, derives credential refs from runtime/frontend code, and backs up existing Desktop app directories before linking. |
+| 2026-07-01 | P2 | Volta final | Found remaining timeout and current-report validation gaps in the release gate. | Added timeouts for `open`, `lsof`, `kill`, and `git ls-files`; made `TimeoutExpired` output bytes-safe; validated and secret-scanned the current release report. Volta and Boyle cleared P2. |
 
 ## Open Risks
 
 | Risk | Phase | Mitigation |
 |---|---|---|
-| App bundle launch needs end-to-end app-open verification. | P2 | Launch built `.app`, confirm the local server opens, then run critical dogfood workflow through it. |
 | Real provider/OAuth behavior is not included in fixture dogfood. | P2 | Keep fixture gate explicit and require manual credential setup only when scope expands. |
