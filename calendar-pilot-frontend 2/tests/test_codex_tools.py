@@ -7,6 +7,7 @@ from pathlib import Path
 
 from calendar_pilot.codex import CodexToolPlanner, CodexToolRuntime
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
+from calendar_pilot.diffusiongemma.live import LiveDiffusionGemmaCredentialError
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.types import AtomicActionType, AtomicCalendarAction, CandidateCalendarAction, CodexToolCall, CodexToolName, CodexToolStatus, PolicyTuning, RawCalendarObservation, Reversibility, UserBiography
 from scripts.train_offline_policy import build_policy_report
@@ -104,11 +105,32 @@ class CodexToolRuntimeTests(unittest.TestCase):
         has_note = any(any("offline_tuning" in n for n in c.control_notes) for c in candidates)
         self.assertTrue(has_note or not tuning.intent_reward_bias)
 
+    def test_live_policy_failure_returns_failed_frontier_receipt(self):
+        replay = ReplayBuffer()
+        runtime = CodexToolRuntime(policy=MissingLivePolicy(), replay=replay)
+        receipt = runtime.execute(
+            CodexToolCall("frontier_missing_nim", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 4}, 3, "frontier"),
+            load_obs(),
+            load_bio(),
+        )
+
+        self.assertEqual(receipt.status, CodexToolStatus.FAILED)
+        self.assertEqual(receipt.output["error_category"], "missing_or_invalid_credential")
+        self.assertIn("NVIDIA NIM", receipt.output["recovery"])
+        self.assertEqual(replay.records[-1].payload["receipt"]["status"], "failed")
+
     def test_tool_contract_round_trip(self):
         call = CodexToolCall("tool_x", CodexToolName.INSPECT_AUTHORITY_SCOPE, {"x": 1}, 3, "because")
         restored = CodexToolCall.from_dict(call.to_dict())
         self.assertEqual(restored.tool_name, CodexToolName.INSPECT_AUTHORITY_SCOPE)
         self.assertEqual(restored.requested_authority_tier, 3)
+
+
+class MissingLivePolicy:
+    backend_name = "nvidia_nim_diffusiongemma_policy"
+
+    def generate_candidates(self, *_args, **_kwargs):
+        raise LiveDiffusionGemmaCredentialError("NVIDIA NIM API key is required")
 
 
 if __name__ == "__main__":

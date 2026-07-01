@@ -45,6 +45,7 @@ def main() -> None:
     checks = report["checks"]
     checks.append(runtime_mode_gate(report["runtime"]))
     checks.append(live_codex_credential_mode_gate())
+    checks.append(live_diffusiongemma_credential_mode_gate())
     checks.append(run_command("python_tests", ["make", "py-test"], timeout=60))
     checks.append(run_command("swift_tests", ["make", "swift-test"], timeout=60))
     checks.append(run_command("swift_ipc_tests", ["make", "swift-ipc-test"], timeout=120))
@@ -125,7 +126,7 @@ def run_app_bundle_sanity(
     artifact_dir: Path | None = None,
 ) -> dict[str, Any]:
     runtime_mode = runtime_mode or runtime_mode_from_env()
-    expected_kernel = expected_kernel or ("SwiftKernelIPCClient" if runtime_mode in {"swift_ipc", "live_codex", "production"} else "SwiftKernelStub")
+    expected_kernel = expected_kernel or ("SwiftKernelIPCClient" if runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"} else "SwiftKernelStub")
     artifact_dir = artifact_dir or RUN_DIR / "app_browser_artifacts"
     app_exe = APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot"
     app_src = APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot"
@@ -137,7 +138,7 @@ def run_app_bundle_sanity(
         return {"name": name, "ok": False, "reason": "bundled Python source missing"}
     if not app_index.exists():
         return {"name": name, "ok": False, "reason": "bundled frontend static assets missing"}
-    if runtime_mode in {"swift_ipc", "live_codex", "production"} and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
+    if runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"} and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
         return {"name": name, "ok": False, "reason": "bundled Swift IPC server missing or not executable"}
     port = free_port()
     base_url = f"http://127.0.0.1:{port}"
@@ -377,6 +378,35 @@ def live_codex_credential_mode_gate() -> dict[str, Any]:
         "codex_credential_configured": configured,
         "codex_credential_status": status,
         "codex_auth_method": codex_credential.get("auth_method") if isinstance(codex_credential, dict) else "missing",
+        "live_blockers": blockers,
+        "reason": "; ".join(blockers),
+    }
+
+
+def live_diffusiongemma_credential_mode_gate() -> dict[str, Any]:
+    report = runtime_report(
+        mode="live_diffusiongemma",
+        run_dir=RUN_DIR / "live_diffusiongemma_mode_gate",
+        observation_path=ROOT / "data" / "sample_calendar.json",
+        profile_path=ROOT / "data" / "sample_profile.json",
+        session_id="release_gate_live_diffusiongemma",
+        backends=RuntimeBackends(kernel="SwiftKernelIPCClient", diffusiongemma="nvidia_nim_diffusiongemma_policy"),
+    )
+    blockers = list(report.get("live_blockers", []))
+    credentials = report.get("credentials", {})
+    nim_credential = credentials.get("diffusiongemma_nim", {}) if isinstance(credentials, dict) else {}
+    configured = bool(nim_credential.get("configured")) if isinstance(nim_credential, dict) else False
+    status = str(nim_credential.get("status", "")) if isinstance(nim_credential, dict) else "missing_credential"
+    missing_blocker = "required credential missing: diffusiongemma_nim" in blockers
+    ok = (configured and status == "configured" and not blockers) or ((not configured) and missing_blocker and not runtime_is_release_safe(report))
+    return {
+        "name": "live_diffusiongemma_credential_mode_gate",
+        "ok": ok,
+        "runtime_mode": report.get("runtime_mode"),
+        "backends": report.get("backends"),
+        "nim_credential_configured": configured,
+        "nim_credential_status": status,
+        "nim_credential_source": nim_credential.get("source") if isinstance(nim_credential, dict) else "missing",
         "live_blockers": blockers,
         "reason": "; ".join(blockers),
     }

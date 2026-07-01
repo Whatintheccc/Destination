@@ -95,6 +95,15 @@ def credential_state(mode: str) -> dict[str, dict[str, bool | str]]:
                 "auth_method": str(auth["auth_method"]),
             }
             continue
+        if key == "diffusiongemma_nim":
+            configured, source = _nim_credential_source()
+            state[key] = {
+                "required": is_required,
+                "configured": configured,
+                "source": source,
+                "status": "configured" if configured else "missing_credential",
+            }
+            continue
         state[key] = {
             "required": is_required,
             "configured": bool(os.environ.get(env_names[key])),
@@ -102,6 +111,13 @@ def credential_state(mode: str) -> dict[str, dict[str, bool | str]]:
             "status": "configured" if os.environ.get(env_names[key]) else "missing_credential",
         }
     return state
+
+
+def _nim_credential_source() -> tuple[bool, str]:
+    for key in ["CALENDAR_PILOT_NIM_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"]:
+        if os.environ.get(key):
+            return True, key
+    return False, "missing"
 
 
 def codex_subscription_auth_state() -> dict[str, bool | str]:

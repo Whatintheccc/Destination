@@ -195,6 +195,7 @@ def _candidate_rows(plan: CodexExecutivePlan) -> list[dict[str, Any]]:
             "predicted_social_risk": candidate.get("predicted_social_risk"),
             "required_authority_tier": candidate.get("required_authority_tier"),
             "model_story": candidate.get("model_story", [])[:3],
+            "control_notes": candidate.get("control_notes", [])[:6],
             "reward_breakdown": candidate.get("reward_breakdown", {}),
         })
     return rows
@@ -293,6 +294,7 @@ def _chat_surface(plan: CodexExecutivePlan, candidate_rows: list[dict[str, Any]]
             "intent": row.get("intent"),
             "rank": row.get("rank"),
             "model_story": row.get("model_story", []),
+            "control_notes": row.get("control_notes", []),
             "reward_breakdown": row.get("reward_breakdown", {}),
             "required_authority_tier": row.get("required_authority_tier"),
             "right_moment_decision": row.get("right_moment_decision"),

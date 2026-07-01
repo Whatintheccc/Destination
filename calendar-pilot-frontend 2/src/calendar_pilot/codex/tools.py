@@ -7,6 +7,7 @@ from typing import Any
 
 from calendar_pilot.biography import BiographyStore
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
+from calendar_pilot.diffusiongemma.live import LiveDiffusionGemmaError
 from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner
 from calendar_pilot.diffusiongemma.signals import extract_signals
 from calendar_pilot.replay import ReplayBuffer
@@ -182,10 +183,23 @@ class CodexToolRuntime:
 
     def _generate_frontier(self, call: CodexToolCall, observation: RawCalendarObservation, biography: UserBiography) -> CodexToolReceipt:
         limit = int(call.input.get("limit", 5))
-        candidates = self.policy.generate_candidates(observation, biography)[:limit]
+        try:
+            candidates = self.policy.generate_candidates(observation, biography)[:limit]
+        except LiveDiffusionGemmaError as exc:
+            return self._receipt(
+                call,
+                CodexToolStatus.FAILED,
+                {
+                    "error_category": exc.category,
+                    "message": str(exc),
+                    "recovery": "Configure NVIDIA NIM credentials for live_diffusiongemma mode or switch CALENDAR_PILOT_RUNTIME_MODE back to fixture.",
+                },
+                denied=str(exc),
+            )
+        policy_version = getattr(self.policy, "backend_name", "heuristic_diffusiongemma_policy")
         for rank, candidate in enumerate(candidates):
             self.frontier[candidate.candidate_id] = candidate
-            self.replay.append_decision(candidate, rank=rank, policy_version="codex_tool_frontier")
+            self.replay.append_decision(candidate, rank=rank, policy_version=policy_version)
         return self._receipt(
             call,
             CodexToolStatus.SUCCEEDED,

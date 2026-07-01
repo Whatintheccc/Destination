@@ -189,6 +189,22 @@ class SwiftIPCRuntimeTests(unittest.TestCase):
             self.assertNotIn("live_codex mode is using SwiftKernelStub", report["live_blockers"])
             session.close()
 
+    def test_live_diffusiongemma_runtime_defaults_to_swift_ipc_kernel(self) -> None:
+        with tempfile.TemporaryDirectory() as td, patch.dict(os.environ, {
+            "CALENDAR_PILOT_RUNTIME_MODE": "live_diffusiongemma",
+            "CALENDAR_PILOT_NIM_API_KEY": "",
+            "NVIDIA_API_KEY": "",
+            "NIM_API_KEY": "",
+        }):
+            session = DogfoodSessionState(run_dir=Path(td))
+            report = session.runtime_report()
+            self.assertEqual(report["runtime_mode"], "live_diffusiongemma")
+            self.assertEqual(report["backends"]["kernel"], "SwiftKernelIPCClient")
+            self.assertEqual(report["backends"]["diffusiongemma"], "nvidia_nim_diffusiongemma_policy")
+            self.assertIn("required credential missing: diffusiongemma_nim", report["live_blockers"])
+            self.assertNotIn("live_diffusiongemma mode is using SwiftKernelStub", report["live_blockers"])
+            session.close()
+
     def test_ipc_rpc_stream_is_thread_safe(self) -> None:
         observation = load_observation()
         with SwiftKernelIPCClient(package_path=ROOT / "packages" / "CalendarPilotKernel") as kernel:

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime, LiveCodexToolPlanner
-from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, SelfPlayRunner
+from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, LiveDiffusionGemmaPolicy, SelfPlayRunner
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge import SwiftKernelIPCClient, SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
@@ -56,7 +56,7 @@ class DogfoodSessionState:
     observation: RawCalendarObservation = field(init=False)
     biography: UserBiography = field(init=False)
     kernel: CalendarKernelProtocol = field(init=False)
-    policy: DiffusionGemmaPolicy = field(init=False)
+    policy: DiffusionGemmaPolicy | LiveDiffusionGemmaPolicy = field(init=False)
     replay: ReplayBuffer = field(init=False)
     runtime: CodexToolRuntime = field(init=False)
     planner: CodexToolPlanner = field(init=False)
@@ -77,7 +77,7 @@ class DogfoodSessionState:
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self._load_primitives()
         self.kernel = self._new_kernel_for_mode()
-        self.policy = DiffusionGemmaPolicy()
+        self.policy = self._new_policy_for_mode()
         self.replay = ReplayBuffer.load_jsonl(self.run_dir / "replay.jsonl")
         self._rebuild_runtime()
         atexit.register(self.close)
@@ -100,7 +100,7 @@ class DogfoodSessionState:
         requested_kernel = os.environ.get("CALENDAR_PILOT_KERNEL_BACKEND", "").strip().lower().replace("-", "_")
         if requested_kernel in {"stub", "swift_stub", "python_stub"}:
             return SwiftKernelStub()
-        if requested_kernel in {"swift_ipc", "ipc"} or self.runtime_mode in {"swift_ipc", "live_codex", "production"}:
+        if requested_kernel in {"swift_ipc", "ipc"} or self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"}:
             kernel = SwiftKernelIPCClient()
             kernel.start()
             return kernel
@@ -109,6 +109,7 @@ class DogfoodSessionState:
     def _replace_kernel_for_mode(self) -> None:
         self.close()
         self.kernel = self._new_kernel_for_mode()
+        self.policy = self._new_policy_for_mode()
         if hasattr(self, "runtime"):
             self._rebuild_runtime()
 
@@ -121,6 +122,11 @@ class DogfoodSessionState:
             return LiveCodexToolPlanner(runtime=self.runtime)
         return CodexToolPlanner(runtime=self.runtime)
 
+    def _new_policy_for_mode(self) -> DiffusionGemmaPolicy | LiveDiffusionGemmaPolicy:
+        if self.runtime_mode in {"live_diffusiongemma", "production"}:
+            return LiveDiffusionGemmaPolicy()
+        return DiffusionGemmaPolicy()
+
     def close(self) -> None:
         close = getattr(getattr(self, "kernel", None), "close", None)
         if callable(close):
@@ -128,7 +134,7 @@ class DogfoodSessionState:
 
     def reset(self) -> dict[str, Any]:
         self._load_primitives()
-        self.policy = DiffusionGemmaPolicy()
+        self.policy = self._new_policy_for_mode()
         self.replay = ReplayBuffer()
         self.latest_plan = None
         self.authority_tier = DEFAULT_AUTHORITY_TIER
@@ -351,11 +357,15 @@ class DogfoodSessionState:
         health_status = getattr(self.planner, "health_status", None)
         if callable(health_status):
             report["codex_health"] = health_status(validate_remote=False)
+        policy_health_status = getattr(self.policy, "health_status", None)
+        if callable(policy_health_status):
+            report["diffusiongemma_health"] = policy_health_status(validate_remote=False)
         return report
 
     def _runtime_backends(self) -> RuntimeBackends:
         codex_backend = getattr(self.planner, "backend_name", "deterministic_codex_tool_planner")
-        return RuntimeBackends(kernel=type(self.kernel).__name__, codex=codex_backend)
+        policy_backend = getattr(self.policy, "backend_name", "heuristic_diffusiongemma_policy")
+        return RuntimeBackends(kernel=type(self.kernel).__name__, codex=codex_backend, diffusiongemma=policy_backend)
 
     def snapshot(self) -> dict[str, Any]:
         plan = self.latest_plan
@@ -396,6 +406,7 @@ class DogfoodSessionState:
                 {"key": "kernel", "value": runtime["backends"]["kernel"]},
                 {"key": "codex", "value": runtime["backends"]["codex"]},
                 {"key": "diffusiongemma", "value": runtime["backends"]["diffusiongemma"]},
+                {"key": "diffusiongemma_health", "value": runtime.get("diffusiongemma_health", {}).get("status", "not_applicable")},
                 {"key": "provider", "value": runtime["backends"]["provider"]},
                 {"key": "codex_health", "value": runtime.get("codex_health", {}).get("status", "not_applicable")},
                 {"key": "live_blockers", "value": runtime["live_blockers"] or "none"},
@@ -485,7 +496,7 @@ class DogfoodSessionState:
         self.kernel.undo_ledger = {}
         undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
         active_undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
-        if self.runtime_mode in {"swift_ipc", "live_codex", "production"}:
+        if self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"}:
             restore_grant = getattr(self.kernel, "restore_authority_grant", None)
             if callable(restore_grant):
                 for grant in grants:

@@ -1,4 +1,4 @@
-.PHONY: py-test swift-test browser-e2e live-codex-e2e mac-app-build test dogfood-release
+.PHONY: py-test swift-test browser-e2e live-codex-e2e live-diffusiongemma-e2e mac-app-build test dogfood-release
 
 APP_DIR := calendar-pilot-frontend 2
 
@@ -13,6 +13,9 @@ browser-e2e:
 
 live-codex-e2e:
 	$(MAKE) -C "$(APP_DIR)" live-codex-e2e
+
+live-diffusiongemma-e2e:
+	$(MAKE) -C "$(APP_DIR)" live-diffusiongemma-e2e
 
 mac-app-build:
 	$(MAKE) -C "$(APP_DIR)" mac-app-build

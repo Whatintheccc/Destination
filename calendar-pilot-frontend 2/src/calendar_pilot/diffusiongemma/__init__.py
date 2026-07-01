@@ -1,4 +1,5 @@
 from .policy import DiffusionGemmaPolicy
+from .live import LiveDiffusionGemmaPolicy, NvidiaNIMPolicyClient
 from .reward import RewardModel, RewardWeights
 from .right_moment import RightMomentModel
 from .self_play import SelfPlayRunner, SelfPlayMetrics, SelfPlayEpisode
@@ -7,6 +8,8 @@ from .world_model import CalendarWorldModel, WorldSketch
 
 __all__ = [
     "DiffusionGemmaPolicy",
+    "LiveDiffusionGemmaPolicy",
+    "NvidiaNIMPolicyClient",
     "RewardModel",
     "RewardWeights",
     "RightMomentModel",

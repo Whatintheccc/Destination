@@ -35,6 +35,7 @@ class RuntimeModeTests(unittest.TestCase):
 
             self.assertEqual(report["runtime_mode"], "production")
             self.assertEqual(report["backends"]["codex"], "live_codex_app_server")
+            self.assertEqual(report["backends"]["diffusiongemma"], "nvidia_nim_diffusiongemma_policy")
             self.assertFalse(runtime_is_release_safe(report))
             blockers = " ".join(report["live_blockers"])
             self.assertIn("required credential missing: codex_subscription", blockers)
@@ -42,7 +43,6 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertIn("required credential missing: provider_oauth", blockers)
             self.assertIn("sample fixture data", blockers)
             self.assertIn("SwiftKernelStub", blockers)
-            self.assertIn("heuristic policy", blockers)
             self.assertIn("local_stub provider", blockers)
 
     def test_invalid_runtime_mode_is_not_coerced_to_fixture_safe(self):
@@ -55,6 +55,22 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertFalse(report["valid_runtime_mode"])
             self.assertFalse(runtime_is_release_safe(report))
             self.assertIn("invalid runtime mode requested: prod", report["live_blockers"])
+
+    def test_live_diffusiongemma_reports_nim_backend_and_missing_credential(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {
+            "CALENDAR_PILOT_RUNTIME_MODE": "live_diffusiongemma",
+            "CALENDAR_PILOT_KERNEL_BACKEND": "stub",
+            "CALENDAR_PILOT_NIM_API_KEY": "",
+            "NVIDIA_API_KEY": "",
+            "NIM_API_KEY": "",
+        }):
+            session = DogfoodSessionState(run_dir=Path(td))
+            report = session.runtime_report()
+
+            self.assertEqual(report["runtime_mode"], "live_diffusiongemma")
+            self.assertEqual(report["backends"]["diffusiongemma"], "nvidia_nim_diffusiongemma_policy")
+            self.assertEqual(report["diffusiongemma_health"]["status"], "missing_credential")
+            self.assertIn("required credential missing: diffusiongemma_nim", report["live_blockers"])
 
     def test_runtime_mode_persists_across_reload(self):
         with tempfile.TemporaryDirectory() as td:
