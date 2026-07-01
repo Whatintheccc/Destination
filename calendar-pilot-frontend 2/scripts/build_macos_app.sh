@@ -24,7 +24,7 @@ URL="http://$HOST:$PORT"
 mkdir -p "$RUN_DIR"
 cd "$APP_ROOT" 2>/dev/null || exit 1
 if command -v python3 >/dev/null 2>&1; then
-  if command -v open >/dev/null 2>&1; then
+  if command -v open >/dev/null 2>&1 && [ "${CALENDAR_PILOT_OPEN_BROWSER:-1}" != "0" ]; then
     (sleep 1; open "$URL") >/dev/null 2>&1 &
   fi
   exec env PYTHONPATH="$APP_ROOT/src" python3 -m calendar_pilot.app frontend --serve --host "$HOST" --port "$PORT" --run-dir "$RUN_DIR"

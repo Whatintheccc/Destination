@@ -1,4 +1,4 @@
-.PHONY: test py-test swift-test browser-e2e mac-app-build demo zip
+.PHONY: test py-test swift-test browser-e2e mac-app-build desktop-shortcut dogfood-release demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -11,6 +11,12 @@ browser-e2e:
 
 mac-app-build:
 	scripts/build_macos_app.sh
+
+desktop-shortcut:
+	scripts/install_desktop_shortcut.sh
+
+dogfood-release:
+	PYTHONPATH=src python3 scripts/run_dogfood_release.py
 
 test: py-test swift-test
 

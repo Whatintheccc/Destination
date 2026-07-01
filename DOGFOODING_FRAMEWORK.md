@@ -182,13 +182,13 @@ Acceptance criteria:
 
 ## P2 macOS App And Release Readiness
 
-Status: Not started
+Status: In review
 Owner: Codex
 Goal: deliver a local macOS app bundle that can run the same dogfood workflows as the browser.
 
 ### P2.1 macOS Bundle Launch
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -206,7 +206,7 @@ Acceptance criteria:
 
 ### P2.2 Release Gate Script
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -221,7 +221,7 @@ Acceptance criteria:
 
 ### P2.3 Credential Gates
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -275,6 +275,10 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | 2026-07-01 | P0 baseline checks | Ran root `make py-test`, `make swift-test`, `make browser-e2e`, and `make mac-app-build`. | Python 46 tests, Swift 16 tests, browser smoke, app build, bundle layout, and launcher syntax passed. |
 | 2026-07-01 | P1 live frontend | Reworked `scripts/run_browser_e2e.py` to start the real Python server, verify live restart persistence, drive live HTTP endpoints, write replay/bug-report artifacts, and require a rendered browser gate by default. | `make browser-e2e` passed with `browser CDP e2e passed`. |
 | 2026-07-01 | P1 controls | Browser/API E2E covers goal entry, candidate rendering, stage, commit, undo, feedback, replay export, profile propose/apply, authority edit, real low-authority commit denial, denial explanation, self-play, reset, and invalid route handling. | `browser_replay_export.json` contains 81 records before reset; reset evidence is captured afterward. |
+| 2026-07-01 | P2 release gate | Added `scripts/run_dogfood_release.py` and `make dogfood-release` to run Python tests, Swift tests, mandatory browser E2E, macOS app build, app bundle launch/API sanity, and secret scan. | Release report passed at `calendar-pilot-frontend 2/runs/release/dogfood_release_report.json`. |
+| 2026-07-01 | P2 app bundle | Built `dist/CalendarPilot.app`, verified bundled source/static/data layout, launched the bundle executable on a free port with run state outside the bundle, and exercised plan/commit/replay/reset through the app server. | `mac_app_sanity` passed in the release report. |
+| 2026-07-01 | P2 desktop shortcut | Updated `/Users/temp/Desktop/CalendarPilot.app` to point at `calendar-pilot-frontend 2/dist/CalendarPilot.app`. | Shortcut target verified with `readlink`. |
+| 2026-07-01 | P2 credentials | Confirmed local fixture dogfood requires no Codex Auth, provider OAuth, or DiffusionGemma/NVIDIA NIM credentials. | `secret_scan` passed in the release report. |
 
 ## Review Log
 
