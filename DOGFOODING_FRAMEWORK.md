@@ -1,364 +1,405 @@
-# CalendarPilot Dogfooding Framework
+# CalendarPilot Frontend 2 Dogfooding Framework
 
 Status: working document
 Primary audience: dogfood team, product engineering, runtime engineering
 Source of truth: this file at repository root
+Target implementation: `calendar-pilot-frontend 2/`
+Archived predecessor: `Do-not-reference/calendar-pilot-frontend/`
 Last reviewed: 2026-07-01
 
 ## Purpose
 
-This document turns `calendar-pilot-frontend/` from a static reference surface into a dogfoodable product loop:
+This document restarts the dogfood framework for `calendar-pilot-frontend 2/`.
+
+The previous dogfood app proved the machine-learning and machine-acting loop, but the first-viewport UX was a control dashboard. Frontend 2 must preserve the same product loop while presenting it as a chat-first calendar assistant:
 
 ```text
-goal -> inspect -> candidate frontier -> simulate -> stage/commit/deny -> undo -> feedback/reward -> replay -> policy tuning -> next run
+chat goal -> inspect week -> candidate action cards -> simulate/stage/commit/deny
+-> undo -> feedback/reward -> replay/export -> self-play gate -> next chat request
 ```
 
-The dogfood team should edit this document as the product changes. Every step below has room for status, owner, evidence, and acceptance criteria so the framework can serve as both roadmap and operating log.
+The dogfood team should edit this document directly as v2 changes. Treat every status, owner, evidence line, and acceptance criterion as an operating log, not as static planning text.
 
 ## How We Arrived Here
 
-The git history shows a clear shift from architecture exploration to a concrete control surface:
+| Phase | What changed | Dogfood implication |
+|---|---|---|
+| Planning corpus | Earlier plans debated witness/controller, self-play, reward, latency, calendar authority, and agentic UX. | CalendarPilot is an optimizer with controlled actuation, not a passive calendar summary surface. |
+| CalendarPilot skeleton | Python package, Swift kernel, typed contracts, fixtures, replay, self-play, policy, and tests were added. | Dogfood starts from runnable primitives and typed receipts. |
+| Codex tool executive | Codex became a bounded runtime over inspect, frontier, simulate, compare, stage, commit, undo, replay, profile repair, autonomy, and denial tools. | The app flow should be tool-receipt driven, even when presented as chat. |
+| Authority hardening | Swift-issued `AuthorityGrant` replaced naked tiers; grants and receipts became visible state. | UX must show why Codex can request but cannot directly write. |
+| Frontend 1 dogfood | `calendar-pilot-frontend/` completed P0/P1/P2: live API, fixture provider, undo, feedback, replay, self-play, and macOS bundle. | The loop was proven, but the UX became an internal dashboard. |
+| UX reset | User feedback clarified the target: "more like chatgpt.com + side menu/settings." | Frontend 2 should make chat the primary product surface and move dogfood machinery into an inspector. |
+| Frontend 2 baseline | `calendar-pilot-frontend 2/` adds a chat-first static shell, sidebar, composer, inspector drawer, chat/sidebar/inspector snapshot state, and a CI-friendly dogfood smoke. | The next dogfood pass is UX-first hardening over the same runtime loop. |
 
-| Phase | Commits | What changed | Dogfood implication |
-|---|---|---|---|
-| Planning corpus | `f5f3da0` through `73d28a2` | The repo moved through plan-4/5/6/7/8 documents, a witness/controller debate, self-play notes, latency-bound revisions, and readme rewrites. | The product doctrine was debated before implementation: this is an agentic optimizer, not only a passive calendar witness. |
-| Planning cleanup | `83b63e7`, `0df7ef7`, `d338a53` | Superseded plan files were removed and the planning corpus was retired. | The repo intentionally stopped being a document archive and made room for implementation. |
-| CalendarPilot skeleton | `9f8327c` | Added the Python package, Swift kernel, contracts, sample calendar/profile fixtures, reward model, replay, self-play, tests, and docs. | Dogfood can start from runnable primitives rather than strategy docs. |
-| Agent loop revision | `5de2534` | Added world-model signals, richer policy behavior, right-moment modeling, visible reward anatomy, and agent-loop tests. | Dogfood should inspect why a candidate exists, not just whether a recommendation appears. |
-| Contracts/provider/replay hardening | `effa98d` | Added receipts, provider stubs, biography maturation, replay hardening, contract parity, and provider boundary docs. | Dogfood must exercise receipt and provider truth, not only UI display. |
-| Codex tool executive | `835ce26` | Codex became a bounded tool runtime with inspect, frontier, simulate, compare, stage, commit, undo, replay, profile repair, autonomy, and denial tools. | The app flow should be tool-receipt driven rather than chat narrative driven. |
-| Authority grants and safety | `7ae1640` | Swift-issued `AuthorityGrant` replaced naked authority tiers; replay gained causal IDs; reward contracts and safety tests landed. | Dogfood should treat authority as product state users can see and constrain. |
-| Frontend and Swift IPC boundary | `b3e81b0` | Added `frontend/static`, frontend snapshot generation, frontend docs, Swift JSONL server, and `SwiftKernelIPCClient`. | The UI now exposes the right surfaces, but it is still static and not yet a complete product loop. |
+## Current Frontend 2 State
 
-Baseline state before the dogfood implementation:
+Observed implementation as of 2026-07-01:
 
-- `frontend/static/app.js` only fetches `frontend_state.sample.json` and renders panels.
-- `src/calendar_pilot/frontend/server.py` only generates a demo snapshot and serves static files.
-- `CodexToolRuntime` expects the stub-shaped kernel interface, while `SwiftKernelIPCClient` exposes an IPC-shaped interface.
-- Provider adapters are explicit stubs and still throw for writes.
-- Replay is trace-aware, but user feedback/reward capture is not exposed through the frontend.
-- Tests cover contracts, planner/runtime behavior, static frontend snapshot state, replay, and Swift parity; there is no real browser E2E suite yet.
+- `frontend/static/index.html` has a left sidebar, chat transcript, composer, and right inspector.
+- `frontend/static/app.js` maps `/api/*` state to chat messages, candidate cards, receipt cards, and inspector tabs.
+- `src/calendar_pilot/frontend/surface.py` returns legacy panels plus `chat`, `sidebar`, and `inspector` presentation state.
+- `src/calendar_pilot/frontend/session.py` owns an in-memory `DogfoodSessionState` with transcript events, feedback history, denials, profile patches, self-play history, authority history, and replay.
+- `src/calendar_pilot/frontend/server.py` exposes live API routes for state, plans, candidates, receipts, undo, profile patch, denials, self-play, authority, feedback, reset, and replay export.
+- `scripts/run_browser_e2e.py` is currently a deterministic smoke: it checks static chat-shell markers and drives `DogfoodSessionState` directly. It can optionally run a rendered Playwright check through mocked API routes.
+- `scripts/browser_e2e.spec.mjs` describes the desired live browser path, but it is not the canonical CI path yet.
+- `scripts/build_macos_app.sh` creates a minimal `.app` shell. It is not yet equivalent to the prior SwiftUI/WebKit wrapper and needs packaging hardening.
+- `docs/CHAT_FIRST_FRONTEND_REDESIGN.md` captures the intended UX architecture.
 
-## Dogfood Doctrine
+Known gaps to keep visible:
 
-1. The dogfood product is the loop, not the screenshot.
-2. Every visible control should create typed state: tool call, tool receipt, Swift receipt, reward event, profile patch, replay row, or policy tuning artifact.
-3. The frontend should expose machine learning and machine acting directly: candidate futures, reward anatomy, authority, acting queue, self-play findings, replay, and profile repair.
-4. Real provider OAuth should wait until deterministic fixture provider state proves idempotency, conflict truth, and rollback verification.
-5. Higher autonomy is blocked until commit, undo, denial, feedback, and replay are all product journeys.
+- Session persistence writes snapshots/replay but does not reload a prior dogfood session on server restart.
+- Frontend 2 does not yet port the fixture provider truth/idempotency/rollback verification from archived Frontend 1.
+- The session uses `SwiftKernelStub`; Swift IPC exists but is not wired through the live dogfood path.
+- Replay export returns JSON, but there is no bug-report file artifact workflow yet.
+- Self-play release gating is still shallow: `hold_autonomy` is based on top failure modes rather than full reward/undo/social/fatigue thresholds.
+- The macOS app builder copies static assets only and should be replaced or hardened before dogfood distribution.
+- The live browser E2E should start the actual server and exercise the rendered app, not only direct session calls.
+
+## Dogfood Doctrine For Frontend 2
+
+1. Chat is the primary product surface.
+2. The dogfood loop remains the product engine.
+3. Candidate futures and Swift receipts should appear as inline chat action cards.
+4. Authority, replay, profile repair, self-play, provider state, and debug trace belong in the inspector.
+5. Codex can request actions; Swift validates and writes; providers own external truth.
+6. Every meaningful user action should create typed state: tool call, tool receipt, Swift receipt, reward event, profile patch, replay row, or exported trace.
+7. Real OAuth remains blocked until fixture provider state proves idempotency, conflict truth, and rollback verification in v2.
 
 ## Working Backlog
 
-Use the status fields directly in this file.
-
 Status values: `Not started`, `In progress`, `Blocked`, `Dogfood`, `Done`
 
-### P0.1 Make The Frontend Interactive
+### P0.1 Archive Frontend 1 And Reset Source Of Truth
 
-Status: Dogfood
+Status: Done
 Owner:
-Evidence: `frontend/static/app.js` now calls live `/api/*` endpoints; `frontend/static/index.html` has goal/profile controls; smoke-tested served UI API on `127.0.0.1:8790`.
-
-`frontend/static/app.js` only fetches `frontend_state.sample.json` and renders panels. There are no goal inputs, approve/deny buttons, commit actions, undo controls, profile repair controls, or backend POSTs.
+Evidence: Archived tracked `calendar-pilot-frontend/` and the old root `DOGFOODING_FRAMEWORK.md` under `Do-not-reference/`; this root document now targets `calendar-pilot-frontend 2/`.
 
 Required work:
 
-- Add a goal input that creates a plan from live backend state.
-- Add candidate controls for simulate, stage, approve/confirm, commit, deny, and explain denial.
-- Add action queue controls for undo and receipt inspection.
-- Add profile repair controls for propose patch, apply patch, and reject patch.
-- Add feedback controls on committed, staged, denied, undone, and ignored actions.
-- Replace static-only rendering with state refresh from the backend.
-- Keep `frontend_state.sample.json` as demo fallback only.
+- Move the completed dashboard-style dogfood implementation out of the active root.
+- Keep its history available under `Do-not-reference/` for comparison only.
+- Make root `DOGFOODING_FRAMEWORK.md` describe Frontend 2, not the archived app.
 
 Acceptance criteria:
 
-- A dogfood user can enter "Make next week less chaotic" and see a new plan without regenerating a static file.
-- Every button disables while its request is in flight and renders the returned receipt or denial.
-- The UI shows `plan_id`, `authority_grant_id`, `candidate_id`, `receipt_id`, `rollback_handle_id`, and `trace_id` when available.
-- A failed POST produces a visible, structured error and does not corrupt local state.
+- `calendar-pilot-frontend/` no longer exists as the active tracked implementation.
+- `Do-not-reference/calendar-pilot-frontend/` contains the archived implementation.
+- Root `DOGFOODING_FRAMEWORK.md` points to `calendar-pilot-frontend 2/`.
 
-### P0.2 Add A Stateful Frontend/Backend API
+### P0.2 Preserve And Harden The Chat-First Shell
 
-Status: Dogfood
+Status: In progress
 Owner:
-Evidence: `calendar_pilot.frontend.server` exposes `/api/state`, `/api/plans`, candidate simulate/stage/commit, receipt confirm, undo, profile patch, denial explanation, replay, feedback, and reset. `DogfoodSessionState` persists replay/session/provider state under `runs/dogfood/`.
+Evidence: `frontend/static/index.html`, `app.js`, and `styles.css` already implement sidebar, transcript, composer, inspector, candidate cards, receipt cards, and inspector tabs.
 
-`server.py` is just snapshot generation plus static serving. Add endpoints for: create plan, stage, confirm, commit, undo, profile patch, denial explanation, replay trace, and feedback/reward.
+Required work:
+
+- Keep the first viewport as chat, not a dashboard.
+- Make the left sidebar useful for new chat, current session, and recent dogfood runs.
+- Keep inspector tabs for authority, profile, replay, self-play, provider, and debug.
+- Ensure all controls fit across desktop and mobile without overlap.
+- Remove any explanatory copy that reads like a landing page instead of product UI.
+
+Acceptance criteria:
+
+- A dogfood user lands in a chat transcript with a composer.
+- Candidate cards render inside assistant messages.
+- Dogfood machinery is available in the inspector, not dominant in the main chat.
+- Mobile layout does not hide the primary send/action controls.
+
+### P0.3 Stabilize The Stateful Frontend API
+
+Status: In progress
+Owner:
+Evidence: `src/calendar_pilot/frontend/server.py` exposes the v2 API route set; `DogfoodSessionState` can create plans, act on candidates, undo, record feedback, patch profile, explain denials, run self-play, edit authority, reset, and export replay.
 
 Minimum endpoint set:
 
 | Endpoint | Method | Purpose |
 |---|---:|---|
-| `/api/state` | `GET` | Return current frontend snapshot plus session metadata. |
-| `/api/plans` | `POST` | Create a Codex executive plan from `{goal, authority_tier, commit}`. |
-| `/api/candidates/{candidate_id}/simulate` | `POST` | Run `simulate_action_program`. |
-| `/api/candidates/{candidate_id}/stage` | `POST` | Run `stage_action_packet`. |
-| `/api/candidates/{candidate_id}/commit` | `POST` | Run `request_commit` with confirmed authority. |
-| `/api/receipts/{receipt_id}/confirm` | `POST` | Mark a staged/confirmation-required receipt as user confirmed and continue. |
-| `/api/undo` | `POST` | Run `request_undo` from `{rollback_handle_id}`. |
-| `/api/profile/patch/propose` | `POST` | Run `propose_profile_patch`. |
-| `/api/profile/patch/apply` | `POST` | Run `apply_profile_patch` with explicit confirmation. |
-| `/api/denials/explain` | `POST` | Run `explain_swift_denial`. |
-| `/api/replay` | `GET` | Query replay by trace, candidate, receipt, or session. |
-| `/api/feedback` | `POST` | Create and attach a `RewardEvent`. |
-
-Implementation notes:
-
-- Start with an in-memory `DogfoodSessionState` and persist JSON snapshots under `calendar-pilot-frontend/runs/dogfood/`.
-- Store observation, biography, runtime, planner, latest plan, current snapshot, replay buffer, authority grants, and fixture provider state per session.
-- Return typed JSON from dataclass `to_dict()` methods rather than ad hoc response strings.
-- Add a small API test layer before browser E2E.
-
-Acceptance criteria:
-
-- Restarting the server can reload the latest dogfood session from disk.
-- All mutating endpoints append to replay or return an explicit reason why they did not.
-- API responses are stable enough for browser tests and future mobile surfaces.
-
-### P0.3 Wire Codex Runtime To Real Swift IPC
-
-Status: Dogfood
-Owner:
-Evidence: `CalendarKernel.preview` and JSONL `preview` RPC added; `SwiftKernelIPCClient` now implements the stub-shaped runtime methods while keeping Swift-side grant resolution authoritative.
-
-`SwiftKernelIPCClient` works directly, but `CodexToolRuntime` still expects the stub-shaped interface. Make IPC client satisfy the same kernel interface or add an adapter, then run planner paths through compiled Swift.
+| `/api/state` | `GET` | Return snapshot with `chat`, `sidebar`, `inspector`, legacy panels, trace, queue, and session metadata. |
+| `/api/plans` | `POST` | Convert chat goal into a Codex executive plan. |
+| `/api/candidates/{candidate_id}/simulate` | `POST` | Run simulation and show receipt in chat. |
+| `/api/candidates/{candidate_id}/stage` | `POST` | Stage selected candidate through Swift. |
+| `/api/candidates/{candidate_id}/commit` | `POST` | Commit private/reversible candidate through Swift. |
+| `/api/candidates/{candidate_id}/confirm` | `POST` | Commit after explicit user confirmation. |
+| `/api/receipts/{receipt_id}/confirm` | `POST` | Confirm staged receipt by receipt ID. |
+| `/api/undo` | `POST` | Undo by rollback handle. |
+| `/api/profile/patch/propose` | `POST` | Draft profile repair. |
+| `/api/profile/patch/apply` | `POST` | Apply confirmed profile repair. |
+| `/api/denials/explain` | `POST` | Explain Swift denial and suggest next controls. |
+| `/api/self-play` | `POST` | Run self-play release probe. |
+| `/api/authority` | `POST` | Edit tier/scopes and issue a new grant. |
+| `/api/feedback` | `POST` | Convert user feedback into reward data. |
+| `/api/replay` | `GET` | Query replay records. |
+| `/api/replay/export` | `GET` | Export replay for dogfood bug reports. |
+| `/api/reset` | `POST` | Reset fixture session. |
 
 Required work:
 
-- Define a Python `KernelClient` shape used by `CodexToolRuntime`.
-- Add a `SwiftKernelIPCAdapter` or update `SwiftKernelIPCClient` so it supports:
-  - `issue_authority_grant`
-  - `resolve_authority_grant`
-  - `preview_candidate`
-  - `stage_candidate(... authority_grant=...)`
-  - `authorize_and_materialize(... authority_grant=...)`
-  - `request_undo(... authority_grant=..., requested_authority_tier=...)`
-  - `is_people_affecting_mutation`
-- Add an IPC `preview` operation or a no-write simulation path that preserves the same semantics as the stub.
-- Cache issued grant metadata in Python only for display; authority resolution must still happen in Swift.
-- Ensure Swift process lifecycle, timeout, stderr capture, and cleanup are testable.
+- Normalize request body keys, especially `authority_tier` vs `max_authority_tier`.
+- Return stable error JSON without hiding failed actions.
+- Persist and reload session state across server restarts.
+- Keep response shapes stable for browser E2E and future native wrappers.
 
 Acceptance criteria:
 
-- `CodexToolPlanner(runtime=CodexToolRuntime(kernel=SwiftKernelIPCAdapter(...)))` can run inspect -> frontier -> compare -> simulate -> stage/commit through the Swift process.
-- A forged embedded grant is still ignored.
-- Commit and undo use the Swift-held grant registry and undo ledger.
-- Integration tests can be skipped when Swift is unavailable, but pass on machines with Swift installed.
+- Restarting the server restores the latest session, replay summary, and transcript.
+- Every mutating endpoint either appends replay evidence or returns an explicit denial/error.
+- A failed POST leaves the chat state coherent and inspectable.
 
-### P0.4 Add Fixture Provider State
+### P0.4 Restore Fixture Provider Truth In V2
 
-Status: Dogfood
+Status: Not started
 Owner:
-Evidence: `FixtureCalendarProvider` persists provider state, external IDs, idempotency records, conflict truth, and rollback snapshots; `tests/test_dogfood_p0.py` verifies idempotency and single-use rollback.
-
-Provider adapters still throw/not-implemented. Add a deterministic provider with persisted calendar state, external IDs, idempotency, conflict truth, and rollback verification before real OAuth.
+Evidence: Archived Frontend 1 contains `FixtureCalendarProvider`; Frontend 2 currently relies on kernel stub/replay behavior without persisted provider truth.
 
 Required work:
 
-- Add a fixture provider behind the same ownership boundary intended for Google/Apple/Microsoft.
-- Persist provider state to a JSON or SQLite store under `calendar-pilot-frontend/runs/fixture_provider/`.
-- Track external IDs separately from local candidate/action IDs.
-- Add idempotency keys for create, move, delete, commit, and undo.
-- Make conflict detection read provider truth, not only the original observation.
-- Verify rollback by comparing pre/post provider state checksums.
-- Support deterministic reset for tests and dogfood scenarios.
+- Port deterministic fixture provider state into Frontend 2.
+- Persist provider calendar state, external IDs, idempotency keys, conflict truth, and rollback records under the v2 run directory.
+- Verify rollback by provider checksum, not only Swift stub receipt status.
+- Surface provider checksum/status in the inspector provider tab.
 
 Acceptance criteria:
 
-- Create/move/delete changes fixture provider state and returns stable external IDs.
-- Replaying the same idempotency key returns the same result without duplicate events.
-- Conflict truth changes after writes and is visible in subsequent planning.
-- Undo restores provider state and emits a verified rollback receipt.
-- Real OAuth work remains blocked until fixture provider rollback passes repeatedly.
+- Commit changes fixture provider state and returns stable external IDs.
+- Replaying an idempotency key does not duplicate events.
+- Undo restores provider state and cannot be reused successfully.
+- Planning after a write reads current fixture provider truth.
 
-### P1.5 Turn Undo Into A Product Journey
+### P0.5 Wire The Live V2 Path To Swift IPC
 
-Status: Dogfood
+Status: Not started
 Owner:
-Evidence: Undo now appends a persistent undo journey with before/after provider checksums, provider rollback status, linked original receipt, and undo reward event; browser E2E exercises stage -> confirm -> commit -> undo.
-
-Undo exists as a primitive and appears as text in the UI, but no flow exercises commit -> undo -> updated receipt -> replay.
+Evidence: `SwiftKernelIPCClient` exists; `DogfoodSessionState` currently constructs `SwiftKernelStub`.
 
 Required work:
 
-- Add an undo button for committed receipts with rollback handles.
-- Show before/after state for the original commit and the undo result.
-- Render the updated receipt status as `reverted` or denied with explanation.
-- Append undo tool calls, Swift receipts, and reward events to replay.
-- Add a post-undo prompt that asks whether the original action was wrong, premature, or no longer needed.
+- Make the live dogfood session selectable between stub and Swift IPC.
+- Ensure IPC supports the same kernel shape needed by `CodexToolRuntime`.
+- Run inspect -> frontier -> simulate -> stage/commit -> undo through compiled Swift.
+- Keep grant registry and undo ledger authoritative inside Swift when IPC is enabled.
 
 Acceptance criteria:
 
-- Dogfood can commit a safe private write, undo it, and see the fixture provider state revert.
-- The same rollback handle cannot be reused successfully.
-- Replay links the original commit and undo through causal IDs.
-- Offline policy training can distinguish "accepted then undone" from "denied before write".
+- `CodexToolRuntime(kernel=SwiftKernelIPCClient(...))` runs the v2 chat flow.
+- Forged or embedded grants remain ignored.
+- IPC timeout, stderr capture, process cleanup, and failure state are testable.
 
-### P1.6 Capture User Feedback/Reward
+### P0.6 Replace Smoke With Real Live Browser E2E
 
-Status: Dogfood
+Status: In progress
 Owner:
-Evidence: Acting queue feedback now captures accepted/useful/wrong/not-needed/edited/undone/ignored/dismissed/conflict controls, persists feedback history, attaches `RewardEvent`s, and updates training rows/biography.
-
-Replay is trace-aware, but training rows still require attached rewards. The frontend needs feedback controls so committed/staged/denied user actions can become learning data.
+Evidence: `scripts/run_browser_e2e.py` validates static markers and direct session flow; `scripts/browser_e2e.spec.mjs` describes a rendered browser path.
 
 Required work:
 
-- Add feedback controls: useful, wrong, not needed, too interruptive, accepted, edited, undone, ignored, dismissed, downstream conflict.
-- Add optional free-text reason and structured reason tags.
-- Convert feedback into `RewardEvent` and attach it to the relevant receipt/candidate/trace.
-- Show reward impact in the replay panel and next policy report.
-- Update biography from reward where appropriate, without silently overwriting explicit profile corrections.
+- Start `python3 -m calendar_pilot.app frontend --serve` on a free port.
+- Drive the rendered browser with Playwright against the live server.
+- Keep deterministic fixture state and reset between tests.
+- Cover goal -> candidate card -> stage -> commit -> undo -> feedback -> replay export.
+- Add denial, profile repair, authority edit, and self-play inspector coverage.
 
 Acceptance criteria:
 
-- Every staged, committed, denied, undone, or ignored action can receive feedback.
-- `ReplayBuffer.training_table()` produces rows after a dogfood session without synthetic self-play rewards.
-- `scripts/train_offline_policy.py` shows nonzero training rows and intent adjustments from real dogfood feedback.
-- The UI makes it clear whether feedback changed policy tuning, biography, both, or neither.
+- `PYTHONPATH=src python3 scripts/run_browser_e2e.py` starts the server and drives a real browser by default where supported.
+- CI reports screenshots or traces for failures.
+- The optional Node spec is either made canonical or removed to avoid split truth.
 
-### P1.7 Add Real Browser E2E After API Controls Exist
+### P0.7 Harden The macOS App For V2
 
-Status: Dogfood
+Status: In progress
 Owner:
-Evidence: `scripts/run_browser_e2e.py` starts the live API server and runs `scripts/browser_e2e.spec.mjs` through Playwright over goal -> stage -> confirm -> commit -> undo -> feedback -> training rows.
-
-Current browser E2E can only assert static rendering. Once controls exist, test: goal -> candidate -> stage/confirm -> commit -> undo -> replay/training.
+Evidence: `scripts/build_macos_app.sh` creates a minimal shell `.app` but copies only static assets and starts Python from the app bundle path.
 
 Required work:
 
-- Add Playwright tests for the live server, not `file://` static HTML.
-- Seed deterministic fixture state before each test.
-- Cover happy path, denial path, conflict path, undo path, profile repair path, and feedback path.
-- Capture screenshots or traces for failed runs.
+- Package or locate the full v2 source needed by `python3 -m calendar_pilot.app`.
+- Store run state under `~/Library/Application Support/CalendarPilot`, not inside the app bundle.
+- Avoid log pipe deadlocks.
+- Support WebKit JavaScript prompt/confirm paths or remove prompt-dependent UI.
+- Rebuild and verify `dist/CalendarPilot.app` opens the chat-first app.
 
 Acceptance criteria:
 
-- Browser test can create a goal, choose a candidate, stage it, confirm it, commit it, undo it, and see replay rows update.
-- Browser test can trigger a social mutation denial and request a denial explanation.
-- Browser test can submit feedback and verify training rows increase.
-- Browser E2E runs in CI after unit and Swift tests.
+- `make mac-app-build` creates an app that launches the live v2 API and chat UI.
+- Installed or copied app bundles can write state outside the bundle.
+- The macOS app can complete the same dogfood loop as browser E2E.
 
-## P2 Product Closure
+## P1 Product Journeys
 
-### P2.8 Make Denials Actionable
+### P1.1 Chat Goal To Candidate Cards
 
 Status: Dogfood
 Owner:
-Evidence: Denied action rows now render candidate ID, denial reason, explain/stage/confirm/narrow-scope/profile-repair controls; `/api/denials/explain` persists suggested controls in `denial_history`.
-
-Required work:
-
-- Render denial reason, authority grant, affected action types, and suggested next control.
-- Add "narrow scope", "stage instead", "ask for confirmation", and "repair profile" follow-ups where applicable.
-- Group denials by cause in the dogfood dashboard.
+Evidence: `DogfoodSessionState.create_plan()` appends user and assistant transcript events; `chat.candidate_cards` render inline cards.
 
 Acceptance criteria:
 
-- A denied social mutation leads to a staged alternative or explicit confirmation path.
-- Repeated denials become visible in policy tuning and dogfood triage.
+- User sends "Make next week less chaotic" through the composer.
+- Assistant message includes the top candidate cards with model story and reward/regret details.
+- The same plan remains inspectable in debug trace and replay.
 
-### P2.9 Complete Profile Repair Flow
+### P1.2 Inline Stage, Commit, Deny, Undo, And Feedback
 
-Status: Dogfood
+Status: In progress
 Owner:
-Evidence: Profile claims are exposed in API state with confidence/provenance/evidence; UI supports propose patch, explicit apply, edit, and stale/decay actions; replay records profile proposal/apply tool receipts.
+Evidence: `app.js` renders candidate and receipt card controls for simulate, stage, commit, undo, useful, wrong, and denial explanation.
 
 Required work:
 
-- Let users inspect learned claims with confidence, provenance, decay, and last evidence.
-- Support edit, delete/decay, confirm, and "this is stale" actions.
-- Require explicit confirmation before applying profile patches.
-- Show how profile repair changes future candidate ranking.
+- Keep all acting controls inline with the assistant message that introduced the action.
+- Show denied state and follow-up controls without sending users to debug panels.
+- Place undo and feedback immediately after committed actions.
+- Prevent duplicate submissions while requests are pending.
 
 Acceptance criteria:
 
-- A dogfood user can correct a wrong claim and see the next plan reflect it.
-- Replay records the profile repair proposal, confirmation, and applied patch.
+- A committed action yields a visible rollback handle and undo button.
+- Undo appends a new assistant receipt message.
+- Useful/wrong feedback creates reward evidence and an assistant confirmation.
 
-### P2.10 Add Authority Grant Inspector And Scope Editor
+### P1.3 Denials As Recoverable Chat Turns
 
-Status: Dogfood
+Status: In progress
 Owner:
-Evidence: `/api/authority` updates dogfood authority tier/scopes; `CodexToolPlanner` now receives edited scopes; UI renders grant ID, tier, scopes, expiry, provenance, and confirmation state.
+Evidence: `/api/denials/explain` exists and appends assistant receipt messages.
 
 Required work:
 
-- Show grant ID, max tier, scopes, expiry, provenance, and confirmation status.
-- Let dogfood users request narrower or broader scopes.
-- Make expired grants obvious and require renewal before commit/undo.
+- Render denial reason, affected action, grant/scopes, and next control.
+- Offer stage instead, ask confirmation where valid, narrow scope, repair profile, or simulate alternative.
+- Do not offer controls that simply retry the same denied request.
+
+Acceptance criteria:
+
+- A scope denial can recover through explicit confirmation or scope edit.
+- A social mutation denial explains why kernel-v1 refuses the write and keeps the action staged or blocked.
+- Denial history appears in inspector and replay.
+
+### P1.4 Profile Repair In Inspector And Chat
+
+Status: In progress
+Owner:
+Evidence: Profile repair routes and inspector controls exist.
+
+Required work:
+
+- Show learned claims with confidence, provenance, last evidence, and decay/stale state.
+- Propose patch from user correction.
+- Require explicit apply confirmation.
+- Reflect profile changes in future candidate ranking or explanation.
+
+Acceptance criteria:
+
+- A dogfood user can correct a claim and see a profile repair receipt.
+- Replay records proposal and application.
+- The next plan shows evidence that the correction affected candidate selection or explanation.
+
+### P1.5 Authority Inspector
+
+Status: In progress
+Owner:
+Evidence: Inspector authority tab edits tier/scopes and shows recent grants.
+
+Required work:
+
+- Show grant ID, max tier, scopes, expiry, provenance, and confirmation.
+- Make expired or insufficient grants obvious in chat and inspector.
+- Keep scope edits replayable and auditable.
 
 Acceptance criteria:
 
 - The user can tell why an action can stage but cannot commit.
-- Tier and scope changes are replayed and auditable.
+- Editing scopes changes subsequent Swift validation behavior.
 
-### P2.11 Make Self-Play A Release Gate
+### P1.6 Replay Export For Bug Reports
 
-Status: Dogfood
+Status: In progress
 Owner:
-Evidence: UI runs `/api/self-play`; session persists metrics/top failure modes plus `release_decision` of `hold_autonomy` or `ship_fixture_gate`; browser E2E exercises the control.
+Evidence: `/api/replay/export` returns session summary and records.
 
 Required work:
 
-- Add a UI control to run self-play probes for current fixture state.
-- Surface top failure modes and policy tuning deltas.
-- Block autonomy-tier increases when self-play finds high undo regret, social conflict, or notification fatigue.
+- Add filtered export by candidate, receipt, rollback handle, grant, reward, or free text.
+- Write JSON or JSONL export artifacts under the run directory.
+- Link export path in inspector and bug report template.
 
 Acceptance criteria:
 
-- Each release candidate includes self-play metrics and a decision to ship, hold, or lower autonomy.
+- A dogfood bug report includes a replay export path.
+- Exported records reproduce the decision path without adding new replay records.
 
-### P2.12 Build Replay Explorer
+## P2 Release Gates
 
-Status: Dogfood
+### P2.1 Self-Play As Autonomy Gate
+
+Status: In progress
 Owner:
-Evidence: Replay query accepts candidate, trace, receipt, authority grant, rollback handle, reward event, or free-text filters; UI renders recent matching causal records and exports filtered JSONL under the run directory.
+Evidence: `/api/self-play` runs `RUN_SELF_PLAY_PROBE`; release decision is currently based on top failure modes.
 
 Required work:
 
-- Add trace search by plan, candidate, receipt, grant, rollback handle, and reward event.
-- Show causal chain in order.
-- Export JSONL for a single trace or whole session.
+- Include average reward, undo rate, denial rate, social conflict, notification fatigue, and high regret thresholds.
+- Block autonomy increases when any threshold fails.
+- Show hold/ship/lower-autonomy decision in inspector and chat.
 
 Acceptance criteria:
 
-- A dogfood bug report can include a trace export that reproduces the decision path.
+- Each release candidate includes a self-play report and a decision.
+- Autonomy tier cannot increase when release gate is red.
 
-### P2.13 Ship Fixture-Backed macOS Dogfood App
+### P2.2 Offline Policy Feedback Loop
 
-Status: Dogfood
+Status: In progress
 Owner:
-Evidence: Added `CalendarPilotMacApp` SwiftUI/WebKit target and `scripts/build_macos_app.sh`; bundle builds to `calendar-pilot-frontend/dist/CalendarPilot.app` with packaged frontend resources.
+Evidence: `scripts/train_offline_policy.py` consumes replay/training data; feedback creates reward events.
 
 Required work:
 
-- Start the local fixture-backed API server from the app.
-- Load the live frontend in a native macOS window.
-- Package the frontend source as app resources so dogfooders do not need a terminal.
-- Keep real OAuth and external model credentials blocked until fixture gates pass.
+- Ensure dogfood feedback reliably creates training rows.
+- Run offline report from exported replay.
+- Show policy tuning deltas in inspector.
 
 Acceptance criteria:
 
-- `make mac-app-build` creates `dist/CalendarPilot.app`.
-- Opening the app starts `python3 -m calendar_pilot.app frontend --serve` against `runs/macos-app`.
-- The app can run the same goal -> stage/commit -> undo -> feedback -> replay loop as browser E2E.
+- A dogfood session with feedback creates nonzero training rows.
+- Offline report shows intent-level reward residuals and denial penalties.
+
+### P2.3 Real Provider OAuth Gate
+
+Status: Blocked
+Owner:
+Evidence: Provider adapters remain stubs; real OAuth is intentionally blocked.
+
+Required work before unblocking:
+
+- Fixture provider idempotency and rollback pass repeatedly.
+- Browser E2E covers commit, undo, denial, replay, and feedback.
+- Replay export is sufficient for bug reproduction.
+- Dogfood team explicitly approves token setup.
+
+Acceptance criteria:
+
+- No OAuth credentials are requested before fixture provider truth is proven.
+- When credentials are needed, open a browser for user input rather than asking for secrets in chat.
 
 ## Dogfood Scenarios
 
-Run these scenarios against fixture provider state before real provider OAuth:
-
-| Scenario | Path | Expected result |
+| Scenario | V2 path | Expected result |
 |---|---|---|
-| Safe private focus block | goal -> candidate -> simulate -> commit | Materialized write, rollback handle, feedback prompt. |
-| Commit then undo | commit -> undo -> replay | Provider state reverts, rollback cannot be reused, training row marks undo regret if selected. |
-| Social meeting move | goal -> social candidate -> commit | Denied or staged with explicit social-actuation explanation. |
-| Calendar conflict | create block over live fixture event | Denied with conflict truth from fixture provider. |
-| Profile correction | inspect claim -> propose patch -> apply | Future plan changes and replay records repair. |
-| Feedback loop | commit/stage/deny -> feedback -> train offline | Nonzero reward rows and policy tuning delta. |
-| Authority expiry | wait or force expiry -> commit/undo | Denied with grant-expired explanation and renewal path. |
-| Self-play release gate | run probe -> inspect failures | Top failure modes visible before autonomy increase. |
+| Chat goal to candidate | composer -> assistant plan | Candidate cards appear inline with model story and action controls. |
+| Safe private focus block | candidate card -> simulate -> commit | Swift commits private/reversible write and receipt appears in chat. |
+| Commit then undo | committed receipt -> undo | Undo receipt appears in chat; provider state reverts once fixture provider is restored. |
+| Feedback loop | receipt -> useful/wrong | Reward event appears in replay/training evidence. |
+| Scope denial | lower authority -> commit | Denial appears in chat with useful recovery controls. |
+| Profile correction | inspector profile -> propose/apply | Profile patch receipt appears and future plan reflects correction. |
+| Replay bug report | inspector replay -> export | Export artifact or JSON payload includes complete causal records. |
+| Self-play release gate | inspector self-play -> run | Gate returns ship/hold/lower-autonomy decision with failure modes. |
+| macOS app | open `dist/CalendarPilot.app` | Chat-first app opens and completes dogfood loop. |
 
 ## Metrics And Scorecard
 
@@ -366,26 +407,26 @@ Update weekly during dogfood.
 
 | Metric | Target before OAuth | Current | Notes |
 |---|---:|---:|---|
-| Goal-to-first-candidate success | >= 95% | | |
-| Candidate-to-stage success | >= 90% | | |
+| Chat goal to first candidate | >= 95% | | |
+| Candidate action card render success | >= 95% | | |
+| Candidate to stage success | >= 90% | | |
 | Safe private commit success | >= 90% | | |
-| Undo success for reversible writes | 100% | | |
-| Denials with actionable explanation | >= 95% | | |
+| Undo success for reversible writes | 100% | | Requires fixture provider truth. |
+| Denials with actionable recovery | >= 95% | | |
 | Feedback coverage on acted items | >= 80% | | |
 | Replay traces with complete causal chain | >= 95% | | |
-| Training rows per dogfood session | >= 5 | | |
-| Fixture idempotency duplicate writes | 0 | | |
-| Rollback verification failures | 0 | | |
+| Replay exports attached to bug reports | >= 90% | | |
+| Self-play gate run per release candidate | 100% | | |
 | Browser E2E pass rate | >= 95% | | |
-| macOS app bundle builds | 100% | | |
+| macOS app bundle launch success | 100% | | |
 
 ## Weekly Dogfood Ritual
 
-1. Monday: choose three scenarios, reset fixture provider users, and assign owners.
-2. Daily: each dogfood user runs at least one full loop and records feedback in-product.
-3. Triage: label findings as product gap, runtime bug, provider truth bug, policy bug, UX bug, or test gap.
-4. Friday: export replay, run offline policy report, update scorecard, and decide whether any autonomy scope can increase.
-5. Before merging provider work: confirm P0 and P1 are green against fixture provider state.
+1. Monday: choose three dogfood scenarios and assign owners.
+2. Daily: each dogfood user runs one chat-first loop and submits feedback in-product.
+3. Triage: label findings as UX gap, runtime bug, provider truth bug, policy bug, authority bug, replay bug, or test gap.
+4. Friday: export replay, run offline policy report, update scorecard, and decide whether autonomy can change.
+5. Before provider work: confirm P0 gates and fixture rollback are green.
 
 ## Bug Report Template
 
@@ -404,45 +445,43 @@ Actual:
 Was provider state changed:
 Was undo available:
 Feedback submitted:
-Replay export path:
-Screenshots/traces:
+Replay export path or payload:
+Browser/app:
+Screenshot/trace:
 ```
 
 ## Release Gates
 
 Do not start real OAuth/provider tokens until:
 
-- P0.1 through P0.4 are `Dogfood` or `Done`.
-- Fixture provider writes are idempotent and rollback-verified.
-- Commit -> undo -> replay -> training works from the browser.
-- Denials are actionable and visible.
-- Feedback creates real `RewardEvent` rows without hand-editing replay files.
+- P0.2 through P0.7 are `Dogfood` or `Done`.
+- Fixture provider writes are idempotent and rollback-verified in Frontend 2.
+- Chat UI can complete commit -> undo -> feedback -> replay export.
+- Denials are actionable in chat.
+- Real browser E2E passes against the live server.
+- macOS app can complete the same loop.
 
 Do not raise autonomy above tier 3 until:
 
 - Undo success is 100% for reversible writes.
-- Self-play release gate shows no high-severity undo regret or social conflict regressions.
+- Self-play gate shows no high-severity undo regret, social conflict, or notification fatigue regression.
 - Dogfood feedback coverage is at least 80% for acted items.
-- Browser E2E covers the full product loop.
+- Replay exports have complete causal chains.
 
 ## Decision Log
 
 | Date | Decision | Reason | Revisit trigger |
 |---|---|---|---|
-| 2026-07-01 | Keep real OAuth blocked behind fixture provider state. | Provider truth, idempotency, and rollback need deterministic proof first. | Fixture provider passes rollback/idempotency gates for one week. |
-| 2026-07-01 | Treat the static frontend as a demo fallback, not the dogfood product. | Dogfood requires live POSTs, receipts, feedback, and replay. | P0 API and interactive frontend are complete. |
-| 2026-07-01 | Use Swift-issued authority grants as product-visible state. | History already hardened authority away from naked tiers. | None; this is a core boundary. |
+| 2026-07-01 | Archive Frontend 1 under `Do-not-reference/`. | It proved dogfood mechanics but used the wrong dashboard-first UX. | Only for reference when porting proven mechanics. |
+| 2026-07-01 | Make Frontend 2 chat-first. | User expectation is ChatGPT-like chat plus side menu/settings. | If dogfood users cannot find action controls or debugging evidence. |
+| 2026-07-01 | Keep inspector as secondary surface. | Authority, replay, self-play, profile repair, and debug trace are necessary but should not dominate first viewport. | If operators need faster triage during dogfood. |
+| 2026-07-01 | Keep OAuth blocked. | Provider truth, rollback, replay, and E2E still need v2 proof. | Fixture provider and release gates pass repeatedly. |
 
 ## Evidence Log
 
-Append links to traces, screenshots, replay exports, policy reports, or PRs here.
+Append links to traces, screenshots, replay exports, policy reports, commits, or PRs here.
 
 | Date | Step | Evidence | Result |
 |---|---|---|---|
-| 2026-07-01 | Baseline review | Git history through `b3e81b0`; current `frontend/static/app.js`, `frontend/server.py`, Codex runtime, Swift IPC, provider stubs, replay, tests. | Framework created. |
-| 2026-07-01 | P0 dogfood slice | `python3 -m pytest -q` passed 44 tests; `swift test --package-path packages/CalendarPilotKernel` passed 16 tests; live API smoke test created plan, committed, undid, and attached feedback. | P0 ready for subagent review. |
-| 2026-07-01 | P0 review fixes | Two subagent reviews found restart undo, provider denial, rollback isolation, feedback validation, UI fallback, and IPC undo-tier/timeout gaps. `python3 -m pytest -q` passed 47 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; direct Swift IPC smoke denied out-of-band undo. | P0 review findings addressed. |
-| 2026-07-01 | P1 dogfood slice | `python3 -m pytest -q` passed 47 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; `PYTHONPATH=src python3 scripts/run_browser_e2e.py` passed 1 browser E2E. | P1 ready for subagent review. |
-| 2026-07-01 | P1 review fixes | Two subagent reviews found reward overwrite, stale reset replay/frontier, ambiguous E2E feedback target, and missing browser CI gate. `python3 -m pytest -q` passed 48 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; browser E2E passed. | P1 review findings addressed. |
-| 2026-07-01 | P2 dogfood slice | `PYTHONPATH=src python3 -m unittest discover -s tests` passed 50 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; `swift build --package-path packages/CalendarPilotKernel --product CalendarPilotMacApp` passed; `PYTHONPATH=src python3 scripts/run_browser_e2e.py` passed 1 browser E2E including replay JSONL export; `scripts/build_macos_app.sh` created `dist/CalendarPilot.app`. | P2 ready for subagent review. |
-| 2026-07-01 | P2 review fixes | Two subagent reviews found reset/kernel-state, self-play gate, replay export/search, stage-denial summary, denied recovery, and macOS app writable-state/log/dialog gaps. `PYTHONPATH=src python3 -m unittest discover -s tests` passed 54 tests; Swift tests passed 17 tests; browser E2E passed; `scripts/build_macos_app.sh` recreated `dist/CalendarPilot.app`. | P2 review findings addressed. |
+| 2026-07-01 | Frontend 1 archive | Moved tracked `calendar-pilot-frontend/` and old framework to `Do-not-reference/`. | Active root can focus on Frontend 2. |
+| 2026-07-01 | Frontend 2 baseline review | Reviewed `frontend/static`, `DogfoodSessionState`, `server.py`, `surface.py`, `scripts/run_browser_e2e.py`, `scripts/build_macos_app.sh`, and `docs/CHAT_FIRST_FRONTEND_REDESIGN.md`. | Framework reset for chat-first dogfood. |

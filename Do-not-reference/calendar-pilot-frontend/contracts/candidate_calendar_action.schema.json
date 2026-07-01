@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calendar-pilot.local/contracts/candidate_calendar_action.schema.json",
+  "title": "CandidateCalendarActionV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "intent",
+    "actions",
+    "target_calendars",
+    "affected_event_ids",
+    "affected_people_ids",
+    "required_authority_tier",
+    "reversibility"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string"
+    },
+    "intent": {
+      "type": "string"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/atomic_calendar_action"
+      }
+    },
+    "target_calendars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affected_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affected_people_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reversibility": {
+      "enum": [
+        "none",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "required_authority_tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6
+    },
+    "predicted_acceptance": {
+      "type": "number"
+    },
+    "predicted_utility": {
+      "type": "number"
+    },
+    "predicted_engagement": {
+      "type": "number"
+    },
+    "predicted_regret": {
+      "type": "number"
+    },
+    "predicted_interruption_cost": {
+      "type": "number"
+    },
+    "predicted_social_risk": {
+      "type": "number"
+    },
+    "predicted_long_horizon_value": {
+      "type": "number"
+    },
+    "expected_reward": {
+      "type": "number"
+    },
+    "recommended_execution_time": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "right_moment_decision": {
+      "enum": [
+        "act_now",
+        "notify_now",
+        "wait",
+        "bundle_into_digest",
+        "silently_draft",
+        "auto_write_then_notify",
+        "ask_clarification",
+        "do_nothing"
+      ]
+    },
+    "explanation": {
+      "type": "string"
+    },
+    "model_story": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "counterfactual": {
+      "type": "string"
+    },
+    "control_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reward_breakdown": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "right_moment_score": {
+      "type": "number"
+    },
+    "simulated_outcomes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    }
+  },
+  "$defs": {
+    "atomic_calendar_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_type"
+      ],
+      "properties": {
+        "action_type": {
+          "enum": [
+            "do_nothing",
+            "notify",
+            "ask_clarification",
+            "create_event",
+            "move_event",
+            "resize_event",
+            "delete_own_event",
+            "add_buffer",
+            "create_focus_block",
+            "batch_tasks",
+            "draft_schedule_plan",
+            "auto_apply_plan",
+            "undo"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "event_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "end": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "calendar_id": {
+          "type": "string"
+        },
+        "attendees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
