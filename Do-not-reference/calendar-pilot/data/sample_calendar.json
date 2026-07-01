@@ -1,0 +1,60 @@
+{
+  "observation_id": "obs_demo_001",
+  "user_scope_id": "local_demo_user",
+  "observed_at": "2026-07-01T08:00:00-07:00",
+  "time_zone_id": "America/Los_Angeles",
+  "events": [
+    {
+      "event_id": "evt_client_call",
+      "title": "Client renewal call",
+      "start": "2026-07-01T15:00:00-07:00",
+      "end": "2026-07-01T16:00:00-07:00",
+      "calendar_id": "work",
+      "attendees": ["client@example.com", "ae@example.com"],
+      "location": "Zoom",
+      "notes": "Discuss renewal options and pricing.",
+      "is_user_owned": false,
+      "is_flexible": false,
+      "category": "external_meeting"
+    },
+    {
+      "event_id": "evt_admin",
+      "title": "Inbox/admin cleanup",
+      "start": "2026-07-01T14:00:00-07:00",
+      "end": "2026-07-01T14:30:00-07:00",
+      "calendar_id": "work",
+      "attendees": [],
+      "location": "",
+      "notes": "",
+      "is_user_owned": true,
+      "is_flexible": true,
+      "category": "admin"
+    },
+    {
+      "event_id": "evt_team_sync",
+      "title": "Team sync",
+      "start": "2026-07-01T11:00:00-07:00",
+      "end": "2026-07-01T11:30:00-07:00",
+      "calendar_id": "work",
+      "attendees": ["team@example.com"],
+      "location": "Zoom",
+      "notes": "Weekly sync.",
+      "is_user_owned": false,
+      "is_flexible": true,
+      "category": "internal_meeting"
+    }
+  ],
+  "tasks": [
+    {"task_id": "task_renewal_prep", "title": "Prepare renewal notes", "due": "2026-07-01T15:00:00-07:00", "estimated_minutes": 25, "category": "prep"},
+    {"task_id": "task_expense", "title": "File expenses", "due": "2026-07-04T17:00:00-07:00", "estimated_minutes": 20, "category": "admin"}
+  ],
+  "device_context": {
+    "local_hour": 8,
+    "active_surface": "calendar_day_view",
+    "is_focus_mode": false
+  },
+  "notification_history": [
+    {"sent_at": "2026-06-30T20:15:00-07:00", "kind": "suggestion", "outcome": "dismissed"}
+  ],
+  "prior_actions": []
+}
