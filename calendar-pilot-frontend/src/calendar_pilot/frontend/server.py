@@ -4,8 +4,10 @@ import json
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from calendar_pilot.codex import CodexToolPlanner, CodexToolRuntime
+from calendar_pilot.frontend.session import DogfoodSessionState
 from calendar_pilot.frontend.surface import build_frontend_snapshot
 from calendar_pilot.types import RawCalendarObservation, UserBiography
 
@@ -30,11 +32,91 @@ def write_demo_snapshot(out: str | Path = "frontend/static/frontend_state.sample
     return path
 
 
-def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: int = 8787) -> None:
+def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: int = 8787, state: DogfoodSessionState | None = None) -> None:
     directory = str(Path(static_dir).resolve())
+    session = state or DogfoodSessionState()
 
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             super().__init__(*args, directory=directory, **kwargs)
+
+        def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
+            parsed = urlparse(self.path)
+            if parsed.path == "/api/state":
+                self._send_json(session.state())
+                return
+            if parsed.path == "/api/replay":
+                query = parse_qs(parsed.query)
+                candidate_id = query.get("candidate_id", [None])[0]
+                self._send_json(session.replay_trace(candidate_id))
+                return
+            super().do_GET()
+
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+            parsed = urlparse(self.path)
+            body = self._read_json()
+            try:
+                response = self._route_post(parsed.path, body)
+            except Exception as exc:  # deterministic API error for dogfood UI
+                self._send_json({"error": str(exc), "snapshot": session.state().get("snapshot", {})}, status=500)
+                return
+            status = 400 if isinstance(response, dict) and response.get("error") else 200
+            self._send_json(response, status=status)
+
+        def _route_post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
+            if path == "/api/plans":
+                return session.create_plan(
+                    str(body.get("goal", "Make next week less chaotic")),
+                    authority_tier=int(body.get("authority_tier", 3)),
+                    commit=bool(body.get("commit", False)),
+                )
+            if path.startswith("/api/candidates/"):
+                parts = path.strip("/").split("/")
+                if len(parts) == 4:
+                    candidate_id = parts[2]
+                    op = parts[3]
+                    if op == "simulate":
+                        return session.simulate_candidate(candidate_id)
+                    if op == "stage":
+                        return session.stage_candidate(candidate_id)
+                    if op == "commit":
+                        return session.commit_candidate(candidate_id)
+            if path.startswith("/api/receipts/") and path.endswith("/confirm"):
+                parts = path.strip("/").split("/")
+                if len(parts) == 4:
+                    return session.confirm_receipt(parts[2])
+            if path == "/api/undo":
+                return session.undo(str(body.get("rollback_handle_id", "")))
+            if path == "/api/profile/patch/propose":
+                return session.propose_profile_patch(str(body.get("correction", "")))
+            if path == "/api/profile/patch/apply":
+                return session.apply_profile_patch(
+                    str(body.get("claim", "")),
+                    str(body.get("correction", "")),
+                    confirmed=bool(body.get("confirmed", True)),
+                )
+            if path == "/api/denials/explain":
+                return session.explain_denial(str(body.get("denied_reason", "")))
+            if path == "/api/feedback":
+                return session.feedback(str(body.get("receipt_id", "")), dict(body.get("feedback", {})))
+            if path == "/api/reset":
+                return session.reset_fixture()
+            return {"error": f"unknown endpoint {path}", "snapshot": session.state().get("snapshot", {})}
+
+        def _read_json(self) -> dict[str, Any]:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            if length <= 0:
+                return {}
+            raw = self.rfile.read(length).decode("utf-8")
+            return dict(json.loads(raw or "{}"))
+
+        def _send_json(self, payload: dict[str, Any], *, status: int = 200) -> None:
+            encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
 
     ThreadingHTTPServer((host, port), Handler).serve_forever()

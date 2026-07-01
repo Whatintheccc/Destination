@@ -7,6 +7,7 @@ import subprocess
 import uuid
 from typing import Any
 
+from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.types import AuthorityGrant, CalendarActionReceipt, CandidateCalendarAction, RawCalendarObservation, to_jsonable
 
 
@@ -27,6 +28,7 @@ class SwiftKernelIPCClient:
         self.package_path = str(package_path)
         self.executable = executable
         self._proc: subprocess.Popen[str] | None = None
+        self._grants: dict[str, AuthorityGrant] = {}
 
     def __enter__(self) -> "SwiftKernelIPCClient":
         self.start()
@@ -79,21 +81,77 @@ class SwiftKernelIPCClient:
             "issued_at": issued_at.isoformat(),
         }
         out = self._rpc("issue_authority_grant", payload)
-        return AuthorityGrant.from_dict(out["authority_grant"])
+        grant = AuthorityGrant.from_dict(out["authority_grant"])
+        self._grants[grant.grant_id] = grant
+        return grant
 
-    def stage_candidate(self, candidate: CandidateCalendarAction, observation: RawCalendarObservation, *, authority_grant_id: str | None, requested_authority_tier: int) -> CalendarActionReceipt:
-        return self._act("stage", candidate, observation, authority_grant_id, requested_authority_tier)
+    def resolve_authority_grant(self, grant: AuthorityGrant | str | None) -> AuthorityGrant | None:
+        # Display/cache only. Swift still resolves the grant id in its own
+        # registry on preview/stage/commit/undo.
+        if isinstance(grant, AuthorityGrant):
+            return self._grants.get(grant.grant_id)
+        if isinstance(grant, str):
+            return self._grants.get(grant)
+        return None
 
-    def authorize_and_materialize(self, candidate: CandidateCalendarAction, observation: RawCalendarObservation, *, authority_grant_id: str | None, requested_authority_tier: int) -> CalendarActionReceipt:
-        return self._act("commit", candidate, observation, authority_grant_id, requested_authority_tier)
+    def preview_candidate(
+        self,
+        candidate: CandidateCalendarAction,
+        observation: RawCalendarObservation,
+        authority_grant: AuthorityGrant | str | None = None,
+        *,
+        requested_authority_tier: int | None = None,
+        authority_grant_id: str | None = None,
+    ) -> CalendarActionReceipt:
+        grant_ref = authority_grant if authority_grant is not None else authority_grant_id
+        return self._act("preview", candidate, observation, self._grant_id(grant_ref), requested_authority_tier or candidate.required_authority_tier)
 
-    def request_undo(self, rollback_handle_id: str, observation: RawCalendarObservation, *, authority_grant_id: str | None) -> CalendarActionReceipt:
+    def stage_candidate(
+        self,
+        candidate: CandidateCalendarAction,
+        observation: RawCalendarObservation,
+        authority_grant: AuthorityGrant | str | None = None,
+        *,
+        requested_authority_tier: int | None = None,
+        authority_grant_id: str | None = None,
+    ) -> CalendarActionReceipt:
+        grant_ref = authority_grant if authority_grant is not None else authority_grant_id
+        return self._act("stage", candidate, observation, self._grant_id(grant_ref), requested_authority_tier or candidate.required_authority_tier)
+
+    def authorize_and_materialize(
+        self,
+        candidate: CandidateCalendarAction,
+        observation: RawCalendarObservation,
+        authority_grant: AuthorityGrant | str | None = None,
+        *,
+        requested_authority_tier: int | None = None,
+        granted_authority_tier: int | None = None,
+        authority_grant_id: str | None = None,
+    ) -> CalendarActionReceipt:
+        desired = requested_authority_tier if requested_authority_tier is not None else (granted_authority_tier or candidate.required_authority_tier)
+        grant_ref = authority_grant if authority_grant is not None else authority_grant_id
+        return self._act("commit", candidate, observation, self._grant_id(grant_ref), desired)
+
+    def request_undo(
+        self,
+        rollback_handle_id: str,
+        observation: RawCalendarObservation,
+        authority_grant: AuthorityGrant | str | None = None,
+        *,
+        requested_authority_tier: int | None = None,
+        authority_grant_id: str | None = None,
+    ) -> CalendarActionReceipt:
+        grant_ref = authority_grant if authority_grant is not None else authority_grant_id
         out = self._rpc("undo", {
             "rollback_handle_id": rollback_handle_id,
-            "authority_grant_id": authority_grant_id,
+            "authority_grant_id": self._grant_id(grant_ref),
             "observed_at": observation.observed_at.isoformat(),
         })
         return _receipt_from_dict(out["receipt"])
+
+    @staticmethod
+    def is_people_affecting_mutation(candidate: CandidateCalendarAction) -> bool:
+        return SwiftKernelStub.is_people_affecting_mutation(candidate)
 
     def _act(self, op: str, candidate: CandidateCalendarAction, observation: RawCalendarObservation, authority_grant_id: str | None, requested_authority_tier: int) -> CalendarActionReceipt:
         out = self._rpc(op, {
@@ -103,6 +161,14 @@ class SwiftKernelIPCClient:
             "requested_authority_tier": requested_authority_tier,
         })
         return _receipt_from_dict(out["receipt"])
+
+    @staticmethod
+    def _grant_id(grant: AuthorityGrant | str | None) -> str | None:
+        if isinstance(grant, AuthorityGrant):
+            return grant.grant_id
+        if isinstance(grant, str):
+            return grant
+        return None
 
     def _rpc(self, op: str, payload: dict[str, Any]) -> dict[str, Any]:
         self.start()

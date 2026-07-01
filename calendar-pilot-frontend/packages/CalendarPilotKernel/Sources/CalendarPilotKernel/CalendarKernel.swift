@@ -78,6 +78,31 @@ public final class CalendarKernel: @unchecked Sendable {
         )
     }
 
+    public func preview(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int) -> CalendarActionReceipt {
+        let resolved = authorityGrant.flatMap { grants[$0.grantID] }
+        let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: resolved, desiredTier: requestedAuthorityTier, commit: false)
+        return CalendarActionReceipt(
+            receiptID: "preview_rcpt_\(abs(candidate.candidateID.hashValue))",
+            candidateID: candidate.candidateID,
+            executedAt: observation.observedAt,
+            executedBy: "CalendarPilotKernel.preview",
+            authorityTierUsed: decision.tierUsed,
+            syncStatus: decision.admitted ? .simulated : .denied,
+            rollbackHandleID: nil,
+            conflictCheckPassed: decision.reason != "conflict_detected_before_stage",
+            generatedEventIDs: [],
+            stagedActionIDs: [],
+            rejectedActionTypes: decision.admitted ? [] : candidate.actions.map { $0.actionType.rawValue },
+            providerID: "local_swift",
+            actuationMode: decision.admitted ? .noOp : .denied,
+            deniedReason: decision.reason,
+            authorityGrantID: decision.grantID,
+            confirmationProvenance: decision.confirmationProvenance,
+            stageState: decision.admitted ? .simulated : .denied,
+            correlationID: candidate.candidateID
+        )
+    }
+
     public func undo(rollbackHandleID: String, authorityGrant: AuthorityGrant?, observedAt: Date = Date()) -> CalendarActionReceipt {
         let resolved = authorityGrant.flatMap { grants[$0.grantID] }
         let denied: String?

@@ -11,7 +11,12 @@
     <div>
       <p class="eyebrow">CalendarPilot</p>
       <h1>Machine learning and machine acting control surface</h1>
-      <p class="lede">Chat explains. This surface shows what the app learned, what it simulated, what it staged, what Swift committed, and how to repair or undo it.</p>
+      <form id="goal-form" class="goal-form">
+        <input id="goal-input" name="goal" value="Make next week less chaotic" autocomplete="off" />
+        <label><span>Tier</span><input id="authority-tier" name="authority_tier" type="number" min="0" max="6" value="3" /></label>
+        <label class="check"><input id="commit-now" name="commit" type="checkbox" /> Commit safe writes</label>
+        <button type="submit">Create plan</button>
+      </form>
     </div>
     <div class="status-card">
       <span id="next-action">loading…</span>
@@ -19,6 +24,16 @@
     </div>
   </header>
   <main>
+    <section id="error" class="error" hidden></section>
+    <section class="toolbar">
+      <button id="refresh">Refresh</button>
+      <button id="reset">Reset fixture state</button>
+      <form id="profile-form">
+        <input id="profile-correction" placeholder="Repair a learned profile claim" />
+        <button type="submit">Propose patch</button>
+      </form>
+    </section>
+    <section class="summary" id="replay-summary"></section>
     <section class="grid" id="panels"></section>
     <section class="queue">
       <div class="section-title">

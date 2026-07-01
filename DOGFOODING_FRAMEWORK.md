@@ -55,9 +55,9 @@ Status values: `Not started`, `In progress`, `Blocked`, `Dogfood`, `Done`
 
 ### P0.1 Make The Frontend Interactive
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: `frontend/static/app.js` now calls live `/api/*` endpoints; `frontend/static/index.html` has goal/profile controls; smoke-tested served UI API on `127.0.0.1:8790`.
 
 `frontend/static/app.js` only fetches `frontend_state.sample.json` and renders panels. There are no goal inputs, approve/deny buttons, commit actions, undo controls, profile repair controls, or backend POSTs.
 
@@ -80,9 +80,9 @@ Acceptance criteria:
 
 ### P0.2 Add A Stateful Frontend/Backend API
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: `calendar_pilot.frontend.server` exposes `/api/state`, `/api/plans`, candidate simulate/stage/commit, receipt confirm, undo, profile patch, denial explanation, replay, feedback, and reset. `DogfoodSessionState` persists replay/session/provider state under `runs/dogfood/`.
 
 `server.py` is just snapshot generation plus static serving. Add endpoints for: create plan, stage, confirm, commit, undo, profile patch, denial explanation, replay trace, and feedback/reward.
 
@@ -118,9 +118,9 @@ Acceptance criteria:
 
 ### P0.3 Wire Codex Runtime To Real Swift IPC
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: `CalendarKernel.preview` and JSONL `preview` RPC added; `SwiftKernelIPCClient` now implements the stub-shaped runtime methods while keeping Swift-side grant resolution authoritative.
 
 `SwiftKernelIPCClient` works directly, but `CodexToolRuntime` still expects the stub-shaped interface. Make IPC client satisfy the same kernel interface or add an adapter, then run planner paths through compiled Swift.
 
@@ -148,9 +148,9 @@ Acceptance criteria:
 
 ### P0.4 Add Fixture Provider State
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: `FixtureCalendarProvider` persists provider state, external IDs, idempotency records, conflict truth, and rollback snapshots; `tests/test_dogfood_p0.py` verifies idempotency and single-use rollback.
 
 Provider adapters still throw/not-implemented. Add a deterministic provider with persisted calendar state, external IDs, idempotency, conflict truth, and rollback verification before real OAuth.
 
@@ -420,3 +420,4 @@ Append links to traces, screenshots, replay exports, policy reports, or PRs here
 | Date | Step | Evidence | Result |
 |---|---|---|---|
 | 2026-07-01 | Baseline review | Git history through `b3e81b0`; current `frontend/static/app.js`, `frontend/server.py`, Codex runtime, Swift IPC, provider stubs, replay, tests. | Framework created. |
+| 2026-07-01 | P0 dogfood slice | `python3 -m pytest -q` passed 44 tests; `swift test --package-path packages/CalendarPilotKernel` passed 16 tests; live API smoke test created plan, committed, undid, and attached feedback. | P0 ready for subagent review. |
