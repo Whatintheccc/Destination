@@ -12,6 +12,7 @@ import time
 from typing import Any
 from urllib.request import Request, urlopen
 
+from calendar_pilot.diffusiongemma.live import NvidiaNIMPolicyClient
 from calendar_pilot.frontend.runtime import RuntimeBackends, credential_state, runtime_is_release_safe, runtime_mode_from_env, runtime_report
 from run_external_browser_flow import run_live_browser_check
 
@@ -398,7 +399,15 @@ def live_diffusiongemma_credential_mode_gate() -> dict[str, Any]:
     configured = bool(nim_credential.get("configured")) if isinstance(nim_credential, dict) else False
     status = str(nim_credential.get("status", "")) if isinstance(nim_credential, dict) else "missing_credential"
     missing_blocker = "required credential missing: diffusiongemma_nim" in blockers
-    ok = (configured and status == "configured" and not blockers) or ((not configured) and missing_blocker and not runtime_is_release_safe(report))
+    nim_health: dict[str, Any] = {}
+    if configured:
+        nim_health = NvidiaNIMPolicyClient().health_status(validate_remote=True)
+        status = str(nim_health.get("status", status))
+        if status != "ok":
+            blockers.append(f"live DiffusionGemma remote health is {status}")
+    elif missing_blocker:
+        nim_health = NvidiaNIMPolicyClient().health_status(validate_remote=False)
+    ok = (configured and status == "ok" and not blockers) or ((not configured) and missing_blocker and not runtime_is_release_safe(report))
     return {
         "name": "live_diffusiongemma_credential_mode_gate",
         "ok": ok,
@@ -407,6 +416,7 @@ def live_diffusiongemma_credential_mode_gate() -> dict[str, Any]:
         "nim_credential_configured": configured,
         "nim_credential_status": status,
         "nim_credential_source": nim_credential.get("source") if isinstance(nim_credential, dict) else "missing",
+        "nim_health": nim_health,
         "live_blockers": blockers,
         "reason": "; ".join(blockers),
     }

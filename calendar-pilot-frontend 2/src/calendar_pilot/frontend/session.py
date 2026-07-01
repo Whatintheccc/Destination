@@ -359,8 +359,37 @@ class DogfoodSessionState:
             report["codex_health"] = health_status(validate_remote=False)
         policy_health_status = getattr(self.policy, "health_status", None)
         if callable(policy_health_status):
-            report["diffusiongemma_health"] = policy_health_status(validate_remote=False)
+            validate_remote = self.runtime_mode in {"live_diffusiongemma", "production"}
+            policy_health = policy_health_status(validate_remote=validate_remote)
+            report["diffusiongemma_health"] = policy_health
+            self._apply_live_diffusiongemma_health_blockers(report, policy_health)
         return report
+
+    def _apply_live_diffusiongemma_health_blockers(self, report: dict[str, Any], policy_health: dict[str, Any]) -> None:
+        if report.get("runtime_mode") not in {"live_diffusiongemma", "production"}:
+            return
+        blockers = report.setdefault("live_blockers", [])
+        if not isinstance(blockers, list):
+            return
+        status = str(policy_health.get("status", "missing_credential"))
+        credentials = report.get("credentials", {})
+        if isinstance(credentials, dict):
+            nim = credentials.get("diffusiongemma_nim")
+            if isinstance(nim, dict):
+                nim["status"] = status
+                if policy_health.get("credential_source"):
+                    nim["source"] = str(policy_health["credential_source"])
+                nim["configured"] = bool(policy_health.get("configured"))
+        if status == "ok":
+            return
+        if status == "missing_credential" and any("diffusiongemma_nim" in str(blocker) for blocker in blockers):
+            return
+        blocker = f"live DiffusionGemma remote health is {status}"
+        reason = policy_health.get("reason")
+        if reason:
+            blocker += f": {reason}"
+        if blocker not in blockers:
+            blockers.append(blocker)
 
     def _runtime_backends(self) -> RuntimeBackends:
         codex_backend = getattr(self.planner, "backend_name", "deterministic_codex_tool_planner")

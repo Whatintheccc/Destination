@@ -72,6 +72,22 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertEqual(report["diffusiongemma_health"]["status"], "missing_credential")
             self.assertIn("required credential missing: diffusiongemma_nim", report["live_blockers"])
 
+    def test_live_diffusiongemma_remote_health_failure_blocks_release(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {
+            "CALENDAR_PILOT_RUNTIME_MODE": "live_diffusiongemma",
+            "CALENDAR_PILOT_KERNEL_BACKEND": "stub",
+            "NVIDIA_API_KEY": "not-a-real-key",
+            "CALENDAR_PILOT_NIM_API_KEY": "",
+            "NIM_API_KEY": "",
+        }), patch("calendar_pilot.frontend.session.LiveDiffusionGemmaPolicy", FakeUnhealthyLivePolicy):
+            session = DogfoodSessionState(run_dir=Path(td))
+            report = session.runtime_report()
+
+            self.assertEqual(report["diffusiongemma_health"]["status"], "invalid_credential")
+            self.assertFalse(runtime_is_release_safe(report))
+            self.assertIn("live DiffusionGemma remote health is invalid_credential", " ".join(report["live_blockers"]))
+            self.assertEqual(report["credentials"]["diffusiongemma_nim"]["status"], "invalid_credential")
+
     def test_runtime_mode_persists_across_reload(self):
         with tempfile.TemporaryDirectory() as td:
             run_dir = Path(td)
@@ -82,6 +98,22 @@ class RuntimeModeTests(unittest.TestCase):
             with patch.dict("os.environ", {"CALENDAR_PILOT_RUNTIME_MODE": "fixture", "CALENDAR_PILOT_KERNEL_BACKEND": "stub"}):
                 reloaded = DogfoodSessionState(run_dir=run_dir)
                 self.assertEqual(reloaded.runtime_report()["runtime_mode"], "live_codex")
+
+
+class FakeUnhealthyLivePolicy:
+    backend_name = "nvidia_nim_diffusiongemma_policy"
+
+    def health_status(self, *, validate_remote: bool = False):
+        return {
+            "status": "invalid_credential" if validate_remote else "configured",
+            "configured": True,
+            "backend": self.backend_name,
+            "credential_source": "NVIDIA_API_KEY",
+            "reason": "unauthorized",
+            "timeout_seconds": 90,
+            "retry_policy": {"max_attempts": 1},
+            "fallback_behavior": "fail_closed_no_heuristic_fallback_in_live_mode",
+        }
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from calendar_pilot.codex import CodexToolRuntime
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, LiveDiffusionGemmaPolicy
 from calendar_pilot.diffusiongemma.live import (
     LiveDiffusionGemmaCredentialError,
@@ -10,7 +11,7 @@ from calendar_pilot.diffusiongemma.live import (
     NIMPolicyResult,
     NvidiaNIMPolicyClient,
 )
-from calendar_pilot.types import RawCalendarObservation, UserBiography, RightMomentDecision
+from calendar_pilot.types import CodexToolCall, CodexToolName, RawCalendarObservation, UserBiography, RightMomentDecision
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,6 +39,33 @@ class PolicyTests(unittest.TestCase):
         self.assertIn("policy_backend=nvidia_nim_diffusiongemma_policy", candidates[0].control_notes)
         self.assertIn("nim_policy_delta", candidates[0].reward_breakdown)
         self.assertTrue(any(story.startswith("NIM policy:") for story in candidates[0].model_story))
+        metadata = policy.policy_metadata_for_candidate(candidates[0].candidate_id)
+        self.assertEqual(metadata["backend"], "nvidia_nim_diffusiongemma_policy")
+        self.assertEqual(metadata["prompt_version"], "calendar_pilot_nim_policy_ranker_v1")
+        self.assertEqual(metadata["fallback_state"], "none")
+        self.assertIn("decoding_settings", metadata)
+
+    def test_live_policy_replay_records_structured_nim_metadata(self):
+        runtime = CodexToolRuntime(policy=LiveDiffusionGemmaPolicy(client=FakeNIMClient()))
+        receipt = runtime.execute(
+            CodexToolCall(
+                tool_call_id="tool_frontier",
+                tool_name=CodexToolName.GENERATE_CANDIDATE_FRONTIER,
+                input={"limit": 3},
+                correlation_id="plan_live_policy",
+            ),
+            self.observation,
+            self.biography,
+        )
+        self.assertEqual(receipt.status.value, "succeeded")
+        decisions = [record for record in runtime.replay.records if record.record_type == "decision"]
+        self.assertTrue(decisions)
+        metadata = decisions[0].payload["policy_metadata"]
+        self.assertEqual(metadata["backend"], "nvidia_nim_diffusiongemma_policy")
+        self.assertEqual(metadata["model"], "google/diffusiongemma-26b-a4b-it")
+        self.assertIn("retry_policy", metadata)
+        self.assertIn("validation", metadata)
+        self.assertEqual(decisions[0].trace_id, "plan_live_policy")
 
     def test_missing_nim_credential_blocks_live_policy_without_heuristic_fallback(self):
         policy = LiveDiffusionGemmaPolicy(client=MissingNIMClient(api_key=""))
@@ -59,6 +87,9 @@ class PolicyTests(unittest.TestCase):
         self.assertIs(open_url.call_args.kwargs["context"], context)
         self.assertEqual(open_url.call_args.kwargs["timeout"], 1)
         self.assertEqual(health["tls_ca_bundle_source"], "CALENDAR_PILOT_NIM_CA_FILE")
+        self.assertEqual(health["timeout_seconds"], 1)
+        self.assertEqual(health["fallback_behavior"], "fail_closed_no_heuristic_fallback_in_live_mode")
+        self.assertIn("retry_policy", health)
 
 
 class FakeNIMClient:
@@ -74,7 +105,20 @@ class FakeNIMClient:
                 NIMPolicyRank(candidate_id=candidates[0].candidate_id, rank=2, score_delta=0.05, reason="Still useful."),
             ],
             policy_summary="Ranked for low regret and explicit user value.",
-            metadata={"response_id": "nim_test"},
+            metadata={
+                "backend": "nvidia_nim_diffusiongemma_policy",
+                "prompt_version": "calendar_pilot_nim_policy_ranker_v1",
+                "model": self.model,
+                "base_url": "https://integrate.api.nvidia.com/v1",
+                "response_id": "nim_test",
+                "ranked_count": 2,
+                "candidate_count": len(candidates),
+                "decoding_settings": {"temperature": 0, "top_p": 1},
+                "timeout_seconds": 90,
+                "retry_policy": {"max_attempts": 1, "http_retry": "none"},
+                "fallback_behavior": "fail_closed_no_heuristic_fallback_in_live_mode",
+                "validation": {"candidate_contract": "CandidateCalendarAction", "validation_errors": []},
+            },
         )
 
 

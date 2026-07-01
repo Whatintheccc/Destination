@@ -197,9 +197,18 @@ class CodexToolRuntime:
                 denied=str(exc),
             )
         policy_version = getattr(self.policy, "backend_name", "heuristic_diffusiongemma_policy")
+        policy_metadata_for_candidate = getattr(self.policy, "policy_metadata_for_candidate", None)
         for rank, candidate in enumerate(candidates):
             self.frontier[candidate.candidate_id] = candidate
-            self.replay.append_decision(candidate, rank=rank, policy_version=policy_version)
+            policy_metadata = policy_metadata_for_candidate(candidate.candidate_id) if callable(policy_metadata_for_candidate) else {}
+            self.replay.append_decision(
+                candidate,
+                rank=rank,
+                policy_version=policy_version,
+                trace_id=call.correlation_id or call.tool_call_id,
+                causal_parent_id=call.tool_call_id,
+                policy_metadata=policy_metadata,
+            )
         return self._receipt(
             call,
             CodexToolStatus.SUCCEEDED,

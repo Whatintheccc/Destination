@@ -71,45 +71,38 @@ class NvidiaNIMPolicyClient:
         self.base_url = (base_url or os.environ.get("CALENDAR_PILOT_NIM_BASE_URL") or DEFAULT_NIM_BASE_URL).rstrip("/")
         self.model = model or os.environ.get("CALENDAR_PILOT_NIM_MODEL") or DEFAULT_NIM_MODEL
         self.timeout_seconds = float(timeout_seconds or os.environ.get("CALENDAR_PILOT_NIM_TIMEOUT", "90"))
+        self.health_cache_seconds = float(os.environ.get("CALENDAR_PILOT_NIM_HEALTH_CACHE_SECONDS", "60"))
+        self._remote_health_cache: tuple[float, dict[str, Any]] | None = None
 
     def health_status(self, *, validate_remote: bool = False) -> dict[str, Any]:
         if not self.api_key:
-            return {
+            return self._health_payload({
                 "status": "missing_credential",
                 "configured": False,
-                "backend": LIVE_DIFFUSIONGEMMA_BACKEND,
-                "model": self.model,
-                "base_url": self.base_url,
                 "credential_source": "missing",
-                "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
-            }
+            })
         if not validate_remote:
-            return {
+            return self._health_payload({
                 "status": "configured",
                 "configured": True,
-                "backend": LIVE_DIFFUSIONGEMMA_BACKEND,
-                "model": self.model,
-                "base_url": self.base_url,
                 "credential_source": _nim_api_key_source(),
-                "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
-            }
+            })
+        cached = self._cached_remote_health()
+        if cached is not None:
+            return cached
         try:
             self._request_json("GET", "/models", None)
         except LiveDiffusionGemmaCredentialError as exc:
-            return {"status": "invalid_credential", "configured": True, "backend": LIVE_DIFFUSIONGEMMA_BACKEND, "reason": str(exc), "model": self.model}
+            return self._cache_remote_health(self._health_payload({"status": "invalid_credential", "configured": True, "credential_source": _nim_api_key_source(), "reason": str(exc)}))
         except LiveDiffusionGemmaNetworkError as exc:
-            return {"status": "network_failure", "configured": True, "backend": LIVE_DIFFUSIONGEMMA_BACKEND, "reason": str(exc), "model": self.model}
+            return self._cache_remote_health(self._health_payload({"status": "network_failure", "configured": True, "credential_source": _nim_api_key_source(), "reason": str(exc)}))
         except LiveDiffusionGemmaError as exc:
-            return {"status": "nvidia_nim_failure", "configured": True, "backend": LIVE_DIFFUSIONGEMMA_BACKEND, "reason": str(exc), "model": self.model}
-        return {
+            return self._cache_remote_health(self._health_payload({"status": "nvidia_nim_failure", "configured": True, "credential_source": _nim_api_key_source(), "reason": str(exc)}))
+        return self._cache_remote_health(self._health_payload({
             "status": "ok",
             "configured": True,
-            "backend": LIVE_DIFFUSIONGEMMA_BACKEND,
-            "model": self.model,
-            "base_url": self.base_url,
             "credential_source": _nim_api_key_source(),
-            "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
-        }
+        }))
 
     def rank_candidates(
         self,
@@ -142,6 +135,15 @@ class NvidiaNIMPolicyClient:
                 "base_url": self.base_url,
                 "response_id": data.get("id"),
                 "ranked_count": len(parsed["ranks"]),
+                "candidate_count": len(candidates),
+                "decoding_settings": self._decoding_settings(),
+                "timeout_seconds": self.timeout_seconds,
+                "retry_policy": self._retry_policy(),
+                "fallback_behavior": self._fallback_behavior(),
+                "validation": {
+                    "candidate_contract": "CandidateCalendarAction",
+                    "validation_errors": [],
+                },
                 "redaction_policy": "event titles, attendees, notes, and locations omitted from NIM prompt",
             },
         )
@@ -282,6 +284,59 @@ class NvidiaNIMPolicyClient:
         except json.JSONDecodeError as exc:
             raise LiveDiffusionGemmaSchemaError(f"NIM response was not JSON: {exc}") from exc
 
+    def _cached_remote_health(self) -> dict[str, Any] | None:
+        if self._remote_health_cache is None:
+            return None
+        cached_at, payload = self._remote_health_cache
+        if time.time() - cached_at <= self.health_cache_seconds:
+            return dict(payload) | {"remote_validation_cache": "hit"}
+        return None
+
+    def _cache_remote_health(self, payload: dict[str, Any]) -> dict[str, Any]:
+        cached = dict(payload) | {"remote_validation_cache": "miss"}
+        self._remote_health_cache = (time.time(), cached)
+        return cached
+
+    def _health_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "backend": LIVE_DIFFUSIONGEMMA_BACKEND,
+            "model": self.model,
+            "base_url": self.base_url,
+            "timeout_seconds": self.timeout_seconds,
+            "retry_policy": self._retry_policy(),
+            "fallback_behavior": self._fallback_behavior(),
+            "polling_behavior": {
+                "async_202": "poll_status_endpoint",
+                "status_path_template": "/status/{request_id}",
+                "poll_interval_seconds": 1.0,
+                "timeout_seconds": self.timeout_seconds,
+            },
+            "decoding_settings": self._decoding_settings(),
+            "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
+        } | payload
+
+    @staticmethod
+    def _decoding_settings() -> dict[str, Any]:
+        return {
+            "max_tokens": 900,
+            "temperature": 0,
+            "top_p": 1,
+            "stream": False,
+            "enable_thinking": False,
+        }
+
+    @staticmethod
+    def _retry_policy() -> dict[str, Any]:
+        return {
+            "max_attempts": 1,
+            "http_retry": "none",
+            "async_status_polling": "on_202_until_timeout",
+        }
+
+    @staticmethod
+    def _fallback_behavior() -> str:
+        return "fail_closed_no_heuristic_fallback_in_live_mode"
+
     def _poll_status(self, data: dict[str, Any]) -> dict[str, Any]:
         request_id = str(data.get("requestId") or data.get("request_id") or data.get("id") or "")
         if not request_id:
@@ -301,15 +356,20 @@ class LiveDiffusionGemmaPolicy:
     def __init__(self, *, base_policy: DiffusionGemmaPolicy | None = None, client: NvidiaNIMPolicyClient | None = None) -> None:
         self.base_policy = base_policy or DiffusionGemmaPolicy()
         self.client = client or NvidiaNIMPolicyClient()
+        self._policy_metadata_by_candidate: dict[str, dict[str, Any]] = {}
 
     def health_status(self, *, validate_remote: bool = False) -> dict[str, Any]:
         return self.client.health_status(validate_remote=validate_remote)
+
+    def policy_metadata_for_candidate(self, candidate_id: str) -> dict[str, Any]:
+        return dict(self._policy_metadata_by_candidate.get(candidate_id, {}))
 
     def generate_candidates(
         self,
         observation: RawCalendarObservation,
         biography: UserBiography,
     ) -> list[CandidateCalendarAction]:
+        self._policy_metadata_by_candidate = {}
         candidates = self.base_policy.generate_candidates(observation, biography)
         result = self.client.rank_candidates(
             goal="Rank CalendarPilot candidate futures for user value and low regret.",
@@ -331,12 +391,50 @@ class LiveDiffusionGemmaPolicy:
             ])
             if result.policy_summary:
                 candidate.model_story.append("NIM policy: " + result.policy_summary[:180])
+            self._policy_metadata_by_candidate[candidate.candidate_id] = self._candidate_policy_metadata(
+                result.metadata,
+                candidate_id=candidate.candidate_id,
+                rank=row.rank,
+                score_delta=row.score_delta,
+                reason=row.reason,
+                fallback_state="none",
+                ranked_by_model=True,
+            )
             ranked.append(candidate)
         ranked_ids = {candidate.candidate_id for candidate in ranked}
         unranked = [candidate for candidate in candidates if candidate.candidate_id not in ranked_ids]
         for candidate in unranked:
             candidate.control_notes.append(f"policy_backend={LIVE_DIFFUSIONGEMMA_BACKEND}:unranked_by_model")
+            self._policy_metadata_by_candidate[candidate.candidate_id] = self._candidate_policy_metadata(
+                result.metadata,
+                candidate_id=candidate.candidate_id,
+                rank=None,
+                score_delta=0.0,
+                reason="NIM policy response did not rank this locally validated candidate.",
+                fallback_state="unranked_by_model_retained_after_local_validation",
+                ranked_by_model=False,
+            )
         return ranked + unranked
+
+    @staticmethod
+    def _candidate_policy_metadata(
+        metadata: dict[str, Any],
+        *,
+        candidate_id: str,
+        rank: int | None,
+        score_delta: float,
+        reason: str,
+        fallback_state: str,
+        ranked_by_model: bool,
+    ) -> dict[str, Any]:
+        return dict(metadata) | {
+            "candidate_id": candidate_id,
+            "rank": rank,
+            "score_delta": round(score_delta, 4),
+            "rank_reason": reason,
+            "ranked_by_model": ranked_by_model,
+            "fallback_state": fallback_state,
+        }
 
 
 def _nim_api_key() -> str:

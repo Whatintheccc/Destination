@@ -322,15 +322,25 @@ def _chat_surface(plan: CodexExecutivePlan, candidate_rows: list[dict[str, Any]]
             "cards": [],
         })
     else:
-        messages.extend([
-            {"id": "goal", "role": "user", "body": plan.goal, "cards": []},
-            {
+        failure = _frontier_failure(plan)
+        plan_summary = {
+            "id": "plan_summary",
+            "role": "assistant",
+            "title": "I can act on this",
+            "body": "I generated candidate futures and picked the safest/highest-value one for simulation or Swift validation.",
+            "cards": candidate_cards[:3],
+        }
+        if not candidate_cards:
+            plan_summary = {
                 "id": "plan_summary",
                 "role": "assistant",
-                "title": "I can act on this",
-                "body": "I generated candidate futures and picked the safest/highest-value one for simulation or Swift validation.",
-                "cards": candidate_cards[:3],
-            },
+                "title": "I could not generate candidate futures",
+                "body": failure or "The frontier is empty. Check runtime health and the replay trace before trying to stage or commit.",
+                "cards": [],
+            }
+        messages.extend([
+            {"id": "goal", "role": "user", "body": plan.goal, "cards": []},
+            plan_summary,
         ])
         if receipt_cards:
             messages.append({
@@ -397,6 +407,19 @@ def _inspector_surface(panels: list[FrontendPanel], replay_summary: Any, trace: 
             "action_queue": [to_jsonable(a) for a in action_queue],
         },
     }
+
+
+def _frontier_failure(plan: CodexExecutivePlan) -> str:
+    frontier = next((r for r in plan.receipts if r.tool_name.value == "generate_candidate_frontier"), None)
+    if frontier is None:
+        return ""
+    if frontier.denied_reason:
+        recovery = frontier.output.get("recovery") if isinstance(frontier.output, dict) else ""
+        return f"{frontier.denied_reason} {recovery}".strip()
+    if frontier.status.value == "failed":
+        message = frontier.output.get("message") if isinstance(frontier.output, dict) else ""
+        return str(message or "Candidate frontier generation failed.")
+    return ""
 
 
 def _intent_title(intent: str) -> str:

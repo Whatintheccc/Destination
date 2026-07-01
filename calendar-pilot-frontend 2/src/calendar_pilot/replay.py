@@ -58,7 +58,16 @@ class ReplaySummary:
 class ReplayBuffer:
     records: list[ReplayRecord] = field(default_factory=list)
 
-    def append_decision(self, candidate: CandidateCalendarAction, rank: int = 0, policy_version: str = "heuristic-v2", *, trace_id: str | None = None, causal_parent_id: str | None = None) -> None:
+    def append_decision(
+        self,
+        candidate: CandidateCalendarAction,
+        rank: int = 0,
+        policy_version: str = "heuristic-v2",
+        *,
+        trace_id: str | None = None,
+        causal_parent_id: str | None = None,
+        policy_metadata: dict[str, Any] | None = None,
+    ) -> None:
         trace = trace_id or candidate.candidate_id
         self.records.append(ReplayRecord(
             record_type="decision",
@@ -69,6 +78,7 @@ class ReplayBuffer:
                 "candidate": candidate.to_dict(),
                 "rank": rank,
                 "policy_version": policy_version,
+                "policy_metadata": policy_metadata or {},
                 "trace_id": trace,
             },
         ))

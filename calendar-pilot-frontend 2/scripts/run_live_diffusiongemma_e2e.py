@@ -30,7 +30,7 @@ def main() -> None:
     os.environ.setdefault("CALENDAR_PILOT_BROWSER_WAIT_MS", "60000")
     os.environ.setdefault("CALENDAR_PILOT_BROWSER_PROCESS_TIMEOUT", "240")
     os.environ.setdefault("CALENDAR_PILOT_NIM_TIMEOUT", "120")
-    health = NvidiaNIMPolicyClient().health_status(validate_remote=False)
+    health = NvidiaNIMPolicyClient().health_status(validate_remote=True)
     write_artifact("nim_policy_preflight.json", health)
     if not health.get("configured"):
         report = runtime_report(
@@ -43,6 +43,10 @@ def main() -> None:
         )
         write_artifact("missing_credential.json", report)
         print("live DiffusionGemma E2E requires NVIDIA NIM credentials; wrote missing credential report")
+        raise SystemExit(2)
+    if health.get("status") != "ok":
+        write_artifact("nim_policy_preflight_blocker.json", health)
+        print(f"live DiffusionGemma E2E requires healthy NVIDIA NIM remote status; got {health.get('status')}")
         raise SystemExit(2)
 
     try:
@@ -167,6 +171,17 @@ def assert_live_policy_plan(state: dict[str, Any]) -> None:
     records = state.get("inspector", {}).get("replay", {}).get("records", [])
     if not any(record.get("payload", {}).get("policy_version") == "nvidia_nim_diffusiongemma_policy" for record in records):
         raise AssertionError("replay did not include NIM policy provenance")
+    metadata_records = [
+        record
+        for record in records
+        if record.get("payload", {}).get("policy_metadata", {}).get("backend") == "nvidia_nim_diffusiongemma_policy"
+    ]
+    if not metadata_records:
+        raise AssertionError("replay did not include structured NIM policy metadata")
+    first_metadata = metadata_records[0].get("payload", {}).get("policy_metadata", {})
+    for key in ["model", "prompt_version", "decoding_settings", "timeout_seconds", "retry_policy", "fallback_behavior", "validation"]:
+        if key not in first_metadata:
+            raise AssertionError(f"structured NIM policy metadata missing {key}")
 
 
 def assert_no_secret_leak(payload: dict[str, Any]) -> None:

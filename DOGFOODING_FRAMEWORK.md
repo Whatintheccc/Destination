@@ -378,7 +378,7 @@ Acceptance criteria:
 
 ## P6 DiffusionGemma / NVIDIA NIM Policy Serving
 
-Status: Implemented; architecture review pending before P7
+Status: Review fixes implemented; architecture re-review pending before P7
 Owner: model integration
 Goal: replace or augment the heuristic `DiffusionGemmaPolicy` with a real served policy endpoint.
 
@@ -574,6 +574,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P5 release regression | Re-ran the full release gate after live Codex wiring. | `make dogfood-release` passed with `python_tests`, `swift_tests`, `swift_ipc_tests`, `browser_e2e`, `mac_app_build`, `mac_app_sanity`, `mac_app_swift_ipc_sanity`, `launchservices_smoke`, artifact validation, and secret scans all true. |
 | 2026-07-01 | P5 architectural review fixes | Addressed Locke's blockers by statically validating the full model plan before executing any planned tool and by rehydrating Swift IPC authority grants plus rollback handles for `live_codex` and `production` restores, not only `swift_ipc`. | `make py-test`, `make swift-test`, `make swift-ipc-test`, `make live-codex-e2e`, and `make dogfood-release` passed. Added regression tests for terminal commit validation and live-Codex Swift undo rehydration. |
 | 2026-07-01 | P6 live DiffusionGemma/NIM verification | Completed manual NVIDIA NIM credential setup through the ignored local `.env`, added certifi-backed TLS handling for the NIM client, and verified live policy ranking without heuristic fallback. `live_diffusiongemma` reports backend `nvidia_nim_diffusiongemma_policy`, selects Swift IPC, records policy provenance in replay, exposes candidate control notes, and turns missing or failed NIM calls into failed receipts instead of provider writes. | `make live-diffusiongemma-e2e` passed with 6 candidate cards and 6 NIM policy replay records under `runs/live_diffusiongemma_e2e/artifacts/`. `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed; release secret scan reported no findings across tracked files, `runs/`, and `dist/`. |
+| 2026-07-01 | P6 architectural review fixes | Addressed Peirce's blockers by making live DiffusionGemma health perform cached remote NIM validation, appending remote health failures to `live_blockers`, exposing timeout/retry/polling/fallback/decoding config in health, surfacing failed frontier generation in chat, and preserving structured per-candidate NIM metadata in replay decisions. | `make live-diffusiongemma-e2e` passed with preflight `status: ok`, `/api/health` `diffusiongemma_nim.status: ok`, and 6 replay records containing structured `policy_metadata`. `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed; release secret scan had no findings. |
 
 ## Review Log
 
@@ -590,6 +591,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P3 | Locke | Found invalid runtime modes could be silently coerced to fixture-safe and noted weaker bundled build provenance plus fixture credential false-positive. | Fixed invalid-mode reporting/gating, persisted requested/effective mode, bundled `build_id`, and runtime-derived credential reporting. Locke re-reviewed and cleared P3. |
 | 2026-07-01 | P4 | Jason | Found three blockers: Swift IPC undo was not restart-truthful, JSONL IPC was unsafe under threaded HTTP, and correlation IDs were not preserved across IPC. | Fixed all three with Swift restore RPCs, Python-side IPC rehydration, serialized/id-checked RPC, and correlation propagation. Jason re-reviewed commit `8af7fd7` and cleared P4. |
 | 2026-07-01 | P5 | Locke | Found two blockers: model-plan validation could happen inline after side-effecting execution, and `live_codex` restores did not rehydrate Swift IPC authority/undo state. | Fixed with pre-execution model-plan shape validation, replayed validation failures, and IPC restore rehydration for `live_codex`/`production`. Locke re-reviewed commit `2d566f3` and cleared P5 for P6. |
+| 2026-07-01 | P6 | Peirce | Found three blockers: `/api/health` treated env presence as release-safe without remote NIM validation, live replay dropped structured NIM provenance, and health omitted timeout/retry/fallback configuration. | Fixed with cached remote NIM health validation, blocker propagation, explicit endpoint config, actionable failed-frontier chat copy, and structured replay `policy_metadata`; re-review pending. |
 
 ## Open Risks
 
