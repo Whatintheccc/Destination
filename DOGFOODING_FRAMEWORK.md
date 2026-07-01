@@ -296,13 +296,13 @@ Acceptance criteria:
 
 ## P4 Swift IPC Runtime
 
-Status: In review
+Status: Done
 Owner: runtime engineering
 Goal: run planner stage, commit, and undo paths through compiled Swift instead of the Python stub.
 
 ### P4.1 Kernel Interface Adapter
 
-Status: In review
+Status: Done
 
 Required work:
 
@@ -319,7 +319,7 @@ Acceptance criteria:
 
 ### P4.2 App Packaging And Lifecycle
 
-Status: In review
+Status: Done
 
 Required work:
 
@@ -566,6 +566,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P3 runtime mode truth | Added explicit runtime reporting, `/api/health`, first-viewport runtime chip, runtime inspector rows, replay runtime provenance, `health.json` browser artifact, and release `runtime_mode_gate`. Production-targeted mode now fails when still backed by fixtures/stubs. | `make py-test`, `make browser-e2e`, and `make dogfood-release` passed in fixture mode; production gate probe returned blockers for sample fixtures, `SwiftKernelStub`, deterministic planner, heuristic policy, and `local_stub`. |
 | 2026-07-01 | P4 Swift IPC runtime | Added a shared Python kernel protocol, made `SwiftKernelIPCClient` match the stub-shaped planner interface, added Swift `preview` RPC support, selected IPC in `swift_ipc` runtime mode, packaged a release-built `CalendarPilotKernelServer` binary in the app, and added Swift IPC release lanes. | `make py-test`, `make swift-test`, `make swift-ipc-test`, `make browser-e2e`, `make mac-app-build`, and `make dogfood-release` passed. Release report shows `mac_app_swift_ipc_sanity` passed with runtime `swift_ipc`, kernel `SwiftKernelIPCClient`, no live blockers, and no orphaned `CalendarPilotKernelServer` process. |
 | 2026-07-01 | P4 architectural review fixes | Addressed review blockers by serializing and id-checking IPC RPCs, propagating correlation IDs through Python and Swift receipts, and restoring persisted Swift IPC authority grants plus active rollback handles after app restart. | `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make browser-e2e` passed. `test_swift_ipc_runtime.py` now covers restart undo rehydration, receipt correlation provenance, and concurrent RPC calls. |
+| 2026-07-01 | P4 final release gate | Re-ran the full release gate after the review-fix commit. | `make dogfood-release` passed with build id `8af7fd7e789f`; `swift_ipc_tests`, `swift_ipc_runtime_mode_gate`, and `mac_app_swift_ipc_sanity` all passed with kernel `SwiftKernelIPCClient`. |
 
 ## Review Log
 
@@ -580,6 +581,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P2 | Volta final | Found remaining timeout and current-report validation gaps in the release gate. | Added timeouts for `open`, `lsof`, `kill`, and `git ls-files`; made `TimeoutExpired` output bytes-safe; validated and secret-scanned the current release report. Volta and Boyle cleared P2. |
 | 2026-07-01 | P3+ planning | Gauss | Independently confirmed P2 certifies fixture dogfood only; live Codex/OpenAI, DiffusionGemma/NIM, Swift IPC app selection, provider OAuth, and stale-port launch are not solved. | Incorporated the proposed P3-P8 phase gates into this framework. |
 | 2026-07-01 | P3 | Locke | Found invalid runtime modes could be silently coerced to fixture-safe and noted weaker bundled build provenance plus fixture credential false-positive. | Fixed invalid-mode reporting/gating, persisted requested/effective mode, bundled `build_id`, and runtime-derived credential reporting. Locke re-reviewed and cleared P3. |
+| 2026-07-01 | P4 | Jason | Found three blockers: Swift IPC undo was not restart-truthful, JSONL IPC was unsafe under threaded HTTP, and correlation IDs were not preserved across IPC. | Fixed all three with Swift restore RPCs, Python-side IPC rehydration, serialized/id-checked RPC, and correlation propagation. Jason re-reviewed commit `8af7fd7` and cleared P4. |
 
 ## Open Risks
 
