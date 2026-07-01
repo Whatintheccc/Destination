@@ -30,21 +30,21 @@ Observed implementation as of 2026-07-01:
 
 ## Production Integration Gap
 
-Observed after opening the desktop app on `http://127.0.0.1:8787/` on 2026-07-01:
+Originally observed after opening the desktop app on `http://127.0.0.1:8787/` on 2026-07-01:
 
 - The desktop shortcut is current and points to `calendar-pilot-frontend 2/dist/CalendarPilot.app`.
 - The running process is from that v2 app bundle, not the archived predecessor.
 - The bundle is explicitly fixture-scoped: `CFBundleIdentifier` is `dev.calendarpilot.fixture`, and the app packages `data/sample_calendar.json`, `data/sample_profile.json`, `frontend`, and `src`.
 - The frontend is dynamic against `/api/*`, but it falls back to `frontend_state.sample.json` when `/api/state` fails.
-- The backend session defaults to sample calendar/profile fixtures and constructs `SwiftKernelStub`, `DiffusionGemmaPolicy`, and local `CodexToolRuntime`.
-- `Codex` is currently a deterministic local planner/runtime contract, not a live model-backed Codex/OpenAI endpoint.
+- The backend session defaults to sample calendar/profile fixtures and, in fixture mode, constructs `SwiftKernelStub`, `DiffusionGemmaPolicy`, and local `CodexToolRuntime`.
+- `Codex` started as a deterministic local planner/runtime contract. P5 adds `live_codex` mode through Codex app-server and ChatGPT subscription auth, while fixture mode remains deterministic by design.
 - `DiffusionGemma` is currently a deterministic heuristic policy, not NVIDIA NIM or another model-serving endpoint.
-- `SwiftKernelIPCClient` exists, but the app path does not select it and the IPC surface is not yet drop-in compatible with the stub-shaped kernel interface used by `CodexToolRuntime`.
+- `SwiftKernelIPCClient` originally existed but was not selected by the app path. P4 made it satisfy the shared kernel protocol and selected it for `swift_ipc`, `live_codex`, and production-targeted modes.
 - Provider adapters are stubs. Real OAuth, provider sync, conflict truth, external IDs, idempotency, and write execution are not implemented.
 - The UI truthfully reports `local_stub` and `real_oauth: False`.
 - The desktop launcher uses fixed port `8787` and opens the browser after a sleep, so a stale server on that port can be shown if launch ownership is ambiguous.
 
-Conclusion: P0-P2 certify a working local fixture macOS app. They do not certify production-integrated Codex, DiffusionGemma/NIM, Swift IPC, or real provider behavior. P3 and later phases exist to close that gap.
+Conclusion: P0-P2 certify a working local fixture macOS app. P3-P5 now add runtime truth, compiled Swift IPC, and live Codex subscription-auth planning evidence. They still do not certify DiffusionGemma/NIM, real provider behavior, OAuth, or production desktop launch ownership.
 
 ## Dogfood Principles
 
@@ -336,18 +336,19 @@ Acceptance criteria:
 
 ## P5 Live Codex Executive
 
-Status: Not started
+Status: Implementation complete; architecture review pending
 Owner: product engineering and model integration
 Goal: replace the deterministic local Codex planner/explainer path with a live model-backed executive while preserving the existing tool, authority, replay, and safety contracts.
 
 ### P5.1 Codex Client And Credential Gate
 
-Status: Not started
+Status: Done
 
 Required work:
 
-- Add a Codex/OpenAI client abstraction behind the existing planner/runtime boundary.
-- Add manual credential setup. When credentials are needed, open the browser or credential UI for the user and pause at the credential field.
+- Add a Codex app-server client abstraction behind the existing planner/runtime boundary.
+- Use Codex ChatGPT subscription auth, not a traditional Platform API key. Supported configured states are local Codex ChatGPT auth cache or `CODEX_ACCESS_TOKEN` for trusted automation.
+- Add manual credential setup. When credentials are needed, open the Codex auth browser or device flow for the user and pause at the credential field.
 - Store credentials only in user-owned secure storage or environment configuration, never in git, replay, logs, screenshots, release reports, or bug reports.
 - Add health checks that distinguish: missing credential, invalid credential, network failure, model/tool schema failure, and safety refusal.
 
@@ -355,11 +356,12 @@ Acceptance criteria:
 
 - Fixture mode still runs without credentials and labels itself as fixture.
 - Live Codex mode refuses to start or clearly degrades when credentials are missing.
+- API-key auth is reported as the wrong auth method for `live_codex`, rather than treated as valid live Codex access.
 - Secret scan covers committed files, generated run artifacts, logs, release reports, and replay exports.
 
 ### P5.2 Model-Backed Tool Planning
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -542,7 +544,7 @@ Run these additional scenarios as P3-P8 come online:
 | Codex backend | deterministic labeled | deterministic labeled | live model-backed planner | live planner compatible | live planner compatible | production-gated |
 | DiffusionGemma backend | heuristic labeled | heuristic labeled | heuristic or live labeled | live NIM/model provenance | live or provider-safe fallback | production-gated |
 | Provider backend | `local_stub` labeled | `local_stub` labeled | `local_stub` labeled | `local_stub` labeled | deterministic and real OAuth paths | production-gated |
-| Credentials | none required in fixture | none unless IPC packaging needs local toolchain | Codex/OpenAI gate | NVIDIA NIM gate | OAuth gate | all gates visible |
+| Credentials | none required in fixture | none unless IPC packaging needs local toolchain | Codex subscription auth gate | NVIDIA NIM gate | OAuth gate | all gates visible |
 | Secret hygiene | scan artifacts | scan IPC logs | scan model traces | scan NIM traces | scan provider traces | scan launch logs |
 | Release evidence | mode report | IPC report | live Codex report | live policy report | provider report | production app report |
 
@@ -567,6 +569,9 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P4 Swift IPC runtime | Added a shared Python kernel protocol, made `SwiftKernelIPCClient` match the stub-shaped planner interface, added Swift `preview` RPC support, selected IPC in `swift_ipc` runtime mode, packaged a release-built `CalendarPilotKernelServer` binary in the app, and added Swift IPC release lanes. | `make py-test`, `make swift-test`, `make swift-ipc-test`, `make browser-e2e`, `make mac-app-build`, and `make dogfood-release` passed. Release report shows `mac_app_swift_ipc_sanity` passed with runtime `swift_ipc`, kernel `SwiftKernelIPCClient`, no live blockers, and no orphaned `CalendarPilotKernelServer` process. |
 | 2026-07-01 | P4 architectural review fixes | Addressed review blockers by serializing and id-checking IPC RPCs, propagating correlation IDs through Python and Swift receipts, and restoring persisted Swift IPC authority grants plus active rollback handles after app restart. | `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make browser-e2e` passed. `test_swift_ipc_runtime.py` now covers restart undo rehydration, receipt correlation provenance, and concurrent RPC calls. |
 | 2026-07-01 | P4 final release gate | Re-ran the full release gate after the review-fix commit. | `make dogfood-release` passed with build id `8af7fd7e789f`; `swift_ipc_tests`, `swift_ipc_runtime_mode_gate`, and `mac_app_swift_ipc_sanity` all passed with kernel `SwiftKernelIPCClient`. |
+| 2026-07-01 | P5 live Codex subscription auth | Added `CodexAppServerClient` for `codex app-server`, wired `live_codex` and production-targeted sessions to `LiveCodexToolPlanner`, and replaced Platform API-key assumptions with Codex ChatGPT subscription auth state from the Codex auth cache or `CODEX_ACCESS_TOKEN`. | Local auth preflight reports `auth_method: chatgpt`, `plan_type: prolite`, backend `live_codex_app_server`, and no secret values in artifacts. Missing auth and wrong API-key auth method produce explicit blockers. |
+| 2026-07-01 | P5 model-backed tool planning | Added structured model-plan validation, redacted prompt context, validated tool-call execution through `CodexToolRuntime`, and app-server JSONL handling for completed agent-message events. | `make live-codex-e2e` passed. Artifact `calendar-pilot-frontend 2/runs/live_codex_e2e/artifacts/live_plan_state.json` shows planner backend `live_codex_app_server`, ChatGPT auth, 5 planned calls, and trace `inspect_week -> generate_candidate_frontier -> compare_candidates -> simulate_action_program -> stage_action_packet`. |
+| 2026-07-01 | P5 release regression | Re-ran the full release gate after live Codex wiring. | `make dogfood-release` passed with `python_tests`, `swift_tests`, `swift_ipc_tests`, `browser_e2e`, `mac_app_build`, `mac_app_sanity`, `mac_app_swift_ipc_sanity`, `launchservices_smoke`, artifact validation, and secret scans all true. |
 
 ## Review Log
 
@@ -589,7 +594,7 @@ Run these additional scenarios as P3-P8 come online:
 |---|---|---|
 | Fixture mode can be mistaken for production integration. | P3 | Add explicit runtime mode UI, health endpoint, replay provenance, and release-mode gates. |
 | Swift IPC can regress to the Python stub if mode selection or app packaging breaks. | P4 | Shared kernel protocol, packaged IPC binary, `swift_ipc_runtime_mode_gate`, `swift-ipc-test`, and `mac_app_swift_ipc_sanity` now fail if Swift IPC falls back to `SwiftKernelStub`. |
-| Live Codex/OpenAI planning is not integrated. | P5 | Add model-backed planner client, credential gate, tool-call validation, redaction, and live-mode E2E. |
+| Live Codex subscription-auth planning needs architectural review before P6 starts. | P5 | P5 implementation is complete and committed next; one architecture-focused subagent must review the committed phase and blockers must be resolved before P6. |
 | DiffusionGemma/NIM policy serving is not integrated. | P6 | Add NIM endpoint configuration, credential gate, health checks, candidate provenance, and failure behavior. |
 | Real provider/OAuth behavior is not included in fixture dogfood. | P7 | Add deterministic provider state first, then one real OAuth provider with external IDs, idempotency, conflict truth, and rollback verification. |
 | Fixed-port desktop launch can show a stale server. | P8 | Add port ownership or free-port launch, process identity handshake, and occupied-port release checks. |

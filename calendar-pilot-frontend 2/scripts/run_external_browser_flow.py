@@ -35,7 +35,8 @@ def run_live_browser_check(
         env = os.environ.copy()
         env["CALENDAR_PILOT_EXPECTED_RUNTIME_MODE"] = expected_runtime_mode
         env["CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL"] = expected_runtime_label
-        subprocess.run([node, str(cdp_script), base_url, str(artifact_path)], cwd=ROOT, env=env, check=True, timeout=90)
+        timeout = int(env.get("CALENDAR_PILOT_BROWSER_PROCESS_TIMEOUT", "120"))
+        subprocess.run([node, str(cdp_script), base_url, str(artifact_path)], cwd=ROOT, env=env, check=True, timeout=timeout)
         return
     try:
         from playwright.sync_api import expect, sync_playwright

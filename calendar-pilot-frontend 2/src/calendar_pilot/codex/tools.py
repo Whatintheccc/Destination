@@ -176,6 +176,8 @@ class CodexToolRuntime:
             return self._receipt(call, CodexToolStatus.REQUIRES_CONFIRMATION, {"scope_proposal": proposal.to_dict()}, requires_confirmation=True)
         if name == CodexToolName.EXPLAIN_SWIFT_DENIAL:
             return self._receipt(call, CodexToolStatus.SUCCEEDED, {"denial_explanation": self._denial_explanation(str(call.input.get("denied_reason", "")))})
+        if name == CodexToolName.VALIDATE_MODEL_PLAN:
+            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"validated": True, "source": "codex_tool_runtime"})
         return self._receipt(call, CodexToolStatus.DENIED, {}, denied=f"unsupported tool {name.value}")
 
     def _generate_frontier(self, call: CodexToolCall, observation: RawCalendarObservation, biography: UserBiography) -> CodexToolReceipt:

@@ -483,6 +483,7 @@ class CodexToolName(str, Enum):
     RUN_SELF_PLAY_PROBE = "run_self_play_probe"
     PROPOSE_AUTONOMY_SCOPE = "propose_autonomy_scope"
     EXPLAIN_SWIFT_DENIAL = "explain_swift_denial"
+    VALIDATE_MODEL_PLAN = "validate_model_plan"
 
 
 class CodexToolStatus(str, Enum):

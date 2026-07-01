@@ -16,6 +16,7 @@ if (!baseUrl || !artifactDir) {
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const expectedRuntimeMode = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_MODE || 'fixture';
 const expectedRuntimeLabel = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL || (expectedRuntimeMode === 'swift_ipc' ? 'Swift IPC mode' : 'Fixture mode');
+const waitTimeoutMs = Number(process.env.CALENDAR_PILOT_BROWSER_WAIT_MS || 15000);
 await mkdir(artifactDir, { recursive: true });
 
 async function main() {
@@ -204,7 +205,7 @@ class CdpClient {
           this.pending.delete(id);
           reject(new Error(`CDP timeout: ${method}`));
         }
-      }, 15000);
+      }, waitTimeoutMs);
     });
   }
 
@@ -226,7 +227,7 @@ async function evaluate(client, expression) {
 }
 
 async function waitFor(client, expression) {
-  const deadline = Date.now() + 15000;
+  const deadline = Date.now() + waitTimeoutMs;
   while (Date.now() < deadline) {
     if (await evaluate(client, `Boolean(${expression})`)) return;
     await delay(100);
@@ -272,7 +273,7 @@ async function fill(client, selector, value) {
 
 async function waitForVisibleElement(client, safeSelector, options = {}) {
   const useLast = Boolean(options.last);
-  const deadline = Date.now() + 15000;
+  const deadline = Date.now() + waitTimeoutMs;
   let lastInfo;
   while (Date.now() < deadline) {
     const info = await elementInfo(client, safeSelector, useLast);
@@ -324,17 +325,25 @@ function delay(ms) {
 
 async function stopChrome(chrome) {
   if (!chrome || chrome.exitCode !== null) return;
-  chrome.kill('SIGTERM');
-  const exited = await new Promise(resolve => {
-    const timer = setTimeout(() => resolve(false), 3000);
-    chrome.once('exit', () => {
-      clearTimeout(timer);
-      resolve(true);
+  const waitForExit = (timeoutMs) => {
+    if (chrome.exitCode !== null || chrome.signalCode !== null) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        chrome.off('exit', onExit);
+        resolve(false);
+      }, timeoutMs);
+      function onExit() {
+        clearTimeout(timer);
+        resolve(true);
+      }
+      chrome.once('exit', onExit);
     });
-  });
-  if (!exited && chrome.exitCode === null) {
+  };
+  chrome.kill('SIGTERM');
+  const exited = await waitForExit(3000);
+  if (!exited && chrome.exitCode === null && chrome.signalCode === null) {
     chrome.kill('SIGKILL');
-    await new Promise(resolve => chrome.once('exit', resolve));
+    await waitForExit(3000);
   }
 }
 

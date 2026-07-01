@@ -145,6 +145,8 @@ def build_frontend_snapshot(
         "plan_id": plan.plan_id,
         "observation_id": observation.observation_id,
         "recommended_next_action": plan.recommended_next_action,
+        "planner_backend": plan.planner_backend,
+        "planner_metadata": plan.planner_metadata,
         "default_path": "codex_tool_executive",
         "chat_role": "primary_product_surface",
         "primary_surfaces": ["chat", "inline_action_cards", "inspector_drawer"],

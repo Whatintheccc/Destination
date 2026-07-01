@@ -34,7 +34,8 @@
         "apply_profile_patch",
         "run_self_play_probe",
         "propose_autonomy_scope",
-        "explain_swift_denial"
+        "explain_swift_denial",
+        "validate_model_plan"
       ]
     },
     "input": {

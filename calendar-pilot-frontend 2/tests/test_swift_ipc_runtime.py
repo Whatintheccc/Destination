@@ -136,6 +136,21 @@ class SwiftIPCRuntimeTests(unittest.TestCase):
             self.assertNotIn(rollback, reloaded.kernel.undo_ledger)
             reloaded.close()
 
+    def test_live_codex_runtime_defaults_to_swift_ipc_kernel(self) -> None:
+        with tempfile.TemporaryDirectory() as td, patch.dict(os.environ, {
+            "CALENDAR_PILOT_RUNTIME_MODE": "live_codex",
+            "CALENDAR_PILOT_CODEX_AUTH_FILE": str(Path(td) / "missing_auth.json"),
+            "CODEX_ACCESS_TOKEN": "",
+        }):
+            session = DogfoodSessionState(run_dir=Path(td))
+            report = session.runtime_report()
+            self.assertEqual(report["runtime_mode"], "live_codex")
+            self.assertEqual(report["backends"]["kernel"], "SwiftKernelIPCClient")
+            self.assertEqual(report["backends"]["codex"], "live_codex_app_server")
+            self.assertIn("required credential missing: codex_subscription", report["live_blockers"])
+            self.assertNotIn("live_codex mode is using SwiftKernelStub", report["live_blockers"])
+            session.close()
+
     def test_ipc_rpc_stream_is_thread_safe(self) -> None:
         observation = load_observation()
         with SwiftKernelIPCClient(package_path=ROOT / "packages" / "CalendarPilotKernel") as kernel:

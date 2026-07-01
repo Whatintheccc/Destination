@@ -44,6 +44,7 @@ def main() -> None:
     }
     checks = report["checks"]
     checks.append(runtime_mode_gate(report["runtime"]))
+    checks.append(live_codex_credential_mode_gate())
     checks.append(run_command("python_tests", ["make", "py-test"], timeout=60))
     checks.append(run_command("swift_tests", ["make", "swift-test"], timeout=60))
     checks.append(run_command("swift_ipc_tests", ["make", "swift-ipc-test"], timeout=120))
@@ -124,7 +125,7 @@ def run_app_bundle_sanity(
     artifact_dir: Path | None = None,
 ) -> dict[str, Any]:
     runtime_mode = runtime_mode or runtime_mode_from_env()
-    expected_kernel = expected_kernel or ("SwiftKernelIPCClient" if runtime_mode == "swift_ipc" else "SwiftKernelStub")
+    expected_kernel = expected_kernel or ("SwiftKernelIPCClient" if runtime_mode in {"swift_ipc", "live_codex", "production"} else "SwiftKernelStub")
     artifact_dir = artifact_dir or RUN_DIR / "app_browser_artifacts"
     app_exe = APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot"
     app_src = APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot"
@@ -136,7 +137,7 @@ def run_app_bundle_sanity(
         return {"name": name, "ok": False, "reason": "bundled Python source missing"}
     if not app_index.exists():
         return {"name": name, "ok": False, "reason": "bundled frontend static assets missing"}
-    if runtime_mode == "swift_ipc" and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
+    if runtime_mode in {"swift_ipc", "live_codex", "production"} and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
         return {"name": name, "ok": False, "reason": "bundled Swift IPC server missing or not executable"}
     port = free_port()
     base_url = f"http://127.0.0.1:{port}"
@@ -347,6 +348,40 @@ def swift_ipc_runtime_mode_gate() -> dict[str, Any]:
     }
 
 
+def live_codex_credential_mode_gate() -> dict[str, Any]:
+    report = runtime_report(
+        mode="live_codex",
+        run_dir=RUN_DIR / "live_codex_mode_gate",
+        observation_path=ROOT / "data" / "sample_calendar.json",
+        profile_path=ROOT / "data" / "sample_profile.json",
+        session_id="release_gate_live_codex",
+        backends=RuntimeBackends(kernel="SwiftKernelIPCClient", codex="live_codex_app_server"),
+    )
+    blockers = list(report.get("live_blockers", []))
+    credentials = report.get("credentials", {})
+    codex_credential = credentials.get("codex_subscription", {}) if isinstance(credentials, dict) else {}
+    configured = bool(codex_credential.get("configured")) if isinstance(codex_credential, dict) else False
+    status = str(codex_credential.get("status", "")) if isinstance(codex_credential, dict) else "missing_credential"
+    missing_blocker = "required credential missing: codex_subscription" in blockers
+    wrong_method_blocker = "required credential wrong auth method: codex_subscription" in blockers
+    ok = (
+        (configured and status == "configured" and not blockers)
+        or ((not configured) and missing_blocker and not runtime_is_release_safe(report))
+        or ((not configured) and status == "wrong_auth_method" and wrong_method_blocker and not runtime_is_release_safe(report))
+    )
+    return {
+        "name": "live_codex_credential_mode_gate",
+        "ok": ok,
+        "runtime_mode": report.get("runtime_mode"),
+        "backends": report.get("backends"),
+        "codex_credential_configured": configured,
+        "codex_credential_status": status,
+        "codex_auth_method": codex_credential.get("auth_method") if isinstance(codex_credential, dict) else "missing",
+        "live_blockers": blockers,
+        "reason": "; ".join(blockers),
+    }
+
+
 def credential_gate() -> dict[str, Any]:
     mode = runtime_mode_from_env()
     credentials = credential_state(mode)
@@ -354,7 +389,7 @@ def credential_gate() -> dict[str, Any]:
     return {
         "runtime_mode": mode,
         "fixture_dogfood_requires_credentials": mode == "fixture" and any(item["required"] for item in credentials.values()),
-        "codex_auth_required": bool(credentials["codex_openai"]["required"]),
+        "codex_auth_required": bool(credentials["codex_subscription"]["required"]),
         "provider_oauth_required": bool(credentials["provider_oauth"]["required"]),
         "diffusiongemma_nim_required": bool(credentials["diffusiongemma_nim"]["required"]),
         "credential_state": credentials,
@@ -364,7 +399,7 @@ def credential_gate() -> dict[str, Any]:
 
 def find_runtime_credential_refs() -> list[str]:
     roots = [ROOT / "src", ROOT / "frontend"]
-    tokens = re.compile(r"(OPENAI_API_KEY|NVIDIA_API_KEY|NIM_API_KEY|CODEX_AUTH|OAUTH|GOOGLE_CLIENT|MICROSOFT_CLIENT|APPLE_CLIENT)")
+    tokens = re.compile(r"(CODEX_ACCESS_TOKEN|CODEX_API_KEY|OPENAI_API_KEY|NVIDIA_API_KEY|NIM_API_KEY|CODEX_AUTH|OAUTH|GOOGLE_CLIENT|MICROSOFT_CLIENT|APPLE_CLIENT)")
     refs: list[str] = []
     for root in roots:
         for path in root.rglob("*"):
@@ -395,7 +430,7 @@ def secret_findings(paths: list[Path]) -> list[str]:
     patterns = [
         re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
         re.compile(r"nvapi-[A-Za-z0-9_-]{20,}", re.IGNORECASE),
-        re.compile(r"(OPENAI_API_KEY|NVIDIA_API_KEY|NIM_API_KEY)\s*=\s*['\"]?[A-Za-z0-9_-]{12,}", re.IGNORECASE),
+        re.compile(r"(CODEX_ACCESS_TOKEN|CODEX_API_KEY|OPENAI_API_KEY|NVIDIA_API_KEY|NIM_API_KEY)\s*=\s*['\"]?[A-Za-z0-9_-]{12,}", re.IGNORECASE),
     ]
     findings: list[str] = []
     for path in paths:

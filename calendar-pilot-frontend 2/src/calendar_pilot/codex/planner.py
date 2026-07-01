@@ -16,6 +16,8 @@ class CodexExecutivePlan:
     calls: list[CodexToolCall] = field(default_factory=list)
     receipts: list[CodexToolReceipt] = field(default_factory=list)
     recommended_next_action: str = ""
+    planner_backend: str = "deterministic_codex_tool_planner"
+    planner_metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CodexExecutivePlan":
@@ -25,6 +27,8 @@ class CodexExecutivePlan:
             calls=[CodexToolCall.from_dict(c) for c in data.get("calls", [])],
             receipts=[CodexToolReceipt.from_dict(r) for r in data.get("receipts", [])],
             recommended_next_action=str(data.get("recommended_next_action", "")),
+            planner_backend=str(data.get("planner_backend", "deterministic_codex_tool_planner")),
+            planner_metadata=dict(data.get("planner_metadata", {})),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -34,6 +38,8 @@ class CodexExecutivePlan:
             "calls": [c.to_dict() for c in self.calls],
             "receipts": [r.to_dict() for r in self.receipts],
             "recommended_next_action": self.recommended_next_action,
+            "planner_backend": self.planner_backend,
+            "planner_metadata": self.planner_metadata,
         }
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import platform
@@ -10,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[3]
 KNOWN_MODES = {"fixture", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
 LIVE_MODES = {"swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
 MODES_REQUIRING_NON_FIXTURE_DATA = {"live_provider", "production"}
+SUBSCRIPTION_AUTH_MODES = {"chatgpt", "chatgptAuthTokens", "agentIdentity", "personalAccessToken"}
+API_KEY_AUTH_MODES = {"apikey", "apiKey", "api_key"}
 
 
 @dataclass(frozen=True)
@@ -71,23 +74,58 @@ def _git_head(root: Path) -> str | None:
 
 def credential_state(mode: str) -> dict[str, dict[str, bool | str]]:
     required = {
-        "codex_openai": mode in {"live_codex", "production"},
+        "codex_subscription": mode in {"live_codex", "production"},
         "diffusiongemma_nim": mode in {"live_diffusiongemma", "production"},
         "provider_oauth": mode in {"live_provider", "production"},
     }
     env_names = {
-        "codex_openai": "OPENAI_API_KEY",
+        "codex_subscription": "CODEX_ACCESS_TOKEN",
         "diffusiongemma_nim": "NVIDIA_API_KEY",
         "provider_oauth": "CALENDAR_PROVIDER_OAUTH_READY",
     }
-    return {
-        key: {
+    state: dict[str, dict[str, bool | str]] = {}
+    for key, is_required in required.items():
+        if key == "codex_subscription":
+            auth = codex_subscription_auth_state()
+            state[key] = {
+                "required": is_required,
+                "configured": bool(auth["configured"]),
+                "source": str(auth["source"]),
+                "status": str(auth["status"]),
+                "auth_method": str(auth["auth_method"]),
+            }
+            continue
+        state[key] = {
             "required": is_required,
             "configured": bool(os.environ.get(env_names[key])),
             "source": "environment" if os.environ.get(env_names[key]) else "missing",
+            "status": "configured" if os.environ.get(env_names[key]) else "missing_credential",
         }
-        for key, is_required in required.items()
-    }
+    return state
+
+
+def codex_subscription_auth_state() -> dict[str, bool | str]:
+    if os.environ.get("CODEX_ACCESS_TOKEN"):
+        return {"configured": True, "source": "environment", "status": "configured", "auth_method": "CODEX_ACCESS_TOKEN"}
+    path = _codex_auth_file()
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"configured": False, "source": "auth_cache", "status": "invalid_credential", "auth_method": "unreadable"}
+        mode = str(data.get("auth_mode") or data.get("authMode") or "")
+        if mode in SUBSCRIPTION_AUTH_MODES:
+            return {"configured": True, "source": "auth_cache", "status": "configured", "auth_method": mode}
+        if mode in API_KEY_AUTH_MODES or data.get("OPENAI_API_KEY"):
+            return {"configured": False, "source": "auth_cache", "status": "wrong_auth_method", "auth_method": mode or "apiKey"}
+        return {"configured": False, "source": "auth_cache", "status": "missing_credential", "auth_method": mode or "missing"}
+    return {"configured": False, "source": "missing", "status": "missing_credential", "auth_method": "missing"}
+
+
+def _codex_auth_file() -> Path:
+    if os.environ.get("CALENDAR_PILOT_CODEX_AUTH_FILE"):
+        return Path(os.environ["CALENDAR_PILOT_CODEX_AUTH_FILE"])
+    return Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "auth.json"
 
 
 def runtime_report(
@@ -108,6 +146,13 @@ def runtime_report(
     if not valid_mode:
         blockers.append(f"invalid runtime mode requested: {requested_mode}")
     if effective_mode in LIVE_MODES:
+        credentials = credential_state(effective_mode)
+        for key, state in credentials.items():
+            if state["required"] and not state["configured"]:
+                if state.get("status") == "wrong_auth_method":
+                    blockers.append(f"required credential wrong auth method: {key}")
+                else:
+                    blockers.append(f"required credential missing: {key}")
         if uses_fixture and effective_mode in MODES_REQUIRING_NON_FIXTURE_DATA:
             blockers.append("live provider/production mode is using sample fixture data")
         if backends.kernel == "SwiftKernelStub":

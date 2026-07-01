@@ -3,12 +3,13 @@ from __future__ import annotations
 import atexit
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime
+from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime, LiveCodexToolPlanner
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, SelfPlayRunner
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge import SwiftKernelIPCClient, SwiftKernelStub
@@ -96,7 +97,10 @@ class DogfoodSessionState:
         self.biography = UserBiography.from_dict(json.loads(self.profile_path.read_text(encoding="utf-8")))
 
     def _new_kernel_for_mode(self) -> CalendarKernelProtocol:
-        if self.runtime_mode == "swift_ipc":
+        requested_kernel = os.environ.get("CALENDAR_PILOT_KERNEL_BACKEND", "").strip().lower().replace("-", "_")
+        if requested_kernel in {"stub", "swift_stub", "python_stub"}:
+            return SwiftKernelStub()
+        if requested_kernel in {"swift_ipc", "ipc"} or self.runtime_mode in {"swift_ipc", "live_codex", "production"}:
             kernel = SwiftKernelIPCClient()
             kernel.start()
             return kernel
@@ -110,7 +114,12 @@ class DogfoodSessionState:
 
     def _rebuild_runtime(self) -> None:
         self.runtime = CodexToolRuntime(policy=self.policy, kernel=self.kernel, replay=self.replay)
-        self.planner = CodexToolPlanner(runtime=self.runtime)
+        self.planner = self._new_planner_for_mode()
+
+    def _new_planner_for_mode(self) -> CodexToolPlanner | LiveCodexToolPlanner:
+        if self.runtime_mode in {"live_codex", "production"}:
+            return LiveCodexToolPlanner(runtime=self.runtime)
+        return CodexToolPlanner(runtime=self.runtime)
 
     def close(self) -> None:
         close = getattr(getattr(self, "kernel", None), "close", None)
@@ -331,7 +340,7 @@ class DogfoodSessionState:
         }
 
     def runtime_report(self) -> dict[str, Any]:
-        return runtime_report(
+        report = runtime_report(
             mode=self.runtime_mode,
             run_dir=self.run_dir,
             observation_path=self.observation_path,
@@ -339,9 +348,14 @@ class DogfoodSessionState:
             session_id=self.session_id,
             backends=self._runtime_backends(),
         )
+        health_status = getattr(self.planner, "health_status", None)
+        if callable(health_status):
+            report["codex_health"] = health_status(validate_remote=False)
+        return report
 
     def _runtime_backends(self) -> RuntimeBackends:
-        return RuntimeBackends(kernel=type(self.kernel).__name__)
+        codex_backend = getattr(self.planner, "backend_name", "deterministic_codex_tool_planner")
+        return RuntimeBackends(kernel=type(self.kernel).__name__, codex=codex_backend)
 
     def snapshot(self) -> dict[str, Any]:
         plan = self.latest_plan
@@ -383,6 +397,7 @@ class DogfoodSessionState:
                 {"key": "codex", "value": runtime["backends"]["codex"]},
                 {"key": "diffusiongemma", "value": runtime["backends"]["diffusiongemma"]},
                 {"key": "provider", "value": runtime["backends"]["provider"]},
+                {"key": "codex_health", "value": runtime.get("codex_health", {}).get("status", "not_applicable")},
                 {"key": "live_blockers", "value": runtime["live_blockers"] or "none"},
             ],
         }

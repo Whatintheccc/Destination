@@ -18,6 +18,7 @@ public enum CodexToolName: String, Codable, Hashable, Sendable {
     case runSelfPlayProbe = "run_self_play_probe"
     case proposeAutonomyScope = "propose_autonomy_scope"
     case explainSwiftDenial = "explain_swift_denial"
+    case validateModelPlan = "validate_model_plan"
 }
 
 public enum CodexToolStatus: String, Codable, Hashable, Sendable {
