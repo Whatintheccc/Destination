@@ -95,7 +95,7 @@ class DiffusionGemmaPolicy:
                         attendees=[],
                         metadata={
                             "parent_event_id": event.event_id,
-                            "task_ids": [t.task_id for t in prep_tasks],
+                            "task_ids": ",".join(t.task_id for t in prep_tasks),
                             "source": "diffusiongemma.prep_blocks",
                         },
                     )
@@ -188,7 +188,7 @@ class DiffusionGemmaPolicy:
             start=start,
             end=end,
             calendar_id="work",
-            metadata={"task_ids": [t.task_id for t in admin_tasks], "source": "diffusiongemma.admin_batch"},
+            metadata={"task_ids": ",".join(t.task_id for t in admin_tasks), "source": "diffusiongemma.admin_batch"},
         )
         return [CandidateCalendarAction(
             candidate_id=self._cid("admin", observation.observation_id, start.isoformat()),
@@ -315,7 +315,7 @@ class DiffusionGemmaPolicy:
             start=observation.observed_at,
             end=observation.observed_at + timedelta(minutes=5),
             calendar_id="work",
-            metadata={"risk_cliffs": signals.risk_cliffs, "source": "diffusiongemma.day_repair_plan"},
+            metadata={"risk_cliffs": ",".join(signals.risk_cliffs), "source": "diffusiongemma.day_repair_plan"},
         )
         return [CandidateCalendarAction(
             candidate_id=self._cid("plan", observation.observation_id, ",".join(signals.risk_cliffs)),
@@ -370,8 +370,9 @@ class DiffusionGemmaPolicy:
         candidate.predicted_interruption_cost = min(1.0, candidate.predicted_interruption_cost + signals.fatigue_score * 0.18)
         if candidate.affected_people_ids and candidate.required_authority_tier >= 4:
             candidate.predicted_social_risk = min(1.0, candidate.predicted_social_risk + 0.22)
-        if observation.device_context.is_focus_mode and candidate.right_moment_decision.name != "DO_NOTHING":
+        if observation.device_context.is_focus_mode and candidate.intent != "do_nothing":
             candidate.predicted_interruption_cost = min(1.0, candidate.predicted_interruption_cost + 0.20)
+            candidate.control_notes.append("focus_mode_interruption_penalty=+0.20")
         if biography.has_claim("dismisses evening") and observation.device_context.local_hour >= 18:
             candidate.predicted_interruption_cost = min(1.0, candidate.predicted_interruption_cost + 0.25)
         candidate.control_notes.append(f"pressure={signals.pressure_score:.2f}, fatigue={signals.fatigue_score:.2f}")

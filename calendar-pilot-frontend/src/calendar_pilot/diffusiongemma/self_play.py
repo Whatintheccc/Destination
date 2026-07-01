@@ -7,6 +7,7 @@ from typing import Protocol
 
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
+from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.types import CandidateCalendarAction, RawCalendarObservation, RewardEvent, UserBiography
 
 
@@ -31,6 +32,8 @@ class SelfPlayEpisode:
     chosen_candidate_id: str
     chosen_intent: str
     baseline_candidate_id: str
+    receipt_id: str
+    denied_reason: str | None
     outcome: str
     reward_before_adversaries: float
     reward_after_adversaries: float
@@ -178,6 +181,7 @@ class SelfPlayRunner:
         RegretAdversary(),
         EngagementAdversary(),
     ])
+    replay: ReplayBuffer | None = None
 
     def run(
         self,
@@ -202,9 +206,14 @@ class SelfPlayRunner:
         top_k: int = 4,
     ) -> SelfPlayEpisode:
         candidates = self.policy.generate_candidates(observation, biography)
+        for rank, candidate in enumerate(candidates[: max(1, top_k)]):
+            if self.replay is not None:
+                self.replay.append_decision(candidate, rank=rank)
         baseline = next((c for c in candidates if c.intent == "do_nothing"), candidates[-1])
         chosen = self._robust_choice(candidates, top_k=top_k)
         receipt = self.kernel.authorize_and_materialize(chosen, observation, granted_authority_tier=authority_tier)
+        if self.replay is not None:
+            self.replay.append_receipt(receipt, chosen)
         response = self.user_simulator.respond(chosen)
         reward_before = response.reward
         reward_after = reward_before
@@ -218,26 +227,35 @@ class SelfPlayRunner:
                 findings.append(finding)
                 reward_after += finding.reward_delta
         chosen.simulated_outcomes[response.outcome] = chosen.simulated_outcomes.get(response.outcome, 0.0) + 1.0
-        _ = RewardEvent(
+        reward_event = RewardEvent(
             reward_event_id=f"rew_{episode_index}",
             receipt_id=receipt.receipt_id,
             observed_at=datetime.now(observation.observed_at.tzinfo),
             accepted=(response.outcome == "accepted"),
             undone=(response.outcome == "undone"),
             ignored=(response.outcome == "ignored"),
+            explicit_wrong=any(f.label == "social_conflict" for f in findings) or None,
+            notification_dismissed=any(f.label == "notification_fatigue" for f in findings) or None,
             total_reward=reward_after,
         )
-        return SelfPlayEpisode(
+        if self.replay is not None:
+            self.replay.append_reward(reward_event, chosen, receipt)
+        episode = SelfPlayEpisode(
             episode_index=episode_index,
             chosen_candidate_id=chosen.candidate_id,
             chosen_intent=chosen.intent,
             baseline_candidate_id=baseline.candidate_id,
+            receipt_id=receipt.receipt_id,
+            denied_reason=receipt.denied_reason,
             outcome=response.outcome,
             reward_before_adversaries=round(reward_before, 4),
             reward_after_adversaries=round(reward_after, 4),
             findings=findings,
             response_reason=response.reason,
         )
+        if self.replay is not None:
+            self.replay.append_episode(episode)
+        return episode
 
     def _robust_choice(self, candidates: list[CandidateCalendarAction], top_k: int) -> CandidateCalendarAction:
         # Pick the highest candidate after adversarial preview, not merely the dry

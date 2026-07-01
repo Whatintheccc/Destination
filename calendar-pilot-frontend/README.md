@@ -12,12 +12,14 @@ This repo intentionally implements the **agentic optimizer inversion** rather th
 
 ```text
 calendar-pilot/
-  packages/CalendarPilotKernel/     Swift package: calendar authority + actuation kernel
+  packages/CalendarPilotKernel/     Swift package: calendar authority + actuation/staging kernel
   src/calendar_pilot/               Python package: DiffusionGemma + Codex + simulator
+  src/calendar_pilot/providers/     Provider adapter interfaces for Google/Apple/Microsoft
+  contracts/                        Canonical snake_case JSON contracts shared with Swift/Python
   tests/                            Python unit tests
   examples/                         Demo scripts and sample scenarios
   data/                             Sample calendar/profile fixtures
-  docs/                             Architecture and API notes
+  docs/                             Architecture, API, self-play, and revision notes
   configs/                          Reward and autonomy config
 ```
 
@@ -26,12 +28,13 @@ calendar-pilot/
 ```bash
 cd calendar-pilot
 PYTHONPATH=src python3 -m unittest discover -s tests
-PYTHONPATH=src python3 -m calendar_pilot.app demo --observation data/sample_calendar.json
+PYTHONPATH=src python3 -m calendar_pilot.app demo --observation data/sample_calendar.json --replay-out runs/replay.jsonl
+PYTHONPATH=src python3 scripts/train_offline_policy.py --replay runs/replay.jsonl --out runs/offline_policy_report.json
 swift test --package-path packages/CalendarPilotKernel
 swift run --package-path packages/CalendarPilotKernel CalendarPilotDemo
 ```
 
-The demo performs this loop:
+The demo performs this loop and can write replay JSONL for offline policy reduction:
 
 ```text
 raw calendar observation
@@ -86,8 +89,15 @@ Privacy is not the primary product doctrine here. The repo treats data access as
 - write receipts and undo handles make action recoverable;
 - reward is decomposed into utility, acceptance, engagement, regret, interruption, and social risk;
 - self-play adversaries search for high-regret and notification-fatigue policies;
-- social actuation is gated separately from reversible user-owned writes.
+- social actuation is gated separately from reversible user-owned writes;
+- staged-vs-materialized receipts make non-write actions explicit;
+- contract tests keep Python dataclasses, JSON schemas, and Swift Codable mirrors aligned.
 
 ## Status
 
 This is a runnable reference implementation skeleton. It has working contracts, heuristics, self-play, tests, and a Swift kernel. It does **not** include production calendar provider OAuth, provider sync, real ML model serving, or external API credentials.
+
+
+## Latest revision
+
+See `docs/NEXT_FOCUS_REVISION.md` for the contract reconciliation, focus-mode policy bug fix, Swift actuation/staging depth, replay/training loop, provider boundary, biography maturation, and hygiene changes.

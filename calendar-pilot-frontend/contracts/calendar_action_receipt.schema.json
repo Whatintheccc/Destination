@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calendar-pilot.local/contracts/calendar_action_receipt.schema.json",
+  "title": "CalendarActionReceiptV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["receipt_id", "candidate_id", "executed_at", "executed_by", "authority_tier_used", "sync_status", "conflict_check_passed"],
+  "properties": {
+    "receipt_id": {"type": "string"},
+    "candidate_id": {"type": "string"},
+    "executed_at": {"type": "string", "format": "date-time"},
+    "executed_by": {"type": "string"},
+    "authority_tier_used": {"type": "integer"},
+    "sync_status": {"enum": ["staged", "materialized", "denied", "reverted"]},
+    "rollback_handle_id": {"type": ["string", "null"]},
+    "conflict_check_passed": {"type": "boolean"},
+    "generated_event_ids": {"type": "array", "items": {"type": "string"}},
+    "staged_action_ids": {"type": "array", "items": {"type": "string"}},
+    "rejected_action_types": {"type": "array", "items": {"type": "string"}},
+    "provider_id": {"type": "string"},
+    "actuation_mode": {"enum": ["no_op", "materialized_write", "staged_draft", "staged_notification", "denied"]},
+    "denied_reason": {"type": ["string", "null"]}
+  }
+}

@@ -1,0 +1,55 @@
+import json
+import unittest
+from dataclasses import fields
+from pathlib import Path
+
+from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
+from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RawCalendarObservation, UserBiography
+from calendar_pilot.swift_bridge import SwiftKernelStub
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class ContractParityTests(unittest.TestCase):
+    def test_candidate_schema_covers_python_dataclass_agent_fields(self):
+        schema = json.loads((ROOT / "contracts/candidate_calendar_action.schema.json").read_text())
+        props = set(schema["properties"].keys())
+        dataclass_names = {f.name for f in fields(CandidateCalendarAction)}
+        self.assertTrue(dataclass_names <= props, f"missing from schema: {sorted(dataclass_names - props)}")
+        for canonical in ["model_story", "counterfactual", "reward_breakdown", "right_moment_score", "simulated_outcomes"]:
+            self.assertIn(canonical, props)
+
+    def test_receipt_schema_covers_python_dataclass(self):
+        schema = json.loads((ROOT / "contracts/calendar_action_receipt.schema.json").read_text())
+        props = set(schema["properties"].keys())
+        dataclass_names = {f.name for f in fields(CalendarActionReceipt)}
+        self.assertTrue(dataclass_names <= props, f"missing from schema: {sorted(dataclass_names - props)}")
+
+    def test_policy_candidate_round_trips_through_contract_dict(self):
+        observation = RawCalendarObservation.from_dict(json.loads((ROOT / "data/sample_calendar.json").read_text()))
+        biography = UserBiography.from_dict(json.loads((ROOT / "data/sample_profile.json").read_text()))
+        candidate = DiffusionGemmaPolicy().generate_candidates(observation, biography)[0]
+        restored = CandidateCalendarAction.from_dict(candidate.to_dict())
+        self.assertEqual(restored.candidate_id, candidate.candidate_id)
+        self.assertEqual(restored.right_moment_decision, candidate.right_moment_decision)
+        self.assertEqual(restored.reward_breakdown["utility"], candidate.reward_breakdown["utility"])
+
+    def test_swift_contract_source_contains_canonical_agent_fields(self):
+        source = (ROOT / "packages/CalendarPilotKernel/Sources/CalendarPilotKernel/CalendarContracts.swift").read_text()
+        for token in ["modelStory", "counterfactual", "rewardBreakdown", "rightMomentScore", "simulatedOutcomes", "CodingKeys"]:
+            self.assertIn(token, source)
+        self.assertIn('case modelStory = "model_story"', source)
+        self.assertIn('case actionType = "action_type"', source)
+
+    def test_receipt_contract_round_trip_from_kernel_stub(self):
+        observation = RawCalendarObservation.from_dict(json.loads((ROOT / "data/sample_calendar.json").read_text()))
+        biography = UserBiography.from_dict(json.loads((ROOT / "data/sample_profile.json").read_text()))
+        candidate = DiffusionGemmaPolicy().generate_candidates(observation, biography)[0]
+        receipt = SwiftKernelStub().authorize_and_materialize(candidate, observation, granted_authority_tier=3)
+        data = receipt.to_dict()
+        self.assertIn(data["actuation_mode"], {"no_op", "materialized_write", "staged_draft", "staged_notification", "denied"})
+        self.assertIn("staged_action_ids", data)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar_pilot.biography import BiographyStore
 from calendar_pilot.diffusiongemma.reward import RewardModel
 from calendar_pilot.diffusiongemma.self_play import SelfPlayMetrics
 from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RightMomentDecision, UserBiography
@@ -53,14 +54,17 @@ class CodexExecutiveAgent:
         )
 
     def profile_repair_prompt(self, biography: UserBiography, correction: str) -> str:
+        plan = BiographyStore().propose_repair(biography, correction)
         return (
             "I will treat this as an explicit profile correction, not a hidden preference. "
-            f"Correction received: {correction}. Current notification fatigue={biography.notification_fatigue:.2f}."
+            f"{plan.prompt} Current notification fatigue={biography.notification_fatigue:.2f}."
         )
 
     @staticmethod
     def _action_phrase(candidate: CandidateCalendarAction, receipt: CalendarActionReceipt) -> str:
         authority = f"Swift used tier {receipt.authority_tier_used} authority"
+        if receipt.sync_status == "staged":
+            return f"I staged this instead of mutating the calendar; {authority}; staged={receipt.staged_action_ids}."
         if candidate.right_moment_decision == RightMomentDecision.AUTO_WRITE_THEN_NOTIFY:
             return f"I applied the reversible write now; {authority}."
         if candidate.right_moment_decision == RightMomentDecision.NOTIFY_NOW:

@@ -4,7 +4,7 @@
 
 A raw observation is the bridge between Swift and the policy layer. The Python contract lives in `calendar_pilot.types.RawCalendarObservation`; the Swift mirror lives in `CalendarContracts.swift`.
 
-## CandidateCalendarActionV1
+## CandidateCalendarActionV2
 
 A candidate contains:
 
@@ -14,9 +14,10 @@ A candidate contains:
 - reversibility;
 - predicted reward heads;
 - recommended execution/notification time;
-- explanation plan.
+- explanation plan;
+- `model_story`, `counterfactual`, `control_notes`, `reward_breakdown`, `right_moment_score`, and `simulated_outcomes` as canonical cross-runtime inspection fields.
 
-## CalendarActionReceiptV1
+## CalendarActionReceiptV2
 
 A receipt is emitted when Swift stages or applies an action. It contains:
 
@@ -25,7 +26,10 @@ A receipt is emitted when Swift stages or applies an action. It contains:
 - sync/materialization status;
 - rollback handle if reversible;
 - conflict check result;
-- generated event IDs.
+- generated event IDs;
+- staged action IDs for draft/notification/clarification actions;
+- rejected action types for denial receipts;
+- provider ID and actuation mode.
 
 ## RewardEventV1
 
@@ -41,3 +45,8 @@ A reward event is emitted later and can include:
 - survived until event;
 - downstream conflict;
 - reengagement.
+
+
+## Provider boundary
+
+The provider boundary is declared but not implemented. Swift owns real OAuth, provider sync, conflict truth, and write execution through `CalendarProviderAdapter`; Python may only propose and simulate action programs. Stub adapters exist for Google, Apple, and Microsoft.

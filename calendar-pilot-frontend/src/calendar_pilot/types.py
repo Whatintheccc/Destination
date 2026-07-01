@@ -6,11 +6,45 @@ from enum import Enum
 from typing import Any, Optional
 
 
-def parse_dt(value: str | datetime) -> datetime:
+def parse_dt(value: str | datetime | None) -> datetime | None:
+    if value is None:
+        return None
     if isinstance(value, datetime):
         return value
-    # Python accepts +00:00 but not trailing Z in all versions.
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def to_jsonable(obj: Any) -> Any:
+    """Convert contract dataclasses/enums/datetimes into JSON-ready values."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, Enum):
+        return obj.value
+    if hasattr(obj, "__dataclass_fields__"):
+        return {k: to_jsonable(v) for k, v in asdict(obj).items()}
+    if isinstance(obj, list):
+        return [to_jsonable(x) for x in obj]
+    if isinstance(obj, dict):
+        return {str(k): to_jsonable(v) for k, v in obj.items()}
+    return obj
+
+
+def string_metadata(data: dict[str, Any] | None) -> dict[str, str]:
+    """Canonical cross-runtime metadata is string:string.
+
+    Earlier Python-only candidates used arbitrary lists/dicts here. Swift uses a
+    deterministic Codable map, so policy code now serializes compound metadata as
+    compact comma-delimited strings before it crosses the contract boundary.
+    """
+    out: dict[str, str] = {}
+    for key, value in (data or {}).items():
+        if value is None:
+            continue
+        if isinstance(value, (list, tuple, set)):
+            out[str(key)] = ",".join(str(v) for v in value)
+        else:
+            out[str(key)] = str(value)
+    return out
 
 
 class AtomicActionType(str, Enum):
@@ -47,6 +81,14 @@ class RightMomentDecision(str, Enum):
     DO_NOTHING = "do_nothing"
 
 
+class ActuationMode(str, Enum):
+    NO_OP = "no_op"
+    MATERIALIZED_WRITE = "materialized_write"
+    STAGED_DRAFT = "staged_draft"
+    STAGED_NOTIFICATION = "staged_notification"
+    DENIED = "denied"
+
+
 @dataclass(frozen=True)
 class RawCalendarEvent:
     event_id: str
@@ -63,13 +105,16 @@ class RawCalendarEvent:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RawCalendarEvent":
+        start = parse_dt(data["start"])
+        end = parse_dt(data["end"])
+        assert isinstance(start, datetime) and isinstance(end, datetime)
         return cls(
             event_id=data["event_id"],
             title=data.get("title", ""),
-            start=parse_dt(data["start"]),
-            end=parse_dt(data["end"]),
+            start=start,
+            end=end,
             calendar_id=data.get("calendar_id", "default"),
-            attendees=list(data.get("attendees", [])),
+            attendees=[str(x) for x in data.get("attendees", [])],
             location=data.get("location", ""),
             notes=data.get("notes", ""),
             is_user_owned=bool(data.get("is_user_owned", False)),
@@ -88,11 +133,10 @@ class RawTask:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RawTask":
-        due = data.get("due")
         return cls(
             task_id=data["task_id"],
             title=data.get("title", ""),
-            due=parse_dt(due) if due else None,
+            due=parse_dt(data.get("due")),
             estimated_minutes=int(data.get("estimated_minutes", 30)),
             category=data.get("category", "unknown"),
         )
@@ -128,10 +172,12 @@ class RawCalendarObservation:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RawCalendarObservation":
+        observed_at = parse_dt(data["observed_at"])
+        assert isinstance(observed_at, datetime)
         return cls(
             observation_id=data["observation_id"],
             user_scope_id=data.get("user_scope_id", "default_user"),
-            observed_at=parse_dt(data["observed_at"]),
+            observed_at=observed_at,
             time_zone_id=data.get("time_zone_id", "UTC"),
             events=[RawCalendarEvent.from_dict(e) for e in data.get("events", [])],
             tasks=[RawTask.from_dict(t) for t in data.get("tasks", [])],
@@ -139,6 +185,37 @@ class RawCalendarObservation:
             notification_history=list(data.get("notification_history", [])),
             prior_actions=list(data.get("prior_actions", [])),
         )
+
+
+@dataclass(frozen=True)
+class CorrectionProvenance:
+    source: str
+    surface: str
+    created_at: datetime
+    note: str = ""
+
+
+@dataclass(frozen=True)
+class ProfileUpdateEvent:
+    update_id: str
+    user_scope_id: str
+    claim: str
+    prior_confidence: float
+    next_confidence: float
+    reason: str
+    provenance: CorrectionProvenance
+    decay_applied: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
+
+
+@dataclass(frozen=True)
+class BiographyRepairPlan:
+    prompt: str
+    candidate_claim: str
+    suggested_confidence: float
+    provenance: CorrectionProvenance
 
 
 @dataclass
@@ -153,6 +230,8 @@ class UserBiography:
     ask_before_people_meetings: bool = True
     notification_fatigue: float = 0.0
     preference_claims: list[dict[str, Any]] = field(default_factory=list)
+    profile_update_events: list[dict[str, Any]] = field(default_factory=list)
+    last_profile_update_at: Optional[datetime] = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "UserBiography":
@@ -167,7 +246,12 @@ class UserBiography:
             ask_before_people_meetings=bool(data.get("ask_before_people_meetings", True)),
             notification_fatigue=float(data.get("notification_fatigue", 0.0)),
             preference_claims=list(data.get("preference_claims", [])),
+            profile_update_events=list(data.get("profile_update_events", [])),
+            last_profile_update_at=parse_dt(data.get("last_profile_update_at")),
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
 
     def confidence_for(self, phrase: str) -> float:
         phrase_l = phrase.lower()
@@ -190,7 +274,20 @@ class AtomicCalendarAction:
     end: Optional[datetime] = None
     calendar_id: str = "default"
     attendees: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AtomicCalendarAction":
+        return cls(
+            action_type=AtomicActionType(data.get("action_type", "do_nothing")),
+            title=data.get("title", ""),
+            event_id=data.get("event_id"),
+            start=parse_dt(data.get("start")),
+            end=parse_dt(data.get("end")),
+            calendar_id=data.get("calendar_id", "default"),
+            attendees=[str(x) for x in data.get("attendees", [])],
+            metadata=string_metadata(data.get("metadata")),
+        )
 
 
 @dataclass
@@ -215,9 +312,8 @@ class CandidateCalendarAction:
     right_moment_decision: RightMomentDecision = RightMomentDecision.DO_NOTHING
     explanation: str = ""
 
-    # Revised agent-loop fields. These make policy output inspectable instead of
-    # a dry scalar: the policy carries a hypothesis, a counterfactual, and the
-    # reward anatomy that made the action win.
+    # Canonical cross-runtime inspection fields. Swift, JSON Schema, replay, and
+    # Codex all read/write these; they are no longer Python-local convenience data.
     model_story: list[str] = field(default_factory=list)
     counterfactual: str = ""
     control_notes: list[str] = field(default_factory=list)
@@ -225,20 +321,38 @@ class CandidateCalendarAction:
     right_moment_score: float = 0.0
     simulated_outcomes: dict[str, float] = field(default_factory=dict)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "CandidateCalendarAction":
+        return cls(
+            candidate_id=data["candidate_id"],
+            intent=data.get("intent", "unknown"),
+            actions=[AtomicCalendarAction.from_dict(a) for a in data.get("actions", [])],
+            target_calendars=[str(x) for x in data.get("target_calendars", [])],
+            affected_event_ids=[str(x) for x in data.get("affected_event_ids", [])],
+            affected_people_ids=[str(x) for x in data.get("affected_people_ids", [])],
+            reversibility=Reversibility(data.get("reversibility", "none")),
+            required_authority_tier=int(data.get("required_authority_tier", 0)),
+            predicted_acceptance=float(data.get("predicted_acceptance", 0.0)),
+            predicted_utility=float(data.get("predicted_utility", 0.0)),
+            predicted_engagement=float(data.get("predicted_engagement", 0.0)),
+            predicted_regret=float(data.get("predicted_regret", 0.0)),
+            predicted_interruption_cost=float(data.get("predicted_interruption_cost", 0.0)),
+            predicted_social_risk=float(data.get("predicted_social_risk", 0.0)),
+            predicted_long_horizon_value=float(data.get("predicted_long_horizon_value", 0.0)),
+            expected_reward=float(data.get("expected_reward", 0.0)),
+            recommended_execution_time=parse_dt(data.get("recommended_execution_time")),
+            right_moment_decision=RightMomentDecision(data.get("right_moment_decision", "do_nothing")),
+            explanation=data.get("explanation", ""),
+            model_story=[str(x) for x in data.get("model_story", [])],
+            counterfactual=data.get("counterfactual", ""),
+            control_notes=[str(x) for x in data.get("control_notes", [])],
+            reward_breakdown={str(k): float(v) for k, v in data.get("reward_breakdown", {}).items()},
+            right_moment_score=float(data.get("right_moment_score", 0.0)),
+            simulated_outcomes={str(k): float(v) for k, v in data.get("simulated_outcomes", {}).items()},
+        )
+
     def to_dict(self) -> dict[str, Any]:
-        def convert(obj: Any) -> Any:
-            if isinstance(obj, datetime):
-                return obj.isoformat()
-            if isinstance(obj, Enum):
-                return obj.value
-            if hasattr(obj, "__dataclass_fields__"):
-                return {k: convert(v) for k, v in asdict(obj).items()}
-            if isinstance(obj, list):
-                return [convert(x) for x in obj]
-            if isinstance(obj, dict):
-                return {k: convert(v) for k, v in obj.items()}
-            return obj
-        return convert(self)
+        return to_jsonable(self)
 
 
 @dataclass(frozen=True)
@@ -252,7 +366,14 @@ class CalendarActionReceipt:
     rollback_handle_id: Optional[str]
     conflict_check_passed: bool
     generated_event_ids: list[str] = field(default_factory=list)
+    staged_action_ids: list[str] = field(default_factory=list)
+    rejected_action_types: list[str] = field(default_factory=list)
+    provider_id: str = "local_stub"
+    actuation_mode: ActuationMode = ActuationMode.NO_OP
     denied_reason: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
 
 
 @dataclass(frozen=True)
@@ -279,3 +400,6 @@ class RewardEvent:
     interruption_penalty: float = 0.0
     social_risk_penalty: float = 0.0
     total_reward: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)

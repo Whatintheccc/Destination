@@ -10,3 +10,10 @@ dist/
 *.egg-info/
 coverage.xml
 htmlcov/
+runs/
+*.zip
+*.sha256
+.coverage
+coverage/
+.mypy_cache/
+.ruff_cache/

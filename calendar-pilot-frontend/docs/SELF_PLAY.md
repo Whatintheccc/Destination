@@ -17,6 +17,7 @@ raw calendar observation
   -> UserSimulator responds
   -> adversaries emit named findings
   -> SelfPlayEpisode recorded
+  -> ReplayBuffer persists frontier, receipt, reward, episode, and adversary findings
 ```
 
 ## Adversaries
@@ -53,3 +54,25 @@ summary = CodexExecutiveAgent().summarize_self_play(metrics)
 ## Design note
 
 The product requested here is explicitly the inversion of the witness architecture: it learns, acts, predicts right moments, writes under authority, and optimizes reward. The self-play loop is therefore not a witness-safety controller. It is the optimizer's laboratory: it discovers when apparently useful autonomy becomes interruption, regret, social conflict, or engagement gaming.
+
+
+## Replay and training
+
+Self-play can now be wired to a replay buffer:
+
+```python
+from calendar_pilot.replay import ReplayBuffer
+from calendar_pilot.diffusiongemma import SelfPlayRunner
+
+replay = ReplayBuffer()
+metrics = SelfPlayRunner(replay=replay).run(observation, biography, episodes=20)
+replay.save_jsonl("runs/replay.jsonl")
+```
+
+Then reduce the replay into a policy report:
+
+```bash
+PYTHONPATH=src python3 scripts/train_offline_policy.py --replay runs/replay.jsonl --out runs/offline_policy_report.json
+```
+
+The report aggregates observed reward residuals, denial rates, and failure penalties by intent. It is deliberately small, but it is no longer a placeholder: it consumes the records that self-play emits.
