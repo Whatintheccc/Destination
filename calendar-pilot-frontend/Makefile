@@ -1,10 +1,13 @@
-.PHONY: test py-test swift-test demo zip
+.PHONY: test py-test swift-test browser-e2e demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
 
 swift-test:
 	swift test --package-path packages/CalendarPilotKernel
+
+browser-e2e:
+	PYTHONPATH=src python3 scripts/run_browser_e2e.py
 
 test: py-test swift-test
 

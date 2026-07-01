@@ -109,9 +109,12 @@ class DogfoodP0Tests(unittest.TestCase):
             undone = session.undo(committed["rollback_handle_id"])
             self.assertEqual(undone["undo_receipt"]["status"], "committed")
             self.assertEqual(session.provider.checksum(), initial)
+            self.assertEqual(undone["undo_history"][-1]["provider_status"], "reverted")
+            self.assertGreaterEqual(undone["replay_summary"]["rewards"], 1)
             feedback = session.feedback(committed["receipt_id"], {"explicit_useful": True, "accepted": True})
             self.assertGreater(feedback["replay_summary"]["rewards"], 0)
             self.assertGreater(len(feedback["training_rows"]), 0)
+            self.assertTrue(feedback["feedback_history"])
 
     def test_dogfood_session_can_undo_after_reload(self):
         with tempfile.TemporaryDirectory() as td:
@@ -133,6 +136,7 @@ class DogfoodP0Tests(unittest.TestCase):
             undone = second.undo(committed["rollback_handle_id"])
             self.assertEqual(undone["undo_receipt"]["output"]["swift_receipt"]["sync_status"], "reverted")
             self.assertEqual(second.provider.checksum(), initial)
+            self.assertEqual(undone["undo_history"][-1]["original_receipt_id"], committed["receipt_id"])
 
     def test_feedback_rejects_unknown_receipt_without_polluting_rewards(self):
         with tempfile.TemporaryDirectory() as td:

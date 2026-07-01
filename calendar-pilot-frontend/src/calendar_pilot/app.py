@@ -87,8 +87,9 @@ def run_frontend(args: argparse.Namespace) -> None:
         path = write_demo_snapshot(args.out, commit=args.commit)
         print(f"Frontend snapshot written to {path}")
     if args.serve:
+        from calendar_pilot.frontend.session import DogfoodSessionState
         print(f"Serving frontend on http://{args.host}:{args.port}")
-        serve(host=args.host, port=args.port)
+        serve(host=args.host, port=args.port, state=DogfoodSessionState(run_dir=args.run_dir))
 
 
 def main() -> None:
@@ -111,6 +112,7 @@ def main() -> None:
     frontend.add_argument("--serve", action="store_true", help="serve frontend/static with Python's built-in HTTP server")
     frontend.add_argument("--host", default="127.0.0.1")
     frontend.add_argument("--port", type=int, default=8787)
+    frontend.add_argument("--run-dir", default="runs/dogfood/default", help="state directory for live dogfood API sessions")
     frontend.add_argument("--commit", action="store_true", default=True, help="demo snapshot includes a committed safe private write")
     frontend.set_defaults(func=run_frontend)
 

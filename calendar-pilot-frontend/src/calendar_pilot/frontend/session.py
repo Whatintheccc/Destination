@@ -66,6 +66,8 @@ class DogfoodSessionState:
         self.current_goal = ""
         self.authority_tier = 3
         self.applied_swift_receipts: set[str] = set()
+        self.undo_history: list[dict[str, Any]] = []
+        self.feedback_history: list[dict[str, Any]] = []
         self.last_error: str | None = None
         self._load_session()
 
@@ -110,6 +112,7 @@ class DogfoodSessionState:
 
     def undo(self, rollback_handle_id: str) -> dict[str, Any]:
         with self.lock:
+            checksum_before = self.provider.checksum()
             grant_id = self._issue_grant(confirmed=True)
             call = self._new_call(
                 CodexToolName.REQUEST_UNDO,
@@ -121,6 +124,22 @@ class DogfoodSessionState:
             if receipt.status == CodexToolStatus.COMMITTED and not receipt.denied_reason:
                 provider_result = self.provider.rollback(rollback_handle_id)
                 receipt.output["fixture_provider"] = provider_result.to_dict()
+                original_receipt_id = self._receipt_id_for_rollback(rollback_handle_id)
+                undo_reward = None
+                if original_receipt_id:
+                    undo_reward = self._reward_from_feedback(original_receipt_id, {"undone": True})
+                    self.replay.attach_reward(original_receipt_id, undo_reward)
+                self.undo_history.append({
+                    "rollback_handle_id": rollback_handle_id,
+                    "original_receipt_id": original_receipt_id,
+                    "undo_receipt_id": receipt.swift_receipt_id,
+                    "swift_status": receipt.output.get("swift_receipt", {}).get("sync_status"),
+                    "provider_status": provider_result.receipt.status,
+                    "checksum_before": checksum_before,
+                    "checksum_after": self.provider.checksum(),
+                    "reward_event_id": undo_reward.reward_event_id if undo_reward else None,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                })
             self._save()
             return self._state_unlocked(extra={"undo_receipt": receipt.to_dict()})
 
@@ -171,6 +190,13 @@ class DogfoodSessionState:
             if not attached:
                 self.replay.append_reward(reward, candidate, receipt, trace_id=candidate.candidate_id if candidate else receipt_id)
             self.biography = self.runtime.biography_store.update_from_reward(self.biography, reward, source="dogfood_feedback")
+            self.feedback_history.append({
+                "receipt_id": receipt_id,
+                "reward_event_id": reward.reward_event_id,
+                "total_reward": reward.total_reward,
+                "feedback": dict(feedback),
+                "created_at": reward.observed_at.isoformat(),
+            })
             self._save()
             return self._state_unlocked(extra={"feedback": {"attached": attached, "reward": reward.to_dict()}})
 
@@ -181,6 +207,8 @@ class DogfoodSessionState:
             self.current_plan = None
             self.current_goal = ""
             self.applied_swift_receipts.clear()
+            self.undo_history.clear()
+            self.feedback_history.clear()
             self.last_error = None
             self._save()
             return self._state_unlocked(extra={"reset": True})
@@ -261,6 +289,8 @@ class DogfoodSessionState:
             "snapshot": snapshot,
             "replay_summary": to_jsonable(summary),
             "training_rows": self.replay.training_table(),
+            "undo_history": self.undo_history,
+            "feedback_history": self.feedback_history,
         }
         if extra:
             response.update(extra)
@@ -324,6 +354,19 @@ class DogfoodSessionState:
                 candidate = receipt.output.get("candidate")
                 if isinstance(candidate, dict):
                     return str(candidate.get("candidate_id", "")) or None
+        return None
+
+    def _receipt_id_for_rollback(self, rollback_handle_id: str) -> str | None:
+        if self.current_plan is None:
+            return None
+        for receipt in reversed(self.current_plan.receipts):
+            swift = receipt.output.get("swift_receipt") if isinstance(receipt.output, dict) else None
+            if (
+                isinstance(swift, dict)
+                and swift.get("rollback_handle_id") == rollback_handle_id
+                and swift.get("sync_status") == "materialized"
+            ):
+                return swift.get("receipt_id") or receipt.swift_receipt_id
         return None
 
     def _candidate_and_receipt_for_reward(self, receipt_id: str) -> tuple[CandidateCalendarAction | None, CalendarActionReceipt | None]:
@@ -417,6 +460,8 @@ class DogfoodSessionState:
             "biography": self.biography.to_dict(),
             "current_plan": self.current_plan.to_dict() if self.current_plan else None,
             "applied_swift_receipts": sorted(self.applied_swift_receipts),
+            "undo_history": self.undo_history,
+            "feedback_history": self.feedback_history,
             "last_error": self.last_error,
         }
         self.session_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
@@ -434,6 +479,8 @@ class DogfoodSessionState:
             self._restore_frontier(self.current_plan)
             self._restore_kernel_undo_ledger()
         self.applied_swift_receipts = set(str(x) for x in data.get("applied_swift_receipts", []))
+        self.undo_history = list(data.get("undo_history", []))
+        self.feedback_history = list(data.get("feedback_history", []))
         self.last_error = data.get("last_error")
 
     @staticmethod

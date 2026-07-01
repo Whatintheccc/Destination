@@ -174,9 +174,9 @@ Acceptance criteria:
 
 ### P1.5 Turn Undo Into A Product Journey
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: Undo now appends a persistent undo journey with before/after provider checksums, provider rollback status, linked original receipt, and undo reward event; browser E2E exercises stage -> confirm -> commit -> undo.
 
 Undo exists as a primitive and appears as text in the UI, but no flow exercises commit -> undo -> updated receipt -> replay.
 
@@ -197,9 +197,9 @@ Acceptance criteria:
 
 ### P1.6 Capture User Feedback/Reward
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: Acting queue feedback now captures accepted/useful/wrong/not-needed/edited/undone/ignored/dismissed/conflict controls, persists feedback history, attaches `RewardEvent`s, and updates training rows/biography.
 
 Replay is trace-aware, but training rows still require attached rewards. The frontend needs feedback controls so committed/staged/denied user actions can become learning data.
 
@@ -220,9 +220,9 @@ Acceptance criteria:
 
 ### P1.7 Add Real Browser E2E After API Controls Exist
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: `scripts/run_browser_e2e.py` starts the live API server and runs `scripts/browser_e2e.spec.mjs` through Playwright over goal -> stage -> confirm -> commit -> undo -> feedback -> training rows.
 
 Current browser E2E can only assert static rendering. Once controls exist, test: goal -> candidate -> stage/confirm -> commit -> undo -> replay/training.
 
@@ -422,3 +422,4 @@ Append links to traces, screenshots, replay exports, policy reports, or PRs here
 | 2026-07-01 | Baseline review | Git history through `b3e81b0`; current `frontend/static/app.js`, `frontend/server.py`, Codex runtime, Swift IPC, provider stubs, replay, tests. | Framework created. |
 | 2026-07-01 | P0 dogfood slice | `python3 -m pytest -q` passed 44 tests; `swift test --package-path packages/CalendarPilotKernel` passed 16 tests; live API smoke test created plan, committed, undid, and attached feedback. | P0 ready for subagent review. |
 | 2026-07-01 | P0 review fixes | Two subagent reviews found restart undo, provider denial, rollback isolation, feedback validation, UI fallback, and IPC undo-tier/timeout gaps. `python3 -m pytest -q` passed 47 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; direct Swift IPC smoke denied out-of-band undo. | P0 review findings addressed. |
+| 2026-07-01 | P1 dogfood slice | `python3 -m pytest -q` passed 47 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; `PYTHONPATH=src python3 scripts/run_browser_e2e.py` passed 1 browser E2E. | P1 ready for subagent review. |

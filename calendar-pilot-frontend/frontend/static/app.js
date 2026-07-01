@@ -87,10 +87,15 @@ function renderAction(action) {
   const confirm = action.receipt_id && ['stageable', 'staged', 'requires_confirmation'].includes(action.status)
     ? `<button data-action="confirm" data-receipt="${receipt}">Confirm</button>` : '';
   const feedback = action.receipt_id ? `<div class="feedback">
+    <button data-action="feedback" data-receipt="${receipt}" data-kind="accepted">Accepted</button>
     <button data-action="feedback" data-receipt="${receipt}" data-kind="explicit_useful">Useful</button>
     <button data-action="feedback" data-receipt="${receipt}" data-kind="explicit_wrong">Wrong</button>
     <button data-action="feedback" data-receipt="${receipt}" data-kind="explicit_not_needed">Not needed</button>
+    <button data-action="feedback" data-receipt="${receipt}" data-kind="edited">Edited</button>
+    <button data-action="feedback" data-receipt="${receipt}" data-kind="undone">Undone</button>
     <button data-action="feedback" data-receipt="${receipt}" data-kind="ignored">Ignored</button>
+    <button data-action="feedback" data-receipt="${receipt}" data-kind="notification_dismissed">Dismissed</button>
+    <button data-action="feedback" data-receipt="${receipt}" data-kind="downstream_conflict">Conflict</button>
   </div>` : '';
   return `<div class="action"><div><strong>${escapeHtml(action.label)}</strong><p class="purpose">${escapeHtml(action.why_user_sees_it || action.control_boundary)}</p><div><code>${receipt}</code></div>${action.rollback_handle_id ? `<div>undo: <code>${escapeHtml(action.rollback_handle_id)}</code></div>` : ''}<div class="controls">${confirm}${undo}</div>${feedback}</div><span class="status ${escapeHtml(action.status)}">${escapeHtml(action.status)}</span></div>`;
 }
@@ -115,6 +120,23 @@ function renderSummary(state) {
   return rows.map(([k, v]) => `<div><span>${escapeHtml(k)}</span><strong>${fmt(v)}</strong></div>`).join('');
 }
 
+function renderUndoHistory(rows = []) {
+  return rows.map(row => `<div class="history-item">
+    <div><strong>${escapeHtml(row.provider_status || row.swift_status || 'undo')}</strong><span>${escapeHtml(row.rollback_handle_id || '')}</span></div>
+    <div><span>before</span><code>${escapeHtml(row.checksum_before || '')}</code></div>
+    <div><span>after</span><code>${escapeHtml(row.checksum_after || '')}</code></div>
+    <div><span>reward</span>${escapeHtml(row.reward_event_id || '-')}</div>
+  </div>`).join('') || '<p class="purpose">No undo journey yet.</p>';
+}
+
+function renderFeedbackHistory(rows = []) {
+  return rows.slice(-8).reverse().map(row => `<div class="history-item">
+    <div><strong>${escapeHtml(row.reward_event_id || 'reward')}</strong><span>${escapeHtml(row.receipt_id || '')}</span></div>
+    <div><span>reward</span>${fmt(row.total_reward)}</div>
+    <div><span>feedback</span>${fmt(row.feedback || {})}</div>
+  </div>`).join('') || '<p class="purpose">No feedback yet.</p>';
+}
+
 function render(state) {
   appState = state;
   const snapshot = state.snapshot || state;
@@ -122,6 +144,8 @@ function render(state) {
   document.getElementById('next-action').textContent = snapshot.summary?.recommended_next_action || 'enter goal';
   document.getElementById('panels').innerHTML = (snapshot.panels || []).map(renderPanel).join('') || '<article class="panel"><h2>No plan yet</h2><p class="purpose">Create a plan to populate machine-learning and machine-acting surfaces.</p></article>';
   document.getElementById('action-queue').innerHTML = (snapshot.action_queue || []).map(renderAction).join('') || '<p class="purpose">No machine acts queued.</p>';
+  document.getElementById('undo-history').innerHTML = renderUndoHistory(state.undo_history || []);
+  document.getElementById('feedback-history').innerHTML = renderFeedbackHistory(state.feedback_history || []);
   document.getElementById('trace').innerHTML = (snapshot.trace || []).map(renderTrace).join('');
   document.getElementById('replay-summary').innerHTML = renderSummary(state);
 }
