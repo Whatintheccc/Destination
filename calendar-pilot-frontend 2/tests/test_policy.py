@@ -1,6 +1,7 @@
 import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, LiveDiffusionGemmaPolicy
 from calendar_pilot.diffusiongemma.live import (
@@ -43,6 +44,22 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaises(LiveDiffusionGemmaCredentialError):
             policy.generate_candidates(self.observation, self.biography)
 
+    def test_nim_client_uses_explicit_tls_context_for_requests(self):
+        client = NvidiaNIMPolicyClient(api_key="test-key", timeout_seconds=1)
+        context = object()
+        response = FakeHTTPResponse(b"{}")
+        with patch.dict("os.environ", {"CALENDAR_PILOT_NIM_CA_FILE": "/tmp/calendarpilot-ca.pem"}), \
+                patch("calendar_pilot.diffusiongemma.live.ssl.create_default_context", return_value=context) as create_context, \
+                patch("calendar_pilot.diffusiongemma.live.urlopen", return_value=response) as open_url:
+            data = client._request_json("GET", "/models", None)
+            health = client.health_status(validate_remote=False)
+
+        self.assertEqual(data, {})
+        create_context.assert_called_once_with(cafile="/tmp/calendarpilot-ca.pem")
+        self.assertIs(open_url.call_args.kwargs["context"], context)
+        self.assertEqual(open_url.call_args.kwargs["timeout"], 1)
+        self.assertEqual(health["tls_ca_bundle_source"], "CALENDAR_PILOT_NIM_CA_FILE")
+
 
 class FakeNIMClient:
     model = "google/diffusiongemma-26b-a4b-it"
@@ -64,6 +81,22 @@ class FakeNIMClient:
 class MissingNIMClient(NvidiaNIMPolicyClient):
     def rank_candidates(self, **_kwargs):
         raise LiveDiffusionGemmaCredentialError("NVIDIA NIM API key is required")
+
+
+class FakeHTTPResponse:
+    status = 200
+
+    def __init__(self, body: bytes):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return None
+
+    def read(self):
+        return self.body
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import ssl
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -80,6 +81,7 @@ class NvidiaNIMPolicyClient:
                 "model": self.model,
                 "base_url": self.base_url,
                 "credential_source": "missing",
+                "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
             }
         if not validate_remote:
             return {
@@ -89,6 +91,7 @@ class NvidiaNIMPolicyClient:
                 "model": self.model,
                 "base_url": self.base_url,
                 "credential_source": _nim_api_key_source(),
+                "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
             }
         try:
             self._request_json("GET", "/models", None)
@@ -105,6 +108,7 @@ class NvidiaNIMPolicyClient:
             "model": self.model,
             "base_url": self.base_url,
             "credential_source": _nim_api_key_source(),
+            "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
         }
 
     def rank_candidates(
@@ -259,7 +263,7 @@ class NvidiaNIMPolicyClient:
             },
         )
         try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
+            with urlopen(request, timeout=self.timeout_seconds, context=_nim_tls_context()) as response:
                 data = json.loads(response.read().decode("utf-8") or "{}")
                 if response.status == 202:
                     return self._poll_status(data)
@@ -273,7 +277,7 @@ class NvidiaNIMPolicyClient:
             if exc.code == 429:
                 raise LiveDiffusionGemmaNetworkError(text or "NIM request rate limited") from exc
             raise LiveDiffusionGemmaRuntimeError(text or f"NIM request failed: {exc.code}") from exc
-        except (TimeoutError, URLError) as exc:
+        except (TimeoutError, URLError, OSError, ssl.SSLError) as exc:
             raise LiveDiffusionGemmaNetworkError(str(exc)) from exc
         except json.JSONDecodeError as exc:
             raise LiveDiffusionGemmaSchemaError(f"NIM response was not JSON: {exc}") from exc
@@ -348,6 +352,29 @@ def _nim_api_key_source() -> str:
         if os.environ.get(key):
             return key
     return "missing"
+
+
+def _nim_tls_context() -> ssl.SSLContext:
+    ca_file = os.environ.get("CALENDAR_PILOT_NIM_CA_FILE")
+    if ca_file:
+        return ssl.create_default_context(cafile=ca_file)
+    try:
+        import certifi  # type: ignore
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
+def _nim_tls_ca_bundle_source() -> str:
+    if os.environ.get("CALENDAR_PILOT_NIM_CA_FILE"):
+        return "CALENDAR_PILOT_NIM_CA_FILE"
+    try:
+        import certifi  # type: ignore
+
+        return f"certifi:{Path(certifi.where()).name}"
+    except Exception:
+        return "system_default"
 
 
 def _redact_secret_text(text: str) -> str:

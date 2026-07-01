@@ -38,13 +38,13 @@ Originally observed after opening the desktop app on `http://127.0.0.1:8787/` on
 - The frontend is dynamic against `/api/*`, but it falls back to `frontend_state.sample.json` when `/api/state` fails.
 - The backend session defaults to sample calendar/profile fixtures and, in fixture mode, constructs `SwiftKernelStub`, `DiffusionGemmaPolicy`, and local `CodexToolRuntime`.
 - `Codex` started as a deterministic local planner/runtime contract. P5 adds `live_codex` mode through Codex app-server and ChatGPT subscription auth, while fixture mode remains deterministic by design.
-- `DiffusionGemma` is currently a deterministic heuristic policy, not NVIDIA NIM or another model-serving endpoint.
+- `DiffusionGemma` started as a deterministic heuristic policy. P6 adds `live_diffusiongemma` mode through NVIDIA NIM while fixture mode remains deterministic by design.
 - `SwiftKernelIPCClient` originally existed but was not selected by the app path. P4 made it satisfy the shared kernel protocol and selected it for `swift_ipc`, `live_codex`, and production-targeted modes.
 - Provider adapters are stubs. Real OAuth, provider sync, conflict truth, external IDs, idempotency, and write execution are not implemented.
 - The UI truthfully reports `local_stub` and `real_oauth: False`.
 - The desktop launcher uses fixed port `8787` and opens the browser after a sleep, so a stale server on that port can be shown if launch ownership is ambiguous.
 
-Conclusion: P0-P2 certify a working local fixture macOS app. P3-P5 now add runtime truth, compiled Swift IPC, and live Codex subscription-auth planning evidence. They still do not certify DiffusionGemma/NIM, real provider behavior, OAuth, or production desktop launch ownership.
+Conclusion: P0-P2 certify a working local fixture macOS app. P3-P6 now add runtime truth, compiled Swift IPC, live Codex subscription-auth planning evidence, and live DiffusionGemma/NVIDIA NIM policy-ranking evidence. They still do not certify real provider behavior, OAuth, or production desktop launch ownership.
 
 ## Dogfood Principles
 
@@ -378,7 +378,7 @@ Acceptance criteria:
 
 ## P6 DiffusionGemma / NVIDIA NIM Policy Serving
 
-Status: In progress; live NIM credential setup pending
+Status: Implemented; architecture review pending before P7
 Owner: model integration
 Goal: replace or augment the heuristic `DiffusionGemmaPolicy` with a real served policy endpoint.
 
@@ -401,7 +401,7 @@ Acceptance criteria:
 
 ### P6.2 Candidate Frontier Provenance
 
-Status: Implemented; live NIM validation pending credential
+Status: Done
 
 Required work:
 
@@ -573,7 +573,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P5 model-backed tool planning | Added structured model-plan validation, redacted prompt context, validated tool-call execution through `CodexToolRuntime`, and app-server JSONL handling for completed agent-message events. | `make live-codex-e2e` passed. Artifact `calendar-pilot-frontend 2/runs/live_codex_e2e/artifacts/live_plan_state.json` shows planner backend `live_codex_app_server`, ChatGPT auth, 5 planned calls, and trace `inspect_week -> generate_candidate_frontier -> compare_candidates -> simulate_action_program -> stage_action_packet`. |
 | 2026-07-01 | P5 release regression | Re-ran the full release gate after live Codex wiring. | `make dogfood-release` passed with `python_tests`, `swift_tests`, `swift_ipc_tests`, `browser_e2e`, `mac_app_build`, `mac_app_sanity`, `mac_app_swift_ipc_sanity`, `launchservices_smoke`, artifact validation, and secret scans all true. |
 | 2026-07-01 | P5 architectural review fixes | Addressed Locke's blockers by statically validating the full model plan before executing any planned tool and by rehydrating Swift IPC authority grants plus rollback handles for `live_codex` and `production` restores, not only `swift_ipc`. | `make py-test`, `make swift-test`, `make swift-ipc-test`, `make live-codex-e2e`, and `make dogfood-release` passed. Added regression tests for terminal commit validation and live-Codex Swift undo rehydration. |
-| 2026-07-01 | P6 NIM policy implementation | Added a NVIDIA NIM policy client and `LiveDiffusionGemmaPolicy` that ranks locally validated candidates rather than inventing calendar mutations. `live_diffusiongemma` now reports backend `nvidia_nim_diffusiongemma_policy`, selects Swift IPC, records policy provenance in replay, exposes candidate control notes, and turns missing NIM credentials into failed receipts instead of heuristic fallback. | `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed. `make live-diffusiongemma-e2e` stopped with setup-required exit code 2 and wrote `runs/live_diffusiongemma_e2e/artifacts/missing_credential.json`; the browser was opened to NVIDIA DiffusionGemma/NIM credential setup. |
+| 2026-07-01 | P6 live DiffusionGemma/NIM verification | Completed manual NVIDIA NIM credential setup through the ignored local `.env`, added certifi-backed TLS handling for the NIM client, and verified live policy ranking without heuristic fallback. `live_diffusiongemma` reports backend `nvidia_nim_diffusiongemma_policy`, selects Swift IPC, records policy provenance in replay, exposes candidate control notes, and turns missing or failed NIM calls into failed receipts instead of provider writes. | `make live-diffusiongemma-e2e` passed with 6 candidate cards and 6 NIM policy replay records under `runs/live_diffusiongemma_e2e/artifacts/`. `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed; release secret scan reported no findings across tracked files, `runs/`, and `dist/`. |
 
 ## Review Log
 
@@ -598,6 +598,6 @@ Run these additional scenarios as P3-P8 come online:
 | Fixture mode can be mistaken for production integration. | P3 | Add explicit runtime mode UI, health endpoint, replay provenance, and release-mode gates. |
 | Swift IPC can regress to the Python stub if mode selection or app packaging breaks. | P4 | Shared kernel protocol, packaged IPC binary, `swift_ipc_runtime_mode_gate`, `swift-ipc-test`, and `mac_app_swift_ipc_sanity` now fail if Swift IPC falls back to `SwiftKernelStub`. |
 | Live Codex subscription-auth planning can regress into unsafe model execution order. | P5 | Pre-execution model-plan validation, replayed validation failures, `test_terminal_commit_plan_is_validated_before_any_execution`, and `make live-codex-e2e` now guard this boundary. |
-| DiffusionGemma/NIM live serving is implemented but not credential-verified. | P6 | NVIDIA credential setup is open in the browser. Do not mark P6 done or start P7 until `make live-diffusiongemma-e2e` passes with `NVIDIA_API_KEY`, `NIM_API_KEY`, or `CALENDAR_PILOT_NIM_API_KEY`, or the dogfood lead explicitly accepts credential-gated completion. |
+| DiffusionGemma/NIM live serving depends on external endpoint, credential, and TLS bundle availability. | P6 | P6 now has a live E2E gate, certifi-backed TLS context with `CALENDAR_PILOT_NIM_CA_FILE` override, runtime health provenance, failed-receipt behavior on NIM failure, and artifact secret scans. Rerun `make live-diffusiongemma-e2e` before release decisions that depend on live policy serving. |
 | Real provider/OAuth behavior is not included in fixture dogfood. | P7 | Add deterministic provider state first, then one real OAuth provider with external IDs, idempotency, conflict truth, and rollback verification. |
 | Fixed-port desktop launch can show a stale server. | P8 | Add port ownership or free-port launch, process identity handshake, and occupied-port release checks. |
