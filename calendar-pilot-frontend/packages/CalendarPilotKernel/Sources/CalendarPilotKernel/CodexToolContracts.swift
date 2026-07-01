@@ -22,26 +22,73 @@ public enum CodexToolName: String, Codable, Hashable, Sendable {
 
 public enum CodexToolStatus: String, Codable, Hashable, Sendable {
     case succeeded
+    case simulated
+    case stageable
     case staged
+    case committed
     case denied
     case requiresConfirmation = "requires_confirmation"
     case failed
 }
 
-public struct JSONValue: Codable, Hashable, Sendable {
-    public var value: String
-    public init(_ value: String) { self.value = value }
+public enum StageState: String, Codable, Hashable, Sendable {
+    case simulated
+    case stageable
+    case requiresConfirmation = "requires_confirmation"
+    case denied
+    case committed
+    case noOp = "no_op"
+}
+
+public enum JSONValue: Codable, Hashable, Sendable {
+    case string(String)
+    case int(Int)
+    case double(Double)
+    case bool(Bool)
+    case object([String: JSONValue])
+    case array([JSONValue])
+    case null
+
+    public init(_ value: String) { self = .string(value) }
+    public init(_ value: Int) { self = .int(value) }
+    public init(_ value: Double) { self = .double(value) }
+    public init(_ value: Bool) { self = .bool(value) }
+    public init(_ value: [String: JSONValue]) { self = .object(value) }
+    public init(_ value: [JSONValue]) { self = .array(value) }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.singleValueContainer()
-        if let string = try? c.decode(String.self) { value = string; return }
-        if let bool = try? c.decode(Bool.self) { value = String(bool); return }
-        if let int = try? c.decode(Int.self) { value = String(int); return }
-        if let double = try? c.decode(Double.self) { value = String(double); return }
-        value = ""
+        if c.decodeNil() { self = .null; return }
+        if let b = try? c.decode(Bool.self) { self = .bool(b); return }
+        if let i = try? c.decode(Int.self) { self = .int(i); return }
+        if let d = try? c.decode(Double.self) { self = .double(d); return }
+        if let s = try? c.decode(String.self) { self = .string(s); return }
+        if let a = try? c.decode([JSONValue].self) { self = .array(a); return }
+        if let o = try? c.decode([String: JSONValue].self) { self = .object(o); return }
+        throw DecodingError.typeMismatch(JSONValue.self, .init(codingPath: decoder.codingPath, debugDescription: "Unsupported JSON value"))
     }
+
     public func encode(to encoder: Encoder) throws {
         var c = encoder.singleValueContainer()
-        try c.encode(value)
+        switch self {
+        case .string(let s): try c.encode(s)
+        case .int(let i): try c.encode(i)
+        case .double(let d): try c.encode(d)
+        case .bool(let b): try c.encode(b)
+        case .object(let o): try c.encode(o)
+        case .array(let a): try c.encode(a)
+        case .null: try c.encodeNil()
+        }
+    }
+
+    public var stringValue: String? {
+        if case .string(let s) = self { return s }
+        return nil
+    }
+
+    public var objectValue: [String: JSONValue]? {
+        if case .object(let o) = self { return o }
+        return nil
     }
 }
 
@@ -51,6 +98,8 @@ public struct CodexToolCall: Codable, Hashable, Sendable {
     public var input: [String: JSONValue]
     public var requestedAuthorityTier: Int
     public var userVisibleReason: String
+    public var authorityGrant: AuthorityGrant?
+    public var correlationID: String?
     public var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -59,15 +108,19 @@ public struct CodexToolCall: Codable, Hashable, Sendable {
         case input
         case requestedAuthorityTier = "requested_authority_tier"
         case userVisibleReason = "user_visible_reason"
+        case authorityGrant = "authority_grant"
+        case correlationID = "correlation_id"
         case createdAt = "created_at"
     }
 
-    public init(toolCallID: String, toolName: CodexToolName, input: [String: JSONValue] = [:], requestedAuthorityTier: Int = 0, userVisibleReason: String = "", createdAt: Date = Date()) {
+    public init(toolCallID: String, toolName: CodexToolName, input: [String: JSONValue] = [:], requestedAuthorityTier: Int = 0, userVisibleReason: String = "", authorityGrant: AuthorityGrant? = nil, correlationID: String? = nil, createdAt: Date = Date()) {
         self.toolCallID = toolCallID
         self.toolName = toolName
         self.input = input
         self.requestedAuthorityTier = requestedAuthorityTier
         self.userVisibleReason = userVisibleReason
+        self.authorityGrant = authorityGrant
+        self.correlationID = correlationID
         self.createdAt = createdAt
     }
 }
@@ -81,6 +134,9 @@ public struct CodexToolReceipt: Codable, Hashable, Sendable {
     public var replayRecordID: String?
     public var deniedReason: String?
     public var requiresUserConfirmation: Bool
+    public var stageState: StageState
+    public var authorityGrantID: String?
+    public var correlationID: String?
     public var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -92,10 +148,13 @@ public struct CodexToolReceipt: Codable, Hashable, Sendable {
         case replayRecordID = "replay_record_id"
         case deniedReason = "denied_reason"
         case requiresUserConfirmation = "requires_user_confirmation"
+        case stageState = "stage_state"
+        case authorityGrantID = "authority_grant_id"
+        case correlationID = "correlation_id"
         case createdAt = "created_at"
     }
 
-    public init(toolCallID: String, toolName: CodexToolName, status: CodexToolStatus, output: [String: JSONValue] = [:], swiftReceiptID: String? = nil, replayRecordID: String? = nil, deniedReason: String? = nil, requiresUserConfirmation: Bool = false, createdAt: Date = Date()) {
+    public init(toolCallID: String, toolName: CodexToolName, status: CodexToolStatus, output: [String: JSONValue] = [:], swiftReceiptID: String? = nil, replayRecordID: String? = nil, deniedReason: String? = nil, requiresUserConfirmation: Bool = false, stageState: StageState = .noOp, authorityGrantID: String? = nil, correlationID: String? = nil, createdAt: Date = Date()) {
         self.toolCallID = toolCallID
         self.toolName = toolName
         self.status = status
@@ -104,6 +163,9 @@ public struct CodexToolReceipt: Codable, Hashable, Sendable {
         self.replayRecordID = replayRecordID
         self.deniedReason = deniedReason
         self.requiresUserConfirmation = requiresUserConfirmation
+        self.stageState = stageState
+        self.authorityGrantID = authorityGrantID
+        self.correlationID = correlationID
         self.createdAt = createdAt
     }
 }

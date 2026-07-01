@@ -89,6 +89,15 @@ class ActuationMode(str, Enum):
     DENIED = "denied"
 
 
+class StageState(str, Enum):
+    SIMULATED = "simulated"
+    STAGEABLE = "stageable"
+    REQUIRES_CONFIRMATION = "requires_confirmation"
+    DENIED = "denied"
+    COMMITTED = "committed"
+    NO_OP = "no_op"
+
+
 @dataclass(frozen=True)
 class RawCalendarEvent:
     event_id: str
@@ -356,6 +365,53 @@ class CandidateCalendarAction:
 
 
 @dataclass(frozen=True)
+class AuthorityGrant:
+    """Swift-issued authority object for machine acting.
+
+    Codex and Python policy may request actions, but they cannot mint authority.
+    A grant is issued by Swift with a maximum tier, scoped action/calendar
+    permissions, expiry, and confirmation provenance. Integer authority tiers in
+    tool calls are treated only as desired tier hints; materialization must see a
+    live grant.
+    """
+
+    grant_id: str
+    user_scope_id: str
+    max_authority_tier: int
+    scopes: list[str]
+    issued_at: datetime
+    expires_at: datetime
+    confirmation_provenance: str
+    issued_by: str = "SwiftKernelStub"
+    confirmed_by_user: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AuthorityGrant":
+        issued_at = parse_dt(data.get("issued_at")) or datetime.now()
+        expires_at = parse_dt(data.get("expires_at")) or issued_at
+        return cls(
+            grant_id=str(data["grant_id"]),
+            user_scope_id=str(data.get("user_scope_id", "default_user")),
+            max_authority_tier=int(data.get("max_authority_tier", 0)),
+            scopes=[str(x) for x in data.get("scopes", [])],
+            issued_at=issued_at,
+            expires_at=expires_at,
+            confirmation_provenance=str(data.get("confirmation_provenance", "")),
+            issued_by=str(data.get("issued_by", "SwiftKernelStub")),
+            confirmed_by_user=bool(data.get("confirmed_by_user", False)),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
+
+    def is_live_at(self, when: datetime) -> bool:
+        return self.issued_at <= when <= self.expires_at
+
+    def allows_scope(self, scope: str) -> bool:
+        return "*" in self.scopes or scope in self.scopes
+
+
+@dataclass(frozen=True)
 class CalendarActionReceipt:
     receipt_id: str
     candidate_id: str
@@ -371,6 +427,10 @@ class CalendarActionReceipt:
     provider_id: str = "local_stub"
     actuation_mode: ActuationMode = ActuationMode.NO_OP
     denied_reason: Optional[str] = None
+    authority_grant_id: Optional[str] = None
+    confirmation_provenance: Optional[str] = None
+    stage_state: StageState = StageState.NO_OP
+    correlation_id: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return to_jsonable(self)
@@ -427,7 +487,10 @@ class CodexToolName(str, Enum):
 
 class CodexToolStatus(str, Enum):
     SUCCEEDED = "succeeded"
+    SIMULATED = "simulated"
+    STAGEABLE = "stageable"
     STAGED = "staged"
+    COMMITTED = "committed"
     DENIED = "denied"
     REQUIRES_CONFIRMATION = "requires_confirmation"
     FAILED = "failed"
@@ -440,17 +503,22 @@ class CodexToolCall:
     input: dict[str, Any]
     requested_authority_tier: int = 0
     user_visible_reason: str = ""
+    authority_grant: Optional[AuthorityGrant] = None
+    correlation_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CodexToolCall":
         created = parse_dt(data.get("created_at")) or datetime.now()
+        grant_payload = data.get("authority_grant")
         return cls(
             tool_call_id=data["tool_call_id"],
             tool_name=CodexToolName(data.get("tool_name", "inspect_week")),
             input=dict(data.get("input", {})),
             requested_authority_tier=int(data.get("requested_authority_tier", 0)),
             user_visible_reason=data.get("user_visible_reason", ""),
+            authority_grant=AuthorityGrant.from_dict(grant_payload) if isinstance(grant_payload, dict) else None,
+            correlation_id=data.get("correlation_id"),
             created_at=created,
         )
 
@@ -468,6 +536,9 @@ class CodexToolReceipt:
     replay_record_id: Optional[str] = None
     denied_reason: Optional[str] = None
     requires_user_confirmation: bool = False
+    stage_state: StageState = StageState.NO_OP
+    authority_grant_id: Optional[str] = None
+    correlation_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
 
     @classmethod
@@ -482,6 +553,9 @@ class CodexToolReceipt:
             replay_record_id=data.get("replay_record_id"),
             denied_reason=data.get("denied_reason"),
             requires_user_confirmation=bool(data.get("requires_user_confirmation", False)),
+            stage_state=StageState(data.get("stage_state", "no_op")),
+            authority_grant_id=data.get("authority_grant_id"),
+            correlation_id=data.get("correlation_id"),
             created_at=created,
         )
 

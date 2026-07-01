@@ -28,12 +28,13 @@ public enum CalendarSyncStatus: String, Codable, Hashable, Sendable {
     case materialized
     case denied
     case reverted
+    case simulated
 }
 
 public enum RightMomentDecision: String, Codable, Hashable, Sendable {
     case actNow = "act_now"
     case notifyNow = "notify_now"
-    case wait = "wait"
+    case wait
     case bundleIntoDigest = "bundle_into_digest"
     case silentlyDraft = "silently_draft"
     case autoWriteThenNotify = "auto_write_then_notify"
@@ -46,7 +47,7 @@ public enum ActuationMode: String, Codable, Hashable, Sendable {
     case materializedWrite = "materialized_write"
     case stagedDraft = "staged_draft"
     case stagedNotification = "staged_notification"
-    case denied = "denied"
+    case denied
 }
 
 public struct RawCalendarEvent: Codable, Hashable, Sendable {
@@ -106,12 +107,74 @@ public struct RawCalendarEvent: Codable, Hashable, Sendable {
     }
 }
 
+public struct RawTask: Codable, Hashable, Sendable {
+    public var taskID: String
+    public var title: String
+    public var due: Date?
+    public var estimatedMinutes: Int
+    public var category: String
+
+    enum CodingKeys: String, CodingKey {
+        case taskID = "task_id"
+        case title
+        case due
+        case estimatedMinutes = "estimated_minutes"
+        case category
+    }
+
+    public init(taskID: String, title: String = "", due: Date? = nil, estimatedMinutes: Int = 30, category: String = "unknown") {
+        self.taskID = taskID
+        self.title = title
+        self.due = due
+        self.estimatedMinutes = estimatedMinutes
+        self.category = category
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.taskID = try c.decode(String.self, forKey: .taskID)
+        self.title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        self.due = try c.decodeIfPresent(Date.self, forKey: .due)
+        self.estimatedMinutes = try c.decodeIfPresent(Int.self, forKey: .estimatedMinutes) ?? 30
+        self.category = try c.decodeIfPresent(String.self, forKey: .category) ?? "unknown"
+    }
+}
+
+public struct DeviceContext: Codable, Hashable, Sendable {
+    public var localHour: Int
+    public var activeSurface: String
+    public var isFocusMode: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case localHour = "local_hour"
+        case activeSurface = "active_surface"
+        case isFocusMode = "is_focus_mode"
+    }
+
+    public init(localHour: Int = 9, activeSurface: String = "unknown", isFocusMode: Bool = false) {
+        self.localHour = localHour
+        self.activeSurface = activeSurface
+        self.isFocusMode = isFocusMode
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.localHour = try c.decodeIfPresent(Int.self, forKey: .localHour) ?? 9
+        self.activeSurface = try c.decodeIfPresent(String.self, forKey: .activeSurface) ?? "unknown"
+        self.isFocusMode = try c.decodeIfPresent(Bool.self, forKey: .isFocusMode) ?? false
+    }
+}
+
 public struct RawCalendarObservation: Codable, Hashable, Sendable {
     public var observationID: String
     public var userScopeID: String
     public var observedAt: Date
     public var timeZoneID: String
     public var events: [RawCalendarEvent]
+    public var tasks: [RawTask]
+    public var deviceContext: DeviceContext
+    public var notificationHistory: [[String: JSONValue]]
+    public var priorActions: [[String: JSONValue]]
 
     enum CodingKeys: String, CodingKey {
         case observationID = "observation_id"
@@ -119,14 +182,35 @@ public struct RawCalendarObservation: Codable, Hashable, Sendable {
         case observedAt = "observed_at"
         case timeZoneID = "time_zone_id"
         case events
+        case tasks
+        case deviceContext = "device_context"
+        case notificationHistory = "notification_history"
+        case priorActions = "prior_actions"
     }
 
-    public init(observationID: String, userScopeID: String, observedAt: Date, timeZoneID: String, events: [RawCalendarEvent]) {
+    public init(observationID: String, userScopeID: String, observedAt: Date, timeZoneID: String, events: [RawCalendarEvent], tasks: [RawTask] = [], deviceContext: DeviceContext = DeviceContext(), notificationHistory: [[String: JSONValue]] = [], priorActions: [[String: JSONValue]] = []) {
         self.observationID = observationID
         self.userScopeID = userScopeID
         self.observedAt = observedAt
         self.timeZoneID = timeZoneID
         self.events = events
+        self.tasks = tasks
+        self.deviceContext = deviceContext
+        self.notificationHistory = notificationHistory
+        self.priorActions = priorActions
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.observationID = try c.decode(String.self, forKey: .observationID)
+        self.userScopeID = try c.decodeIfPresent(String.self, forKey: .userScopeID) ?? "default_user"
+        self.observedAt = try c.decode(Date.self, forKey: .observedAt)
+        self.timeZoneID = try c.decodeIfPresent(String.self, forKey: .timeZoneID) ?? "UTC"
+        self.events = try c.decodeIfPresent([RawCalendarEvent].self, forKey: .events) ?? []
+        self.tasks = try c.decodeIfPresent([RawTask].self, forKey: .tasks) ?? []
+        self.deviceContext = try c.decodeIfPresent(DeviceContext.self, forKey: .deviceContext) ?? DeviceContext()
+        self.notificationHistory = try c.decodeIfPresent([[String: JSONValue]].self, forKey: .notificationHistory) ?? []
+        self.priorActions = try c.decodeIfPresent([[String: JSONValue]].self, forKey: .priorActions) ?? []
     }
 }
 
@@ -303,6 +387,10 @@ public struct CalendarActionReceipt: Codable, Hashable, Sendable {
     public var providerID: String
     public var actuationMode: ActuationMode
     public var deniedReason: String?
+    public var authorityGrantID: String?
+    public var confirmationProvenance: String?
+    public var stageState: StageState
+    public var correlationID: String?
 
     enum CodingKeys: String, CodingKey {
         case receiptID = "receipt_id"
@@ -319,9 +407,13 @@ public struct CalendarActionReceipt: Codable, Hashable, Sendable {
         case providerID = "provider_id"
         case actuationMode = "actuation_mode"
         case deniedReason = "denied_reason"
+        case authorityGrantID = "authority_grant_id"
+        case confirmationProvenance = "confirmation_provenance"
+        case stageState = "stage_state"
+        case correlationID = "correlation_id"
     }
 
-    public init(receiptID: String, candidateID: String, executedAt: Date, executedBy: String, authorityTierUsed: Int, syncStatus: CalendarSyncStatus, rollbackHandleID: String?, conflictCheckPassed: Bool, generatedEventIDs: [String] = [], stagedActionIDs: [String] = [], rejectedActionTypes: [String] = [], providerID: String = "local_swift", actuationMode: ActuationMode = .noOp, deniedReason: String? = nil) {
+    public init(receiptID: String, candidateID: String, executedAt: Date, executedBy: String, authorityTierUsed: Int, syncStatus: CalendarSyncStatus, rollbackHandleID: String?, conflictCheckPassed: Bool, generatedEventIDs: [String] = [], stagedActionIDs: [String] = [], rejectedActionTypes: [String] = [], providerID: String = "local_swift", actuationMode: ActuationMode = .noOp, deniedReason: String? = nil, authorityGrantID: String? = nil, confirmationProvenance: String? = nil, stageState: StageState = .noOp, correlationID: String? = nil) {
         self.receiptID = receiptID
         self.candidateID = candidateID
         self.executedAt = executedAt
@@ -336,6 +428,10 @@ public struct CalendarActionReceipt: Codable, Hashable, Sendable {
         self.providerID = providerID
         self.actuationMode = actuationMode
         self.deniedReason = deniedReason
+        self.authorityGrantID = authorityGrantID
+        self.confirmationProvenance = confirmationProvenance
+        self.stageState = stageState
+        self.correlationID = correlationID
     }
 
     public init(from decoder: Decoder) throws {
@@ -354,6 +450,10 @@ public struct CalendarActionReceipt: Codable, Hashable, Sendable {
         self.providerID = try c.decodeIfPresent(String.self, forKey: .providerID) ?? "local_swift"
         self.actuationMode = try c.decodeIfPresent(ActuationMode.self, forKey: .actuationMode) ?? .noOp
         self.deniedReason = try c.decodeIfPresent(String.self, forKey: .deniedReason)
+        self.authorityGrantID = try c.decodeIfPresent(String.self, forKey: .authorityGrantID)
+        self.confirmationProvenance = try c.decodeIfPresent(String.self, forKey: .confirmationProvenance)
+        self.stageState = try c.decodeIfPresent(StageState.self, forKey: .stageState) ?? .noOp
+        self.correlationID = try c.decodeIfPresent(String.self, forKey: .correlationID)
     }
 }
 
@@ -364,7 +464,21 @@ public struct RewardEvent: Codable, Hashable, Sendable {
     public var accepted: Bool?
     public var edited: Bool?
     public var undone: Bool?
+    public var deletedLater: Bool?
     public var ignored: Bool?
+    public var explicitUseful: Bool?
+    public var explicitWrong: Bool?
+    public var explicitNotNeeded: Bool?
+    public var notificationDismissed: Bool?
+    public var survivedUntilEvent: Bool?
+    public var downstreamConflict: Bool?
+    public var reengaged: Bool?
+    public var utilityReward: Double
+    public var acceptanceReward: Double
+    public var engagementReward: Double
+    public var regretPenalty: Double
+    public var interruptionPenalty: Double
+    public var socialRiskPenalty: Double
     public var totalReward: Double
 
     enum CodingKeys: String, CodingKey {
@@ -374,18 +488,46 @@ public struct RewardEvent: Codable, Hashable, Sendable {
         case accepted
         case edited
         case undone
+        case deletedLater = "deleted_later"
         case ignored
+        case explicitUseful = "explicit_useful"
+        case explicitWrong = "explicit_wrong"
+        case explicitNotNeeded = "explicit_not_needed"
+        case notificationDismissed = "notification_dismissed"
+        case survivedUntilEvent = "survived_until_event"
+        case downstreamConflict = "downstream_conflict"
+        case reengaged
+        case utilityReward = "utility_reward"
+        case acceptanceReward = "acceptance_reward"
+        case engagementReward = "engagement_reward"
+        case regretPenalty = "regret_penalty"
+        case interruptionPenalty = "interruption_penalty"
+        case socialRiskPenalty = "social_risk_penalty"
         case totalReward = "total_reward"
     }
 
-    public init(rewardEventID: String, receiptID: String, observedAt: Date, accepted: Bool? = nil, edited: Bool? = nil, undone: Bool? = nil, ignored: Bool? = nil, totalReward: Double = 0) {
+    public init(rewardEventID: String, receiptID: String, observedAt: Date, accepted: Bool? = nil, edited: Bool? = nil, undone: Bool? = nil, deletedLater: Bool? = nil, ignored: Bool? = nil, explicitUseful: Bool? = nil, explicitWrong: Bool? = nil, explicitNotNeeded: Bool? = nil, notificationDismissed: Bool? = nil, survivedUntilEvent: Bool? = nil, downstreamConflict: Bool? = nil, reengaged: Bool? = nil, utilityReward: Double = 0, acceptanceReward: Double = 0, engagementReward: Double = 0, regretPenalty: Double = 0, interruptionPenalty: Double = 0, socialRiskPenalty: Double = 0, totalReward: Double = 0) {
         self.rewardEventID = rewardEventID
         self.receiptID = receiptID
         self.observedAt = observedAt
         self.accepted = accepted
         self.edited = edited
         self.undone = undone
+        self.deletedLater = deletedLater
         self.ignored = ignored
+        self.explicitUseful = explicitUseful
+        self.explicitWrong = explicitWrong
+        self.explicitNotNeeded = explicitNotNeeded
+        self.notificationDismissed = notificationDismissed
+        self.survivedUntilEvent = survivedUntilEvent
+        self.downstreamConflict = downstreamConflict
+        self.reengaged = reengaged
+        self.utilityReward = utilityReward
+        self.acceptanceReward = acceptanceReward
+        self.engagementReward = engagementReward
+        self.regretPenalty = regretPenalty
+        self.interruptionPenalty = interruptionPenalty
+        self.socialRiskPenalty = socialRiskPenalty
         self.totalReward = totalReward
     }
 }

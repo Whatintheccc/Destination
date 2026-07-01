@@ -129,3 +129,40 @@ PYTHONPATH=src python3 scripts/train_offline_policy.py \
 ```
 
 Read `docs/CODEX_TOOL_EXECUTIVE.md` and `docs/ML_ACTING_SELF_PLAY_LOOP.md` for the new architecture.
+
+## Latest revision: Authority grants and causal tool traces
+
+This pass makes the Codex-executive route the default app path and hardens the machine-acting boundary.
+
+```text
+Codex plans and stages.
+Swift issues authority grants, validates, writes, denies, and audits.
+DiffusionGemma learns from the full trace instead of isolated reward rows.
+```
+
+Key changes:
+
+- Python/Codex can no longer supply naked authority tiers as authority. Swift issues `AuthorityGrant` objects with max tier, scopes, expiry, and confirmation provenance.
+- Swift rejects out-of-band tiers before materialization.
+- Codex tool receipts now distinguish `simulated`, `stageable`, `requires_confirmation`, `denied`, and `committed` states.
+- Swift `JSONValue` is recursive and lossless for nested tool payloads.
+- The demo path is now Codex-first: inspect → candidate frontier → compare → simulate → stage or commit through Swift.
+- Replay records shared causal/correlation IDs across tool calls, tool receipts, candidate decisions, Swift receipts, rewards, self-play episodes, denials, and adversary findings.
+- Offline training consumes the causal trace and emits `PolicyTuning` that can change future policy ranking before right-moment decisions.
+
+Run the current default path:
+
+```bash
+PYTHONPATH=src python3 -m calendar_pilot.app demo \
+  --observation data/sample_calendar.json \
+  --self-play 2 \
+  --replay-out runs/replay.jsonl \
+  --commit
+
+PYTHONPATH=src python3 scripts/train_offline_policy.py \
+  --replay runs/replay.jsonl \
+  --out runs/offline_policy_report.json \
+  --tuning-out runs/policy_tuning.json
+```
+
+Read `docs/SAFETY_CONTRACT_PASS.md` for the authority-grant, staging, replay, and contract-parity details.

@@ -6,7 +6,7 @@ import hashlib
 from typing import Any
 
 from calendar_pilot.codex.tools import CodexToolRuntime
-from calendar_pilot.types import CodexToolCall, CodexToolName, CodexToolReceipt, RawCalendarObservation, UserBiography
+from calendar_pilot.types import AuthorityGrant, CodexToolCall, CodexToolName, CodexToolReceipt, RawCalendarObservation, UserBiography
 
 
 @dataclass
@@ -49,24 +49,32 @@ class CodexToolPlanner:
         commit: bool = False,
     ) -> CodexExecutivePlan:
         plan = CodexExecutivePlan(plan_id=self._plan_id(goal, observation.observation_id), goal=goal)
-        inspect = self._call(CodexToolName.INSPECT_WEEK, {"goal": goal}, authority_tier, "Inspect the raw calendar before asking the model to act.")
+        grant = self.runtime.kernel.issue_authority_grant(
+            user_scope_id=observation.user_scope_id,
+            max_authority_tier=authority_tier,
+            scopes=["recommend", "stage", "commit_private", "undo"],
+            confirmation_provenance=f"codex_plan_goal:{plan.plan_id}",
+            confirmed_by_user=commit,
+            issued_at=observation.observed_at,
+        )
+        inspect = self._call(CodexToolName.INSPECT_WEEK, {"goal": goal}, authority_tier, "Inspect the raw calendar before asking the model to act.", grant=grant, correlation_id=plan.plan_id)
         self._run(plan, inspect, observation, biography)
-        frontier = self._call(CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"goal": goal, "limit": 6}, authority_tier, "Ask DiffusionGemma for candidate futures.")
+        frontier = self._call(CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"goal": goal, "limit": 6}, authority_tier, "Ask DiffusionGemma for candidate futures.", grant=grant, correlation_id=plan.plan_id)
         frontier_receipt = self._run(plan, frontier, observation, biography)
         ids = frontier_receipt.output.get("frontier_ids", [])
-        compare = self._call(CodexToolName.COMPARE_CANDIDATES, {"candidate_ids": ids}, authority_tier, "Compare model futures under reward, regret, and authority.")
+        compare = self._call(CodexToolName.COMPARE_CANDIDATES, {"candidate_ids": ids}, authority_tier, "Compare model futures under reward, regret, and authority.", grant=grant, correlation_id=plan.plan_id)
         compare_receipt = self._run(plan, compare, observation, biography)
         winner = (compare_receipt.output.get("winner") or {}).get("candidate_id")
         if winner:
-            simulate = self._call(CodexToolName.SIMULATE_ACTION_PROGRAM, {"candidate_id": winner}, authority_tier, "Simulate the winning action without committing provider state.")
+            simulate = self._call(CodexToolName.SIMULATE_ACTION_PROGRAM, {"candidate_id": winner}, authority_tier, "Simulate the winning action without committing provider state.", grant=grant, correlation_id=winner)
             sim_receipt = self._run(plan, simulate, observation, biography)
             needs_confirm = bool(sim_receipt.output.get("would_require_confirmation"))
             if commit and not needs_confirm:
-                commit_call = self._call(CodexToolName.REQUEST_COMMIT, {"candidate_id": winner}, authority_tier, "Request Swift to commit the selected packet.")
+                commit_call = self._call(CodexToolName.REQUEST_COMMIT, {"candidate_id": winner}, authority_tier, "Request Swift to commit the selected packet.", grant=grant, correlation_id=winner)
                 commit_receipt = self._run(plan, commit_call, observation, biography)
                 plan.recommended_next_action = "committed" if not commit_receipt.denied_reason else "commit_denied_stage_instead"
             else:
-                stage_call = self._call(CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": winner}, authority_tier, "Stage the packet so the user or authority policy can confirm.")
+                stage_call = self._call(CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": winner}, authority_tier, "Stage the packet so the user or authority policy can confirm.", grant=grant, correlation_id=winner)
                 self._run(plan, stage_call, observation, biography)
                 plan.recommended_next_action = "stage_for_confirmation" if needs_confirm else "staged_draft"
         else:
@@ -80,7 +88,15 @@ class CodexToolPlanner:
         return receipt
 
     @staticmethod
-    def _call(tool_name: CodexToolName, payload: dict[str, Any], tier: int, reason: str) -> CodexToolCall:
+    def _call(
+        tool_name: CodexToolName,
+        payload: dict[str, Any],
+        tier: int,
+        reason: str,
+        *,
+        grant: AuthorityGrant | None = None,
+        correlation_id: str | None = None,
+    ) -> CodexToolCall:
         raw = f"{tool_name.value}|{datetime.now(timezone.utc).isoformat()}|{payload}"
         return CodexToolCall(
             tool_call_id="tool_" + hashlib.sha1(raw.encode()).hexdigest()[:12],
@@ -88,6 +104,8 @@ class CodexToolPlanner:
             input=payload,
             requested_authority_tier=tier,
             user_visible_reason=reason,
+            authority_grant=grant,
+            correlation_id=correlation_id,
             created_at=datetime.now(timezone.utc),
         )
 

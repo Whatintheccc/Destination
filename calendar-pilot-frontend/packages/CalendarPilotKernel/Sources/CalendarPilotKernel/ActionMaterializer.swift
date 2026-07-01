@@ -28,7 +28,11 @@ public struct ActionMaterializer: Sendable {
                     rejectedActionTypes: candidate.actions.map { $0.actionType.rawValue },
                     providerID: "local_swift",
                     actuationMode: .denied,
-                    deniedReason: authority.reason
+                    deniedReason: authority.reason,
+                    authorityGrantID: authority.grantID,
+                    confirmationProvenance: authority.confirmationProvenance,
+                    stageState: .denied,
+                    correlationID: candidate.candidateID
                 ),
                 observation.events,
                 nil
@@ -124,7 +128,12 @@ public struct ActionMaterializer: Sendable {
             stagedActionIDs: stagedIDs,
             rejectedActionTypes: rejectedActionTypes,
             providerID: "local_swift",
-            actuationMode: mode
+            actuationMode: mode,
+            deniedReason: nil,
+            authorityGrantID: authority.grantID,
+            confirmationProvenance: authority.confirmationProvenance,
+            stageState: materializedWrite ? .committed : (stagedOnly ? .requiresConfirmation : .noOp),
+            correlationID: candidate.candidateID
         )
         return (receipt, events, undo)
     }

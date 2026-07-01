@@ -12,6 +12,8 @@ Swift validates, writes, syncs, rolls back, denies, and audits.
 
 Codex does not get provider tokens and does not directly mutate Google, Apple, or Microsoft calendars. It operates the app through typed tool calls and receipts.
 
+As of the authority-grant pass, Codex also does not get to self-assign authority tiers. Swift issues `AuthorityGrant` objects with max tier, scope, expiry, and confirmation provenance. Codex carries those grants through tool calls; Swift validates them again for stage, commit, and undo.
+
 ## New Python modules
 
 ```text
@@ -29,6 +31,7 @@ src/calendar_pilot/codex/planner.py
 ```text
 CodexToolCall
 CodexToolReceipt
+AuthorityGrant
 CodexAutonomyScopeProposal
 PolicyTuning
 ```

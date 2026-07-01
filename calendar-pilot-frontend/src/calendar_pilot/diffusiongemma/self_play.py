@@ -8,7 +8,7 @@ from typing import Protocol
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.replay import ReplayBuffer
-from calendar_pilot.types import CandidateCalendarAction, RawCalendarObservation, RewardEvent, UserBiography
+from calendar_pilot.types import AuthorityGrant, CandidateCalendarAction, RawCalendarObservation, RewardEvent, UserBiography
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,7 @@ class AdversaryFinding:
 
 @dataclass(frozen=True)
 class SelfPlayEpisode:
+    episode_id: str
     episode_index: int
     chosen_candidate_id: str
     chosen_intent: str
@@ -190,10 +191,11 @@ class SelfPlayRunner:
         episodes: int = 10,
         authority_tier: int = 3,
         top_k: int = 4,
+        authority_grant: AuthorityGrant | None = None,
     ) -> SelfPlayMetrics:
         metrics = SelfPlayMetrics()
         for idx in range(episodes):
-            episode = self.run_episode(observation, biography, idx + 1, authority_tier=authority_tier, top_k=top_k)
+            episode = self.run_episode(observation, biography, idx + 1, authority_tier=authority_tier, top_k=top_k, authority_grant=authority_grant)
             self._fold_episode(metrics, episode)
         return metrics
 
@@ -204,16 +206,27 @@ class SelfPlayRunner:
         episode_index: int,
         authority_tier: int = 3,
         top_k: int = 4,
+        authority_grant: AuthorityGrant | None = None,
     ) -> SelfPlayEpisode:
         candidates = self.policy.generate_candidates(observation, biography)
         for rank, candidate in enumerate(candidates[: max(1, top_k)]):
             if self.replay is not None:
-                self.replay.append_decision(candidate, rank=rank)
+                self.replay.append_decision(candidate, rank=rank, trace_id=f"self_play:{episode_index}:{candidate.candidate_id}")
         baseline = next((c for c in candidates if c.intent == "do_nothing"), candidates[-1])
         chosen = self._robust_choice(candidates, top_k=top_k)
-        receipt = self.kernel.authorize_and_materialize(chosen, observation, granted_authority_tier=authority_tier)
+        grant = authority_grant
+        if grant is None and authority_tier > 0:
+            grant = self.kernel.issue_authority_grant(
+                user_scope_id=observation.user_scope_id,
+                max_authority_tier=authority_tier,
+                scopes=["recommend", "stage", "commit_private", "undo"],
+                confirmation_provenance=f"self_play_episode:{episode_index}",
+                confirmed_by_user=True,
+                issued_at=observation.observed_at,
+            )
+        receipt = self.kernel.authorize_and_materialize(chosen, observation, authority_grant=grant, requested_authority_tier=authority_tier)
         if self.replay is not None:
-            self.replay.append_receipt(receipt, chosen)
+            self.replay.append_receipt(receipt, chosen, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}")
         response = self.user_simulator.respond(chosen)
         reward_before = response.reward
         reward_after = reward_before
@@ -239,8 +252,9 @@ class SelfPlayRunner:
             total_reward=reward_after,
         )
         if self.replay is not None:
-            self.replay.append_reward(reward_event, chosen, receipt)
+            self.replay.append_reward(reward_event, chosen, receipt, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}", causal_parent_id=receipt.receipt_id)
         episode = SelfPlayEpisode(
+            episode_id=f"self_play_episode_{episode_index}_{chosen.candidate_id}",
             episode_index=episode_index,
             chosen_candidate_id=chosen.candidate_id,
             chosen_intent=chosen.intent,
@@ -254,7 +268,7 @@ class SelfPlayRunner:
             response_reason=response.reason,
         )
         if self.replay is not None:
-            self.replay.append_episode(episode)
+            self.replay.append_episode(episode, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}", causal_parent_id=receipt.receipt_id)
         return episode
 
     def _robust_choice(self, candidates: list[CandidateCalendarAction], top_k: int) -> CandidateCalendarAction:

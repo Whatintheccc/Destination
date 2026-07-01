@@ -67,8 +67,8 @@ class DiffusionGemmaPolicy:
             self._attach_initial_scores(candidate, observation, biography, signals)
             self.world_model.annotate(candidate, observation, biography, signals)
             self.reward_model.score(candidate)
-            self.right_moment.decide(candidate, observation, biography, signals)
             self._apply_policy_tuning(candidate)
+            self.right_moment.decide(candidate, observation, biography, signals)
         return sorted(candidates, key=lambda c: (c.expected_reward, c.right_moment_score), reverse=True)
 
 
@@ -92,7 +92,7 @@ class DiffusionGemmaPolicy:
         penalty = 0.0
         if candidate.predicted_social_risk > 0.18 or len(candidate.affected_people_ids) >= 3:
             penalty += tuning.failure_penalties.get("social_conflict", 0.0)
-        if candidate.right_moment_decision.value in {"notify_now", "auto_write_then_notify"} and candidate.predicted_interruption_cost > 0.15:
+        if candidate.predicted_interruption_cost > 0.15 and candidate.intent not in {"do_nothing"}:
             penalty += tuning.failure_penalties.get("notification_fatigue", 0.0)
         if candidate.required_authority_tier >= 3 and candidate.predicted_regret > 0.10:
             penalty += tuning.failure_penalties.get("undo_regret", 0.0)

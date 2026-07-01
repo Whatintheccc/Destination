@@ -7,60 +7,76 @@ public struct CodexToolBridge: Sendable {
         self.kernel = kernel
     }
 
+    private func grant(from call: CodexToolCall) -> AuthorityGrant? {
+        if let grant = call.authorityGrant { return grant }
+        if let id = call.input["authority_grant_id"]?.stringValue { return kernel.resolveGrant(id) }
+        return nil
+    }
+
     public func stage(candidate: CandidateCalendarAction, observation: RawCalendarObservation, call: CodexToolCall) -> CodexToolReceipt {
-        let stagedIDs = candidate.actions.enumerated().map { idx, action in
-            "stage_\(action.actionType.rawValue)_\(candidate.candidateID.suffix(8))_\(idx)"
-        }
-        let requiresSocialConfirmation = !candidate.affectedPeopleIDs.isEmpty && candidate.actions.contains { action in
-            switch action.actionType {
-            case .moveEvent, .resizeEvent, .deleteOwnEvent, .autoApplyPlan:
-                return true
-            default:
-                return false
-            }
-        }
+        let grant = grant(from: call)
+        let receipt = kernel.stage(candidate: candidate, observation: observation, authorityGrant: grant, requestedAuthorityTier: call.requestedAuthorityTier)
         return CodexToolReceipt(
             toolCallID: call.toolCallID,
             toolName: .stageActionPacket,
-            status: .staged,
+            status: receipt.deniedReason == nil ? .stageable : .denied,
             output: [
                 "candidate_id": JSONValue(candidate.candidateID),
-                "staged_action_ids": JSONValue(stagedIDs.joined(separator: ",")),
-                "requires_social_confirmation": JSONValue(String(requiresSocialConfirmation))
+                "staged_action_ids": JSONValue(receipt.stagedActionIDs.map { JSONValue($0) }),
+                "stage_state": JSONValue(receipt.stageState.rawValue),
+                "swift_receipt": JSONValue.object([
+                    "receipt_id": JSONValue(receipt.receiptID),
+                    "sync_status": JSONValue(receipt.syncStatus.rawValue),
+                    "actuation_mode": JSONValue(receipt.actuationMode.rawValue)
+                ])
             ],
-            deniedReason: requiresSocialConfirmation ? "requires social actuation confirmation before commit" : nil,
-            requiresUserConfirmation: true,
+            swiftReceiptID: receipt.receiptID,
+            deniedReason: receipt.deniedReason,
+            requiresUserConfirmation: receipt.stageState == .requiresConfirmation || receipt.stageState == .stageable,
+            stageState: receipt.stageState,
+            authorityGrantID: receipt.authorityGrantID,
+            correlationID: candidate.candidateID,
             createdAt: observation.observedAt
         )
     }
 
     public func commit(candidate: CandidateCalendarAction, observation: RawCalendarObservation, call: CodexToolCall) -> CodexToolReceipt {
-        let (receipt, _) = kernel.authorizeAndMaterialize(candidate: candidate, observation: observation, grantedAuthorityTier: call.requestedAuthorityTier)
+        let grant = grant(from: call)
+        let (receipt, _) = kernel.authorizeAndMaterialize(candidate: candidate, observation: observation, authorityGrant: grant, requestedAuthorityTier: call.requestedAuthorityTier)
         return CodexToolReceipt(
             toolCallID: call.toolCallID,
             toolName: .requestCommit,
-            status: receipt.deniedReason == nil ? .succeeded : .denied,
+            status: receipt.deniedReason == nil ? .committed : .denied,
             output: [
                 "candidate_id": JSONValue(candidate.candidateID),
                 "sync_status": JSONValue(receipt.syncStatus.rawValue),
-                "actuation_mode": JSONValue(receipt.actuationMode.rawValue)
+                "actuation_mode": JSONValue(receipt.actuationMode.rawValue),
+                "stage_state": JSONValue(receipt.stageState.rawValue)
             ],
             swiftReceiptID: receipt.receiptID,
             deniedReason: receipt.deniedReason,
             requiresUserConfirmation: false,
+            stageState: receipt.stageState,
+            authorityGrantID: receipt.authorityGrantID,
+            correlationID: candidate.candidateID,
             createdAt: observation.observedAt
         )
     }
 
     public func undo(rollbackHandleID: String, call: CodexToolCall) -> CodexToolReceipt {
-        let restored = kernel.undo(rollbackHandleID: rollbackHandleID)
+        let grant = grant(from: call)
+        let receipt = kernel.undo(rollbackHandleID: rollbackHandleID, authorityGrant: grant)
         return CodexToolReceipt(
             toolCallID: call.toolCallID,
             toolName: .requestUndo,
-            status: restored == nil ? .denied : .succeeded,
-            output: ["rollback_handle_id": JSONValue(rollbackHandleID)],
-            deniedReason: restored == nil ? "rollback handle not found" : nil,
-            requiresUserConfirmation: false
+            status: receipt.deniedReason == nil ? .committed : .denied,
+            output: ["rollback_handle_id": JSONValue(rollbackHandleID), "stage_state": JSONValue(receipt.stageState.rawValue)],
+            swiftReceiptID: receipt.receiptID,
+            deniedReason: receipt.deniedReason,
+            requiresUserConfirmation: false,
+            stageState: receipt.stageState,
+            authorityGrantID: receipt.authorityGrantID,
+            correlationID: rollbackHandleID
         )
     }
 }

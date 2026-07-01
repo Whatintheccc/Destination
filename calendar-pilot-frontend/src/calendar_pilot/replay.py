@@ -12,6 +12,18 @@ from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction,
 class ReplayRecord:
     record_type: str
     payload: dict[str, Any]
+    record_id: str = ""
+    trace_id: str = ""
+    causal_parent_id: str | None = None
+
+    def envelope(self) -> dict[str, Any]:
+        return {
+            "record_type": self.record_type,
+            "record_id": self.record_id,
+            "trace_id": self.trace_id,
+            "causal_parent_id": self.causal_parent_id,
+            "payload": self.payload,
+        }
 
     @property
     def candidate(self) -> dict[str, Any]:
@@ -46,50 +58,65 @@ class ReplaySummary:
 class ReplayBuffer:
     records: list[ReplayRecord] = field(default_factory=list)
 
-    def append_decision(self, candidate: CandidateCalendarAction, rank: int = 0, policy_version: str = "heuristic-v2") -> None:
+    def append_decision(self, candidate: CandidateCalendarAction, rank: int = 0, policy_version: str = "heuristic-v2", *, trace_id: str | None = None, causal_parent_id: str | None = None) -> None:
+        trace = trace_id or candidate.candidate_id
         self.records.append(ReplayRecord(
             record_type="decision",
+            record_id=f"decision:{candidate.candidate_id}:{rank}",
+            trace_id=trace,
+            causal_parent_id=causal_parent_id,
             payload={
                 "candidate": candidate.to_dict(),
                 "rank": rank,
                 "policy_version": policy_version,
+                "trace_id": trace,
             },
         ))
 
-    def append_receipt(self, receipt: CalendarActionReceipt, candidate: CandidateCalendarAction | None = None) -> None:
-        payload: dict[str, Any] = {"receipt": receipt.to_dict()}
+    def append_receipt(self, receipt: CalendarActionReceipt, candidate: CandidateCalendarAction | None = None, *, trace_id: str | None = None, causal_parent_id: str | None = None) -> None:
+        trace = trace_id or receipt.correlation_id or receipt.candidate_id
+        payload: dict[str, Any] = {"receipt": receipt.to_dict(), "trace_id": trace}
         if candidate is not None:
             payload["candidate"] = candidate.to_dict()
-        self.records.append(ReplayRecord(record_type="receipt", payload=payload))
+        self.records.append(ReplayRecord(record_type="receipt", record_id=f"receipt:{receipt.receipt_id}", trace_id=trace, causal_parent_id=causal_parent_id, payload=payload))
 
-    def append_reward(self, reward: RewardEvent, candidate: CandidateCalendarAction | None = None, receipt: CalendarActionReceipt | None = None) -> None:
-        payload: dict[str, Any] = {"reward": reward.to_dict()}
+    def append_reward(self, reward: RewardEvent, candidate: CandidateCalendarAction | None = None, receipt: CalendarActionReceipt | None = None, *, trace_id: str | None = None, causal_parent_id: str | None = None) -> None:
+        trace = trace_id or (candidate.candidate_id if candidate is not None else reward.receipt_id)
+        payload: dict[str, Any] = {"reward": reward.to_dict(), "trace_id": trace}
         if candidate is not None:
             payload["candidate"] = candidate.to_dict()
         if receipt is not None:
             payload["receipt"] = receipt.to_dict()
-        self.records.append(ReplayRecord(record_type="reward", payload=payload))
+        self.records.append(ReplayRecord(record_type="reward", record_id=f"reward:{reward.reward_event_id}", trace_id=trace, causal_parent_id=causal_parent_id, payload=payload))
 
-    def append_episode(self, episode: Any) -> None:
+    def append_episode(self, episode: Any, *, trace_id: str | None = None, causal_parent_id: str | None = None) -> None:
         # Accepts diffusiongemma.self_play.SelfPlayEpisode without importing it,
-        # keeping replay independent of the simulator package.
+        # keeping replay independent of the simulator package. Findings remain
+        # embedded for episode reconstruction and are also emitted as normalized
+        # finding rows; summarize() counts only normalized rows to avoid double-counting.
         payload = to_jsonable(episode)
-        self.records.append(ReplayRecord(record_type="self_play_episode", payload=payload))
-        for finding in payload.get("findings", []):
-            self.records.append(ReplayRecord(record_type="adversary_finding", payload=finding))
-
+        trace = trace_id or payload.get("chosen_candidate_id", "self_play")
+        episode_id = payload.get("episode_id") or f"episode:{payload.get('episode_index', len(self.records))}"
+        self.records.append(ReplayRecord(record_type="self_play_episode", record_id=str(episode_id), trace_id=trace, causal_parent_id=causal_parent_id, payload=payload))
+        for idx, finding in enumerate(payload.get("findings", [])):
+            self.records.append(ReplayRecord(record_type="adversary_finding", record_id=f"{episode_id}:finding:{idx}", trace_id=trace, causal_parent_id=str(episode_id), payload=finding))
 
     def append_tool_call(self, call: CodexToolCall) -> None:
-        self.records.append(ReplayRecord(record_type="codex_tool_call", payload={"call": call.to_dict()}))
+        trace = call.correlation_id or call.tool_call_id
+        self.records.append(ReplayRecord(record_type="codex_tool_call", record_id=f"tool_call:{call.tool_call_id}", trace_id=trace, payload={"call": call.to_dict(), "trace_id": trace}))
 
     def append_tool_receipt(self, receipt: CodexToolReceipt) -> None:
-        self.records.append(ReplayRecord(record_type="codex_tool_receipt", payload={"receipt": receipt.to_dict()}))
+        trace = receipt.correlation_id or receipt.tool_call_id
+        self.records.append(ReplayRecord(record_type="codex_tool_receipt", record_id=f"tool_receipt:{receipt.tool_call_id}:{receipt.created_at.isoformat()}", trace_id=trace, causal_parent_id=receipt.tool_call_id, payload={"receipt": receipt.to_dict(), "trace_id": trace}))
 
     def append_candidate_receipt(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt) -> None:
         # Backward-compatible convenience used by older tests and demos.
+        trace = candidate.candidate_id
         self.records.append(ReplayRecord(
             record_type="candidate_receipt",
-            payload={"candidate": candidate.to_dict(), "receipt": receipt.to_dict()},
+            record_id=f"candidate_receipt:{receipt.receipt_id}",
+            trace_id=trace,
+            payload={"candidate": candidate.to_dict(), "receipt": receipt.to_dict(), "trace_id": trace},
         ))
 
     def attach_reward(self, receipt_id: str, reward: RewardEvent) -> bool:
@@ -106,7 +133,7 @@ class ReplayBuffer:
         p.parent.mkdir(parents=True, exist_ok=True)
         with p.open("w", encoding="utf-8") as f:
             for record in self.records:
-                f.write(json.dumps({"record_type": record.record_type, "payload": record.payload}, sort_keys=True) + "\n")
+                f.write(json.dumps(record.envelope(), sort_keys=True) + "\n")
 
     @classmethod
     def load_jsonl(cls, path: str | Path) -> "ReplayBuffer":
@@ -122,9 +149,15 @@ class ReplayBuffer:
                 # Compatibility with the first replay format.
                 if "record_type" not in data:
                     payload = {k: v for k, v in data.items() if k in {"candidate", "receipt", "reward"}}
-                    buffer.records.append(ReplayRecord(record_type="candidate_receipt", payload=payload))
+                    buffer.records.append(ReplayRecord(record_type="candidate_receipt", payload=payload, record_id="legacy", trace_id=payload.get("candidate", {}).get("candidate_id", "legacy")))
                 else:
-                    buffer.records.append(ReplayRecord(record_type=data["record_type"], payload=data.get("payload", {})))
+                    buffer.records.append(ReplayRecord(
+                        record_type=data["record_type"],
+                        payload=data.get("payload", {}),
+                        record_id=data.get("record_id", ""),
+                        trace_id=data.get("trace_id", data.get("payload", {}).get("trace_id", "")),
+                        causal_parent_id=data.get("causal_parent_id"),
+                    ))
         return buffer
 
     def average_reward(self) -> float:
@@ -151,10 +184,6 @@ class ReplayBuffer:
             if record.record_type == "adversary_finding":
                 label = str(payload.get("label", "unknown"))
                 failure_modes[label] = failure_modes.get(label, 0) + 1
-            if record.record_type == "self_play_episode":
-                for finding in payload.get("findings", []):
-                    label = str(finding.get("label", "unknown"))
-                    failure_modes[label] = failure_modes.get(label, 0) + 1
 
         counts_by_intent = {k: len(v) for k, v in reward_by_intent.items()}
         avg_by_intent = {k: round(sum(v) / len(v), 4) for k, v in reward_by_intent.items() if v}
@@ -190,6 +219,9 @@ class ReplayBuffer:
                 "denied_reason": receipt.get("denied_reason"),
                 "right_moment_decision": candidate.get("right_moment_decision"),
                 "failure_heads": list(candidate.get("reward_breakdown", {}).keys()),
+                "trace_id": record.trace_id or record.payload.get("trace_id"),
+                "record_id": record.record_id,
+                "causal_parent_id": record.causal_parent_id,
             })
         return rows
 

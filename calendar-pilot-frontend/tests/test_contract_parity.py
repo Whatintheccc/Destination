@@ -4,7 +4,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
-from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, CodexToolCall, CodexToolReceipt, RawCalendarObservation, UserBiography
+from calendar_pilot.types import AuthorityGrant, CalendarActionReceipt, CandidateCalendarAction, CodexToolCall, CodexToolReceipt, RawCalendarObservation, RewardEvent, UserBiography
 from calendar_pilot.swift_bridge import SwiftKernelStub
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +24,21 @@ class ContractParityTests(unittest.TestCase):
         props = set(schema["properties"].keys())
         dataclass_names = {f.name for f in fields(CalendarActionReceipt)}
         self.assertTrue(dataclass_names <= props, f"missing from schema: {sorted(dataclass_names - props)}")
+
+
+    def test_authority_grant_schema_covers_python_dataclass(self):
+        schema = json.loads((ROOT / "contracts/authority_grant.schema.json").read_text())
+        props = set(schema["properties"].keys())
+        self.assertTrue({f.name for f in fields(AuthorityGrant)} <= props)
+
+    def test_swift_observation_and_reward_contracts_have_python_parity_fields(self):
+        source = (ROOT / "packages/CalendarPilotKernel/Sources/CalendarPilotKernel/CalendarContracts.swift").read_text()
+        for token in ["RawTask", "DeviceContext", "tasks", "notificationHistory", "priorActions"]:
+            self.assertIn(token, source)
+        for token in ["utilityReward", "acceptanceReward", "engagementReward", "regretPenalty", "interruptionPenalty", "socialRiskPenalty"]:
+            self.assertIn(token, source)
+        schema = json.loads((ROOT / "contracts/reward_event.schema.json").read_text())
+        self.assertTrue({f.name for f in fields(RewardEvent)} <= set(schema["properties"].keys()))
 
     def test_policy_candidate_round_trips_through_contract_dict(self):
         observation = RawCalendarObservation.from_dict(json.loads((ROOT / "data/sample_calendar.json").read_text()))

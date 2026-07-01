@@ -105,13 +105,26 @@ def _open_slots(events: list[RawCalendarEvent], start: datetime, end: datetime) 
 
 
 def _occupied_minutes(events: list[RawCalendarEvent], start: datetime, end: datetime) -> int:
-    minutes = 0
+    """Occupied minutes as interval union, not sum of overlapping events."""
+    intervals: list[tuple[datetime, datetime]] = []
     for event in events:
         overlap_start = max(start, event.start)
         overlap_end = min(end, event.end)
         if overlap_end > overlap_start:
-            minutes += int((overlap_end - overlap_start).total_seconds() // 60)
-    return minutes
+            intervals.append((overlap_start, overlap_end))
+    if not intervals:
+        return 0
+    intervals.sort(key=lambda item: item[0])
+    merged: list[tuple[datetime, datetime]] = []
+    cur_start, cur_end = intervals[0]
+    for next_start, next_end in intervals[1:]:
+        if next_start <= cur_end:
+            cur_end = max(cur_end, next_end)
+        else:
+            merged.append((cur_start, cur_end))
+            cur_start, cur_end = next_start, next_end
+    merged.append((cur_start, cur_end))
+    return sum(int((e - s).total_seconds() // 60) for s, e in merged)
 
 
 def _fatigue(observation: RawCalendarObservation, biography: UserBiography) -> float:

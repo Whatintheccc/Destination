@@ -29,22 +29,23 @@ class CodexToolRuntimeTests(unittest.TestCase):
         runtime = CodexToolRuntime(replay=replay)
         obs = load_obs()
         bio = load_bio()
+        grant = runtime.kernel.issue_authority_grant(user_scope_id=obs.user_scope_id, max_authority_tier=3, issued_at=obs.observed_at)
 
-        inspect = runtime.execute(CodexToolCall("tool_inspect", CodexToolName.INSPECT_WEEK, {}, 3, "inspect"), obs, bio)
+        inspect = runtime.execute(CodexToolCall("tool_inspect", CodexToolName.INSPECT_WEEK, {}, 3, "inspect", authority_grant=grant), obs, bio)
         self.assertEqual(inspect.status, CodexToolStatus.SUCCEEDED)
         self.assertGreaterEqual(inspect.output["event_count"], 1)
         self.assertIn("raw_events", inspect.output)
 
-        frontier = runtime.execute(CodexToolCall("tool_frontier", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 4}, 3, "frontier"), obs, bio)
+        frontier = runtime.execute(CodexToolCall("tool_frontier", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 4}, 3, "frontier", authority_grant=grant), obs, bio)
         self.assertEqual(frontier.status, CodexToolStatus.SUCCEEDED)
         candidate_id = frontier.output["frontier_ids"][0]
 
-        compare = runtime.execute(CodexToolCall("tool_compare", CodexToolName.COMPARE_CANDIDATES, {"candidate_ids": [candidate_id]}, 3, "compare"), obs, bio)
+        compare = runtime.execute(CodexToolCall("tool_compare", CodexToolName.COMPARE_CANDIDATES, {"candidate_ids": [candidate_id]}, 3, "compare", authority_grant=grant), obs, bio)
         self.assertEqual(compare.status, CodexToolStatus.SUCCEEDED)
         self.assertEqual(compare.output["winner"]["candidate_id"], candidate_id)
 
-        staged = runtime.execute(CodexToolCall("tool_stage", CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": candidate_id}, 3, "stage"), obs, bio)
-        self.assertEqual(staged.status, CodexToolStatus.STAGED)
+        staged = runtime.execute(CodexToolCall("tool_stage", CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": candidate_id}, 3, "stage", authority_grant=grant), obs, bio)
+        self.assertEqual(staged.status, CodexToolStatus.STAGEABLE)
         self.assertTrue(staged.requires_user_confirmation)
         summary = replay.summarize()
         self.assertGreaterEqual(summary.tool_calls, 4)
@@ -72,7 +73,8 @@ class CodexToolRuntimeTests(unittest.TestCase):
             reversibility=Reversibility.MEDIUM,
             required_authority_tier=5,
         )
-        receipt = runtime.execute(CodexToolCall("commit_social", CodexToolName.REQUEST_COMMIT, {"candidate": candidate.to_dict()}, 6, "commit"), obs, bio)
+        grant = runtime.kernel.issue_authority_grant(user_scope_id=obs.user_scope_id, max_authority_tier=6, issued_at=obs.observed_at)
+        receipt = runtime.execute(CodexToolCall("commit_social", CodexToolName.REQUEST_COMMIT, {"candidate": candidate.to_dict()}, 6, "commit", authority_grant=grant), obs, bio)
         self.assertEqual(receipt.status, CodexToolStatus.DENIED)
         self.assertIn("social actuation", receipt.denied_reason or "")
 
@@ -91,8 +93,9 @@ class CodexToolRuntimeTests(unittest.TestCase):
         runtime = CodexToolRuntime(replay=replay)
         obs = load_obs()
         bio = load_bio()
-        runtime.execute(CodexToolCall("frontier", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 4}, 3, "frontier"), obs, bio)
-        runtime.execute(CodexToolCall("selfplay", CodexToolName.RUN_SELF_PLAY_PROBE, {"episodes": 3}, 3, "probe"), obs, bio)
+        grant = runtime.kernel.issue_authority_grant(user_scope_id=obs.user_scope_id, max_authority_tier=3, issued_at=obs.observed_at)
+        runtime.execute(CodexToolCall("frontier", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 4}, 3, "frontier", authority_grant=grant), obs, bio)
+        runtime.execute(CodexToolCall("selfplay", CodexToolName.RUN_SELF_PLAY_PROBE, {"episodes": 3}, 3, "probe", authority_grant=grant), obs, bio)
         report = build_policy_report(replay)
         tuning = PolicyTuning.from_dict(report["policy_tuning"])
         policy = DiffusionGemmaPolicy(policy_tuning=tuning)

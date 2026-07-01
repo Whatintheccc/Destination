@@ -13,6 +13,7 @@ from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.types import (
     CalendarActionReceipt,
+    AuthorityGrant,
     CandidateCalendarAction,
     CodexAutonomyScopeProposal,
     CodexToolCall,
@@ -22,6 +23,7 @@ from calendar_pilot.types import (
     RawCalendarEvent,
     RawCalendarObservation,
     UserBiography,
+    StageState,
     to_jsonable,
 )
 
@@ -103,34 +105,49 @@ class CodexToolRuntime:
             return self._compare(call)
         if name == CodexToolName.STAGE_ACTION_PACKET:
             candidate = self._candidate_from_input(call)
-            swift_receipt = self.kernel.stage_candidate(candidate, observation, requested_authority_tier=call.requested_authority_tier)
-            self.replay.append_receipt(swift_receipt, candidate)
-            return self._receipt(
-                call,
-                CodexToolStatus.STAGED,
-                {"candidate": candidate.to_dict(), "swift_receipt": swift_receipt.to_dict()},
-                swift_receipt_id=swift_receipt.receipt_id,
-                requires_confirmation=True,
-                denied=swift_receipt.denied_reason,
-            )
-        if name == CodexToolName.REQUEST_COMMIT:
-            candidate = self._candidate_from_input(call)
-            swift_receipt = self.kernel.authorize_and_materialize(candidate, observation, call.requested_authority_tier)
-            self.replay.append_receipt(swift_receipt, candidate)
-            status = CodexToolStatus.DENIED if swift_receipt.denied_reason else CodexToolStatus.SUCCEEDED
+            grant = self._resolve_grant(call)
+            if grant is None:
+                return self._receipt(call, CodexToolStatus.DENIED, {"stage_state": StageState.DENIED.value}, denied="missing Swift-issued authority grant for staging", stage_state=StageState.DENIED)
+            swift_receipt = self.kernel.stage_candidate(candidate, observation, authority_grant=grant, requested_authority_tier=call.requested_authority_tier)
+            self.replay.append_receipt(swift_receipt, candidate, trace_id=call.correlation_id or candidate.candidate_id, causal_parent_id=call.tool_call_id)
+            status = CodexToolStatus.DENIED if swift_receipt.denied_reason else CodexToolStatus.STAGEABLE
+            requires_confirmation = swift_receipt.stage_state in {StageState.REQUIRES_CONFIRMATION, StageState.STAGEABLE}
             return self._receipt(
                 call,
                 status,
-                {"candidate": candidate.to_dict(), "swift_receipt": swift_receipt.to_dict()},
+                {"candidate": candidate.to_dict(), "swift_receipt": swift_receipt.to_dict(), "stage_state": swift_receipt.stage_state.value},
+                swift_receipt_id=swift_receipt.receipt_id,
+                requires_confirmation=requires_confirmation,
+                denied=swift_receipt.denied_reason,
+                stage_state=swift_receipt.stage_state,
+                authority_grant=grant,
+                correlation_id=call.correlation_id or candidate.candidate_id,
+            )
+        if name == CodexToolName.REQUEST_COMMIT:
+            candidate = self._candidate_from_input(call)
+            grant = self._resolve_grant(call)
+            if grant is None:
+                return self._receipt(call, CodexToolStatus.DENIED, {"stage_state": StageState.DENIED.value}, denied="missing Swift-issued authority grant for commit", stage_state=StageState.DENIED)
+            swift_receipt = self.kernel.authorize_and_materialize(candidate, observation, authority_grant=grant, requested_authority_tier=call.requested_authority_tier)
+            self.replay.append_receipt(swift_receipt, candidate, trace_id=call.correlation_id or candidate.candidate_id, causal_parent_id=call.tool_call_id)
+            status = CodexToolStatus.DENIED if swift_receipt.denied_reason else CodexToolStatus.COMMITTED
+            return self._receipt(
+                call,
+                status,
+                {"candidate": candidate.to_dict(), "swift_receipt": swift_receipt.to_dict(), "stage_state": swift_receipt.stage_state.value},
                 swift_receipt_id=swift_receipt.receipt_id,
                 denied=swift_receipt.denied_reason,
+                stage_state=swift_receipt.stage_state,
+                authority_grant=grant,
+                correlation_id=call.correlation_id or candidate.candidate_id,
             )
         if name == CodexToolName.REQUEST_UNDO:
             rollback_id = str(call.input.get("rollback_handle_id", ""))
-            output = self.kernel.request_undo(rollback_id, observation)
-            self.replay.append_receipt(output)
-            status = CodexToolStatus.DENIED if output.denied_reason else CodexToolStatus.SUCCEEDED
-            return self._receipt(call, status, {"swift_receipt": output.to_dict()}, swift_receipt_id=output.receipt_id, denied=output.denied_reason)
+            grant = self._resolve_grant(call)
+            output = self.kernel.request_undo(rollback_id, observation, authority_grant=grant, requested_authority_tier=call.requested_authority_tier)
+            self.replay.append_receipt(output, trace_id=call.correlation_id or rollback_id, causal_parent_id=call.tool_call_id)
+            status = CodexToolStatus.DENIED if output.denied_reason else CodexToolStatus.COMMITTED
+            return self._receipt(call, status, {"swift_receipt": output.to_dict(), "stage_state": output.stage_state.value}, swift_receipt_id=output.receipt_id, denied=output.denied_reason, stage_state=output.stage_state, authority_grant=grant, correlation_id=call.correlation_id or rollback_id)
         if name == CodexToolName.QUERY_REPLAY_TRACE:
             return self._receipt(call, CodexToolStatus.SUCCEEDED, self._query_replay(call))
         if name == CodexToolName.INSPECT_PROFILE_CLAIMS:
@@ -148,9 +165,10 @@ class CodexToolRuntime:
             return self._receipt(call, CodexToolStatus.SUCCEEDED, {"biography": updated.to_dict(), "last_update": updated.profile_update_events[-1]})
         if name == CodexToolName.RUN_SELF_PLAY_PROBE:
             episodes = int(call.input.get("episodes", 3))
+            grant = self._resolve_grant(call)
             runner = SelfPlayRunner(policy=self.policy, kernel=self.kernel, replay=self.replay)
-            metrics = runner.run(observation, biography, episodes=episodes, authority_tier=call.requested_authority_tier or 3)
-            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"metrics": to_jsonable(metrics), "top_failure_modes": metrics.top_failure_modes})
+            metrics = runner.run(observation, biography, episodes=episodes, authority_grant=grant)
+            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"metrics": to_jsonable(metrics), "top_failure_modes": metrics.top_failure_modes}, authority_grant=grant, correlation_id=call.correlation_id)
         if name == CodexToolName.PROPOSE_AUTONOMY_SCOPE:
             candidate = self._candidate_from_input(call)
             proposal = self._autonomy_scope(candidate)
@@ -176,11 +194,14 @@ class CodexToolRuntime:
         )
 
     def _simulate(self, call: CodexToolCall, candidate: CandidateCalendarAction, observation: RawCalendarObservation) -> CodexToolReceipt:
-        preview = self.kernel.preview_candidate(candidate, observation, requested_authority_tier=call.requested_authority_tier)
+        grant = self._resolve_grant(call)
+        preview = self.kernel.preview_candidate(candidate, observation, authority_grant=grant, requested_authority_tier=call.requested_authority_tier)
         social = bool(candidate.affected_people_ids)
         output = {
             "candidate": candidate.to_dict(),
             "simulation_only": True,
+            "stage_state": preview.stage_state.value,
+            "authority_grant_id": grant.grant_id if grant else None,
             "would_sync_status": preview.sync_status,
             "would_actuation_mode": preview.actuation_mode.value,
             "would_denied_reason": preview.denied_reason,
@@ -189,7 +210,7 @@ class CodexToolRuntime:
             "reward_breakdown": candidate.reward_breakdown,
             "right_moment": candidate.right_moment_decision.value,
         }
-        return self._receipt(call, CodexToolStatus.SUCCEEDED, output, denied=preview.denied_reason)
+        return self._receipt(call, CodexToolStatus.SIMULATED if preview.denied_reason is None else CodexToolStatus.DENIED, output, denied=preview.denied_reason, stage_state=preview.stage_state, authority_grant=grant, correlation_id=call.correlation_id or candidate.candidate_id)
 
     def _compare(self, call: CodexToolCall) -> CodexToolReceipt:
         ids = [str(x) for x in call.input.get("candidate_ids", [])]
@@ -252,15 +273,20 @@ class CodexToolRuntime:
             "is_flexible": event.is_flexible,
         }
 
-    @staticmethod
-    def _authority_scope(call: CodexToolCall) -> dict[str, Any]:
-        tier = call.requested_authority_tier
+    def _authority_scope(self, call: CodexToolCall) -> dict[str, Any]:
+        grant = self._resolve_grant(call)
+        tier = grant.max_authority_tier if grant else 0
         return {
-            "granted_authority_tier": tier,
+            "authority_grant_id": grant.grant_id if grant else None,
+            "requested_authority_tier": call.requested_authority_tier,
+            "max_authority_tier": tier,
+            "grant_scopes": grant.scopes if grant else [],
+            "grant_expires_at": grant.expires_at.isoformat() if grant else None,
+            "confirmation_provenance": grant.confirmation_provenance if grant else None,
             "can_recommend": tier >= 1,
-            "can_stage": tier >= 2,
-            "can_auto_write_reversible_private": tier >= 3,
-            "can_social_actuate": tier >= 5,
+            "can_stage": tier >= 2 and bool(grant and grant.allows_scope("stage")),
+            "can_auto_write_reversible_private": tier >= 3 and bool(grant and grant.allows_scope("commit_private")),
+            "can_social_actuate": tier >= 5 and bool(grant and grant.allows_scope("commit_social")),
             "provider_write_access": "swift_only",
             "codex_direct_provider_access": False,
         }
@@ -291,6 +317,17 @@ class CodexToolRuntime:
                     traces.append({"record_type": record.record_type, "payload": record.payload})
         return {"summary": to_jsonable(summary), "traces": traces[-10:]}
 
+    def _resolve_grant(self, call: CodexToolCall) -> AuthorityGrant | None:
+        if call.authority_grant is not None:
+            return self.kernel.resolve_authority_grant(call.authority_grant)
+        payload_grant = call.input.get("authority_grant")
+        if isinstance(payload_grant, dict):
+            return self.kernel.resolve_authority_grant(AuthorityGrant.from_dict(payload_grant))
+        grant_id = call.input.get("authority_grant_id")
+        if isinstance(grant_id, str):
+            return self.kernel.resolve_authority_grant(grant_id)
+        return None
+
     @staticmethod
     def _denial_explanation(reason: str) -> str:
         if "social actuation" in reason:
@@ -312,6 +349,9 @@ class CodexToolRuntime:
         swift_receipt_id: str | None = None,
         denied: str | None = None,
         requires_confirmation: bool = False,
+        stage_state: StageState = StageState.NO_OP,
+        authority_grant: AuthorityGrant | None = None,
+        correlation_id: str | None = None,
     ) -> CodexToolReceipt:
         return CodexToolReceipt(
             tool_call_id=call.tool_call_id,
@@ -321,5 +361,8 @@ class CodexToolRuntime:
             swift_receipt_id=swift_receipt_id,
             denied_reason=denied,
             requires_user_confirmation=requires_confirmation,
+            stage_state=stage_state,
+            authority_grant_id=authority_grant.grant_id if authority_grant else None,
+            correlation_id=correlation_id or call.correlation_id,
             created_at=datetime.now(timezone.utc),
         )

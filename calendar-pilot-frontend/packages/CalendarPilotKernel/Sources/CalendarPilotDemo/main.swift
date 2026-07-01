@@ -37,6 +37,7 @@ let candidate = CandidateCalendarAction(
 )
 
 let kernel = CalendarKernel()
-let (receipt, events) = kernel.authorizeAndMaterialize(candidate: candidate, observation: observation, grantedAuthorityTier: 3)
+let grant = kernel.issueAuthorityGrant(userScopeID: observation.userScopeID, maxAuthorityTier: 3, confirmationProvenance: "swift_demo", issuedAt: observation.observedAt)
+let (receipt, events) = kernel.authorizeAndMaterialize(candidate: candidate, observation: observation, authorityGrant: grant, requestedAuthorityTier: 3)
 print("Receipt: \(receipt.syncStatus.rawValue), rollback=\(receipt.rollbackHandleID ?? "none"), generated=\(receipt.generatedEventIDs)")
 print("Event count after materialization: \(events.count)")

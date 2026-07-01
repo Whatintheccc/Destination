@@ -18,11 +18,13 @@ class KernelStubTests(unittest.TestCase):
     def test_denies_when_authority_too_low(self):
         receipt = SwiftKernelStub().authorize_and_materialize(self.candidate, self.observation, granted_authority_tier=1)
         self.assertEqual(receipt.sync_status, "denied")
-        self.assertIn("authority", receipt.denied_reason)
+        self.assertIn("Swift-issued authority grant", receipt.denied_reason)
 
     def test_materializes_with_rollback(self):
         self.candidate.reversibility = Reversibility.HIGH
-        receipt = SwiftKernelStub().authorize_and_materialize(self.candidate, self.observation, granted_authority_tier=3)
+        kernel = SwiftKernelStub()
+        grant = kernel.issue_authority_grant(user_scope_id=self.observation.user_scope_id, max_authority_tier=3, issued_at=self.observation.observed_at)
+        receipt = kernel.authorize_and_materialize(self.candidate, self.observation, authority_grant=grant, requested_authority_tier=3)
         self.assertEqual(receipt.sync_status, "materialized")
         self.assertIsNotNone(receipt.rollback_handle_id)
 

@@ -32,32 +32,52 @@ def run_demo(args: argparse.Namespace) -> None:
     tool_runtime = CodexToolRuntime(policy=policy, kernel=kernel, replay=replay)
     tool_planner = CodexToolPlanner(runtime=tool_runtime)
 
-    candidates = policy.generate_candidates(observation, biography)
-    best = candidates[0]
-    receipt = kernel.authorize_and_materialize(best, observation, granted_authority_tier=args.authority_tier)
-    explanation = codex.explain(best, receipt, biography)
+    # Default app path is now Codex-executive: Codex inspects, asks the policy for
+    # a frontier, simulates, stages, and only then requests Swift commit when the
+    # authority grant and confirmation semantics permit it. The older direct path
+    # remains represented in tests as a kernel primitive, not as the app flow.
+    plan = tool_planner.plan_goal(args.goal, observation, biography, authority_tier=args.authority_tier, commit=args.commit)
+    print("Codex executive plan:")
+    print(json.dumps(plan.to_dict(), indent=2))
 
-    print("Top candidate:")
-    print(json.dumps(best.to_dict(), indent=2))
-    print("\nSwift receipt:")
-    print(json.dumps(receipt.to_dict(), indent=2))
-    print("\nCodex explanation:")
-    print(explanation)
+    committed_receipts = [r for r in plan.receipts if r.swift_receipt_id and r.status.value in {"committed", "denied", "stageable"}]
+    if committed_receipts:
+        last = committed_receipts[-1]
+        print("\nLast Swift-facing receipt:")
+        print(json.dumps(last.to_dict(), indent=2))
 
-    if args.codex_tools:
-        plan = tool_planner.plan_goal(args.goal, observation, biography, authority_tier=args.authority_tier, commit=args.commit)
-        print("\nCodex tool plan:")
-        print(json.dumps(plan.to_dict(), indent=2))
+    # Keep a human-readable action explanation, but make it downstream of the
+    # tool plan rather than the default path into actuation.
+    for receipt in reversed(plan.receipts):
+        candidate_payload = receipt.output.get("candidate") if isinstance(receipt.output, dict) else None
+        swift_payload = receipt.output.get("swift_receipt") if isinstance(receipt.output, dict) else None
+        if isinstance(candidate_payload, dict) and isinstance(swift_payload, dict):
+            from calendar_pilot.types import CandidateCalendarAction, CalendarActionReceipt
+            candidate = CandidateCalendarAction.from_dict(candidate_payload)
+            # CalendarActionReceipt does not need from_dict in the demo; pass a light shim by reusing the payload text.
+            print("\nCodex explanation:")
+            print("Codex operated through Swift. See the typed tool receipt above for authority grant, stage state, and denial/commit status.")
+            print("Candidate story:")
+            print("\n".join(f"- {line}" for line in candidate.model_story[:4]))
+            break
 
     if args.self_play:
-        metrics = SelfPlayRunner(policy=policy, kernel=kernel, replay=replay).run(observation, biography, episodes=args.self_play, authority_tier=args.authority_tier)
+        grant = kernel.issue_authority_grant(
+            user_scope_id=observation.user_scope_id,
+            max_authority_tier=args.authority_tier,
+            scopes=["recommend", "stage", "commit_private", "undo"],
+            confirmation_provenance="demo_self_play_scope",
+            confirmed_by_user=True,
+            issued_at=observation.observed_at,
+        )
+        metrics = SelfPlayRunner(policy=policy, kernel=kernel, replay=replay).run(observation, biography, episodes=args.self_play, authority_grant=grant)
         print("\nSelf-play metrics:")
         print(json.dumps(asdict(metrics) | {"acceptance_rate": metrics.acceptance_rate, "undo_rate": metrics.undo_rate, "average_reward": metrics.average_reward}, indent=2))
         print("\nCodex self-play summary:")
         print(codex.summarize_self_play(metrics))
-        if args.replay_out:
-            replay.save_jsonl(args.replay_out)
-            print(f"\nReplay written to {args.replay_out}")
+    if args.replay_out:
+        replay.save_jsonl(args.replay_out)
+        print(f"\nReplay written to {args.replay_out}")
 
 
 def main() -> None:
@@ -69,7 +89,7 @@ def main() -> None:
     demo.add_argument("--authority-tier", type=int, default=3)
     demo.add_argument("--self-play", type=int, default=5)
     demo.add_argument("--replay-out", default="")
-    demo.add_argument("--codex-tools", action="store_true", help="run the Codex tool-using executive loop")
+    demo.add_argument("--codex-tools", action="store_true", help="kept for CLI compatibility; Codex tools are now the default path")
     demo.add_argument("--goal", default="Make next week less chaotic")
     demo.add_argument("--commit", action="store_true", help="allow Codex planner to request Swift commit when simulation does not require confirmation")
     demo.set_defaults(func=run_demo)

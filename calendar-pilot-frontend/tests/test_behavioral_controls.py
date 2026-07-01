@@ -50,7 +50,7 @@ class BehavioralControlTests(unittest.TestCase):
         self.assertEqual(receipt.sync_status, "denied")
         self.assertEqual(receipt.actuation_mode.value, "denied")
         self.assertTrue(receipt.rejected_action_types)
-        self.assertIn("authority", receipt.denied_reason)
+        self.assertIn("Swift-issued authority grant", receipt.denied_reason)
 
     def test_social_actuation_boundary_denies_people_mutation(self):
         observation = self._observation(False)
@@ -71,7 +71,9 @@ class BehavioralControlTests(unittest.TestCase):
             reversibility=Reversibility.MEDIUM,
             required_authority_tier=5,
         )
-        receipt = SwiftKernelStub().authorize_and_materialize(candidate, observation, granted_authority_tier=6)
+        kernel = SwiftKernelStub()
+        grant = kernel.issue_authority_grant(user_scope_id=observation.user_scope_id, max_authority_tier=6, issued_at=observation.observed_at)
+        receipt = kernel.authorize_and_materialize(candidate, observation, authority_grant=grant, requested_authority_tier=6)
         self.assertEqual(receipt.sync_status, "denied")
         self.assertIn("social actuation", receipt.denied_reason)
 
@@ -94,7 +96,9 @@ class BehavioralControlTests(unittest.TestCase):
             reversibility=Reversibility.HIGH,
             required_authority_tier=2,
         )
-        receipt = SwiftKernelStub().authorize_and_materialize(candidate, observation, granted_authority_tier=2)
+        kernel = SwiftKernelStub()
+        grant = kernel.issue_authority_grant(user_scope_id=observation.user_scope_id, max_authority_tier=2, scopes=["recommend", "stage", "commit_private", "undo"], issued_at=observation.observed_at)
+        receipt = kernel.authorize_and_materialize(candidate, observation, authority_grant=grant, requested_authority_tier=2)
         self.assertEqual(receipt.sync_status, "staged")
         self.assertEqual(receipt.generated_event_ids, [])
         self.assertTrue(receipt.staged_action_ids)
