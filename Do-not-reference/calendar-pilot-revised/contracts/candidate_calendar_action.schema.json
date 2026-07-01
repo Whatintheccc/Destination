@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calendar-pilot.local/contracts/candidate_calendar_action.schema.json",
+  "title": "CandidateCalendarActionV1",
+  "type": "object",
+  "required": ["candidate_id", "intent", "actions", "required_authority_tier", "reversibility"],
+  "properties": {
+    "candidate_id": {"type": "string"},
+    "intent": {"type": "string"},
+    "actions": {"type": "array"},
+    "target_calendars": {"type": "array", "items": {"type": "string"}},
+    "affected_event_ids": {"type": "array", "items": {"type": "string"}},
+    "affected_people_ids": {"type": "array", "items": {"type": "string"}},
+    "reversibility": {"enum": ["none", "low", "medium", "high"]},
+    "required_authority_tier": {"type": "integer", "minimum": 0, "maximum": 6},
+    "predicted_acceptance": {"type": "number"},
+    "predicted_utility": {"type": "number"},
+    "predicted_engagement": {"type": "number"},
+    "predicted_regret": {"type": "number"},
+    "predicted_interruption_cost": {"type": "number"},
+    "predicted_social_risk": {"type": "number"},
+    "expected_reward": {"type": "number"},
+    "right_moment_decision": {"type": "string"},
+    "explanation": {"type": "string"}
+  }
+}
