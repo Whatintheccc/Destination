@@ -183,6 +183,7 @@ class CodexToolRuntime:
 
     def _generate_frontier(self, call: CodexToolCall, observation: RawCalendarObservation, biography: UserBiography) -> CodexToolReceipt:
         limit = int(call.input.get("limit", 5))
+        self.frontier.clear()
         try:
             candidates = self.policy.generate_candidates(observation, biography)[:limit]
         except LiveDiffusionGemmaError as exc:
@@ -239,9 +240,10 @@ class CodexToolRuntime:
         return self._receipt(call, CodexToolStatus.SIMULATED if preview.denied_reason is None else CodexToolStatus.DENIED, output, denied=preview.denied_reason, stage_state=preview.stage_state, authority_grant=grant, correlation_id=call.correlation_id or candidate.candidate_id)
 
     def _compare(self, call: CodexToolCall) -> CodexToolReceipt:
-        ids = [str(x) for x in call.input.get("candidate_ids", [])]
+        requested_ids = call.input.get("candidate_ids")
+        ids = [str(x) for x in requested_ids] if isinstance(requested_ids, list) else []
         candidates = [self.frontier[i] for i in ids if i in self.frontier]
-        if not candidates:
+        if not candidates and "candidate_ids" not in call.input:
             candidates = sorted(self.frontier.values(), key=lambda c: c.expected_reward, reverse=True)[:5]
         rows = []
         for c in candidates:

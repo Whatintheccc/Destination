@@ -72,6 +72,14 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaises(LiveDiffusionGemmaCredentialError):
             policy.generate_candidates(self.observation, self.biography)
 
+    def test_nim_parser_rank_text_fallback_only_accepts_known_candidates(self):
+        candidates = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[:3]
+        text = f"1. {candidates[1].candidate_id} is safest\n2. cand_not_real should be ignored\n3. {candidates[0].candidate_id}"
+        parsed = NvidiaNIMPolicyClient._parse_rank_payload(text, candidates)
+
+        self.assertEqual([row.candidate_id for row in parsed["ranks"]], [candidates[1].candidate_id, candidates[0].candidate_id])
+        self.assertEqual(parsed["validation_errors"], ["non_json_rank_text_fallback"])
+
     def test_nim_client_uses_explicit_tls_context_for_requests(self):
         client = NvidiaNIMPolicyClient(api_key="test-key", timeout_seconds=1)
         context = object()

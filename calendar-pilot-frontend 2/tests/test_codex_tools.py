@@ -108,6 +108,8 @@ class CodexToolRuntimeTests(unittest.TestCase):
     def test_live_policy_failure_returns_failed_frontier_receipt(self):
         replay = ReplayBuffer()
         runtime = CodexToolRuntime(policy=MissingLivePolicy(), replay=replay)
+        stale = DiffusionGemmaPolicy().generate_candidates(load_obs(), load_bio())[0]
+        runtime.frontier[stale.candidate_id] = stale
         receipt = runtime.execute(
             CodexToolCall("frontier_missing_nim", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"limit": 4}, 3, "frontier"),
             load_obs(),
@@ -118,6 +120,25 @@ class CodexToolRuntimeTests(unittest.TestCase):
         self.assertEqual(receipt.output["error_category"], "missing_or_invalid_credential")
         self.assertIn("NVIDIA NIM", receipt.output["recovery"])
         self.assertEqual(replay.records[-1].payload["receipt"]["status"], "failed")
+        self.assertEqual(runtime.frontier, {})
+
+    def test_planner_does_not_use_stale_frontier_after_live_policy_failure(self):
+        obs = load_obs()
+        bio = load_bio()
+        runtime = CodexToolRuntime(policy=MissingLivePolicy())
+        stale = DiffusionGemmaPolicy().generate_candidates(obs, bio)[0]
+        runtime.frontier[stale.candidate_id] = stale
+
+        plan = CodexToolPlanner(runtime=runtime).plan_goal("Make next week less chaotic", obs, bio, authority_tier=3, commit=True)
+
+        names = [call.tool_name for call in plan.calls]
+        self.assertIn(CodexToolName.GENERATE_CANDIDATE_FRONTIER, names)
+        self.assertIn(CodexToolName.COMPARE_CANDIDATES, names)
+        self.assertNotIn(CodexToolName.SIMULATE_ACTION_PROGRAM, names)
+        self.assertNotIn(CodexToolName.STAGE_ACTION_PACKET, names)
+        self.assertNotIn(CodexToolName.REQUEST_COMMIT, names)
+        self.assertEqual(plan.recommended_next_action, "no_candidate_available")
+        self.assertEqual(runtime.frontier, {})
 
     def test_tool_contract_round_trip(self):
         call = CodexToolCall("tool_x", CodexToolName.INSPECT_AUTHORITY_SCOPE, {"x": 1}, 3, "because")

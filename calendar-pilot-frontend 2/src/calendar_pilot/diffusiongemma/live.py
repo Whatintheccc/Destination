@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import re
 import ssl
 import time
 from typing import Any
@@ -121,6 +122,7 @@ class NvidiaNIMPolicyClient:
             "temperature": 0,
             "top_p": 1,
             "stream": False,
+            "response_format": self._response_format(),
             "chat_template_kwargs": {"enable_thinking": False},
         }
         data = self._request_json("POST", "/chat/completions", payload)
@@ -142,7 +144,7 @@ class NvidiaNIMPolicyClient:
                 "fallback_behavior": self._fallback_behavior(),
                 "validation": {
                     "candidate_contract": "CandidateCalendarAction",
-                    "validation_errors": [],
+                    "validation_errors": parsed["validation_errors"],
                 },
                 "redaction_policy": "event titles, attendees, notes, and locations omitted from NIM prompt",
             },
@@ -171,14 +173,19 @@ class NvidiaNIMPolicyClient:
         clean = text.strip()
         if clean.startswith("```"):
             clean = "\n".join(line for line in clean.splitlines() if not line.strip().startswith("```")).strip()
+        validation_errors: list[str] = []
         try:
             payload = json.loads(clean)
         except json.JSONDecodeError:
             start = clean.find("{")
             end = clean.rfind("}")
             if start < 0 or end <= start:
-                raise LiveDiffusionGemmaSchemaError("NIM policy response was not JSON")
-            payload = json.loads(clean[start:end + 1])
+                return NvidiaNIMPolicyClient._parse_rank_text_fallback(clean, candidates, "non_json_rank_text_fallback")
+            try:
+                payload = json.loads(clean[start:end + 1])
+                validation_errors.append("json_extracted_from_surrounding_text")
+            except json.JSONDecodeError:
+                return NvidiaNIMPolicyClient._parse_rank_text_fallback(clean, candidates, "malformed_json_rank_text_fallback")
         if not isinstance(payload, dict):
             raise LiveDiffusionGemmaSchemaError("NIM policy response was not a JSON object")
         known = {candidate.candidate_id for candidate in candidates}
@@ -198,9 +205,33 @@ class NvidiaNIMPolicyClient:
                 reason=str(item.get("reason") or "NIM policy ranked this candidate."),
             ))
         if not ranks:
-            raise LiveDiffusionGemmaSchemaError("NIM policy response did not rank any known candidate")
+            return NvidiaNIMPolicyClient._parse_rank_text_fallback(clean, candidates, "json_without_known_rank_fallback")
         ranks.sort(key=lambda row: row.rank)
-        return {"ranks": ranks, "policy_summary": str(payload.get("policy_summary") or "")}
+        return {"ranks": ranks, "policy_summary": str(payload.get("policy_summary") or ""), "validation_errors": validation_errors}
+
+    @staticmethod
+    def _parse_rank_text_fallback(text: str, candidates: list[CandidateCalendarAction], validation_error: str) -> dict[str, Any]:
+        positions: list[tuple[int, str]] = []
+        for candidate in candidates:
+            match = re.search(rf"\b{re.escape(candidate.candidate_id)}\b", text)
+            if match:
+                positions.append((match.start(), candidate.candidate_id))
+        if not positions:
+            raise LiveDiffusionGemmaSchemaError("NIM policy response did not rank any known candidate")
+        ranks = [
+            NIMPolicyRank(
+                candidate_id=candidate_id,
+                rank=idx + 1,
+                score_delta=0.0,
+                reason="NIM response referenced this candidate outside the strict JSON schema; accepted as rank-only fallback.",
+            )
+            for idx, (_pos, candidate_id) in enumerate(sorted(positions))
+        ]
+        return {
+            "ranks": ranks,
+            "policy_summary": "NIM response was parsed with rank-only fallback over known candidate IDs.",
+            "validation_errors": [validation_error],
+        }
 
     @staticmethod
     def _ranking_prompt(
@@ -315,14 +346,46 @@ class NvidiaNIMPolicyClient:
             "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
         } | payload
 
-    @staticmethod
-    def _decoding_settings() -> dict[str, Any]:
+    @classmethod
+    def _decoding_settings(cls) -> dict[str, Any]:
         return {
             "max_tokens": 900,
             "temperature": 0,
             "top_p": 1,
             "stream": False,
+            "response_format": cls._response_format(),
             "enable_thinking": False,
+        }
+
+    @staticmethod
+    def _response_format() -> dict[str, Any]:
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "calendar_pilot_policy_rank",
+                "schema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["ranked_candidates", "policy_summary"],
+                    "properties": {
+                        "ranked_candidates": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["candidate_id", "rank", "score_delta", "reason"],
+                                "properties": {
+                                    "candidate_id": {"type": "string"},
+                                    "rank": {"type": "integer"},
+                                    "score_delta": {"type": "number"},
+                                    "reason": {"type": "string"},
+                                },
+                            },
+                        },
+                        "policy_summary": {"type": "string"},
+                    },
+                },
+            },
         }
 
     @staticmethod
