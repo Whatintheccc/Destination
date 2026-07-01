@@ -103,8 +103,9 @@ public final class CalendarKernel: @unchecked Sendable {
         )
     }
 
-    public func undo(rollbackHandleID: String, authorityGrant: AuthorityGrant?, observedAt: Date = Date()) -> CalendarActionReceipt {
+    public func undo(rollbackHandleID: String, authorityGrant: AuthorityGrant?, observedAt: Date = Date(), requestedAuthorityTier: Int? = nil) -> CalendarActionReceipt {
         let resolved = authorityGrant.flatMap { grants[$0.grantID] }
+        let desiredTier = requestedAuthorityTier ?? resolved?.maxAuthorityTier ?? 0
         let denied: String?
         if resolved == nil {
             denied = "missing Swift-issued authority grant for undo"
@@ -112,6 +113,8 @@ public final class CalendarKernel: @unchecked Sendable {
             denied = "authority grant expired before undo"
         } else if !resolved!.confirmedByUser {
             denied = "authority grant lacks user confirmation provenance for undo"
+        } else if desiredTier > resolved!.maxAuthorityTier {
+            denied = "out-of-band authority tier rejected before undo"
         } else if !resolved!.allows("undo") {
             denied = "authority grant scope does not include undo"
         } else if undoLedger.removeValue(forKey: rollbackHandleID) == nil {

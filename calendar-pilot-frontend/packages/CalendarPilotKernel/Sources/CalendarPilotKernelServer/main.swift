@@ -52,11 +52,13 @@ struct UndoPayload: Codable {
     var rollbackHandleID: String
     var authorityGrantID: String?
     var observedAt: Date
+    var requestedAuthorityTier: Int?
 
     enum CodingKeys: String, CodingKey {
         case rollbackHandleID = "rollback_handle_id"
         case authorityGrantID = "authority_grant_id"
         case observedAt = "observed_at"
+        case requestedAuthorityTier = "requested_authority_tier"
     }
 }
 
@@ -133,7 +135,8 @@ final class KernelRPCServer {
             let receipt = kernel.undo(
                 rollbackHandleID: payload.rollbackHandleID,
                 authorityGrant: payload.authorityGrantID.flatMap { kernel.resolveGrant($0) },
-                observedAt: payload.observedAt
+                observedAt: payload.observedAt,
+                requestedAuthorityTier: payload.requestedAuthorityTier
             )
             return try ok(request, ["receipt": toJSONValue(receipt)])
         default:

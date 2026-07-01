@@ -421,3 +421,4 @@ Append links to traces, screenshots, replay exports, policy reports, or PRs here
 |---|---|---|---|
 | 2026-07-01 | Baseline review | Git history through `b3e81b0`; current `frontend/static/app.js`, `frontend/server.py`, Codex runtime, Swift IPC, provider stubs, replay, tests. | Framework created. |
 | 2026-07-01 | P0 dogfood slice | `python3 -m pytest -q` passed 44 tests; `swift test --package-path packages/CalendarPilotKernel` passed 16 tests; live API smoke test created plan, committed, undid, and attached feedback. | P0 ready for subagent review. |
+| 2026-07-01 | P0 review fixes | Two subagent reviews found restart undo, provider denial, rollback isolation, feedback validation, UI fallback, and IPC undo-tier/timeout gaps. `python3 -m pytest -q` passed 47 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; direct Swift IPC smoke denied out-of-band undo. | P0 review findings addressed. |

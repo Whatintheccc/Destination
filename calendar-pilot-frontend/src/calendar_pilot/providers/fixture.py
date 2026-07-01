@@ -122,12 +122,13 @@ class FixtureCalendarProvider:
             return self._result_from_dict(state["idempotency"][idempotency_key], idempotent_replay=True)
 
         checksum_before = self._checksum(state["events"])
-        before_events = dict(state["events"])
+        rollback_changes: dict[str, dict[str, Any] | None] = {}
         external_ids: list[str] = []
         changed = False
         for idx, action in enumerate(candidate.actions):
             if action.action_type not in WRITE_ACTIONS:
                 continue
+            before_action = dict(state["events"])
             action_external_ids, action_changed = self._apply_action_to_state(
                 state,
                 action,
@@ -136,10 +137,12 @@ class FixtureCalendarProvider:
             )
             external_ids.extend(action_external_ids)
             changed = changed or action_changed
+            if action_changed:
+                self._record_changes(rollback_changes, before_action, state["events"])
 
         if rollback_handle_id and changed:
             state["rollback"][rollback_handle_id] = {
-                "events": before_events,
+                "changes": rollback_changes,
                 "candidate_id": candidate.candidate_id,
                 "checksum_before": checksum_before,
             }
@@ -194,10 +197,14 @@ class FixtureCalendarProvider:
                 state["idempotency"][key] = result.to_dict()
             self._write(state)
             return result
-        state["events"] = record["events"]
+        for event_id, prior in record.get("changes", {}).items():
+            if prior is None:
+                state["events"].pop(event_id, None)
+            else:
+                state["events"][event_id] = prior
         state["version"] = int(state["version"]) + 1
         checksum_after = self._checksum(state["events"])
-        verified = checksum_after == record["checksum_before"]
+        verified = self._changes_restored(state["events"], record.get("changes", {}))
         result = FixtureProviderApplyResult(
             receipt=CalendarProviderReceipt(
                 self.provider_id,
@@ -217,6 +224,13 @@ class FixtureCalendarProvider:
 
     def checksum(self) -> str:
         return self._checksum(self._read()["events"])
+
+    def rollback_records(self) -> dict[str, str]:
+        state = self._read()
+        return {
+            str(handle): str(record.get("candidate_id", handle))
+            for handle, record in state.get("rollback", {}).items()
+        }
 
     def _apply_action_to_state(
         self,
@@ -285,6 +299,26 @@ class FixtureCalendarProvider:
             if action.start < event.end and action.end > event.start:
                 return True
         return False
+
+    @staticmethod
+    def _record_changes(
+        changes: dict[str, dict[str, Any] | None],
+        before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> None:
+        for event_id in set(before) | set(after):
+            if before.get(event_id) == after.get(event_id):
+                continue
+            changes.setdefault(event_id, before.get(event_id))
+
+    @staticmethod
+    def _changes_restored(events: dict[str, Any], changes: dict[str, Any]) -> bool:
+        for event_id, prior in changes.items():
+            if prior is None and event_id in events:
+                return False
+            if prior is not None and events.get(event_id) != prior:
+                return False
+        return True
 
     def _read(self) -> dict[str, Any]:
         return json.loads(self.state_path.read_text(encoding="utf-8"))

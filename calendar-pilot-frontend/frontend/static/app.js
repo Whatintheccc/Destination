@@ -20,6 +20,9 @@ async function loadState() {
     apiMode = true;
     return live;
   } catch (_err) {
+    if (window.location.protocol !== 'file:') {
+      throw _err;
+    }
     apiMode = false;
     const response = await fetch('frontend_state.sample.json', { cache: 'no-cache' });
     return { snapshot: await response.json(), replay_summary: null, training_rows: [] };

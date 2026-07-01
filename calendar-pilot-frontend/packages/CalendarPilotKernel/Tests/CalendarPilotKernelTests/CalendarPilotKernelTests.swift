@@ -111,6 +111,26 @@ final class CalendarPilotKernelTests: XCTestCase {
         XCTAssertEqual(undoReceipt.syncStatus, .reverted)
     }
 
+    func testUndoRejectsOutOfBandRequestedTier() throws {
+        let observation = emptyObservation()
+        let candidate = CandidateCalendarAction(
+            candidateID: "cand_undo_oob",
+            intent: "create_focus_block",
+            actions: [AtomicCalendarAction(actionType: .createFocusBlock, title: "Focus", start: Date().addingTimeInterval(3600), end: Date().addingTimeInterval(7200), calendarID: "work")],
+            targetCalendars: ["work"],
+            affectedEventIDs: [],
+            affectedPeopleIDs: [],
+            reversibility: .high,
+            requiredAuthorityTier: 3
+        )
+        let kernel = CalendarKernel()
+        let g = grant(kernel, tier: 3, observation: observation)
+        let (receipt, _) = kernel.authorizeAndMaterialize(candidate: candidate, observation: observation, authorityGrant: g, requestedAuthorityTier: 3)
+        let undoReceipt = kernel.undo(rollbackHandleID: receipt.rollbackHandleID!, authorityGrant: g, observedAt: observation.observedAt, requestedAuthorityTier: 99)
+        XCTAssertEqual(undoReceipt.syncStatus, .denied)
+        XCTAssertTrue(undoReceipt.deniedReason?.contains("out-of-band authority tier") == true)
+    }
+
     func testDraftPlanIsStagedNotMaterialized() throws {
         let candidate = CandidateCalendarAction(
             candidateID: "cand_draft",

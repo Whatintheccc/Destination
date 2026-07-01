@@ -3,9 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 import json
 from pathlib import Path
+import select
 import subprocess
+import tempfile
 import uuid
-from typing import Any
+from typing import Any, TextIO
 
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.types import AuthorityGrant, CalendarActionReceipt, CandidateCalendarAction, RawCalendarObservation, to_jsonable
@@ -24,10 +26,18 @@ class SwiftKernelIPCClient:
     but the boundary is concrete and can be selected by app integrations.
     """
 
-    def __init__(self, *, package_path: str | Path = "packages/CalendarPilotKernel", executable: str = "CalendarPilotKernelServer") -> None:
+    def __init__(
+        self,
+        *,
+        package_path: str | Path = "packages/CalendarPilotKernel",
+        executable: str = "CalendarPilotKernelServer",
+        rpc_timeout_seconds: float = 20.0,
+    ) -> None:
         self.package_path = str(package_path)
         self.executable = executable
+        self.rpc_timeout_seconds = rpc_timeout_seconds
         self._proc: subprocess.Popen[str] | None = None
+        self._stderr: TextIO | None = None
         self._grants: dict[str, AuthorityGrant] = {}
 
     def __enter__(self) -> "SwiftKernelIPCClient":
@@ -40,11 +50,12 @@ class SwiftKernelIPCClient:
     def start(self) -> None:
         if self._proc is not None:
             return
+        self._stderr = tempfile.TemporaryFile(mode="w+t", encoding="utf-8")
         self._proc = subprocess.Popen(
             ["swift", "run", "--package-path", self.package_path, self.executable],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=self._stderr,
             text=True,
             bufsize=1,
         )
@@ -58,6 +69,9 @@ class SwiftKernelIPCClient:
         except subprocess.TimeoutExpired:
             self._proc.kill()
         self._proc = None
+        if self._stderr is not None:
+            self._stderr.close()
+            self._stderr = None
 
     def issue_authority_grant(
         self,
@@ -145,6 +159,7 @@ class SwiftKernelIPCClient:
         out = self._rpc("undo", {
             "rollback_handle_id": rollback_handle_id,
             "authority_grant_id": self._grant_id(grant_ref),
+            "requested_authority_tier": requested_authority_tier,
             "observed_at": observation.observed_at.isoformat(),
         })
         return _receipt_from_dict(out["receipt"])
@@ -176,14 +191,25 @@ class SwiftKernelIPCClient:
         request_id = "rpc_" + uuid.uuid4().hex[:12]
         self._proc.stdin.write(json.dumps({"id": request_id, "op": op, "payload": to_jsonable(payload)}, sort_keys=True) + "\n")
         self._proc.stdin.flush()
+        ready, _, _ = select.select([self._proc.stdout], [], [], self.rpc_timeout_seconds)
+        if not ready:
+            raise SwiftKernelIPCError(f"Swift kernel RPC timed out during {op}: {self._stderr_tail()}")
         line = self._proc.stdout.readline()
         if not line:
-            stderr = self._proc.stderr.read() if self._proc.stderr else ""
-            raise SwiftKernelIPCError(f"Swift kernel server closed: {stderr}")
+            raise SwiftKernelIPCError(f"Swift kernel server closed: {self._stderr_tail()}")
         response = json.loads(line)
         if not response.get("ok"):
             raise SwiftKernelIPCError(response.get("error") or "Swift kernel RPC failed")
         return dict(response.get("payload", {}))
+
+    def _stderr_tail(self) -> str:
+        if self._stderr is None:
+            return ""
+        self._stderr.flush()
+        self._stderr.seek(0)
+        data = self._stderr.read()
+        self._stderr.seek(0, 2)
+        return data[-2000:]
 
 
 def _receipt_from_dict(data: dict[str, Any]) -> CalendarActionReceipt:

@@ -163,9 +163,11 @@ class DogfoodSessionState:
 
     def feedback(self, receipt_id: str, feedback: dict[str, Any]) -> dict[str, Any]:
         with self.lock:
+            candidate, receipt = self._candidate_and_receipt_for_reward(receipt_id)
+            if candidate is None or receipt is None:
+                return self._error_state(f"cannot attach feedback: unknown receipt_id {receipt_id}")
             reward = self._reward_from_feedback(receipt_id, feedback)
             attached = self.replay.attach_reward(receipt_id, reward)
-            candidate, receipt = self._candidate_and_receipt_for_reward(receipt_id)
             if not attached:
                 self.replay.append_reward(reward, candidate, receipt, trace_id=candidate.candidate_id if candidate else receipt_id)
             self.biography = self.runtime.biography_store.update_from_reward(self.biography, reward, source="dogfood_feedback")
@@ -207,7 +209,7 @@ class DogfoodSessionState:
     def _apply_committed_receipts(self) -> None:
         if self.current_plan is None:
             return
-        for receipt in self.current_plan.receipts:
+        for idx, receipt in enumerate(list(self.current_plan.receipts)):
             swift = receipt.output.get("swift_receipt") if isinstance(receipt.output, dict) else None
             candidate_payload = receipt.output.get("candidate") if isinstance(receipt.output, dict) else None
             if not isinstance(swift, dict) or not isinstance(candidate_payload, dict):
@@ -227,8 +229,22 @@ class DogfoodSessionState:
                 receipt.output["fixture_provider"] = provider_result.to_dict()
                 self.applied_swift_receipts.add(receipt_id)
             except CalendarProviderError as exc:
-                receipt.output["fixture_provider"] = {"status": "denied", "message": str(exc)}
-                receipt.output["provider_denied_reason"] = str(exc)
+                output = dict(receipt.output)
+                swift_denied = dict(swift)
+                swift_denied["sync_status"] = "denied"
+                swift_denied["denied_reason"] = str(exc)
+                swift_denied["stage_state"] = StageState.DENIED.value
+                output["swift_receipt"] = swift_denied
+                output["stage_state"] = StageState.DENIED.value
+                output["fixture_provider"] = {"status": "denied", "message": str(exc)}
+                output["provider_denied_reason"] = str(exc)
+                self.current_plan.receipts[idx] = replace(
+                    receipt,
+                    status=CodexToolStatus.DENIED,
+                    output=output,
+                    denied_reason=str(exc),
+                    stage_state=StageState.DENIED,
+                )
                 self.last_error = str(exc)
 
     def _state_unlocked(self, *, extra: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -416,6 +432,7 @@ class DogfoodSessionState:
         if isinstance(data.get("current_plan"), dict):
             self.current_plan = self._plan_from_dict(data["current_plan"])
             self._restore_frontier(self.current_plan)
+            self._restore_kernel_undo_ledger()
         self.applied_swift_receipts = set(str(x) for x in data.get("applied_swift_receipts", []))
         self.last_error = data.get("last_error")
 
@@ -436,3 +453,10 @@ class DogfoodSessionState:
                 if isinstance(candidate_payload, dict):
                     candidate = CandidateCalendarAction.from_dict(candidate_payload)
                     self.runtime.frontier[candidate.candidate_id] = candidate
+
+    def _restore_kernel_undo_ledger(self) -> None:
+        ledger = getattr(self.runtime.kernel, "undo_ledger", None)
+        if not isinstance(ledger, dict):
+            return
+        for rollback_handle_id, candidate_id in self.provider.rollback_records().items():
+            ledger.setdefault(rollback_handle_id, candidate_id)

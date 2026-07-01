@@ -230,7 +230,7 @@ def _action_queue(plan: CodexExecutivePlan) -> list[FrontendAction]:
         swift = receipt.output.get("swift_receipt") if isinstance(receipt.output, dict) else None
         if not isinstance(swift, dict):
             continue
-        status = receipt.status.value
+        status = "denied" if swift.get("denied_reason") or swift.get("sync_status") == "denied" else receipt.status.value
         if status not in {"stageable", "staged", "committed", "denied", "requires_confirmation"}:
             continue
         actions.append(FrontendAction(
