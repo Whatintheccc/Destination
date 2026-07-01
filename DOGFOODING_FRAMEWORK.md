@@ -30,7 +30,7 @@ The git history shows a clear shift from architecture exploration to a concrete 
 | Authority grants and safety | `7ae1640` | Swift-issued `AuthorityGrant` replaced naked authority tiers; replay gained causal IDs; reward contracts and safety tests landed. | Dogfood should treat authority as product state users can see and constrain. |
 | Frontend and Swift IPC boundary | `b3e81b0` | Added `frontend/static`, frontend snapshot generation, frontend docs, Swift JSONL server, and `SwiftKernelIPCClient`. | The UI now exposes the right surfaces, but it is still static and not yet a complete product loop. |
 
-Current state summary:
+Baseline state before the dogfood implementation:
 
 - `frontend/static/app.js` only fetches `frontend_state.sample.json` and renders panels.
 - `src/calendar_pilot/frontend/server.py` only generates a demo snapshot and serves static files.
@@ -244,9 +244,9 @@ Acceptance criteria:
 
 ### P2.8 Make Denials Actionable
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: Denied action rows now render candidate ID, denial reason, explain/stage/confirm/narrow-scope/profile-repair controls; `/api/denials/explain` persists suggested controls in `denial_history`.
 
 Required work:
 
@@ -261,9 +261,9 @@ Acceptance criteria:
 
 ### P2.9 Complete Profile Repair Flow
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: Profile claims are exposed in API state with confidence/provenance/evidence; UI supports propose patch, explicit apply, edit, and stale/decay actions; replay records profile proposal/apply tool receipts.
 
 Required work:
 
@@ -279,9 +279,9 @@ Acceptance criteria:
 
 ### P2.10 Add Authority Grant Inspector And Scope Editor
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: `/api/authority` updates dogfood authority tier/scopes; `CodexToolPlanner` now receives edited scopes; UI renders grant ID, tier, scopes, expiry, provenance, and confirmation state.
 
 Required work:
 
@@ -296,9 +296,9 @@ Acceptance criteria:
 
 ### P2.11 Make Self-Play A Release Gate
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: UI runs `/api/self-play`; session persists metrics/top failure modes plus `release_decision` of `hold_autonomy` or `ship_fixture_gate`; browser E2E exercises the control.
 
 Required work:
 
@@ -312,9 +312,9 @@ Acceptance criteria:
 
 ### P2.12 Build Replay Explorer
 
-Status: Not started
+Status: Dogfood
 Owner:
-Evidence:
+Evidence: Replay query accepts candidate, trace, receipt, authority grant, rollback handle, reward event, or free-text filters; UI renders recent matching causal records and exports filtered JSONL under the run directory.
 
 Required work:
 
@@ -325,6 +325,25 @@ Required work:
 Acceptance criteria:
 
 - A dogfood bug report can include a trace export that reproduces the decision path.
+
+### P2.13 Ship Fixture-Backed macOS Dogfood App
+
+Status: Dogfood
+Owner:
+Evidence: Added `CalendarPilotMacApp` SwiftUI/WebKit target and `scripts/build_macos_app.sh`; bundle builds to `calendar-pilot-frontend/dist/CalendarPilot.app` with packaged frontend resources.
+
+Required work:
+
+- Start the local fixture-backed API server from the app.
+- Load the live frontend in a native macOS window.
+- Package the frontend source as app resources so dogfooders do not need a terminal.
+- Keep real OAuth and external model credentials blocked until fixture gates pass.
+
+Acceptance criteria:
+
+- `make mac-app-build` creates `dist/CalendarPilot.app`.
+- Opening the app starts `python3 -m calendar_pilot.app frontend --serve` against `runs/macos-app`.
+- The app can run the same goal -> stage/commit -> undo -> feedback -> replay loop as browser E2E.
 
 ## Dogfood Scenarios
 
@@ -358,6 +377,7 @@ Update weekly during dogfood.
 | Fixture idempotency duplicate writes | 0 | | |
 | Rollback verification failures | 0 | | |
 | Browser E2E pass rate | >= 95% | | |
+| macOS app bundle builds | 100% | | |
 
 ## Weekly Dogfood Ritual
 
@@ -424,3 +444,4 @@ Append links to traces, screenshots, replay exports, policy reports, or PRs here
 | 2026-07-01 | P0 review fixes | Two subagent reviews found restart undo, provider denial, rollback isolation, feedback validation, UI fallback, and IPC undo-tier/timeout gaps. `python3 -m pytest -q` passed 47 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; direct Swift IPC smoke denied out-of-band undo. | P0 review findings addressed. |
 | 2026-07-01 | P1 dogfood slice | `python3 -m pytest -q` passed 47 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; `PYTHONPATH=src python3 scripts/run_browser_e2e.py` passed 1 browser E2E. | P1 ready for subagent review. |
 | 2026-07-01 | P1 review fixes | Two subagent reviews found reward overwrite, stale reset replay/frontier, ambiguous E2E feedback target, and missing browser CI gate. `python3 -m pytest -q` passed 48 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; browser E2E passed. | P1 review findings addressed. |
+| 2026-07-01 | P2 dogfood slice | `PYTHONPATH=src python3 -m unittest discover -s tests` passed 50 tests; `swift test --package-path packages/CalendarPilotKernel` passed 17 tests; `swift build --package-path packages/CalendarPilotKernel --product CalendarPilotMacApp` passed; `PYTHONPATH=src python3 scripts/run_browser_e2e.py` passed 1 browser E2E including replay JSONL export; `scripts/build_macos_app.sh` created `dist/CalendarPilot.app`. | P2 ready for subagent review. |

@@ -24,9 +24,11 @@ class FrontendAction:
     label: str
     status: str
     control_boundary: str
+    candidate_id: str | None = None
     receipt_id: str | None = None
     grant_id: str | None = None
     rollback_handle_id: str | None = None
+    denied_reason: str | None = None
     requires_confirmation: bool = False
     why_user_sees_it: str = ""
 
@@ -238,9 +240,11 @@ def _action_queue(plan: CodexExecutivePlan) -> list[FrontendAction]:
             label=_action_label(receipt.tool_name.value, status, swift),
             status=status,
             control_boundary="Codex requested; Swift validated; provider write remains behind Swift.",
+            candidate_id=swift.get("candidate_id"),
             receipt_id=swift.get("receipt_id") or receipt.swift_receipt_id,
             grant_id=receipt.authority_grant_id,
             rollback_handle_id=swift.get("rollback_handle_id"),
+            denied_reason=swift.get("denied_reason"),
             requires_confirmation=receipt.requires_user_confirmation,
             why_user_sees_it=_why_user_sees_it(receipt.tool_name.value, swift),
         ))

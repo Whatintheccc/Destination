@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timezone
 import hashlib
+import json
 from typing import Any
 
 from calendar_pilot.biography import BiographyStore
@@ -307,15 +308,56 @@ class CodexToolRuntime:
         )
 
     def _query_replay(self, call: CodexToolCall) -> dict[str, Any]:
-        candidate_id = call.input.get("candidate_id")
+        filters = {
+            "candidate_id": call.input.get("candidate_id"),
+            "trace_id": call.input.get("trace_id"),
+            "receipt_id": call.input.get("receipt_id"),
+            "authority_grant_id": call.input.get("authority_grant_id"),
+            "rollback_handle_id": call.input.get("rollback_handle_id"),
+            "reward_event_id": call.input.get("reward_event_id"),
+            "q": call.input.get("q"),
+        }
+        filters = {k: str(v) for k, v in filters.items() if v}
         summary = self.replay.summarize()
         traces = []
-        if candidate_id:
-            for record in self.replay.records:
-                cand = record.payload.get("candidate", {})
-                if cand.get("candidate_id") == candidate_id:
-                    traces.append({"record_type": record.record_type, "payload": record.payload})
-        return {"summary": to_jsonable(summary), "traces": traces[-10:]}
+        for record in self.replay.records:
+            if filters and not self._replay_record_matches(record, filters):
+                continue
+            traces.append({
+                "record_type": record.record_type,
+                "record_id": record.record_id,
+                "trace_id": record.trace_id,
+                "causal_parent_id": record.causal_parent_id,
+                "payload": record.payload,
+            })
+        return {"summary": to_jsonable(summary), "query": filters, "traces": traces[-25:]}
+
+    @staticmethod
+    def _replay_record_matches(record: Any, filters: dict[str, str]) -> bool:
+        payload = record.payload
+        candidate = payload.get("candidate", {}) if isinstance(payload.get("candidate"), dict) else {}
+        receipt = payload.get("receipt", {}) if isinstance(payload.get("receipt"), dict) else {}
+        reward = payload.get("reward", {}) if isinstance(payload.get("reward"), dict) else {}
+        tool_receipt = payload.get("receipt", {}) if record.record_type == "codex_tool_receipt" else {}
+        tool_output = tool_receipt.get("output", {}) if isinstance(tool_receipt, dict) else {}
+        swift_receipt = tool_output.get("swift_receipt", {}) if isinstance(tool_output, dict) else {}
+        searchable = {
+            "candidate_id": candidate.get("candidate_id") or receipt.get("candidate_id") or swift_receipt.get("candidate_id"),
+            "trace_id": record.trace_id or payload.get("trace_id"),
+            "receipt_id": receipt.get("receipt_id") or swift_receipt.get("receipt_id"),
+            "authority_grant_id": receipt.get("authority_grant_id") or swift_receipt.get("authority_grant_id") or tool_receipt.get("authority_grant_id"),
+            "rollback_handle_id": receipt.get("rollback_handle_id") or swift_receipt.get("rollback_handle_id"),
+            "reward_event_id": reward.get("reward_event_id"),
+        }
+        for key, expected in filters.items():
+            if key == "q":
+                haystack = json.dumps(to_jsonable(record.envelope()), sort_keys=True, default=str).lower()
+                if expected.lower() not in haystack:
+                    return False
+                continue
+            if str(searchable.get(key) or "") != expected:
+                return False
+        return True
 
     def _resolve_grant(self, call: CodexToolCall):
         # Canonical boundary: Codex carries only a grant id. Embedded grant

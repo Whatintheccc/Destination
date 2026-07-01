@@ -65,9 +65,16 @@ class DogfoodSessionState:
         self.current_plan: CodexExecutivePlan | None = None
         self.current_goal = ""
         self.authority_tier = 3
+        self.authority_scopes = ["recommend", "stage", "commit_private", "undo"]
         self.applied_swift_receipts: set[str] = set()
         self.undo_history: list[dict[str, Any]] = []
         self.feedback_history: list[dict[str, Any]] = []
+        self.profile_patch_history: list[dict[str, Any]] = []
+        self.pending_profile_patch: dict[str, Any] | None = None
+        self.denial_history: list[dict[str, Any]] = []
+        self.self_play_history: list[dict[str, Any]] = []
+        self.last_replay_query: dict[str, Any] | None = None
+        self.last_replay_export: dict[str, Any] | None = None
         self.last_error: str | None = None
         self._load_session()
 
@@ -89,10 +96,21 @@ class DogfoodSessionState:
                 self.biography,
                 authority_tier=self.authority_tier,
                 commit=bool(commit),
+                authority_scopes=self.authority_scopes,
             )
             self._apply_committed_receipts()
             self._save()
             return self._state_unlocked(extra={"created_plan": self.current_plan.to_dict()})
+
+    def update_authority(self, *, authority_tier: int | None = None, scopes: list[str] | None = None) -> dict[str, Any]:
+        with self.lock:
+            if authority_tier is not None:
+                self.authority_tier = max(0, min(6, int(authority_tier)))
+            if scopes is not None:
+                cleaned = [scope.strip() for scope in scopes if str(scope).strip()]
+                self.authority_scopes = cleaned or ["recommend", "stage"]
+            self._save()
+            return self._state_unlocked(extra={"authority": {"authority_tier": self.authority_tier, "scopes": self.authority_scopes}})
 
     def simulate_candidate(self, candidate_id: str) -> dict[str, Any]:
         return self._execute_candidate_tool(CodexToolName.SIMULATE_ACTION_PROGRAM, candidate_id, confirmed=False)
@@ -149,6 +167,9 @@ class DogfoodSessionState:
         with self.lock:
             call = self._new_call(CodexToolName.PROPOSE_PROFILE_PATCH, {"correction": correction})
             receipt = self._execute(call)
+            repair_plan = receipt.output.get("repair_plan") if isinstance(receipt.output, dict) else None
+            if isinstance(repair_plan, dict):
+                self.pending_profile_patch = {"correction": correction, "repair_plan": repair_plan, "receipt": receipt.to_dict()}
             self._save()
             return self._state_unlocked(extra={"profile_patch": receipt.to_dict()})
 
@@ -162,6 +183,13 @@ class DogfoodSessionState:
             biography = receipt.output.get("biography") if isinstance(receipt.output, dict) else None
             if isinstance(biography, dict):
                 self.biography = UserBiography.from_dict(biography)
+                self.profile_patch_history.append({
+                    "claim": claim,
+                    "correction": correction,
+                    "receipt": receipt.to_dict(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                })
+                self.pending_profile_patch = None
             self._save()
             return self._state_unlocked(extra={"profile_patch": receipt.to_dict()})
 
@@ -169,18 +197,102 @@ class DogfoodSessionState:
         with self.lock:
             call = self._new_call(CodexToolName.EXPLAIN_SWIFT_DENIAL, {"denied_reason": denied_reason})
             receipt = self._execute(call)
+            self.denial_history.append({
+                "denied_reason": denied_reason,
+                "explanation": receipt.output.get("denial_explanation"),
+                "suggested_controls": self._denial_followups(denied_reason),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
             self._save()
             return self._state_unlocked(extra={"denial_explanation": receipt.to_dict()})
 
-    def replay_trace(self, candidate_id: str | None = None) -> dict[str, Any]:
+    def replay_trace(
+        self,
+        *,
+        candidate_id: str | None = None,
+        trace_id: str | None = None,
+        receipt_id: str | None = None,
+        authority_grant_id: str | None = None,
+        rollback_handle_id: str | None = None,
+        reward_event_id: str | None = None,
+        q: str | None = None,
+    ) -> dict[str, Any]:
         with self.lock:
             payload: dict[str, Any] = {}
-            if candidate_id:
-                payload["candidate_id"] = candidate_id
-            call = self._new_call(CodexToolName.QUERY_REPLAY_TRACE, payload, correlation_id=candidate_id)
+            for key, value in {
+                "candidate_id": candidate_id,
+                "trace_id": trace_id,
+                "receipt_id": receipt_id,
+                "authority_grant_id": authority_grant_id,
+                "rollback_handle_id": rollback_handle_id,
+                "reward_event_id": reward_event_id,
+                "q": q,
+            }.items():
+                if value:
+                    payload[key] = value
+            call = self._new_call(CodexToolName.QUERY_REPLAY_TRACE, payload, correlation_id=trace_id or candidate_id or receipt_id or q)
             receipt = self._execute(call)
+            self.last_replay_query = receipt.output
             self._save()
             return self._state_unlocked(extra={"replay": receipt.output})
+
+    def export_replay(
+        self,
+        *,
+        candidate_id: str | None = None,
+        trace_id: str | None = None,
+        receipt_id: str | None = None,
+        authority_grant_id: str | None = None,
+        rollback_handle_id: str | None = None,
+        reward_event_id: str | None = None,
+        q: str | None = None,
+    ) -> dict[str, Any]:
+        with self.lock:
+            self.replay_trace(
+                candidate_id=candidate_id,
+                trace_id=trace_id,
+                receipt_id=receipt_id,
+                authority_grant_id=authority_grant_id,
+                rollback_handle_id=rollback_handle_id,
+                reward_event_id=reward_event_id,
+                q=q,
+            )
+            query = self.last_replay_query or {"traces": []}
+            digest = hashlib.sha1(json.dumps(query.get("query", {}), sort_keys=True).encode()).hexdigest()[:12]
+            export_path = self.run_dir / "exports" / f"replay_export_{digest}.jsonl"
+            export_path.parent.mkdir(parents=True, exist_ok=True)
+            with export_path.open("w", encoding="utf-8") as handle:
+                for record in query.get("traces", []):
+                    handle.write(json.dumps(record, sort_keys=True) + "\n")
+            self.last_replay_export = {
+                "path": str(export_path),
+                "record_count": len(query.get("traces", [])),
+                "query": query.get("query", {}),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            self._save()
+            return self._state_unlocked(extra={"replay_export": self.last_replay_export})
+
+    def run_self_play(self, *, episodes: int = 3) -> dict[str, Any]:
+        with self.lock:
+            grant_id = self._issue_grant(confirmed=True)
+            call = self._new_call(
+                CodexToolName.RUN_SELF_PLAY_PROBE,
+                {"episodes": int(episodes)},
+                grant_id=grant_id,
+                correlation_id=f"self_play:{len(self.self_play_history) + 1}",
+            )
+            receipt = self._execute(call)
+            metrics = receipt.output.get("metrics", {}) if isinstance(receipt.output, dict) else {}
+            self.self_play_history.append({
+                "episodes": int(episodes),
+                "metrics": metrics,
+                "top_failure_modes": receipt.output.get("top_failure_modes", []),
+                "release_decision": self._self_play_release_decision(metrics),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            self._save()
+            return self._state_unlocked(extra={"self_play": receipt.to_dict()})
 
     def feedback(self, receipt_id: str, feedback: dict[str, Any]) -> dict[str, Any]:
         with self.lock:
@@ -209,6 +321,12 @@ class DogfoodSessionState:
             self.applied_swift_receipts.clear()
             self.undo_history.clear()
             self.feedback_history.clear()
+            self.profile_patch_history.clear()
+            self.pending_profile_patch = None
+            self.denial_history.clear()
+            self.self_play_history.clear()
+            self.last_replay_query = None
+            self.last_replay_export = None
             self.replay = ReplayBuffer()
             self.runtime.replay = self.replay
             self.runtime.frontier.clear()
@@ -287,6 +405,7 @@ class DogfoodSessionState:
                 "replay_path": str(self.replay_path),
                 "provider_checksum": self.provider.checksum(),
                 "authority_tier": self.authority_tier,
+                "authority_scopes": self.authority_scopes,
                 "last_error": self.last_error,
             },
             "snapshot": snapshot,
@@ -294,6 +413,14 @@ class DogfoodSessionState:
             "training_rows": self.replay.training_table(),
             "undo_history": self.undo_history,
             "feedback_history": self.feedback_history,
+            "profile_patch_history": self.profile_patch_history,
+            "pending_profile_patch": self.pending_profile_patch,
+            "denial_history": self.denial_history,
+            "self_play_history": self.self_play_history,
+            "last_replay_query": self.last_replay_query,
+            "last_replay_export": self.last_replay_export,
+            "authority_grants": self._authority_grants(),
+            "profile_claims": self._profile_claims(),
         }
         if extra:
             response.update(extra)
@@ -321,7 +448,7 @@ class DogfoodSessionState:
         grant = self.runtime.kernel.issue_authority_grant(
             user_scope_id=observation.user_scope_id,
             max_authority_tier=self.authority_tier,
-            scopes=["recommend", "stage", "commit_private", "undo"],
+            scopes=self.authority_scopes,
             confirmation_provenance="dogfood_user_confirmed" if confirmed else "dogfood_stage_scope",
             confirmed_by_user=confirmed,
             issued_at=observation.observed_at,
@@ -460,11 +587,18 @@ class DogfoodSessionState:
         payload = {
             "current_goal": self.current_goal,
             "authority_tier": self.authority_tier,
+            "authority_scopes": self.authority_scopes,
             "biography": self.biography.to_dict(),
             "current_plan": self.current_plan.to_dict() if self.current_plan else None,
             "applied_swift_receipts": sorted(self.applied_swift_receipts),
             "undo_history": self.undo_history,
             "feedback_history": self.feedback_history,
+            "profile_patch_history": self.profile_patch_history,
+            "pending_profile_patch": self.pending_profile_patch,
+            "denial_history": self.denial_history,
+            "self_play_history": self.self_play_history,
+            "last_replay_query": self.last_replay_query,
+            "last_replay_export": self.last_replay_export,
             "last_error": self.last_error,
         }
         self.session_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
@@ -475,6 +609,8 @@ class DogfoodSessionState:
         data = json.loads(self.session_path.read_text(encoding="utf-8"))
         self.current_goal = str(data.get("current_goal", ""))
         self.authority_tier = int(data.get("authority_tier", 3))
+        scopes = data.get("authority_scopes", ["recommend", "stage", "commit_private", "undo"])
+        self.authority_scopes = [str(scope) for scope in scopes] if isinstance(scopes, list) else ["recommend", "stage", "commit_private", "undo"]
         if isinstance(data.get("biography"), dict):
             self.biography = UserBiography.from_dict(data["biography"])
         if isinstance(data.get("current_plan"), dict):
@@ -484,6 +620,12 @@ class DogfoodSessionState:
         self.applied_swift_receipts = set(str(x) for x in data.get("applied_swift_receipts", []))
         self.undo_history = list(data.get("undo_history", []))
         self.feedback_history = list(data.get("feedback_history", []))
+        self.profile_patch_history = list(data.get("profile_patch_history", []))
+        self.pending_profile_patch = data.get("pending_profile_patch") if isinstance(data.get("pending_profile_patch"), dict) else None
+        self.denial_history = list(data.get("denial_history", []))
+        self.self_play_history = list(data.get("self_play_history", []))
+        self.last_replay_query = data.get("last_replay_query") if isinstance(data.get("last_replay_query"), dict) else None
+        self.last_replay_export = data.get("last_replay_export") if isinstance(data.get("last_replay_export"), dict) else None
         self.last_error = data.get("last_error")
 
     @staticmethod
@@ -510,3 +652,67 @@ class DogfoodSessionState:
             return
         for rollback_handle_id, candidate_id in self.provider.rollback_records().items():
             ledger.setdefault(rollback_handle_id, candidate_id)
+
+    def _authority_grants(self) -> list[dict[str, Any]]:
+        registry = getattr(self.runtime.kernel, "authority_grants", None)
+        if not isinstance(registry, dict):
+            registry = getattr(self.runtime.kernel, "_grants", {})
+        if not isinstance(registry, dict):
+            return []
+        return [grant.to_dict() if hasattr(grant, "to_dict") else to_jsonable(grant) for grant in registry.values()]
+
+    def _profile_claims(self) -> list[dict[str, Any]]:
+        rows = []
+        events = {str(event.get("claim", "")): event for event in self.biography.profile_update_events if isinstance(event, dict)}
+        for claim in self.biography.preference_claims:
+            if not isinstance(claim, dict):
+                continue
+            name = str(claim.get("claim", ""))
+            event = events.get(name, {})
+            rows.append({
+                "claim": name,
+                "confidence": claim.get("confidence", 0.0),
+                "source": claim.get("source") or claim.get("provenance") or event.get("provenance", {}).get("source"),
+                "updated_at": claim.get("updated_at") or event.get("provenance", {}).get("created_at"),
+                "last_evidence": claim.get("last_evidence") or claim.get("reason") or event.get("reason"),
+                "correction": claim.get("correction"),
+                "last_update_id": event.get("update_id"),
+            })
+        return rows
+
+    @staticmethod
+    def _denial_followups(denied_reason: str) -> list[dict[str, Any]]:
+        reason = denied_reason.lower()
+        controls = [{"action": "stage_instead", "label": "Stage instead", "description": "Keep the packet reviewable instead of committing provider state."}]
+        if "social" in reason or "people" in reason:
+            controls.append({"action": "ask_confirmation", "label": "Ask confirmation", "description": "Require explicit user confirmation before any people-affecting mutation."})
+            controls.append({"action": "repair_profile", "label": "Repair profile", "description": "Correct a learned claim if social risk was inferred from stale profile data."})
+        if "authority" in reason or "tier" in reason or "scope" in reason:
+            controls.append({"action": "narrow_scope", "label": "Narrow scope", "description": "Lower authority and keep only recommend/stage/undo scopes."})
+        if "conflict" in reason:
+            controls.append({"action": "simulate_alternative", "label": "Simulate alternative", "description": "Return to candidate futures and choose a non-conflicting slot."})
+        return controls
+
+    @staticmethod
+    def _self_play_release_decision(metrics: dict[str, Any]) -> dict[str, Any]:
+        failures = metrics.get("failure_modes", {}) if isinstance(metrics, dict) else {}
+        average_reward = float(metrics.get("average_reward", 0.0) or 0.0) if isinstance(metrics, dict) else 0.0
+        undo_rate = float(metrics.get("undo_rate", 0.0) or 0.0) if isinstance(metrics, dict) else 0.0
+        high_risk = {
+            "undo_regret",
+            "social_conflict",
+            "notification_fatigue",
+            "denied_actuation",
+        }
+        blocking = sorted(label for label, count in failures.items() if label in high_risk and int(count) > 0)
+        if average_reward < 0 or undo_rate > 0.1 or blocking:
+            return {
+                "decision": "hold_autonomy",
+                "reason": "Self-play found regret, social, fatigue, denial, or negative-reward risk.",
+                "blocking_failure_modes": blocking,
+            }
+        return {
+            "decision": "ship_fixture_gate",
+            "reason": "Fixture self-play did not find blocking regret, social, fatigue, or denial risk.",
+            "blocking_failure_modes": [],
+        }

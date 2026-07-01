@@ -32,8 +32,57 @@
         <input id="profile-correction" placeholder="Repair a learned profile claim" />
         <button type="submit">Propose patch</button>
       </form>
+      <form id="authority-form">
+        <input id="authority-scopes" placeholder="recommend,stage,commit_private,undo" />
+        <input id="authority-editor-tier" type="number" min="0" max="6" value="3" />
+        <button type="submit">Set authority</button>
+      </form>
+      <form id="replay-form">
+        <input id="replay-query" placeholder="Replay id, grant, rollback, reward, or text" />
+        <button type="submit">Query replay</button>
+        <button id="export-replay" type="button">Export JSONL</button>
+      </form>
+      <form id="self-play-form">
+        <input id="self-play-episodes" type="number" min="1" max="20" value="3" />
+        <button type="submit">Run self-play</button>
+      </form>
     </section>
     <section class="summary" id="replay-summary"></section>
+    <section class="history">
+      <div class="section-title">
+        <h2>Authority grants</h2>
+        <p>Swift-issued scopes, tiers, expiry, and confirmation provenance.</p>
+      </div>
+      <div id="authority-grants" class="history-list"></div>
+    </section>
+    <section class="history">
+      <div class="section-title">
+        <h2>Profile repair</h2>
+        <p>Proposed and applied profile patches stay explicit and confirmable.</p>
+      </div>
+      <div id="profile-patch" class="history-list"></div>
+    </section>
+    <section class="history">
+      <div class="section-title">
+        <h2>Self-play release gate</h2>
+        <p>Adversary probes for undo regret, social conflict, fatigue, and denial patterns.</p>
+      </div>
+      <div id="self-play-history" class="history-list"></div>
+    </section>
+    <section class="history">
+      <div class="section-title">
+        <h2>Replay explorer</h2>
+        <p>Trace search results for candidate, receipt, grant, rollback, and reward debugging.</p>
+      </div>
+      <div id="replay-explorer" class="history-list"></div>
+    </section>
+    <section class="history">
+      <div class="section-title">
+        <h2>Denial history</h2>
+        <p>Denied machine acts should lead to narrower authority, staging, confirmation, or repair.</p>
+      </div>
+      <div id="denial-history" class="history-list"></div>
+    </section>
     <section class="grid" id="panels"></section>
     <section class="queue">
       <div class="section-title">

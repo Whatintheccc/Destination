@@ -110,16 +110,33 @@ main {
   padding: 18px 28px 36px;
 }
 .toolbar {
-  display: grid;
-  grid-template-columns: auto auto minmax(280px, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
   margin-bottom: 14px;
 }
+.toolbar > button {
+  flex: 0 0 auto;
+}
 .toolbar form {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  display: flex;
+  flex: 1 1 320px;
   gap: 8px;
+  min-width: 260px;
+}
+.toolbar #authority-form {
+  flex-basis: 460px;
+}
+.toolbar #self-play-form {
+  flex: 0 1 190px;
+  min-width: 170px;
+}
+.toolbar form input:first-child {
+  flex: 1 1 auto;
+}
+.toolbar #authority-editor-tier, .toolbar #self-play-episodes {
+  flex: 0 0 70px;
 }
 .error {
   border: 1px solid var(--danger);
@@ -215,7 +232,7 @@ main {
 }
 .history-item {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(120px, .7fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--line);
@@ -278,7 +295,11 @@ code {
   padding: 1px 4px;
 }
 @media (max-width: 820px) {
-  .hero, .goal-form, .toolbar, .toolbar form, .trace-item, .kv, .history-item {
+  .hero, .goal-form, .trace-item, .kv, .history-item {
+    grid-template-columns: 1fr;
+  }
+  .toolbar, .toolbar form {
+    display: grid;
     grid-template-columns: 1fr;
   }
   main {

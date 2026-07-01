@@ -47,8 +47,27 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                 return
             if parsed.path == "/api/replay":
                 query = parse_qs(parsed.query)
-                candidate_id = query.get("candidate_id", [None])[0]
-                self._send_json(session.replay_trace(candidate_id))
+                self._send_json(session.replay_trace(
+                    candidate_id=query.get("candidate_id", [None])[0],
+                    trace_id=query.get("trace_id", [None])[0],
+                    receipt_id=query.get("receipt_id", [None])[0],
+                    authority_grant_id=query.get("authority_grant_id", [None])[0],
+                    rollback_handle_id=query.get("rollback_handle_id", [None])[0],
+                    reward_event_id=query.get("reward_event_id", [None])[0],
+                    q=query.get("q", [None])[0],
+                ))
+                return
+            if parsed.path == "/api/replay/export":
+                query = parse_qs(parsed.query)
+                self._send_json(session.export_replay(
+                    candidate_id=query.get("candidate_id", [None])[0],
+                    trace_id=query.get("trace_id", [None])[0],
+                    receipt_id=query.get("receipt_id", [None])[0],
+                    authority_grant_id=query.get("authority_grant_id", [None])[0],
+                    rollback_handle_id=query.get("rollback_handle_id", [None])[0],
+                    reward_event_id=query.get("reward_event_id", [None])[0],
+                    q=query.get("q", [None])[0],
+                ))
                 return
             super().do_GET()
 
@@ -69,6 +88,17 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                     str(body.get("goal", "Make next week less chaotic")),
                     authority_tier=int(body.get("authority_tier", 3)),
                     commit=bool(body.get("commit", False)),
+                )
+            if path == "/api/authority":
+                raw_scopes = body.get("scopes")
+                scopes: list[str] | None = None
+                if isinstance(raw_scopes, str):
+                    scopes = [item.strip() for item in raw_scopes.split(",") if item.strip()]
+                elif isinstance(raw_scopes, list):
+                    scopes = [str(item).strip() for item in raw_scopes if str(item).strip()]
+                return session.update_authority(
+                    authority_tier=int(body["authority_tier"]) if "authority_tier" in body else None,
+                    scopes=scopes,
                 )
             if path.startswith("/api/candidates/"):
                 parts = path.strip("/").split("/")
@@ -97,6 +127,8 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                 )
             if path == "/api/denials/explain":
                 return session.explain_denial(str(body.get("denied_reason", "")))
+            if path == "/api/self-play":
+                return session.run_self_play(episodes=int(body.get("episodes", 3)))
             if path == "/api/feedback":
                 return session.feedback(str(body.get("receipt_id", "")), dict(body.get("feedback", {})))
             if path == "/api/reset":

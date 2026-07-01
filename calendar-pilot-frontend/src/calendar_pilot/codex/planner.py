@@ -47,12 +47,13 @@ class CodexToolPlanner:
         *,
         authority_tier: int = 3,
         commit: bool = False,
+        authority_scopes: list[str] | None = None,
     ) -> CodexExecutivePlan:
         plan = CodexExecutivePlan(plan_id=self._plan_id(goal, observation.observation_id), goal=goal)
         grant = self.runtime.kernel.issue_authority_grant(
             user_scope_id=observation.user_scope_id,
             max_authority_tier=authority_tier,
-            scopes=["recommend", "stage", "commit_private", "undo"],
+            scopes=authority_scopes or ["recommend", "stage", "commit_private", "undo"],
             confirmation_provenance=f"codex_plan_goal:{plan.plan_id}",
             confirmed_by_user=commit,
             issued_at=observation.observed_at,

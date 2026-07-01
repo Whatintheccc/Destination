@@ -32,4 +32,25 @@ test('goal to stage confirm commit undo feedback training loop', async ({ page }
   }, { timeout: 15000 });
   await expect(page.locator('#undo-history')).toContainText('reverted');
   await expect(page.locator('#feedback-history')).toContainText('rew_');
+
+  await page.locator('#profile-correction').fill('evenings are fine during travel weeks');
+  await page.getByRole('button', { name: 'Propose patch' }).click();
+  await page.locator('#profile-patch').getByRole('button', { name: 'Apply' }).first().waitFor({ timeout: 15000 });
+  await page.locator('#profile-patch').getByRole('button', { name: 'Apply' }).first().click();
+  await expect(page.locator('#profile-patch')).toContainText('evenings are fine', { timeout: 15000 });
+
+  await page.locator('#authority-scopes').fill('recommend,stage,undo');
+  await page.locator('#authority-editor-tier').fill('2');
+  await page.getByRole('button', { name: 'Set authority' }).click();
+  await expect(page.locator('#authority-scopes')).toHaveValue('recommend,stage,undo', { timeout: 15000 });
+
+  await page.locator('#replay-query').fill('rew_');
+  await page.getByRole('button', { name: 'Query replay' }).click();
+  await expect(page.locator('#replay-explorer')).toContainText('reward', { timeout: 15000 });
+  await page.getByRole('button', { name: 'Export JSONL' }).click();
+  await expect(page.locator('#replay-explorer')).toContainText('replay_export', { timeout: 15000 });
+
+  await page.locator('#self-play-episodes').fill('1');
+  await page.getByRole('button', { name: 'Run self-play' }).click();
+  await expect(page.locator('#self-play-history')).toContainText(/hold_autonomy|ship_fixture_gate/, { timeout: 15000 });
 });

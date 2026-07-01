@@ -1,4 +1,4 @@
-.PHONY: test py-test swift-test browser-e2e demo zip
+.PHONY: test py-test swift-test browser-e2e mac-app-build demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -8,6 +8,9 @@ swift-test:
 
 browser-e2e:
 	PYTHONPATH=src python3 scripts/run_browser_e2e.py
+
+mac-app-build:
+	scripts/build_macos_app.sh
 
 test: py-test swift-test browser-e2e
 
