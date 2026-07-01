@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from calendar_pilot.codex import CodexExecutiveAgent
+from calendar_pilot.codex import CodexExecutiveAgent, CodexToolPlanner, CodexToolRuntime
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, SelfPlayRunner
 from calendar_pilot.swift_bridge import SwiftKernelStub
 from calendar_pilot.replay import ReplayBuffer
@@ -28,6 +28,9 @@ def run_demo(args: argparse.Namespace) -> None:
     policy = DiffusionGemmaPolicy()
     kernel = SwiftKernelStub()
     codex = CodexExecutiveAgent()
+    replay = ReplayBuffer()
+    tool_runtime = CodexToolRuntime(policy=policy, kernel=kernel, replay=replay)
+    tool_planner = CodexToolPlanner(runtime=tool_runtime)
 
     candidates = policy.generate_candidates(observation, biography)
     best = candidates[0]
@@ -41,8 +44,12 @@ def run_demo(args: argparse.Namespace) -> None:
     print("\nCodex explanation:")
     print(explanation)
 
+    if args.codex_tools:
+        plan = tool_planner.plan_goal(args.goal, observation, biography, authority_tier=args.authority_tier, commit=args.commit)
+        print("\nCodex tool plan:")
+        print(json.dumps(plan.to_dict(), indent=2))
+
     if args.self_play:
-        replay = ReplayBuffer()
         metrics = SelfPlayRunner(policy=policy, kernel=kernel, replay=replay).run(observation, biography, episodes=args.self_play, authority_tier=args.authority_tier)
         print("\nSelf-play metrics:")
         print(json.dumps(asdict(metrics) | {"acceptance_rate": metrics.acceptance_rate, "undo_rate": metrics.undo_rate, "average_reward": metrics.average_reward}, indent=2))
@@ -62,6 +69,9 @@ def main() -> None:
     demo.add_argument("--authority-tier", type=int, default=3)
     demo.add_argument("--self-play", type=int, default=5)
     demo.add_argument("--replay-out", default="")
+    demo.add_argument("--codex-tools", action="store_true", help="run the Codex tool-using executive loop")
+    demo.add_argument("--goal", default="Make next week less chaotic")
+    demo.add_argument("--commit", action="store_true", help="allow Codex planner to request Swift commit when simulation does not require confirmation")
     demo.set_defaults(func=run_demo)
     args = parser.parse_args()
     args.func(args)

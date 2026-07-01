@@ -201,4 +201,62 @@ final class CalendarPilotKernelTests: XCTestCase {
         XCTAssertEqual(adapter.providerID, "google")
         XCTAssertThrowsError(try adapter.createEvent(AtomicCalendarAction(actionType: .createEvent, title: "x")))
     }
+
+    func testCodexToolCallRoundTrip() throws {
+        let call = CodexToolCall(
+            toolCallID: "tool1",
+            toolName: .inspectWeek,
+            input: ["goal": JSONValue("make next week less chaotic")],
+            requestedAuthorityTier: 3,
+            userVisibleReason: "inspect before acting",
+            createdAt: date("2026-07-01T08:00:00-07:00")
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(call)
+        let text = String(data: data, encoding: .utf8)!
+        XCTAssertTrue(text.contains("tool_call_id"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let restored = try decoder.decode(CodexToolCall.self, from: data)
+        XCTAssertEqual(restored.toolName, .inspectWeek)
+        XCTAssertEqual(restored.requestedAuthorityTier, 3)
+    }
+
+    func testCodexBridgeStagesSocialMutationInsteadOfWriting() throws {
+        let observation = emptyObservation()
+        let candidate = CandidateCalendarAction(
+            candidateID: "cand_codex_social",
+            intent: "move_people_meeting",
+            actions: [AtomicCalendarAction(actionType: .moveEvent, title: "Move", eventID: "evt_social", start: date("2026-07-01T13:00:00-07:00"), end: date("2026-07-01T14:00:00-07:00"), calendarID: "work")],
+            targetCalendars: ["work"],
+            affectedEventIDs: ["evt_social"],
+            affectedPeopleIDs: ["other@example.com"],
+            reversibility: .medium,
+            requiredAuthorityTier: 5
+        )
+        let call = CodexToolCall(toolCallID: "tool_stage", toolName: .stageActionPacket, requestedAuthorityTier: 5)
+        let receipt = CodexToolBridge().stage(candidate: candidate, observation: observation, call: call)
+        XCTAssertEqual(receipt.status, .staged)
+        XCTAssertTrue(receipt.requiresUserConfirmation)
+        XCTAssertTrue(receipt.deniedReason?.contains("social") == true)
+    }
+
+    func testCodexBridgeCommitRoutesThroughKernelDenial() throws {
+        let candidate = CandidateCalendarAction(
+            candidateID: "cand_codex_commit",
+            intent: "create_event",
+            actions: [AtomicCalendarAction(actionType: .createEvent, title: "Block", start: date("2026-07-01T13:00:00-07:00"), end: date("2026-07-01T14:00:00-07:00"), calendarID: "work")],
+            targetCalendars: ["work"],
+            affectedEventIDs: [],
+            affectedPeopleIDs: [],
+            reversibility: .high,
+            requiredAuthorityTier: 3
+        )
+        let call = CodexToolCall(toolCallID: "tool_commit", toolName: .requestCommit, requestedAuthorityTier: 1)
+        let receipt = CodexToolBridge().commit(candidate: candidate, observation: emptyObservation(), call: call)
+        XCTAssertEqual(receipt.status, .denied)
+        XCTAssertTrue(receipt.deniedReason?.contains("authority") == true)
+    }
+
 }

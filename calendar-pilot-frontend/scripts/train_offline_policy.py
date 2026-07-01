@@ -42,6 +42,21 @@ def build_policy_report(buffer: ReplayBuffer) -> dict:
         label: round(-0.08 * count, 4)
         for label, count in sorted(summary.failure_modes.items())
     }
+    intent_reward_bias = {}
+    denied_intents = []
+    for intent, bucket in intent_adjustments.items():
+        residual = float(bucket.get("reward_residual", 0.0))
+        denial_rate = float(bucket.get("denial_rate", 0.0))
+        intent_reward_bias[intent] = round(max(-0.8, min(0.8, residual * 0.25)), 4)
+        if denial_rate >= 0.5:
+            denied_intents.append(intent)
+    policy_tuning = {
+        "tuning_id": "offline_replay_v1",
+        "intent_reward_bias": intent_reward_bias,
+        "failure_penalties": failure_penalties,
+        "denied_intents": sorted(denied_intents),
+        "source_report": "train_offline_policy.py",
+    }
     return {
         "records": summary.records,
         "decisions": summary.decisions,
@@ -52,8 +67,11 @@ def build_policy_report(buffer: ReplayBuffer) -> dict:
         "denials": summary.denials,
         "intent_adjustments": intent_adjustments,
         "failure_penalties": failure_penalties,
+        "policy_tuning": policy_tuning,
+        "tool_calls": summary.tool_calls,
+        "tool_receipts": summary.tool_receipts,
         "training_rows": len(rows),
-        "recommended_next_step": "Use reward_residual for offline policy weighting; filter high denial_rate intents before auto-write rollout.",
+        "recommended_next_step": "Use policy_tuning as DiffusionGemmaPolicy(policy_tuning=PolicyTuning.from_dict(...)); filter high denial_rate intents before auto-write rollout.",
     }
 
 
@@ -61,12 +79,17 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--replay", default="runs/replay.jsonl")
     parser.add_argument("--out", default="runs/offline_policy_report.json")
+    parser.add_argument("--tuning-out", default="", help="optional path for policy_tuning-only JSON")
     args = parser.parse_args()
     buffer = ReplayBuffer.load_jsonl(args.replay)
     report = build_policy_report(buffer)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    if args.tuning_out:
+        tuning_out = Path(args.tuning_out)
+        tuning_out.parent.mkdir(parents=True, exist_ok=True)
+        tuning_out.write_text(json.dumps(report.get("policy_tuning", {}), indent=2, sort_keys=True), encoding="utf-8")
     print(json.dumps(report, indent=2, sort_keys=True))
 
 

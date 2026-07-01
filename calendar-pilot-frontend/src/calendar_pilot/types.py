@@ -403,3 +403,124 @@ class RewardEvent:
 
     def to_dict(self) -> dict[str, Any]:
         return to_jsonable(self)
+
+
+class CodexToolName(str, Enum):
+    INSPECT_WEEK = "inspect_week"
+    INSPECT_EVENT = "inspect_event"
+    INSPECT_OPEN_SLOTS = "inspect_open_slots"
+    INSPECT_AUTHORITY_SCOPE = "inspect_authority_scope"
+    GENERATE_CANDIDATE_FRONTIER = "generate_candidate_frontier"
+    SIMULATE_ACTION_PROGRAM = "simulate_action_program"
+    COMPARE_CANDIDATES = "compare_candidates"
+    STAGE_ACTION_PACKET = "stage_action_packet"
+    REQUEST_COMMIT = "request_commit"
+    REQUEST_UNDO = "request_undo"
+    QUERY_REPLAY_TRACE = "query_replay_trace"
+    INSPECT_PROFILE_CLAIMS = "inspect_profile_claims"
+    PROPOSE_PROFILE_PATCH = "propose_profile_patch"
+    APPLY_PROFILE_PATCH = "apply_profile_patch"
+    RUN_SELF_PLAY_PROBE = "run_self_play_probe"
+    PROPOSE_AUTONOMY_SCOPE = "propose_autonomy_scope"
+    EXPLAIN_SWIFT_DENIAL = "explain_swift_denial"
+
+
+class CodexToolStatus(str, Enum):
+    SUCCEEDED = "succeeded"
+    STAGED = "staged"
+    DENIED = "denied"
+    REQUIRES_CONFIRMATION = "requires_confirmation"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class CodexToolCall:
+    tool_call_id: str
+    tool_name: CodexToolName
+    input: dict[str, Any]
+    requested_authority_tier: int = 0
+    user_visible_reason: str = ""
+    created_at: datetime = field(default_factory=datetime.now)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "CodexToolCall":
+        created = parse_dt(data.get("created_at")) or datetime.now()
+        return cls(
+            tool_call_id=data["tool_call_id"],
+            tool_name=CodexToolName(data.get("tool_name", "inspect_week")),
+            input=dict(data.get("input", {})),
+            requested_authority_tier=int(data.get("requested_authority_tier", 0)),
+            user_visible_reason=data.get("user_visible_reason", ""),
+            created_at=created,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
+
+
+@dataclass(frozen=True)
+class CodexToolReceipt:
+    tool_call_id: str
+    tool_name: CodexToolName
+    status: CodexToolStatus
+    output: dict[str, Any]
+    swift_receipt_id: Optional[str] = None
+    replay_record_id: Optional[str] = None
+    denied_reason: Optional[str] = None
+    requires_user_confirmation: bool = False
+    created_at: datetime = field(default_factory=datetime.now)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "CodexToolReceipt":
+        created = parse_dt(data.get("created_at")) or datetime.now()
+        return cls(
+            tool_call_id=data["tool_call_id"],
+            tool_name=CodexToolName(data.get("tool_name", "inspect_week")),
+            status=CodexToolStatus(data.get("status", "succeeded")),
+            output=dict(data.get("output", {})),
+            swift_receipt_id=data.get("swift_receipt_id"),
+            replay_record_id=data.get("replay_record_id"),
+            denied_reason=data.get("denied_reason"),
+            requires_user_confirmation=bool(data.get("requires_user_confirmation", False)),
+            created_at=created,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
+
+
+@dataclass(frozen=True)
+class CodexAutonomyScopeProposal:
+    scope_id: str
+    candidate_id: str
+    allowed_action_types: list[str]
+    max_authority_tier: int
+    excluded_social_mutations: bool
+    requires_confirmation_for_people: bool
+    rollback_required: bool
+    reason: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
+
+
+@dataclass(frozen=True)
+class PolicyTuning:
+    tuning_id: str = "default"
+    intent_reward_bias: dict[str, float] = field(default_factory=dict)
+    failure_penalties: dict[str, float] = field(default_factory=dict)
+    denied_intents: list[str] = field(default_factory=list)
+    source_report: str = ""
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "PolicyTuning":
+        return cls(
+            tuning_id=data.get("tuning_id", "default"),
+            intent_reward_bias={str(k): float(v) for k, v in data.get("intent_reward_bias", {}).items()},
+            failure_penalties={str(k): float(v) for k, v in data.get("failure_penalties", {}).items()},
+            denied_intents=[str(x) for x in data.get("denied_intents", [])],
+            source_report=data.get("source_report", ""),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)

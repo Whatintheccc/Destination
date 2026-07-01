@@ -4,7 +4,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
-from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RawCalendarObservation, UserBiography
+from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, CodexToolCall, CodexToolReceipt, RawCalendarObservation, UserBiography
 from calendar_pilot.swift_bridge import SwiftKernelStub
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +40,21 @@ class ContractParityTests(unittest.TestCase):
             self.assertIn(token, source)
         self.assertIn('case modelStory = "model_story"', source)
         self.assertIn('case actionType = "action_type"', source)
+
+
+    def test_codex_tool_schemas_cover_python_contracts(self):
+        call_schema = json.loads((ROOT / "contracts/codex_tool_call.schema.json").read_text())
+        receipt_schema = json.loads((ROOT / "contracts/codex_tool_receipt.schema.json").read_text())
+        self.assertTrue({f.name for f in fields(CodexToolCall)} <= set(call_schema["properties"].keys()))
+        self.assertTrue({f.name for f in fields(CodexToolReceipt)} <= set(receipt_schema["properties"].keys()))
+        self.assertIn("request_commit", call_schema["properties"]["tool_name"]["enum"])
+        self.assertIn("requires_confirmation", receipt_schema["properties"]["status"]["enum"])
+
+    def test_swift_contract_source_contains_codex_tool_contracts(self):
+        source = (ROOT / "packages/CalendarPilotKernel/Sources/CalendarPilotKernel/CodexToolContracts.swift").read_text()
+        for token in ["CodexToolCall", "CodexToolReceipt", "CodexToolName", "CodexToolStatus", "requestedAuthorityTier"]:
+            self.assertIn(token, source)
+        self.assertIn('case requestCommit = "request_commit"', source)
 
     def test_receipt_contract_round_trip_from_kernel_stub(self):
         observation = RawCalendarObservation.from_dict(json.loads((ROOT / "data/sample_calendar.json").read_text()))

@@ -99,6 +99,92 @@ class SwiftKernelStub:
             denied_reason=denied,
         )
 
+
+    def preview_candidate(
+        self,
+        candidate: CandidateCalendarAction,
+        observation: RawCalendarObservation,
+        requested_authority_tier: int,
+    ) -> CalendarActionReceipt:
+        """Dry-run Swift authority/materialization without committing provider state."""
+        receipt = self.authorize_and_materialize(candidate, observation, requested_authority_tier)
+        return CalendarActionReceipt(
+            receipt_id="preview_" + receipt.receipt_id,
+            candidate_id=receipt.candidate_id,
+            executed_at=receipt.executed_at,
+            executed_by="SwiftKernelStub.preview",
+            authority_tier_used=receipt.authority_tier_used,
+            sync_status=receipt.sync_status,
+            rollback_handle_id=None,
+            conflict_check_passed=receipt.conflict_check_passed,
+            generated_event_ids=[],
+            staged_action_ids=receipt.staged_action_ids,
+            rejected_action_types=receipt.rejected_action_types,
+            provider_id=receipt.provider_id,
+            actuation_mode=receipt.actuation_mode,
+            denied_reason=receipt.denied_reason,
+        )
+
+    def stage_candidate(
+        self,
+        candidate: CandidateCalendarAction,
+        observation: RawCalendarObservation,
+        requested_authority_tier: int,
+    ) -> CalendarActionReceipt:
+        """Stage a packet for approval without writing provider state.
+
+        Staging may carry a denial-style reason when Swift would require
+        social confirmation or a higher tier, but it still gives Codex a concrete
+        object to present rather than silently discarding the plan.
+        """
+        denied = None
+        if candidate.required_authority_tier > requested_authority_tier:
+            denied = "requires higher authority before commit"
+        elif any(a.action_type in SOCIAL_MUTATION_ACTIONS for a in candidate.actions) and candidate.affected_people_ids:
+            denied = "requires social actuation confirmation before commit"
+        elif self._has_hard_conflict(candidate, observation):
+            denied = "conflict_detected_before_stage"
+        staged_ids = [self._stage_id(candidate.candidate_id, idx, action.action_type.value) for idx, action in enumerate(candidate.actions)]
+        return CalendarActionReceipt(
+            receipt_id="stage_rcpt_" + hashlib.sha1((candidate.candidate_id + str(datetime.now())).encode()).hexdigest()[:12],
+            candidate_id=candidate.candidate_id,
+            executed_at=observation.observed_at,
+            executed_by="SwiftKernelStub.stage",
+            authority_tier_used=min(requested_authority_tier, candidate.required_authority_tier),
+            sync_status="staged",
+            rollback_handle_id=None,
+            conflict_check_passed=denied != "conflict_detected_before_stage",
+            generated_event_ids=[],
+            staged_action_ids=staged_ids,
+            rejected_action_types=[],
+            provider_id="local_stub",
+            actuation_mode=ActuationMode.STAGED_DRAFT,
+            denied_reason=denied,
+        )
+
+    def request_undo(self, rollback_handle_id: str, observation: RawCalendarObservation) -> CalendarActionReceipt:
+        if not rollback_handle_id:
+            denied = "missing rollback handle"
+            status = "denied"
+            mode = ActuationMode.DENIED
+        else:
+            denied = None
+            status = "reverted"
+            mode = ActuationMode.NO_OP
+        return CalendarActionReceipt(
+            receipt_id="undo_rcpt_" + hashlib.sha1((rollback_handle_id + str(datetime.now())).encode()).hexdigest()[:12],
+            candidate_id=rollback_handle_id or "unknown",
+            executed_at=observation.observed_at,
+            executed_by="SwiftKernelStub.undo",
+            authority_tier_used=0,
+            sync_status=status,
+            rollback_handle_id=rollback_handle_id or None,
+            conflict_check_passed=True,
+            provider_id="local_stub",
+            actuation_mode=mode,
+            denied_reason=denied,
+        )
+
     @staticmethod
     def _denied_reason(candidate: CandidateCalendarAction, observation: RawCalendarObservation, granted_authority_tier: int) -> str | None:
         if candidate.required_authority_tier > granted_authority_tier:

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calendarpilot.local/schemas/codex_tool_call.schema.json",
+  "title": "CodexToolCall",
+  "type": "object",
+  "required": ["tool_call_id", "tool_name", "input", "requested_authority_tier", "user_visible_reason", "created_at"],
+  "properties": {
+    "tool_call_id": {"type": "string"},
+    "tool_name": {
+      "type": "string",
+      "enum": [
+        "inspect_week", "inspect_event", "inspect_open_slots", "inspect_authority_scope",
+        "generate_candidate_frontier", "simulate_action_program", "compare_candidates",
+        "stage_action_packet", "request_commit", "request_undo", "query_replay_trace",
+        "inspect_profile_claims", "propose_profile_patch", "apply_profile_patch",
+        "run_self_play_probe", "propose_autonomy_scope", "explain_swift_denial"
+      ]
+    },
+    "input": {"type": "object"},
+    "requested_authority_tier": {"type": "integer", "minimum": 0},
+    "user_visible_reason": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

@@ -3,7 +3,8 @@ from __future__ import annotations
 from calendar_pilot.biography import BiographyStore
 from calendar_pilot.diffusiongemma.reward import RewardModel
 from calendar_pilot.diffusiongemma.self_play import SelfPlayMetrics
-from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RightMomentDecision, UserBiography
+from calendar_pilot.codex.planner import CodexToolPlanner
+from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RightMomentDecision, UserBiography, RawCalendarObservation
 
 
 class CodexExecutiveAgent:
@@ -15,6 +16,25 @@ class CodexExecutiveAgent:
     work. A production Codex layer can be model-backed, but this deterministic
     contract keeps explanations inspectable.
     """
+
+
+    def operate_goal(
+        self,
+        goal: str,
+        observation: RawCalendarObservation,
+        biography: UserBiography,
+        *,
+        authority_tier: int = 3,
+        commit: bool = False,
+        planner: CodexToolPlanner | None = None,
+    ) -> str:
+        planner = planner or CodexToolPlanner()
+        plan = planner.plan_goal(goal, observation, biography, authority_tier=authority_tier, commit=commit)
+        statuses = ", ".join(f"{r.tool_name.value}:{r.status.value}" for r in plan.receipts)
+        return (
+            f"I operated on `{goal}` with {len(plan.calls)} tool call(s): {statuses}. "
+            f"Recommended next action: {plan.recommended_next_action}."
+        )
 
     def explain(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt, biography: UserBiography) -> str:
         if receipt.denied_reason:

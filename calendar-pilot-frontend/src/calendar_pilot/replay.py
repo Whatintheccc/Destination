@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 from typing import Any
 
-from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RewardEvent, to_jsonable
+from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RewardEvent, CodexToolCall, CodexToolReceipt, to_jsonable
 
 
 @dataclass
@@ -38,6 +38,8 @@ class ReplaySummary:
     reward_by_intent: dict[str, float]
     counts_by_intent: dict[str, int]
     failure_modes: dict[str, int]
+    tool_calls: int = 0
+    tool_receipts: int = 0
 
 
 @dataclass
@@ -75,6 +77,13 @@ class ReplayBuffer:
         self.records.append(ReplayRecord(record_type="self_play_episode", payload=payload))
         for finding in payload.get("findings", []):
             self.records.append(ReplayRecord(record_type="adversary_finding", payload=finding))
+
+
+    def append_tool_call(self, call: CodexToolCall) -> None:
+        self.records.append(ReplayRecord(record_type="codex_tool_call", payload={"call": call.to_dict()}))
+
+    def append_tool_receipt(self, receipt: CodexToolReceipt) -> None:
+        self.records.append(ReplayRecord(record_type="codex_tool_receipt", payload={"receipt": receipt.to_dict()}))
 
     def append_candidate_receipt(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt) -> None:
         # Backward-compatible convenience used by older tests and demos.
@@ -160,6 +169,8 @@ class ReplayBuffer:
             reward_by_intent=avg_by_intent,
             counts_by_intent=counts_by_intent,
             failure_modes=failure_modes,
+            tool_calls=sum(1 for r in self.records if r.record_type == "codex_tool_call"),
+            tool_receipts=sum(1 for r in self.records if r.record_type == "codex_tool_receipt"),
         )
 
     def training_table(self) -> list[dict[str, Any]]:

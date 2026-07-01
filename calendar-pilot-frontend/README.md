@@ -101,3 +101,31 @@ This is a runnable reference implementation skeleton. It has working contracts, 
 ## Latest revision
 
 See `docs/NEXT_FOCUS_REVISION.md` for the contract reconciliation, focus-mode policy bug fix, Swift actuation/staging depth, replay/training loop, provider boundary, biography maturation, and hygiene changes.
+
+
+## Latest revision: Codex as tool-using executive
+
+The current repo focuses on machine learning, machine acting, and self-play. The major change is that Codex is no longer just an explainer. It now has a bounded tool runtime:
+
+```text
+DiffusionGemma learns and proposes candidate futures.
+Codex inspects, simulates, compares, stages, repairs, and requests.
+Swift validates, writes, syncs, rolls back, denies, and audits.
+```
+
+New entry points:
+
+```bash
+PYTHONPATH=src python3 -m calendar_pilot.app demo \
+  --observation data/sample_calendar.json \
+  --codex-tools \
+  --self-play 3 \
+  --replay-out runs/replay.jsonl
+
+PYTHONPATH=src python3 scripts/train_offline_policy.py \
+  --replay runs/replay.jsonl \
+  --out runs/offline_policy_report.json \
+  --tuning-out runs/policy_tuning.json
+```
+
+Read `docs/CODEX_TOOL_EXECUTIVE.md` and `docs/ML_ACTING_SELF_PLAY_LOOP.md` for the new architecture.

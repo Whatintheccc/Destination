@@ -17,6 +17,7 @@ from calendar_pilot.types import (
     RawTask,
     Reversibility,
     UserBiography,
+    PolicyTuning,
 )
 
 
@@ -40,10 +41,12 @@ class DiffusionGemmaPolicy:
         reward_model: RewardModel | None = None,
         right_moment: RightMomentModel | None = None,
         world_model: CalendarWorldModel | None = None,
+        policy_tuning: PolicyTuning | None = None,
     ) -> None:
         self.reward_model = reward_model or RewardModel()
         self.right_moment = right_moment or RightMomentModel()
         self.world_model = world_model or CalendarWorldModel()
+        self.policy_tuning = policy_tuning or PolicyTuning()
 
     def generate_candidates(
         self,
@@ -65,7 +68,40 @@ class DiffusionGemmaPolicy:
             self.world_model.annotate(candidate, observation, biography, signals)
             self.reward_model.score(candidate)
             self.right_moment.decide(candidate, observation, biography, signals)
+            self._apply_policy_tuning(candidate)
         return sorted(candidates, key=lambda c: (c.expected_reward, c.right_moment_score), reverse=True)
+
+
+    def _apply_policy_tuning(self, candidate: CandidateCalendarAction) -> None:
+        """Apply offline replay/self-play feedback as a lightweight policy update.
+
+        This is not a neural update. It is the contract shape a learned
+        DiffusionGemma policy would consume: intent residuals, denial filters,
+        and adversary penalties are attached after base scoring so the acting
+        policy visibly changes from replay rather than merely reporting it.
+        """
+        tuning = self.policy_tuning
+        if candidate.intent in tuning.denied_intents:
+            candidate.expected_reward = round(candidate.expected_reward - 1.0, 4)
+            candidate.control_notes.append("offline_tuning=deny_intent_penalty:-1.00")
+        bias = tuning.intent_reward_bias.get(candidate.intent, 0.0)
+        if bias:
+            candidate.expected_reward = round(candidate.expected_reward + bias, 4)
+            candidate.reward_breakdown["offline_intent_bias"] = round(bias, 4)
+            candidate.control_notes.append(f"offline_tuning=intent_bias:{bias:+.2f}")
+        penalty = 0.0
+        if candidate.predicted_social_risk > 0.18 or len(candidate.affected_people_ids) >= 3:
+            penalty += tuning.failure_penalties.get("social_conflict", 0.0)
+        if candidate.right_moment_decision.value in {"notify_now", "auto_write_then_notify"} and candidate.predicted_interruption_cost > 0.15:
+            penalty += tuning.failure_penalties.get("notification_fatigue", 0.0)
+        if candidate.required_authority_tier >= 3 and candidate.predicted_regret > 0.10:
+            penalty += tuning.failure_penalties.get("undo_regret", 0.0)
+        if candidate.predicted_engagement > candidate.predicted_utility and candidate.predicted_engagement > 0.25:
+            penalty += tuning.failure_penalties.get("engagement_over_utility", 0.0)
+        if penalty:
+            candidate.expected_reward = round(candidate.expected_reward + penalty, 4)
+            candidate.reward_breakdown["offline_adversary_penalty"] = round(penalty, 4)
+            candidate.control_notes.append(f"offline_tuning=adversary_penalty:{penalty:+.2f}")
 
     def _prep_blocks(
         self,
