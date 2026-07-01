@@ -19,7 +19,7 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertEqual(report["backends"]["kernel"], "SwiftKernelStub")
             self.assertEqual(report["backends"]["codex"], "deterministic_codex_tool_planner")
             self.assertEqual(report["backends"]["diffusiongemma"], "heuristic_diffusiongemma_policy")
-            self.assertEqual(report["backends"]["provider"], "local_stub")
+            self.assertEqual(report["backends"]["provider"], "deterministic_fixture_provider")
             self.assertEqual(report["live_blockers"], [])
             self.assertTrue(runtime_is_release_safe(report))
 
@@ -43,7 +43,6 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertIn("required credential missing: provider_oauth", blockers)
             self.assertIn("sample fixture data", blockers)
             self.assertIn("SwiftKernelStub", blockers)
-            self.assertIn("local_stub provider", blockers)
 
     def test_invalid_runtime_mode_is_not_coerced_to_fixture_safe(self):
         with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {"CALENDAR_PILOT_RUNTIME_MODE": "prod"}):

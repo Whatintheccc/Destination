@@ -11,6 +11,7 @@ from typing import Any
 
 from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime, LiveCodexToolPlanner
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, LiveDiffusionGemmaPolicy, SelfPlayRunner
+from calendar_pilot.providers import DeterministicCalendarProvider
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge import SwiftKernelIPCClient, SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
@@ -57,6 +58,7 @@ class DogfoodSessionState:
     biography: UserBiography = field(init=False)
     kernel: CalendarKernelProtocol = field(init=False)
     policy: DiffusionGemmaPolicy | LiveDiffusionGemmaPolicy = field(init=False)
+    provider: Any = field(init=False)
     replay: ReplayBuffer = field(init=False)
     runtime: CodexToolRuntime = field(init=False)
     planner: CodexToolPlanner = field(init=False)
@@ -78,6 +80,7 @@ class DogfoodSessionState:
         self._load_primitives()
         self.kernel = self._new_kernel_for_mode()
         self.policy = self._new_policy_for_mode()
+        self.provider = self._new_provider_for_mode()
         self.replay = ReplayBuffer.load_jsonl(self.run_dir / "replay.jsonl")
         self._rebuild_runtime()
         atexit.register(self.close)
@@ -110,11 +113,12 @@ class DogfoodSessionState:
         self.close()
         self.kernel = self._new_kernel_for_mode()
         self.policy = self._new_policy_for_mode()
+        self.provider = self._new_provider_for_mode()
         if hasattr(self, "runtime"):
             self._rebuild_runtime()
 
     def _rebuild_runtime(self) -> None:
-        self.runtime = CodexToolRuntime(policy=self.policy, kernel=self.kernel, replay=self.replay)
+        self.runtime = CodexToolRuntime(policy=self.policy, kernel=self.kernel, replay=self.replay, provider=self.provider)
         self.planner = self._new_planner_for_mode()
 
     def _new_planner_for_mode(self) -> CodexToolPlanner | LiveCodexToolPlanner:
@@ -127,6 +131,12 @@ class DogfoodSessionState:
             return LiveDiffusionGemmaPolicy()
         return DiffusionGemmaPolicy()
 
+    def _new_provider_for_mode(self) -> Any:
+        requested_provider = os.environ.get("CALENDAR_PILOT_PROVIDER_BACKEND", "deterministic").strip().lower().replace("-", "_")
+        if requested_provider in {"stub", "local_stub", "none"}:
+            return None
+        return DeterministicCalendarProvider(state_path=self.run_dir / "provider_state.json", seed_observation=self.observation)
+
     def close(self) -> None:
         close = getattr(getattr(self, "kernel", None), "close", None)
         if callable(close):
@@ -135,6 +145,10 @@ class DogfoodSessionState:
     def reset(self) -> dict[str, Any]:
         self._load_primitives()
         self.policy = self._new_policy_for_mode()
+        self.provider = self._new_provider_for_mode()
+        reset_provider = getattr(self.provider, "reset", None)
+        if callable(reset_provider):
+            reset_provider(self.observation)
         self.replay = ReplayBuffer()
         self.latest_plan = None
         self.authority_tier = DEFAULT_AUTHORITY_TIER
@@ -394,7 +408,8 @@ class DogfoodSessionState:
     def _runtime_backends(self) -> RuntimeBackends:
         codex_backend = getattr(self.planner, "backend_name", "deterministic_codex_tool_planner")
         policy_backend = getattr(self.policy, "backend_name", "heuristic_diffusiongemma_policy")
-        return RuntimeBackends(kernel=type(self.kernel).__name__, codex=codex_backend, diffusiongemma=policy_backend)
+        provider_backend = getattr(self.provider, "provider_id", "local_stub")
+        return RuntimeBackends(kernel=type(self.kernel).__name__, codex=codex_backend, diffusiongemma=policy_backend, provider=provider_backend)
 
     def snapshot(self) -> dict[str, Any]:
         plan = self.latest_plan
@@ -444,6 +459,7 @@ class DogfoodSessionState:
         snapshot["inspector"]["profile"]["patch_history"] = self.profile_patch_history[-10:]
         snapshot["inspector"]["self_play"]["history"] = self.self_play_history[-5:]
         snapshot["inspector"]["replay"]["records"] = [record.envelope() for record in self.replay.records[-40:]]
+        snapshot["inspector"]["provider"] = self._provider_inspector()
         snapshot["inspector"]["feedback"] = self.feedback_history[-20:]
         snapshot["inspector"]["denials"] = self.denial_history[-20:]
         snapshot["sidebar"]["sessions"] = [{"session_id": self.session_id, "label": "Current fixture run", "active": True}]
@@ -451,6 +467,25 @@ class DogfoodSessionState:
             {"label": event.get("body") or event.get("title", "run"), "created_at": event.get("created_at")} for event in self.transcript_events if event.get("kind") == "user"
         ][-8:]
         return snapshot
+
+    def _provider_inspector(self) -> dict[str, Any]:
+        provider_snapshot = getattr(self.provider, "snapshot", None)
+        if not callable(provider_snapshot):
+            return {
+                "title": "Provider state",
+                "rows": [{"provider": "local_stub", "real_oauth": False, "write_boundary": "Swift/provider adapter only"}],
+            }
+        snapshot = provider_snapshot()
+        rows = [
+            {"key": "provider", "value": snapshot.get("provider")},
+            {"key": "real_oauth", "value": snapshot.get("real_oauth")},
+            {"key": "event_count", "value": snapshot.get("event_count")},
+            {"key": "idempotency_keys", "value": snapshot.get("idempotency_keys")},
+            {"key": "rollback_records", "value": snapshot.get("rollback_records")},
+            {"key": "rollback_verified", "value": snapshot.get("rollback_verified")},
+        ]
+        rows.extend(snapshot.get("recent_mutations", [])[-5:])
+        return {"title": "Deterministic provider state", "rows": rows, "snapshot": snapshot}
 
     def persist(self) -> None:
         self.run_dir.mkdir(parents=True, exist_ok=True)

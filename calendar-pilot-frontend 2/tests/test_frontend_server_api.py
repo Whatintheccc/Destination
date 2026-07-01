@@ -39,7 +39,7 @@ class FrontendServerApiTests(unittest.TestCase):
         self.assertEqual(state["runtime"]["backends"]["kernel"], "SwiftKernelStub")
         health = self.get("/api/health")
         self.assertEqual(health["runtime_mode"], state["runtime"]["runtime_mode"])
-        self.assertEqual(health["backends"]["provider"], "local_stub")
+        self.assertEqual(health["backends"]["provider"], "deterministic_fixture_provider")
 
         planned = self.post("/api/plans", {"goal": "Make next week less chaotic", "authority_tier": 3})
         candidate_id = planned["chat"]["candidate_cards"][0]["candidate_id"]

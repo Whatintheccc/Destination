@@ -417,13 +417,13 @@ Acceptance criteria:
 
 ## P7 Provider Truth And OAuth
 
-Status: Not started
+Status: In progress
 Owner: provider/runtime engineering
 Goal: replace provider stubs with truthful calendar read/write behavior while preserving authority, idempotency, rollback, and conflict guarantees.
 
 ### P7.1 Deterministic Provider State
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -575,6 +575,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P5 architectural review fixes | Addressed Locke's blockers by statically validating the full model plan before executing any planned tool and by rehydrating Swift IPC authority grants plus rollback handles for `live_codex` and `production` restores, not only `swift_ipc`. | `make py-test`, `make swift-test`, `make swift-ipc-test`, `make live-codex-e2e`, and `make dogfood-release` passed. Added regression tests for terminal commit validation and live-Codex Swift undo rehydration. |
 | 2026-07-01 | P6 live DiffusionGemma/NIM verification | Completed manual NVIDIA NIM credential setup through the ignored local `.env`, added certifi-backed TLS handling for the NIM client, and verified live policy ranking without heuristic fallback. `live_diffusiongemma` reports backend `nvidia_nim_diffusiongemma_policy`, selects Swift IPC, records policy provenance in replay, exposes candidate control notes, and turns missing or failed NIM calls into failed receipts instead of provider writes. | `make live-diffusiongemma-e2e` passed with 6 candidate cards and 6 NIM policy replay records under `runs/live_diffusiongemma_e2e/artifacts/`. `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed; release secret scan reported no findings across tracked files, `runs/`, and `dist/`. |
 | 2026-07-01 | P6 architectural review fixes | Addressed Peirce's blockers by making live DiffusionGemma health perform cached remote NIM validation, appending remote health failures to `live_blockers`, exposing timeout/retry/polling/fallback/decoding config in health, surfacing failed frontier generation in chat, preserving structured per-candidate NIM metadata in replay decisions, and fail-closing stale frontier state after live policy failure. NIM ranking now requests JSON-schema structured output and records parser fallback as validation metadata if needed. | `make live-diffusiongemma-e2e` passed with preflight `status: ok`, JSON-schema decoding settings, `/api/health` `diffusiongemma_nim.status: ok`, and 6 replay records containing structured `policy_metadata`. `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed; release secret scan had no findings. |
+| 2026-07-01 | P7 deterministic provider state | Added `DeterministicCalendarProvider` with persisted provider state, external IDs, idempotency keys, provider conflict truth, rollback records, and rollback verification. `CodexToolRuntime` now resolves authority, checks provider truth, asks Swift to authorize/materialize, then persists provider writes and enriches receipts; undo verifies provider rollback. The frontend runtime reports `deterministic_fixture_provider` and the provider inspector shows event/idempotency/rollback state. | `test_deterministic_provider.py` covers external ID/idempotency, idempotent replay, provider rollback verification, and provider-state conflict denial not visible in the original observation. `make py-test`, `make swift-test`, `make swift-ipc-test`, `make browser-e2e`, and `make dogfood-release` passed. Browser replay export contained provider commit and rollback outputs; release secret scan had no findings. |
 
 ## Review Log
 

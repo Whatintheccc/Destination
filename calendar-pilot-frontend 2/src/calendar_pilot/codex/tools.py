@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import hashlib
 from typing import Any
@@ -10,6 +10,7 @@ from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
 from calendar_pilot.diffusiongemma.live import LiveDiffusionGemmaError
 from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner
 from calendar_pilot.diffusiongemma.signals import extract_signals
+from calendar_pilot.providers import CalendarProviderError
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
@@ -47,11 +48,13 @@ class CodexToolRuntime:
         kernel: CalendarKernelProtocol | None = None,
         replay: ReplayBuffer | None = None,
         biography_store: BiographyStore | None = None,
+        provider: Any | None = None,
     ) -> None:
         self.policy = policy or DiffusionGemmaPolicy()
         self.kernel = kernel or SwiftKernelStub()
         self.replay = replay or ReplayBuffer()
         self.biography_store = biography_store or BiographyStore()
+        self.provider = provider
         self.frontier: dict[str, CandidateCalendarAction] = {}
         self.latest_observation: RawCalendarObservation | None = None
         self.latest_biography: UserBiography | None = None
@@ -130,13 +133,56 @@ class CodexToolRuntime:
             grant = self._resolve_grant(call)
             if grant is None:
                 return self._receipt(call, CodexToolStatus.DENIED, {"stage_state": StageState.DENIED.value}, denied="missing Swift-issued authority grant for commit", stage_state=StageState.DENIED)
+            provider_conflicts = self._provider_conflict_truth(candidate)
+            if provider_conflicts:
+                return self._receipt(
+                    call,
+                    CodexToolStatus.DENIED,
+                    {
+                        "stage_state": StageState.DENIED.value,
+                        "provider_conflict_truth": provider_conflicts,
+                        "provider_id": getattr(self.provider, "provider_id", "unknown_provider"),
+                    },
+                    denied="provider_conflict_detected",
+                    stage_state=StageState.DENIED,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or candidate.candidate_id,
+                )
             swift_receipt = self.kernel.authorize_and_materialize(candidate, observation, authority_grant=grant.grant_id, requested_authority_tier=call.requested_authority_tier, correlation_id=call.correlation_id or candidate.candidate_id)
+            provider_receipt = self._commit_to_provider(candidate, swift_receipt, observation) if swift_receipt.denied_reason is None else None
+            if provider_receipt is not None and provider_receipt.status == "conflict_denied":
+                return self._receipt(
+                    call,
+                    CodexToolStatus.DENIED,
+                    {
+                        "candidate": candidate.to_dict(),
+                        "swift_receipt": swift_receipt.to_dict(),
+                        "provider_receipt": provider_receipt.to_dict(),
+                        "stage_state": StageState.DENIED.value,
+                    },
+                    denied="provider_conflict_detected",
+                    stage_state=StageState.DENIED,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or candidate.candidate_id,
+                )
+            if provider_receipt is not None:
+                swift_receipt = replace(
+                    swift_receipt,
+                    provider_id=provider_receipt.provider_id,
+                    generated_event_ids=provider_receipt.external_ids or swift_receipt.generated_event_ids,
+                    rollback_handle_id=provider_receipt.rollback_handle_id or swift_receipt.rollback_handle_id,
+                )
             self.replay.append_receipt(swift_receipt, candidate, trace_id=call.correlation_id or candidate.candidate_id, causal_parent_id=call.tool_call_id)
             status = CodexToolStatus.DENIED if swift_receipt.denied_reason else CodexToolStatus.COMMITTED
             return self._receipt(
                 call,
                 status,
-                {"candidate": candidate.to_dict(), "swift_receipt": swift_receipt.to_dict(), "stage_state": swift_receipt.stage_state.value},
+                {
+                    "candidate": candidate.to_dict(),
+                    "swift_receipt": swift_receipt.to_dict(),
+                    "provider_receipt": provider_receipt.to_dict() if provider_receipt is not None else None,
+                    "stage_state": swift_receipt.stage_state.value,
+                },
                 swift_receipt_id=swift_receipt.receipt_id,
                 denied=swift_receipt.denied_reason,
                 stage_state=swift_receipt.stage_state,
@@ -147,9 +193,27 @@ class CodexToolRuntime:
             rollback_id = str(call.input.get("rollback_handle_id", ""))
             grant = self._resolve_grant(call)
             output = self.kernel.request_undo(rollback_id, observation, authority_grant=grant.grant_id if grant else None, requested_authority_tier=call.requested_authority_tier, correlation_id=call.correlation_id or rollback_id)
+            provider_rollback = self._rollback_provider(rollback_id) if output.denied_reason is None else None
+            if provider_rollback is not None:
+                output = replace(output, provider_id=provider_rollback.provider_id)
             self.replay.append_receipt(output, trace_id=call.correlation_id or rollback_id, causal_parent_id=call.tool_call_id)
             status = CodexToolStatus.DENIED if output.denied_reason else CodexToolStatus.COMMITTED
-            return self._receipt(call, status, {"swift_receipt": output.to_dict(), "stage_state": output.stage_state.value}, swift_receipt_id=output.receipt_id, denied=output.denied_reason, stage_state=output.stage_state, authority_grant=grant, correlation_id=call.correlation_id or rollback_id)
+            if provider_rollback is not None and not provider_rollback.rollback_verified:
+                status = CodexToolStatus.FAILED
+            return self._receipt(
+                call,
+                status,
+                {
+                    "swift_receipt": output.to_dict(),
+                    "provider_rollback": provider_rollback.to_dict() if provider_rollback is not None else None,
+                    "stage_state": output.stage_state.value,
+                },
+                swift_receipt_id=output.receipt_id,
+                denied=output.denied_reason if status != CodexToolStatus.FAILED else "provider_rollback_not_verified",
+                stage_state=output.stage_state,
+                authority_grant=grant,
+                correlation_id=call.correlation_id or rollback_id,
+            )
         if name == CodexToolName.QUERY_REPLAY_TRACE:
             return self._receipt(call, CodexToolStatus.SUCCEEDED, self._query_replay(call))
         if name == CodexToolName.INSPECT_PROFILE_CLAIMS:
@@ -259,6 +323,30 @@ class CodexToolRuntime:
             })
         rows.sort(key=lambda r: r["robust_score"], reverse=True)
         return self._receipt(call, CodexToolStatus.SUCCEEDED, {"ranking": rows, "winner": rows[0] if rows else None})
+
+    def _provider_conflict_truth(self, candidate: CandidateCalendarAction) -> list[dict[str, Any]]:
+        conflict_truth = getattr(self.provider, "conflict_truth", None)
+        if not callable(conflict_truth):
+            return []
+        return list(conflict_truth(candidate))
+
+    def _commit_to_provider(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt, observation: RawCalendarObservation):
+        commit_candidate = getattr(self.provider, "commit_candidate", None)
+        if not callable(commit_candidate):
+            return None
+        try:
+            return commit_candidate(candidate, receipt, observation)
+        except CalendarProviderError as exc:
+            raise RuntimeError(f"provider write failed: {exc}") from exc
+
+    def _rollback_provider(self, rollback_handle_id: str):
+        rollback = getattr(self.provider, "rollback", None)
+        if not callable(rollback):
+            return None
+        try:
+            return rollback(rollback_handle_id)
+        except CalendarProviderError as exc:
+            raise RuntimeError(f"provider rollback failed: {exc}") from exc
 
     def _candidate_from_input(self, call: CodexToolCall) -> CandidateCalendarAction:
         candidate_id = call.input.get("candidate_id")
