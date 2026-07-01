@@ -378,7 +378,7 @@ Acceptance criteria:
 
 ## P6 DiffusionGemma / NVIDIA NIM Policy Serving
 
-Status: Review fixes implemented; architecture re-review pending before P7
+Status: Done
 Owner: model integration
 Goal: replace or augment the heuristic `DiffusionGemmaPolicy` with a real served policy endpoint.
 
@@ -591,7 +591,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P3 | Locke | Found invalid runtime modes could be silently coerced to fixture-safe and noted weaker bundled build provenance plus fixture credential false-positive. | Fixed invalid-mode reporting/gating, persisted requested/effective mode, bundled `build_id`, and runtime-derived credential reporting. Locke re-reviewed and cleared P3. |
 | 2026-07-01 | P4 | Jason | Found three blockers: Swift IPC undo was not restart-truthful, JSONL IPC was unsafe under threaded HTTP, and correlation IDs were not preserved across IPC. | Fixed all three with Swift restore RPCs, Python-side IPC rehydration, serialized/id-checked RPC, and correlation propagation. Jason re-reviewed commit `8af7fd7` and cleared P4. |
 | 2026-07-01 | P5 | Locke | Found two blockers: model-plan validation could happen inline after side-effecting execution, and `live_codex` restores did not rehydrate Swift IPC authority/undo state. | Fixed with pre-execution model-plan shape validation, replayed validation failures, and IPC restore rehydration for `live_codex`/`production`. Locke re-reviewed commit `2d566f3` and cleared P5 for P6. |
-| 2026-07-01 | P6 | Peirce | Found three blockers: `/api/health` treated env presence as release-safe without remote NIM validation, live replay dropped structured NIM provenance, and health omitted timeout/retry/fallback configuration. First re-review found one more blocker: stale frontier candidates could still be compared after a live NIM failure. | Fixed with cached remote NIM health validation, blocker propagation, explicit endpoint config, actionable failed-frontier chat copy, structured replay `policy_metadata`, JSON-schema NIM output, stale-frontier clearing, and explicit-empty compare semantics; final re-review pending. |
+| 2026-07-01 | P6 | Peirce | Found three blockers: `/api/health` treated env presence as release-safe without remote NIM validation, live replay dropped structured NIM provenance, and health omitted timeout/retry/fallback configuration. First re-review found one more blocker: stale frontier candidates could still be compared after a live NIM failure. | Fixed with cached remote NIM health validation, blocker propagation, explicit endpoint config, actionable failed-frontier chat copy, structured replay `policy_metadata`, JSON-schema NIM output, stale-frontier clearing, and explicit-empty compare semantics. Peirce re-reviewed commit `c7e3e5f` and cleared P6 for P7. |
 
 ## Open Risks
 
