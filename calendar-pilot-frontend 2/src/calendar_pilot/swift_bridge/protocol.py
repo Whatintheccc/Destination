@@ -33,6 +33,7 @@ class CalendarKernelProtocol(Protocol):
         authority_grant: AuthorityGrant | str | None = None,
         *,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt: ...
 
     def stage_candidate(
@@ -42,6 +43,7 @@ class CalendarKernelProtocol(Protocol):
         authority_grant: AuthorityGrant | str | None = None,
         *,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt: ...
 
     def authorize_and_materialize(
@@ -52,6 +54,7 @@ class CalendarKernelProtocol(Protocol):
         *,
         requested_authority_tier: int | None = None,
         granted_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt: ...
 
     def request_undo(
@@ -61,6 +64,7 @@ class CalendarKernelProtocol(Protocol):
         authority_grant: AuthorityGrant | str | None = None,
         *,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt: ...
 
     def is_people_affecting_mutation(self, candidate: CandidateCalendarAction) -> bool: ...

@@ -468,13 +468,30 @@ class DogfoodSessionState:
         grants = kernel.get("authority_grants", []) if isinstance(kernel, dict) else []
         self.kernel.authority_grants = {}
         self.kernel.undo_ledger = {}
-        if self.runtime_mode != "swift_ipc":
+        undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
+        active_undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
+        if self.runtime_mode == "swift_ipc":
+            restore_grant = getattr(self.kernel, "restore_authority_grant", None)
+            if callable(restore_grant):
+                for grant in grants:
+                    if isinstance(grant, dict) and grant.get("grant_id"):
+                        restore_grant(AuthorityGrant.from_dict(grant))
+            restore_undo = getattr(self.kernel, "restore_undo_handle", None)
+            generated_ids = self._generated_event_ids_by_rollback()
+            if callable(restore_undo):
+                for rollback_handle_id, candidate_id in active_undo_ledger.items():
+                    restore_undo(
+                        rollback_handle_id,
+                        candidate_id,
+                        self.observation,
+                        generated_event_ids=generated_ids.get(rollback_handle_id, []),
+                    )
+        else:
             for grant in grants:
                 if isinstance(grant, dict) and grant.get("grant_id"):
                     restored = AuthorityGrant.from_dict(grant)
                     self.kernel.authority_grants[restored.grant_id] = restored
-            undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
-            self.kernel.undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
+            self.kernel.undo_ledger = active_undo_ledger
         if not self.transcript_events:
             self.transcript_events.append({
                 "kind": "assistant",
@@ -483,6 +500,20 @@ class DogfoodSessionState:
                 "created_at": _now().isoformat(),
             })
         return True
+
+    def _generated_event_ids_by_rollback(self) -> dict[str, list[str]]:
+        generated: dict[str, list[str]] = {}
+        for record in self.replay.records:
+            receipt = record.payload.get("receipt", {})
+            if isinstance(receipt, dict) and receipt.get("rollback_handle_id"):
+                generated[str(receipt["rollback_handle_id"])] = [str(item) for item in receipt.get("generated_event_ids", [])]
+        if self.latest_plan is not None:
+            for tool_receipt in self.latest_plan.receipts:
+                output = tool_receipt.output if isinstance(tool_receipt.output, dict) else {}
+                swift_receipt = output.get("swift_receipt")
+                if isinstance(swift_receipt, dict) and swift_receipt.get("rollback_handle_id"):
+                    generated[str(swift_receipt["rollback_handle_id"])] = [str(item) for item in swift_receipt.get("generated_event_ids", [])]
+        return generated
 
     def _hydrate_runtime_frontier(self) -> None:
         for record in self.replay.records:

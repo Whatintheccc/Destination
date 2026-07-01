@@ -39,12 +39,14 @@ struct ActuationPayload: Codable {
     var observation: RawCalendarObservation
     var authorityGrantID: String?
     var requestedAuthorityTier: Int
+    var correlationID: String?
 
     enum CodingKeys: String, CodingKey {
         case candidate
         case observation
         case authorityGrantID = "authority_grant_id"
         case requestedAuthorityTier = "requested_authority_tier"
+        case correlationID = "correlation_id"
     }
 }
 
@@ -52,11 +54,37 @@ struct UndoPayload: Codable {
     var rollbackHandleID: String
     var authorityGrantID: String?
     var observedAt: Date
+    var correlationID: String?
 
     enum CodingKeys: String, CodingKey {
         case rollbackHandleID = "rollback_handle_id"
         case authorityGrantID = "authority_grant_id"
         case observedAt = "observed_at"
+        case correlationID = "correlation_id"
+    }
+}
+
+struct RestoreGrantPayload: Codable {
+    var authorityGrant: AuthorityGrant
+
+    enum CodingKeys: String, CodingKey {
+        case authorityGrant = "authority_grant"
+    }
+}
+
+struct RestoreUndoPayload: Codable {
+    var rollbackHandleID: String
+    var candidateID: String
+    var observation: RawCalendarObservation
+    var generatedEventIDs: [String]
+    var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case rollbackHandleID = "rollback_handle_id"
+        case candidateID = "candidate_id"
+        case observation
+        case generatedEventIDs = "generated_event_ids"
+        case createdAt = "created_at"
     }
 }
 
@@ -101,13 +129,28 @@ final class KernelRPCServer {
                 issuedAt: payload.issuedAt
             )
             return try ok(request, ["authority_grant": toJSONValue(grant)])
+        case "restore_authority_grant":
+            let payload = try decode(RestoreGrantPayload.self, from: request.payload)
+            kernel.restoreAuthorityGrant(payload.authorityGrant)
+            return try ok(request, ["authority_grant": toJSONValue(payload.authorityGrant)])
+        case "restore_undo_handle":
+            let payload = try decode(RestoreUndoPayload.self, from: request.payload)
+            kernel.restoreUndoRecord(
+                rollbackHandleID: payload.rollbackHandleID,
+                candidateID: payload.candidateID,
+                observation: payload.observation,
+                generatedEventIDs: payload.generatedEventIDs,
+                createdAt: payload.createdAt
+            )
+            return try ok(request, ["rollback_handle_id": toJSONValue(payload.rollbackHandleID)])
         case "stage":
             let payload = try decode(ActuationPayload.self, from: request.payload)
             let receipt = kernel.stage(
                 candidate: payload.candidate,
                 observation: payload.observation,
                 authorityGrant: payload.authorityGrantID.flatMap { kernel.resolveGrant($0) },
-                requestedAuthorityTier: payload.requestedAuthorityTier
+                requestedAuthorityTier: payload.requestedAuthorityTier,
+                correlationID: payload.correlationID
             )
             return try ok(request, ["receipt": toJSONValue(receipt)])
         case "preview":
@@ -116,7 +159,8 @@ final class KernelRPCServer {
                 candidate: payload.candidate,
                 observation: payload.observation,
                 authorityGrant: payload.authorityGrantID.flatMap { kernel.resolveGrant($0) },
-                requestedAuthorityTier: payload.requestedAuthorityTier
+                requestedAuthorityTier: payload.requestedAuthorityTier,
+                correlationID: payload.correlationID
             )
             return try ok(request, ["receipt": toJSONValue(receipt)])
         case "commit":
@@ -125,7 +169,8 @@ final class KernelRPCServer {
                 candidate: payload.candidate,
                 observation: payload.observation,
                 authorityGrant: payload.authorityGrantID.flatMap { kernel.resolveGrant($0) },
-                requestedAuthorityTier: payload.requestedAuthorityTier
+                requestedAuthorityTier: payload.requestedAuthorityTier,
+                correlationID: payload.correlationID
             )
             return try ok(request, ["receipt": toJSONValue(receipt)])
         case "undo":
@@ -133,7 +178,8 @@ final class KernelRPCServer {
             let receipt = kernel.undo(
                 rollbackHandleID: payload.rollbackHandleID,
                 authorityGrant: payload.authorityGrantID.flatMap { kernel.resolveGrant($0) },
-                observedAt: payload.observedAt
+                observedAt: payload.observedAt,
+                correlationID: payload.correlationID
             )
             return try ok(request, ["receipt": toJSONValue(receipt)])
         default:

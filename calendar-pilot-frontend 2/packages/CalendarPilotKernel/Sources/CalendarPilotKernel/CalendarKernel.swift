@@ -34,10 +34,24 @@ public final class CalendarKernel: @unchecked Sendable {
         grants[grantID]
     }
 
-    public func authorizeAndMaterialize(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int) -> (CalendarActionReceipt, [RawCalendarEvent]) {
+    public func restoreAuthorityGrant(_ grant: AuthorityGrant) {
+        grants[grant.grantID] = grant
+    }
+
+    public func restoreUndoRecord(rollbackHandleID: String, candidateID: String, observation: RawCalendarObservation, generatedEventIDs: [String] = [], createdAt: Date? = nil) {
+        undoLedger[rollbackHandleID] = UndoRecord(
+            rollbackHandleID: rollbackHandleID,
+            candidateID: candidateID,
+            originalEvents: observation.events,
+            generatedEventIDs: generatedEventIDs,
+            createdAt: createdAt ?? observation.observedAt
+        )
+    }
+
+    public func authorizeAndMaterialize(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int, correlationID: String? = nil) -> (CalendarActionReceipt, [RawCalendarEvent]) {
         let resolved = authorityGrant.flatMap { grants[$0.grantID] }
         let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: resolved, desiredTier: requestedAuthorityTier, commit: true)
-        let output = materializer.materialize(candidate: candidate, observation: observation, authority: decision)
+        let output = materializer.materialize(candidate: candidate, observation: observation, authority: decision, correlationID: correlationID)
         if let undo = output.undo {
             undoLedger[undo.rollbackHandleID] = undo
         }
@@ -51,7 +65,7 @@ public final class CalendarKernel: @unchecked Sendable {
         return (output.receipt, output.newEvents)
     }
 
-    public func stage(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int) -> CalendarActionReceipt {
+    public func stage(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int, correlationID: String? = nil) -> CalendarActionReceipt {
         let resolved = authorityGrant.flatMap { grants[$0.grantID] }
         let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: resolved, desiredTier: requestedAuthorityTier, commit: false)
         let stagedIDs = decision.admitted ? candidate.actions.enumerated().map { idx, action in "stage_\(action.actionType.rawValue)_\(candidate.candidateID.suffix(8))_\(idx)" } : []
@@ -74,11 +88,11 @@ public final class CalendarKernel: @unchecked Sendable {
             authorityGrantID: decision.grantID,
             confirmationProvenance: decision.confirmationProvenance,
             stageState: decision.admitted ? (peopleConfirm ? .requiresConfirmation : .stageable) : .denied,
-            correlationID: candidate.candidateID
+            correlationID: correlationID ?? candidate.candidateID
         )
     }
 
-    public func preview(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int) -> CalendarActionReceipt {
+    public func preview(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authorityGrant: AuthorityGrant?, requestedAuthorityTier: Int, correlationID: String? = nil) -> CalendarActionReceipt {
         let resolved = authorityGrant.flatMap { grants[$0.grantID] }
         let decision = authorityBroker.authorize(candidate: candidate, observation: observation, grant: resolved, desiredTier: requestedAuthorityTier, commit: false)
         let stagedIDs = decision.admitted ? candidate.actions.enumerated().map { idx, action in "stage_\(action.actionType.rawValue)_\(candidate.candidateID.suffix(8))_\(idx)" } : []
@@ -100,11 +114,11 @@ public final class CalendarKernel: @unchecked Sendable {
             authorityGrantID: decision.grantID,
             confirmationProvenance: decision.confirmationProvenance,
             stageState: decision.admitted ? .simulated : .denied,
-            correlationID: candidate.candidateID
+            correlationID: correlationID ?? candidate.candidateID
         )
     }
 
-    public func undo(rollbackHandleID: String, authorityGrant: AuthorityGrant?, observedAt: Date = Date()) -> CalendarActionReceipt {
+    public func undo(rollbackHandleID: String, authorityGrant: AuthorityGrant?, observedAt: Date = Date(), correlationID: String? = nil) -> CalendarActionReceipt {
         let resolved = authorityGrant.flatMap { grants[$0.grantID] }
         let denied: String?
         if resolved == nil {
@@ -135,7 +149,7 @@ public final class CalendarKernel: @unchecked Sendable {
             authorityGrantID: resolved?.grantID,
             confirmationProvenance: resolved?.confirmationProvenance,
             stageState: denied == nil ? .committed : .denied,
-            correlationID: rollbackHandleID
+            correlationID: correlationID ?? rollbackHandleID
         )
     }
 }

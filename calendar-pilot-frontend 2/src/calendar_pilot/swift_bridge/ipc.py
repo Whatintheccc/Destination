@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import threading
 import uuid
 from typing import Any, Iterable
 
@@ -43,6 +44,7 @@ class SwiftKernelIPCClient:
         self.authority_grants: dict[str, AuthorityGrant] = {}
         self.undo_ledger: dict[str, str] = {}
         self._proc: subprocess.Popen[str] | None = None
+        self._rpc_lock = threading.RLock()
 
     def __enter__(self) -> "SwiftKernelIPCClient":
         self.start()
@@ -68,19 +70,20 @@ class SwiftKernelIPCClient:
             raise SwiftKernelIPCError(f"failed to start Swift kernel IPC server: {exc}") from exc
 
     def close(self) -> None:
-        if self._proc is None:
-            return
-        proc = self._proc
-        proc.terminate()
-        try:
-            proc.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=2)
-        for stream in (proc.stdin, proc.stdout, proc.stderr):
-            if stream is not None:
-                stream.close()
-        self._proc = None
+        with self._rpc_lock:
+            if self._proc is None:
+                return
+            proc = self._proc
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=2)
+            for stream in (proc.stdin, proc.stdout, proc.stderr):
+                if stream is not None:
+                    stream.close()
+            self._proc = None
 
     def issue_authority_grant(
         self,
@@ -117,6 +120,30 @@ class SwiftKernelIPCClient:
             return self.authority_grants.get(grant)
         return None
 
+    def restore_authority_grant(self, grant: AuthorityGrant) -> AuthorityGrant:
+        out = self._rpc("restore_authority_grant", {"authority_grant": grant.to_dict()})
+        restored = AuthorityGrant.from_dict(out["authority_grant"])
+        self.authority_grants[restored.grant_id] = restored
+        return restored
+
+    def restore_undo_handle(
+        self,
+        rollback_handle_id: str,
+        candidate_id: str,
+        observation: RawCalendarObservation,
+        *,
+        generated_event_ids: list[str] | None = None,
+        created_at: datetime | None = None,
+    ) -> None:
+        self._rpc("restore_undo_handle", {
+            "rollback_handle_id": rollback_handle_id,
+            "candidate_id": candidate_id,
+            "observation": to_jsonable(observation),
+            "generated_event_ids": generated_event_ids or [],
+            "created_at": created_at.isoformat() if created_at else observation.observed_at.isoformat(),
+        })
+        self.undo_ledger[rollback_handle_id] = candidate_id
+
     def preview_candidate(
         self,
         candidate: CandidateCalendarAction,
@@ -124,6 +151,7 @@ class SwiftKernelIPCClient:
         authority_grant: AuthorityGrant | str | None = None,
         *,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         return self._act(
             "preview",
@@ -131,6 +159,7 @@ class SwiftKernelIPCClient:
             observation,
             self._grant_id(authority_grant),
             requested_authority_tier if requested_authority_tier is not None else candidate.required_authority_tier,
+            correlation_id=correlation_id,
         )
 
     def stage_candidate(
@@ -141,6 +170,7 @@ class SwiftKernelIPCClient:
         *,
         authority_grant_id: str | None = None,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         return self._act(
             "stage",
@@ -148,6 +178,7 @@ class SwiftKernelIPCClient:
             observation,
             authority_grant_id or self._grant_id(authority_grant),
             requested_authority_tier if requested_authority_tier is not None else candidate.required_authority_tier,
+            correlation_id=correlation_id,
         )
 
     def authorize_and_materialize(
@@ -159,9 +190,10 @@ class SwiftKernelIPCClient:
         authority_grant_id: str | None = None,
         requested_authority_tier: int | None = None,
         granted_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         desired_tier = requested_authority_tier if requested_authority_tier is not None else (granted_authority_tier or candidate.required_authority_tier)
-        receipt = self._act("commit", candidate, observation, authority_grant_id or self._grant_id(authority_grant), desired_tier)
+        receipt = self._act("commit", candidate, observation, authority_grant_id or self._grant_id(authority_grant), desired_tier, correlation_id=correlation_id)
         if receipt.rollback_handle_id and not receipt.denied_reason:
             self.undo_ledger[receipt.rollback_handle_id] = candidate.candidate_id
         return receipt
@@ -174,11 +206,13 @@ class SwiftKernelIPCClient:
         *,
         authority_grant_id: str | None = None,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         out = self._rpc("undo", {
             "rollback_handle_id": rollback_handle_id,
             "authority_grant_id": authority_grant_id or self._grant_id(authority_grant),
             "observed_at": observation.observed_at.isoformat(),
+            "correlation_id": correlation_id,
         })
         receipt = _receipt_from_dict(out["receipt"])
         if not receipt.denied_reason:
@@ -193,12 +227,22 @@ class SwiftKernelIPCClient:
     def has_write_action(candidate: CandidateCalendarAction) -> bool:
         return SwiftKernelStub.has_write_action(candidate)
 
-    def _act(self, op: str, candidate: CandidateCalendarAction, observation: RawCalendarObservation, authority_grant_id: str | None, requested_authority_tier: int) -> CalendarActionReceipt:
+    def _act(
+        self,
+        op: str,
+        candidate: CandidateCalendarAction,
+        observation: RawCalendarObservation,
+        authority_grant_id: str | None,
+        requested_authority_tier: int,
+        *,
+        correlation_id: str | None = None,
+    ) -> CalendarActionReceipt:
         out = self._rpc(op, {
             "candidate": candidate.to_dict(),
             "observation": to_jsonable(observation),
             "authority_grant_id": authority_grant_id,
             "requested_authority_tier": requested_authority_tier,
+            "correlation_id": correlation_id or candidate.candidate_id,
         })
         return _receipt_from_dict(out["receipt"])
 
@@ -211,19 +255,22 @@ class SwiftKernelIPCClient:
         return None
 
     def _rpc(self, op: str, payload: dict[str, Any]) -> dict[str, Any]:
-        self.start()
-        assert self._proc is not None and self._proc.stdin is not None and self._proc.stdout is not None
-        request_id = "rpc_" + uuid.uuid4().hex[:12]
-        self._proc.stdin.write(json.dumps({"id": request_id, "op": op, "payload": to_jsonable(payload)}, sort_keys=True) + "\n")
-        self._proc.stdin.flush()
-        line = self._proc.stdout.readline()
-        if not line:
-            stderr = self._proc.stderr.read() if self._proc.stderr else ""
-            raise SwiftKernelIPCError(f"Swift kernel server closed: {stderr}")
-        response = json.loads(line)
-        if not response.get("ok"):
-            raise SwiftKernelIPCError(response.get("error") or "Swift kernel RPC failed")
-        return dict(response.get("payload", {}))
+        with self._rpc_lock:
+            self.start()
+            assert self._proc is not None and self._proc.stdin is not None and self._proc.stdout is not None
+            request_id = "rpc_" + uuid.uuid4().hex[:12]
+            self._proc.stdin.write(json.dumps({"id": request_id, "op": op, "payload": to_jsonable(payload)}, sort_keys=True) + "\n")
+            self._proc.stdin.flush()
+            line = self._proc.stdout.readline()
+            if not line:
+                stderr = self._proc.stderr.read() if self._proc.stderr else ""
+                raise SwiftKernelIPCError(f"Swift kernel server closed: {stderr}")
+            response = json.loads(line)
+            if response.get("id") != request_id:
+                raise SwiftKernelIPCError(f"Swift kernel RPC id mismatch: expected {request_id}, got {response.get('id')}")
+            if not response.get("ok"):
+                raise SwiftKernelIPCError(response.get("error") or "Swift kernel RPC failed")
+            return dict(response.get("payload", {}))
 
 
 def _receipt_from_dict(data: dict[str, Any]) -> CalendarActionReceipt:

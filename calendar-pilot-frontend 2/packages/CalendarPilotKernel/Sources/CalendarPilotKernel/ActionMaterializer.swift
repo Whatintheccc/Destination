@@ -11,7 +11,7 @@ public struct UndoRecord: Codable, Hashable, Sendable {
 public struct ActionMaterializer: Sendable {
     public init() {}
 
-    public func materialize(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authority: AuthorityDecision) -> (receipt: CalendarActionReceipt, newEvents: [RawCalendarEvent], undo: UndoRecord?) {
+    public func materialize(candidate: CandidateCalendarAction, observation: RawCalendarObservation, authority: AuthorityDecision, correlationID: String? = nil) -> (receipt: CalendarActionReceipt, newEvents: [RawCalendarEvent], undo: UndoRecord?) {
         guard authority.admitted else {
             return (
                 CalendarActionReceipt(
@@ -32,7 +32,7 @@ public struct ActionMaterializer: Sendable {
                     authorityGrantID: authority.grantID,
                     confirmationProvenance: authority.confirmationProvenance,
                     stageState: .denied,
-                    correlationID: candidate.candidateID
+                    correlationID: correlationID ?? candidate.candidateID
                 ),
                 observation.events,
                 nil
@@ -133,7 +133,7 @@ public struct ActionMaterializer: Sendable {
             authorityGrantID: authority.grantID,
             confirmationProvenance: authority.confirmationProvenance,
             stageState: materializedWrite ? .committed : (stagedOnly ? .requiresConfirmation : .noOp),
-            correlationID: candidate.candidateID
+            correlationID: correlationID ?? candidate.candidateID
         )
         return (receipt, events, undo)
     }

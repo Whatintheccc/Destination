@@ -100,11 +100,12 @@ class SwiftKernelStub:
         *,
         requested_authority_tier: int | None = None,
         granted_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         grant = self.resolve_authority_grant(authority_grant)
         desired_tier = requested_authority_tier if requested_authority_tier is not None else (granted_authority_tier or 0)
         denied = self._grant_denied_reason(candidate, observation, grant, desired_tier=desired_tier, commit=True)
-        return self._materialize(candidate, observation, grant, desired_tier=desired_tier, denied=denied, commit=True)
+        return self._materialize(candidate, observation, grant, desired_tier=desired_tier, denied=denied, commit=True, correlation_id=correlation_id)
 
     def preview_candidate(
         self,
@@ -113,11 +114,12 @@ class SwiftKernelStub:
         authority_grant: AuthorityGrant | str | None = None,
         *,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         grant = self.resolve_authority_grant(authority_grant)
         desired_tier = requested_authority_tier if requested_authority_tier is not None else candidate.required_authority_tier
         denied = self._grant_denied_reason(candidate, observation, grant, desired_tier=desired_tier, commit=False)
-        receipt = self._materialize(candidate, observation, grant, desired_tier=desired_tier, denied=denied, commit=False)
+        receipt = self._materialize(candidate, observation, grant, desired_tier=desired_tier, denied=denied, commit=False, correlation_id=correlation_id)
         return CalendarActionReceipt(
             receipt_id="preview_" + receipt.receipt_id,
             candidate_id=receipt.candidate_id,
@@ -136,7 +138,7 @@ class SwiftKernelStub:
             authority_grant_id=grant.grant_id if grant else None,
             confirmation_provenance=grant.confirmation_provenance if grant else None,
             stage_state=StageState.SIMULATED if denied is None else StageState.DENIED,
-            correlation_id=candidate.candidate_id,
+            correlation_id=correlation_id or candidate.candidate_id,
         )
 
     def stage_candidate(
@@ -146,6 +148,7 @@ class SwiftKernelStub:
         authority_grant: AuthorityGrant | str | None = None,
         *,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         """Stage a packet for approval without writing provider state.
 
@@ -184,7 +187,7 @@ class SwiftKernelStub:
             authority_grant_id=grant.grant_id if grant else None,
             confirmation_provenance=grant.confirmation_provenance if grant else None,
             stage_state=state,
-            correlation_id=candidate.candidate_id,
+            correlation_id=correlation_id or candidate.candidate_id,
         )
 
     def request_undo(
@@ -194,6 +197,7 @@ class SwiftKernelStub:
         authority_grant: AuthorityGrant | str | None = None,
         *,
         requested_authority_tier: int | None = None,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         grant = self.resolve_authority_grant(authority_grant)
         desired_tier = requested_authority_tier if requested_authority_tier is not None else 1
@@ -230,7 +234,7 @@ class SwiftKernelStub:
             authority_grant_id=grant.grant_id if grant else None,
             confirmation_provenance=grant.confirmation_provenance if grant else None,
             stage_state=StageState.DENIED if denied else StageState.COMMITTED,
-            correlation_id=rollback_handle_id or None,
+            correlation_id=correlation_id or rollback_handle_id or None,
         )
 
     def _materialize(
@@ -242,6 +246,7 @@ class SwiftKernelStub:
         desired_tier: int,
         denied: str | None,
         commit: bool,
+        correlation_id: str | None = None,
     ) -> CalendarActionReceipt:
         generated_ids: list[str] = []
         staged_ids: list[str] = []
@@ -309,7 +314,7 @@ class SwiftKernelStub:
             authority_grant_id=grant.grant_id if grant else None,
             confirmation_provenance=grant.confirmation_provenance if grant else None,
             stage_state=stage_state,
-            correlation_id=candidate.candidate_id,
+            correlation_id=correlation_id or candidate.candidate_id,
         )
 
     @staticmethod
