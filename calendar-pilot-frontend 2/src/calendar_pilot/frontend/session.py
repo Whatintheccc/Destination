@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from calendar_pilot.codex import CodexToolPlanner, CodexToolRuntime
+from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, SelfPlayRunner
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge import SwiftKernelStub
@@ -33,12 +33,10 @@ def _now() -> datetime:
 
 @dataclass
 class DogfoodSessionState:
-    """Mutable backend session for the chat-first dogfood product.
+    """Mutable backend session for local dogfood runs.
 
-    The session keeps the existing machine-learning / machine-acting loop intact:
-    Codex operates through typed tools, DiffusionGemma proposes candidates, and
-    the Swift kernel owns grants, stage/commit, undo, and receipts. The frontend
-    can now present that loop as a conversation instead of a control dashboard.
+    The session keeps runtime state, visible history, replay, authority grants,
+    and undo context together so browser and app launches can resume a run.
     """
 
     observation_path: Path = ROOT / "data" / "sample_calendar.json"
@@ -72,16 +70,19 @@ class DogfoodSessionState:
         self._load_primitives()
         self.kernel = SwiftKernelStub()
         self.policy = DiffusionGemmaPolicy()
-        self.replay = ReplayBuffer()
+        self.replay = ReplayBuffer.load_jsonl(self.run_dir / "replay.jsonl")
         self.runtime = CodexToolRuntime(policy=self.policy, kernel=self.kernel, replay=self.replay)
         self.planner = CodexToolPlanner(runtime=self.runtime)
-        self.transcript_events.append({
-            "kind": "assistant",
-            "title": "CalendarPilot is ready",
-            "body": "Tell me what you want changed. I will inspect the calendar, compare futures, stage or commit through Swift, then keep undo and feedback visible.",
-            "created_at": _now().isoformat(),
-        })
-        self.issue_authority_grant(confirmed=True, reason="dogfood_session_boot")
+        if not self._restore_session_state():
+            self.transcript_events.append({
+                "kind": "assistant",
+                "title": "CalendarPilot is ready",
+                "body": "Tell me what you want checked or changed. I will keep actions, undo, feedback, and replay evidence visible.",
+                "created_at": _now().isoformat(),
+            })
+            self.issue_authority_grant(confirmed=True, reason="dogfood_session_boot")
+            self.persist()
+        self._hydrate_runtime_frontier()
 
     def _load_primitives(self) -> None:
         self.observation = RawCalendarObservation.from_dict(json.loads(self.observation_path.read_text(encoding="utf-8")))
@@ -107,6 +108,7 @@ class DogfoodSessionState:
             "created_at": _now().isoformat(),
         }]
         self.issue_authority_grant(confirmed=True, reason="dogfood_session_reset")
+        self.persist()
         return self.snapshot()
 
     def issue_authority_grant(self, *, confirmed: bool, reason: str, tier: int | None = None, scopes: list[str] | None = None) -> AuthorityGrant:
@@ -235,6 +237,7 @@ class DogfoodSessionState:
             self.latest_plan.receipts.append(receipt)
         self.profile_patch_history.append({"kind": "proposed", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
         self.transcript_events.append({"kind": "assistant_receipt", "title": "Profile repair drafted", "body": "I drafted a profile patch. It will not apply until confirmed.", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
+        self.persist()
         return self.snapshot()
 
     def apply_profile_patch(self, claim: str, correction: str, *, confirmed: bool) -> dict[str, Any]:
@@ -247,6 +250,7 @@ class DogfoodSessionState:
             self.biography = UserBiography.from_dict(bio_payload)
         self.profile_patch_history.append({"kind": "applied" if confirmed else "needs_confirmation", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
         self.transcript_events.append({"kind": "assistant_receipt", "title": "Profile repair applied" if confirmed else "Profile repair needs confirmation", "body": receipt.denied_reason or "Profile claims were updated with correction provenance.", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
+        self.persist()
         return self.snapshot()
 
     def explain_denial(self, denied_reason: str) -> dict[str, Any]:
@@ -255,6 +259,7 @@ class DogfoodSessionState:
             self.latest_plan.receipts.append(receipt)
         self.denial_history.append({"denied_reason": denied_reason, "explanation": receipt.output, "created_at": _now().isoformat()})
         self.transcript_events.append({"kind": "assistant_receipt", "title": "Why Swift denied it", "body": str(receipt.output.get("denial_explanation", denied_reason)), "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
+        self.persist()
         return self.snapshot()
 
     def run_self_play(self, episodes: int = 3) -> dict[str, Any]:
@@ -279,6 +284,7 @@ class DogfoodSessionState:
         if scopes is not None:
             self.authority_scopes = [str(s) for s in scopes if str(s).strip()]
         self.issue_authority_grant(confirmed=confirmed, reason="user_edited_authority_scope")
+        self.persist()
         return self.snapshot()
 
     def replay_export(self) -> dict[str, Any]:
@@ -316,8 +322,88 @@ class DogfoodSessionState:
 
     def persist(self) -> None:
         self.run_dir.mkdir(parents=True, exist_ok=True)
+        (self.run_dir / "session_state.json").write_text(json.dumps(self._state_payload(), indent=2, sort_keys=True), encoding="utf-8")
         (self.run_dir / "latest_session.json").write_text(json.dumps(self.snapshot(), indent=2, sort_keys=True), encoding="utf-8")
         self.replay.save_jsonl(self.run_dir / "replay.jsonl")
+
+    def _state_payload(self) -> dict[str, Any]:
+        return {
+            "version": 1,
+            "session_id": self.session_id,
+            "authority_tier": self.authority_tier,
+            "authority_scopes": self.authority_scopes,
+            "biography": self.biography.to_dict(),
+            "latest_plan": self.latest_plan.to_dict() if self.latest_plan is not None else None,
+            "transcript_events": self.transcript_events,
+            "feedback_history": self.feedback_history,
+            "denial_history": self.denial_history,
+            "profile_patch_history": self.profile_patch_history,
+            "self_play_history": self.self_play_history,
+            "authority_history": self.authority_history,
+            "kernel": {
+                "authority_grants": [grant.to_dict() for grant in self.kernel.authority_grants.values()],
+                "undo_ledger": self.kernel.undo_ledger,
+            },
+            "updated_at": _now().isoformat(),
+        }
+
+    def _restore_session_state(self) -> bool:
+        path = self.run_dir / "session_state.json"
+        if not path.exists():
+            return False
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.session_id = str(data.get("session_id") or self.session_id)
+        self.authority_tier = int(data.get("authority_tier", self.authority_tier))
+        scopes = data.get("authority_scopes")
+        if isinstance(scopes, list):
+            self.authority_scopes = [str(scope) for scope in scopes if str(scope).strip()]
+        biography = data.get("biography")
+        if isinstance(biography, dict):
+            self.biography = UserBiography.from_dict(biography)
+        plan = data.get("latest_plan")
+        self.latest_plan = CodexExecutivePlan.from_dict(plan) if isinstance(plan, dict) else None
+        self.transcript_events = list(data.get("transcript_events", []))
+        self.feedback_history = list(data.get("feedback_history", []))
+        self.denial_history = list(data.get("denial_history", []))
+        self.profile_patch_history = list(data.get("profile_patch_history", []))
+        self.self_play_history = list(data.get("self_play_history", []))
+        self.authority_history = list(data.get("authority_history", []))
+        kernel = data.get("kernel", {})
+        grants = kernel.get("authority_grants", []) if isinstance(kernel, dict) else []
+        self.kernel.authority_grants = {}
+        for grant in grants:
+            if isinstance(grant, dict) and grant.get("grant_id"):
+                restored = AuthorityGrant.from_dict(grant)
+                self.kernel.authority_grants[restored.grant_id] = restored
+        undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
+        self.kernel.undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
+        if not self.transcript_events:
+            self.transcript_events.append({
+                "kind": "assistant",
+                "title": "Session restored",
+                "body": "CalendarPilot restored this dogfood run from disk.",
+                "created_at": _now().isoformat(),
+            })
+        return True
+
+    def _hydrate_runtime_frontier(self) -> None:
+        for record in self.replay.records:
+            candidate = record.payload.get("candidate")
+            if isinstance(candidate, dict) and candidate.get("candidate_id"):
+                restored = CandidateCalendarAction.from_dict(candidate)
+                self.runtime.frontier[restored.candidate_id] = restored
+        if self.latest_plan is None:
+            return
+        for receipt in self.latest_plan.receipts:
+            output = receipt.output if isinstance(receipt.output, dict) else {}
+            for candidate in output.get("candidates", []) if isinstance(output.get("candidates"), list) else []:
+                if isinstance(candidate, dict) and candidate.get("candidate_id"):
+                    restored = CandidateCalendarAction.from_dict(candidate)
+                    self.runtime.frontier[restored.candidate_id] = restored
+            candidate = output.get("candidate")
+            if isinstance(candidate, dict) and candidate.get("candidate_id"):
+                restored = CandidateCalendarAction.from_dict(candidate)
+                self.runtime.frontier[restored.candidate_id] = restored
 
     def _chat_messages(self, snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []

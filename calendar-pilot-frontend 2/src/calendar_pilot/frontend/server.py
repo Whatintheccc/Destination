@@ -89,7 +89,8 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             session = get_session()
             parts = [p for p in path.split("/") if p]
             if path == "/api/plans":
-                return session.create_plan(str(body.get("goal", "")), commit=bool(body.get("commit", False)), authority_tier=body.get("authority_tier"))
+                tier = body.get("authority_tier", body.get("max_authority_tier"))
+                return session.create_plan(str(body.get("goal", "")), commit=bool(body.get("commit", False)), authority_tier=tier)
             if len(parts) == 4 and parts[1] == "candidates":
                 candidate_id = parts[2]
                 action = parts[3]
@@ -113,7 +114,8 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                 scopes = body.get("scopes")
                 if isinstance(scopes, str):
                     scopes = [s.strip() for s in scopes.split(",") if s.strip()]
-                return session.update_authority(tier=body.get("max_authority_tier"), scopes=scopes if isinstance(scopes, list) else None, confirmed=bool(body.get("confirmed", True)))
+                tier = body.get("max_authority_tier", body.get("authority_tier"))
+                return session.update_authority(tier=tier, scopes=scopes if isinstance(scopes, list) else None, confirmed=bool(body.get("confirmed", True)))
             if path == "/api/feedback":
                 return session.feedback(str(body.get("receipt_id", "")), str(body.get("feedback", "useful")), reason=str(body.get("reason", "")))
             if path == "/api/reset":

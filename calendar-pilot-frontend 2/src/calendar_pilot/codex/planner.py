@@ -17,6 +17,16 @@ class CodexExecutivePlan:
     receipts: list[CodexToolReceipt] = field(default_factory=list)
     recommended_next_action: str = ""
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "CodexExecutivePlan":
+        return cls(
+            plan_id=str(data.get("plan_id", "plan_restored")),
+            goal=str(data.get("goal", "")),
+            calls=[CodexToolCall.from_dict(c) for c in data.get("calls", [])],
+            receipts=[CodexToolReceipt.from_dict(r) for r in data.get("receipts", [])],
+            recommended_next_action=str(data.get("recommended_next_action", "")),
+        )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "plan_id": self.plan_id,
