@@ -256,13 +256,13 @@ Acceptance criteria:
 
 ## P3 Runtime Mode Truth
 
-Status: In review
+Status: Done
 Owner: dogfood team
 Goal: make the app impossible to mistake for a production-integrated build when it is running fixture or local-stub dependencies.
 
 ### P3.1 Runtime Mode Contract
 
-Status: In review
+Status: Done
 
 Required work:
 
@@ -280,7 +280,7 @@ Acceptance criteria:
 
 ### P3.2 Fixture Boundary Warnings
 
-Status: In review
+Status: Done
 
 Required work:
 
@@ -577,6 +577,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P2 | Boyle | Found LaunchServices path was not verified, app sanity did not exercise P1 workflows, credential gate was hardcoded, and desktop shortcut replacement was brittle. | Added `open -n` LaunchServices smoke, reused rendered browser workflow against bundled app, derives credential refs from runtime/frontend code, and backs up existing Desktop app directories before linking. |
 | 2026-07-01 | P2 | Volta final | Found remaining timeout and current-report validation gaps in the release gate. | Added timeouts for `open`, `lsof`, `kill`, and `git ls-files`; made `TimeoutExpired` output bytes-safe; validated and secret-scanned the current release report. Volta and Boyle cleared P2. |
 | 2026-07-01 | P3+ planning | Gauss | Independently confirmed P2 certifies fixture dogfood only; live Codex/OpenAI, DiffusionGemma/NIM, Swift IPC app selection, provider OAuth, and stale-port launch are not solved. | Incorporated the proposed P3-P8 phase gates into this framework. |
+| 2026-07-01 | P3 | Locke | Found invalid runtime modes could be silently coerced to fixture-safe and noted weaker bundled build provenance plus fixture credential false-positive. | Fixed invalid-mode reporting/gating, persisted requested/effective mode, bundled `build_id`, and runtime-derived credential reporting. Locke re-reviewed and cleared P3. |
 
 ## Open Risks
 
