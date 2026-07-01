@@ -273,8 +273,8 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 | 2026-07-01 | P0 persistence | Added `session_state.json` persistence/reload for session metadata, plan, transcript, feedback, denials, profile patches, self-play history, authority grants, undo ledger, replay, and corrupt-state recovery. | `test_frontend_session_persistence.py` passes. |
 | 2026-07-01 | P0 API contract | Added HTTP-level route coverage for state, plans, candidates, receipt confirmation, undo, feedback, replay, profile patch, denial explanation, self-play, authority, reset, and invalid POST JSON. | `test_frontend_server_api.py` passes. |
 | 2026-07-01 | P0 baseline checks | Ran root `make py-test`, `make swift-test`, `make browser-e2e`, and `make mac-app-build`. | Python 46 tests, Swift 16 tests, browser smoke, app build, bundle layout, and launcher syntax passed. |
-| 2026-07-01 | P1 live frontend | Reworked `scripts/run_browser_e2e.py` to start the real Python server, drive live HTTP endpoints, write replay/bug-report artifacts, and run a dependency-free Chrome/CDP rendered-browser flow when Chrome is available. | `make browser-e2e` passed with `browser CDP e2e passed`. |
-| 2026-07-01 | P1 controls | Browser/API E2E covers goal entry, candidate rendering, stage, commit, undo, feedback, replay export, profile propose/apply, authority edit, denial explanation, self-play, reset, and invalid route handling. | Artifacts written under `calendar-pilot-frontend 2/runs/browser_e2e/artifacts/`. |
+| 2026-07-01 | P1 live frontend | Reworked `scripts/run_browser_e2e.py` to start the real Python server, verify live restart persistence, drive live HTTP endpoints, write replay/bug-report artifacts, and require a rendered browser gate by default. | `make browser-e2e` passed with `browser CDP e2e passed`. |
+| 2026-07-01 | P1 controls | Browser/API E2E covers goal entry, candidate rendering, stage, commit, undo, feedback, replay export, profile propose/apply, authority edit, real low-authority commit denial, denial explanation, self-play, reset, and invalid route handling. | `browser_replay_export.json` contains 81 records before reset; reset evidence is captured afterward. |
 
 ## Review Log
 
@@ -282,6 +282,8 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 |---|---|---|---|---|
 | 2026-07-01 | P0 | Bohr | Found string boolean authority confirmation risk, missing HTTP API coverage, incomplete persistence assertions, and corrupt-state risk. | Fixed with `body_bool`, `test_frontend_server_api.py`, stronger restart assertions, and visible corrupt restore recovery. |
 | 2026-07-01 | P0 | Epicurus | Found premature review bookkeeping, missing HTTP API coverage, root command ambiguity, weak app bundle evidence, and stale browser run risk. | Fixed with review log, HTTP tests, root Makefile delegation, packaged app source layout, and browser run-dir cleanup. |
+| 2026-07-01 | P1 | Hilbert | Found optional browser false pass, synthetic CDP interaction, startup cleanup leak, ambiguous artifacts, and stale low-authority card risk. | Made browser mandatory by default, added visible hit-tested mouse/input events, fixed startup cleanup, wrote browser replay artifacts, and waits for the new candidate card. |
+| 2026-07-01 | P1 | Sagan | Found premature P1 status, missing live restart proof, weak denial evidence, and replay artifacts written before browser controls. | Added actual stop/start restart check, real low-authority denial, browser-generated replay export before reset, and review log entries. |
 
 ## Open Risks
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { appendFileSync } from 'node:fs';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
@@ -18,9 +19,10 @@ await mkdir(artifactDir, { recursive: true });
 async function main() {
   let chrome;
   let client;
+  let userDataDir;
   try {
   const debuggingPort = await freePort();
-  const userDataDir = await mkdtemp(path.join(tmpdir(), 'calendar-pilot-chrome-'));
+  userDataDir = await mkdtemp(path.join(tmpdir(), 'calendar-pilot-chrome-'));
   chrome = spawn(chromePath, [
     '--headless=new',
     '--disable-gpu',
@@ -37,7 +39,12 @@ async function main() {
   client = await CdpClient.connect(target.webSocketDebuggerUrl);
   await client.send('Page.enable');
   await client.send('Runtime.enable');
-  await client.send('Page.setViewport', {}).catch(() => {});
+  await client.send('Emulation.setDeviceMetricsOverride', {
+    width: 1360,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
   await client.send('Page.navigate', { url: baseUrl });
   await waitFor(client, 'document.querySelector("[data-testid=\\"chat-transcript\\"]") !== null');
 
@@ -72,10 +79,12 @@ async function main() {
   await click(client, '#save-authority');
   await waitFor(client, 'document.querySelector("#authority-chip")?.textContent.includes("Tier 0")');
 
+  const candidateCountBeforeLowAuthority = await evaluate(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length');
   await fill(client, '#goal-input', 'Try a low-authority commit');
   await click(client, '#send-goal');
-  await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length > 0');
-  await click(client, '[data-testid="commit-candidate"]');
+  await waitFor(client, 'Array.from(document.querySelectorAll("[data-testid=\\"message-user\\"]")).some(el => el.innerText.includes("Try a low-authority commit"))');
+  await waitFor(client, `document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length > ${candidateCountBeforeLowAuthority}`);
+  await click(client, '[data-testid="commit-candidate"]', { last: true });
   await waitFor(client, 'document.querySelector(".explain-denial") !== null');
   await click(client, '.explain-denial');
   await waitFor(client, 'document.body.innerText.includes("Why Swift denied it")');
@@ -83,6 +92,12 @@ async function main() {
   await click(client, '#tab-self-play');
   await click(client, '[data-testid="run-self-play"]');
   await waitFor(client, 'document.body.innerText.includes("Self-play release gate")');
+
+  const browserReplay = await getJson(`${baseUrl}/api/replay/export`);
+  if (!browserReplay.records || browserReplay.records.length === 0) {
+    throw new Error('browser replay export was empty before reset');
+  }
+  await writeFile(path.join(artifactDir, 'browser_replay_export.json'), JSON.stringify(browserReplay, null, 2), 'utf8');
 
   await click(client, '#tab-debug');
   await click(client, '#reset-fixture');
@@ -98,12 +113,15 @@ async function main() {
     throw error;
   } finally {
     if (client) client.close();
-    if (chrome && chrome.exitCode === null) chrome.kill('SIGTERM');
+    await stopChrome(chrome);
+    if (userDataDir) {
+      await removeWithRetry(userDataDir);
+    }
   }
 }
 
 function appendLog(chunk) {
-  // Keep Chrome logs out of stdout; the Python runner records server logs.
+  appendFileSync(path.join(artifactDir, 'chrome.log'), chunk);
 }
 
 function freePort() {
@@ -210,25 +228,81 @@ async function waitFor(client, expression) {
   throw new Error(`Timed out waiting for: ${expression}`);
 }
 
-async function click(client, selector) {
+async function click(client, selector, options = {}) {
   const safe = JSON.stringify(selector);
-  await waitFor(client, `(() => {
-    const el = document.querySelector(${safe});
-    return el && !el.disabled;
-  })()`);
-  await evaluate(client, `document.querySelector(${safe}).click()`);
+  const info = await waitForVisibleElement(client, safe, options);
+  await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: info.x, y: info.y, button: 'none' });
+  await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: info.x, y: info.y, button: 'left', clickCount: 1 });
+  await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: info.x, y: info.y, button: 'left', clickCount: 1 });
 }
 
 async function fill(client, selector, value) {
   const safeSelector = JSON.stringify(selector);
-  const safeValue = JSON.stringify(value);
-  await waitFor(client, `document.querySelector(${safeSelector}) !== null`);
-  await evaluate(client, `
+  await click(client, selector);
+  const selected = await evaluate(client, `
     (() => {
       const el = document.querySelector(${safeSelector});
-      el.value = ${safeValue};
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.focus();
+      if (typeof el.setSelectionRange === 'function') {
+        try {
+          el.setSelectionRange(0, String(el.value || '').length);
+          return true;
+        } catch (error) {
+          return false;
+        }
+      }
+      return false;
+    })()
+  `);
+  if (!selected) {
+    await client.send('Input.dispatchKeyEvent', { type: 'keyDown', modifiers: 4, windowsVirtualKeyCode: 65, key: 'a', code: 'KeyA' });
+    await client.send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers: 4, windowsVirtualKeyCode: 65, key: 'a', code: 'KeyA' });
+    await client.send('Input.dispatchKeyEvent', { type: 'keyDown', windowsVirtualKeyCode: 8, key: 'Backspace', code: 'Backspace' });
+    await client.send('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 8, key: 'Backspace', code: 'Backspace' });
+  }
+  await client.send('Input.insertText', { text: value });
+  await waitFor(client, `document.querySelector(${safeSelector})?.value === ${JSON.stringify(value)}`);
+}
+
+async function waitForVisibleElement(client, safeSelector, options = {}) {
+  const useLast = Boolean(options.last);
+  const deadline = Date.now() + 15000;
+  let lastInfo;
+  while (Date.now() < deadline) {
+    const info = await elementInfo(client, safeSelector, useLast);
+    lastInfo = info;
+    if (info.ok) return info;
+    await delay(100);
+  }
+  throw new Error(`Timed out waiting for visible clickable element ${safeSelector}: ${JSON.stringify(lastInfo)}`);
+}
+
+async function elementInfo(client, safeSelector, useLast) {
+  return await evaluate(client, `
+    (() => {
+      const nodes = Array.from(document.querySelectorAll(${safeSelector}));
+      const el = ${useLast ? 'nodes[nodes.length - 1]' : 'nodes[0]'};
+      if (!el) return { ok: false, reason: 'not_found', count: nodes.length };
+      el.scrollIntoView({ block: 'center', inline: 'center' });
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      const disabled = Boolean(el.disabled);
+      const visible = rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0' && style.pointerEvents !== 'none';
+      const x = Math.min(Math.max(rect.left + rect.width / 2, 0), window.innerWidth - 1);
+      const y = Math.min(Math.max(rect.top + rect.height / 2, 0), window.innerHeight - 1);
+      const top = document.elementFromPoint(x, y);
+      const hit = top === el || el.contains(top);
+      return {
+        ok: Boolean(visible && !disabled && hit),
+        reason: !visible ? 'not_visible' : (disabled ? 'disabled' : (!hit ? 'covered' : 'ok')),
+        count: nodes.length,
+        x,
+        y,
+        width: rect.width,
+        height: rect.height,
+        topTag: top ? top.tagName : null,
+        text: el.innerText || el.value || '',
+      };
     })()
   `);
 }
@@ -240,6 +314,36 @@ async function screenshot(client, filePath) {
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function stopChrome(chrome) {
+  if (!chrome || chrome.exitCode !== null) return;
+  chrome.kill('SIGTERM');
+  const exited = await new Promise(resolve => {
+    const timer = setTimeout(() => resolve(false), 3000);
+    chrome.once('exit', () => {
+      clearTimeout(timer);
+      resolve(true);
+    });
+  });
+  if (!exited && chrome.exitCode === null) {
+    chrome.kill('SIGKILL');
+    await new Promise(resolve => chrome.once('exit', resolve));
+  }
+}
+
+async function removeWithRetry(target) {
+  let lastError;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await rm(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await delay(200);
+    }
+  }
+  throw lastError;
 }
 
 await main();

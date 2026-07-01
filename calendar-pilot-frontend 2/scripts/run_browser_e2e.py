@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Frontend dogfood E2E.
 
-The canonical path starts the real Python frontend server and drives the HTTP
-API that the browser uses. When Playwright and a usable browser are available,
-the script also drives the rendered UI against that same live server.
+The canonical path starts the real Python frontend server, verifies persisted
+state across restart, and drives rendered browser controls against the live
+server. The HTTP loop remains as API-level evidence, but browser coverage is a
+default gate rather than an optional smoke.
 """
 from __future__ import annotations
 
@@ -32,16 +33,26 @@ def main() -> None:
         assert_static_shell()
         with LiveServer() as server:
             result = run_live_api_loop(server.base_url)
-            write_artifact("latest_state.json", result["state"])
-            write_artifact("replay_export.json", result["replay_export"])
+        with LiveServer() as restarted:
+            restored = api_get(restarted.base_url, "/api/state")
+            assert_restarted_state(restored)
+            reset = api_post(restarted.base_url, "/api/reset", {})
+            if reset["inspector"]["replay"]["summary"]["records"] != 0:
+                raise AssertionError("reset did not clear replay summary before browser run")
+            run_live_browser_check(restarted.base_url)
+            final_state = api_get(restarted.base_url, "/api/state")
+            final_replay = api_get(restarted.base_url, "/api/replay/export")
+            write_artifact("latest_state.json", final_state)
+            write_artifact("replay_export.json", final_replay)
             write_artifact("dogfood_bug_report.json", {
                 "summary": "CalendarPilot browser dogfood replay export",
-                "base_url": server.base_url,
-                "session_id": result["replay_export"].get("session_id"),
-                "replay_summary": result["replay_export"].get("summary"),
-                "artifact_files": ["latest_state.json", "replay_export.json", "server.log"],
+                "base_url": restarted.base_url,
+                "session_id": final_replay.get("session_id"),
+                "api_replay_summary_before_browser": result["replay_export"].get("summary"),
+                "restored_replay_summary": restored["inspector"]["replay"]["summary"],
+                "final_replay_summary": final_replay.get("summary"),
+                "artifact_files": ["latest_state.json", "replay_export.json", "browser_replay_export.json", "browser_success.png", "server.log"],
             })
-            run_optional_live_browser_check(server.base_url)
     except Exception as exc:
         (ARTIFACT_DIR / "failure.txt").write_text(str(exc), encoding="utf-8")
         raise
@@ -80,7 +91,11 @@ class LiveServer:
             stderr=subprocess.STDOUT,
             text=True,
         )
-        self.wait_until_ready()
+        try:
+            self.wait_until_ready()
+        except Exception:
+            self.__exit__(None, None, None)
+            raise
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -170,10 +185,6 @@ def run_live_api_loop(base_url: str) -> dict[str, Any]:
         raise AssertionError("profile proposal did not write patch history")
     api_post(base_url, "/api/profile/patch/apply", {"claim": "planning blocks", "correction": "Prefer planning blocks before lunch.", "confirmed": True})
 
-    denial = api_post(base_url, "/api/denials/explain", {"denied_reason": "required authority tier exceeds Swift-issued grant"})
-    if not denial["inspector"]["denials"]:
-        raise AssertionError("denial explanation did not write visible history")
-
     self_play = api_post(base_url, "/api/self-play", {"episodes": 1})
     if not self_play["inspector"]["self_play"]["history"]:
         raise AssertionError("self-play did not write visible history")
@@ -183,6 +194,14 @@ def run_live_api_loop(base_url: str) -> dict[str, Any]:
         raise AssertionError("authority tier edit did not apply")
     if authority["inspector"]["authority"]["history"][-1]["grant"]["confirmed_by_user"]:
         raise AssertionError("string false confirmed value minted a confirmed grant")
+
+    denied_commit = api_post(base_url, f"/api/candidates/{candidate_id}/commit", {"confirmed": "false"})
+    if "denied" not in json.dumps(denied_commit):
+        raise AssertionError("low-authority commit did not produce a denial")
+    denial_reason = denied_commit["inspector"]["denials"][-1]["denied_reason"]
+    denial = api_post(base_url, "/api/denials/explain", {"denied_reason": denial_reason})
+    if not denial["inspector"]["denials"]:
+        raise AssertionError("denial explanation did not write visible history")
 
     undone = api_post(base_url, "/api/undo", {"rollback_handle_id": rollback})
     if "Undo requested" not in json.dumps(undone["chat"]["messages"]):
@@ -199,37 +218,36 @@ def run_live_api_loop(base_url: str) -> dict[str, Any]:
     if "error" not in error or "state" not in error:
         raise AssertionError("invalid POST did not return error and state")
 
-    reset = api_post(base_url, "/api/reset", {})
-    if reset["inspector"]["replay"]["summary"]["records"] != 0:
-        raise AssertionError("reset did not clear replay summary")
-
-    return {"state": reset, "replay_export": replay_export}
+    return {"state": error["state"], "replay_export": replay_export}
 
 
-def run_optional_live_browser_check(base_url: str) -> None:
-    if os.environ.get("CALENDAR_PILOT_SKIP_BROWSER") == "1":
-        print("live browser check skipped by CALENDAR_PILOT_SKIP_BROWSER=1")
+def assert_restarted_state(state: dict[str, Any]) -> None:
+    if state["inspector"]["replay"]["summary"].get("records", 0) < 1:
+        raise AssertionError("restarted live server did not restore replay records")
+    if not state["inspector"]["feedback"]:
+        raise AssertionError("restarted live server did not restore feedback evidence")
+    if not state["inspector"]["profile"]["patch_history"]:
+        raise AssertionError("restarted live server did not restore profile history")
+    if not state["inspector"]["self_play"]["history"]:
+        raise AssertionError("restarted live server did not restore self-play history")
+    if not state["inspector"]["denials"]:
+        raise AssertionError("restarted live server did not restore denial history")
+
+
+def run_live_browser_check(base_url: str) -> None:
+    if os.environ.get("CALENDAR_PILOT_ALLOW_BROWSER_SKIP") == "1":
+        print("live browser check skipped by CALENDAR_PILOT_ALLOW_BROWSER_SKIP=1")
         return
-    require_browser = os.environ.get("CALENDAR_PILOT_REQUIRE_BROWSER") == "1"
     node = shutil.which("node")
     chrome = os.environ.get("CHROME_PATH") or "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     cdp_script = ROOT / "scripts" / "browser_cdp_e2e.mjs"
     if node and Path(chrome).exists():
-        try:
-            subprocess.run([node, str(cdp_script), base_url, str(ARTIFACT_DIR)], cwd=ROOT, check=True, timeout=60)
-            return
-        except Exception as exc:
-            if require_browser:
-                raise
-            print(f"live browser CDP check skipped after failure: {exc}")
-            return
+        subprocess.run([node, str(cdp_script), base_url, str(ARTIFACT_DIR)], cwd=ROOT, check=True, timeout=90)
+        return
     try:
         from playwright.sync_api import expect, sync_playwright
     except Exception as exc:
-        if require_browser:
-            raise
-        print(f"live browser check skipped: Playwright unavailable ({exc})")
-        return
+        raise AssertionError(f"rendered browser check requires Chrome+Node or Playwright; {exc}") from exc
 
     screenshot_path = ARTIFACT_DIR / "browser_failure.png"
     with sync_playwright() as p:
@@ -278,12 +296,11 @@ def run_optional_live_browser_check(base_url: str) -> None:
             page.locator("#tab-debug").click()
             page.locator("#reset-fixture").click()
             expect(page.get_by_text("Reset complete")).to_be_visible(timeout=10000)
+            page.screenshot(path=str(ARTIFACT_DIR / "browser_success.png"), full_page=True)
         except Exception:
             if browser is not None:
                 page.screenshot(path=str(screenshot_path), full_page=True)
-            if require_browser:
-                raise
-            print(f"live browser check skipped after launch failure; screenshot: {screenshot_path}")
+            raise
         finally:
             if browser is not None:
                 browser.close()

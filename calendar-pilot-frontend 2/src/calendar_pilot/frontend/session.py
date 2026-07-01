@@ -140,7 +140,11 @@ class DogfoodSessionState:
                 continue
             if grant.is_live_at(self.observation.observed_at):
                 return grant.grant_id
-        return self.issue_authority_grant(confirmed=confirmed, scopes=self.authority_scopes + [s for s in scopes if s not in self.authority_scopes], reason="codex_ui_grant").grant_id
+        return self.issue_authority_grant(
+            confirmed=False,
+            scopes=self.authority_scopes + [s for s in scopes if s not in self.authority_scopes],
+            reason="codex_ui_unconfirmed_grant",
+        ).grant_id
 
     def create_plan(self, goal: str, *, commit: bool = False, authority_tier: int | None = None) -> dict[str, Any]:
         goal = (goal or "Make next week less chaotic").strip()
@@ -288,6 +292,7 @@ class DogfoodSessionState:
             self.authority_tier = max(0, min(6, int(tier)))
         if scopes is not None:
             self.authority_scopes = [str(s) for s in scopes if str(s).strip()]
+        self.kernel.authority_grants.clear()
         self.issue_authority_grant(confirmed=confirmed, reason="user_edited_authority_scope")
         self.persist()
         return self.snapshot()

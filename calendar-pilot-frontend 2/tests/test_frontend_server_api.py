@@ -68,6 +68,9 @@ class FrontendServerApiTests(unittest.TestCase):
         self.assertEqual(authority["session"]["authority_tier"], 2)
         self.assertEqual(authority["session"]["authority_scopes"], ["recommend", "stage"])
         self.assertFalse(authority["inspector"]["authority"]["history"][-1]["grant"]["confirmed_by_user"])
+        denied = self.post(f"/api/candidates/{candidate_id}/commit", {"confirmed": "false"})
+        self.assertTrue(denied["inspector"]["denials"])
+        self.assertIn("denied", json.dumps(denied))
 
         replay = self.get("/api/replay")
         self.assertGreater(replay["summary"]["records"], 0)
