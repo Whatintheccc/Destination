@@ -283,10 +283,16 @@ def run_live_browser_check(base_url: str) -> None:
             page.locator("#authority-scopes").fill("recommend, stage")
             page.locator("#save-authority").click()
             expect(page.locator("#authority-chip")).to_contain_text("Tier 0", timeout=10000)
+            candidate_count = page.get_by_test_id("candidate-card").count()
             page.get_by_test_id("goal-input").fill("Try a low-authority commit")
             page.get_by_test_id("send-goal").click()
-            expect(page.get_by_test_id("candidate-card").first).to_be_visible(timeout=10000)
-            page.get_by_test_id("commit-candidate").first.click()
+            expect(page.get_by_text("Try a low-authority commit")).to_be_visible(timeout=10000)
+            deadline = time.time() + 10
+            while page.get_by_test_id("candidate-card").count() <= candidate_count and time.time() < deadline:
+                time.sleep(0.1)
+            if page.get_by_test_id("candidate-card").count() <= candidate_count:
+                raise AssertionError("low-authority goal did not add a new candidate card")
+            page.get_by_test_id("commit-candidate").nth(candidate_count).click()
             expect(page.locator(".explain-denial").first).to_be_visible(timeout=10000)
             page.locator(".explain-denial").first.click()
             expect(page.get_by_text("Why Swift denied it")).to_be_visible(timeout=10000)
