@@ -204,10 +204,10 @@ def run_app_bundle_sanity(
                     terminate_pid_list(orphaned)
                     ok = False
                     reason = f"{reason}; orphaned Swift kernel processes: {orphaned}" if reason else f"orphaned Swift kernel processes: {orphaned}"
-            terminal_state = wait_for_terminal_launch_state(launch_state_path)
-            if terminal_state.get("status") == "running":
+            terminal_state, terminal_error = finalize_terminal_launch_state(launch_state_path, reason="release cleanup completed")
+            if terminal_error:
                 ok = False
-                reason = f"{reason}; launch_state still running after cleanup" if reason else "launch_state still running after cleanup"
+                reason = f"{reason}; {terminal_error}" if reason else terminal_error
     ensure_log_has_content(log_path, f"{name} ok={ok} base_url={base_url} launch_id={launch_id} reason={reason}\n")
     return {
         "name": name,
@@ -269,10 +269,10 @@ def run_launchservices_smoke() -> dict[str, Any]:
         try:
             cleanup_launch_state_processes(launch_state, existing_default_pids=existing_default_pids)
             if launch_state:
-                terminal_state = wait_for_terminal_launch_state(launch_state_path)
-                if terminal_state.get("status") == "running":
+                terminal_state, terminal_error = finalize_terminal_launch_state(launch_state_path, reason="release cleanup completed")
+                if terminal_error:
                     ok = False
-                    reason = f"{reason}; launch_state still running after cleanup" if reason else "launch_state still running after cleanup"
+                    reason = f"{reason}; {terminal_error}" if reason else terminal_error
         except Exception as exc:
             ok = False
             reason = f"{reason}; cleanup failed: {exc}" if reason else f"cleanup failed: {exc}"
@@ -347,10 +347,10 @@ def run_occupied_port_launch_gate() -> dict[str, Any]:
             terminate(app_proc)
         cleanup_launch_state_processes(launch_state if isinstance(launch_state, dict) else {}, existing_default_pids=existing_default_pids)
         if isinstance(launch_state, dict) and launch_state:
-            terminal_state = wait_for_terminal_launch_state(launch_state_path)
-            if terminal_state.get("status") == "running":
+            terminal_state, terminal_error = finalize_terminal_launch_state(launch_state_path, reason="release cleanup completed")
+            if terminal_error:
                 ok = False
-                reason = f"{reason}; launch_state still running after cleanup" if reason else "launch_state still running after cleanup"
+                reason = f"{reason}; {terminal_error}" if reason else terminal_error
         if stale_proc is not None:
             terminate(stale_proc)
     ensure_log_has_content(log_path, f"{name} ok={ok} requested_port=8787 chosen_port={launch_state.get('port') if isinstance(launch_state, dict) else None} reason={reason}\n")
@@ -675,6 +675,20 @@ def wait_for_terminal_launch_state(path: Path) -> dict[str, Any]:
     return state
 
 
+def finalize_terminal_launch_state(path: Path, *, reason: str) -> tuple[dict[str, Any], str]:
+    state = wait_for_terminal_launch_state(path)
+    if state.get("status") != "running":
+        return state, ""
+    live_pids = [pid for pid in [state.get("launcher_pid"), state.get("server_pid")] if isinstance(pid, int) and pid_alive(pid)]
+    if live_pids:
+        return state, f"launch_state still running after cleanup; live pids: {live_pids}"
+    state["status"] = "stopped"
+    state["reason"] = reason
+    state["updated_at"] = utc_now()
+    path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+    return state, ""
+
+
 def assert_owned_health(
     health: dict[str, Any],
     *,
@@ -784,6 +798,14 @@ def terminate_pid_list(pids: list[int]) -> None:
     time.sleep(0.5)
     for pid in pids:
         subprocess.run(["kill", "-9", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+
+
+def pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
 
 
 def output_text(value: str | bytes | None) -> str:
