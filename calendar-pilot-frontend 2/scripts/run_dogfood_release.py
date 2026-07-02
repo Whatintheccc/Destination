@@ -169,6 +169,7 @@ def run_app_bundle_sanity(
     })
     started = time.time()
     swift_before = pids_for_command_pattern(str(app_swift_server)) if runtime_mode == "swift_ipc" else []
+    terminal_state: dict[str, Any] = {}
     with log_path.open("w", encoding="utf-8") as log:
         proc = subprocess.Popen([str(app_exe)], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
         try:
@@ -203,6 +204,10 @@ def run_app_bundle_sanity(
                     terminate_pid_list(orphaned)
                     ok = False
                     reason = f"{reason}; orphaned Swift kernel processes: {orphaned}" if reason else f"orphaned Swift kernel processes: {orphaned}"
+            terminal_state = wait_for_terminal_launch_state(launch_state_path)
+            if terminal_state.get("status") == "running":
+                ok = False
+                reason = f"{reason}; launch_state still running after cleanup" if reason else "launch_state still running after cleanup"
     ensure_log_has_content(log_path, f"{name} ok={ok} base_url={base_url} launch_id={launch_id} reason={reason}\n")
     return {
         "name": name,
@@ -211,6 +216,7 @@ def run_app_bundle_sanity(
         "base_url": base_url,
         "launch_id": launch_id,
         "launch_state": str(launch_state_path),
+        "terminal_launch_status": terminal_state.get("status"),
         "runtime_mode": runtime_mode,
         "expected_kernel": expected_kernel,
         "run_dir": str(run_dir),
@@ -242,6 +248,7 @@ def run_launchservices_smoke() -> dict[str, Any]:
     if proc.returncode != 0:
         return {"name": "launchservices_smoke", "ok": False, "exit_code": proc.returncode, "log": str(log_path), "reason": "`open` failed"}
     launch_state: dict[str, Any] = {}
+    terminal_state: dict[str, Any] = {}
     try:
         launch_state = wait_for_launch_state(launch_state_path)
         base_url = str(launch_state.get("base_url"))
@@ -261,6 +268,11 @@ def run_launchservices_smoke() -> dict[str, Any]:
     finally:
         try:
             cleanup_launch_state_processes(launch_state, existing_default_pids=existing_default_pids)
+            if launch_state:
+                terminal_state = wait_for_terminal_launch_state(launch_state_path)
+                if terminal_state.get("status") == "running":
+                    ok = False
+                    reason = f"{reason}; launch_state still running after cleanup" if reason else "launch_state still running after cleanup"
         except Exception as exc:
             ok = False
             reason = f"{reason}; cleanup failed: {exc}" if reason else f"cleanup failed: {exc}"
@@ -270,6 +282,7 @@ def run_launchservices_smoke() -> dict[str, Any]:
         "seconds": round(time.time() - started, 3),
         "base_url": launch_state.get("base_url"),
         "launch_state": str(launch_state_path),
+        "terminal_launch_status": terminal_state.get("status"),
         "log": str(log_path),
         "reason": reason,
     }
@@ -289,6 +302,7 @@ def run_occupied_port_launch_gate() -> dict[str, Any]:
     launch_state_path.unlink(missing_ok=True)
     stale_proc: subprocess.Popen[str] | None = None
     app_proc: subprocess.Popen[str] | None = None
+    terminal_state: dict[str, Any] = {}
     existing_default_pids = set(pids_for_port(8787))
     try:
         if not existing_default_pids:
@@ -332,6 +346,11 @@ def run_occupied_port_launch_gate() -> dict[str, Any]:
         if app_proc is not None:
             terminate(app_proc)
         cleanup_launch_state_processes(launch_state if isinstance(launch_state, dict) else {}, existing_default_pids=existing_default_pids)
+        if isinstance(launch_state, dict) and launch_state:
+            terminal_state = wait_for_terminal_launch_state(launch_state_path)
+            if terminal_state.get("status") == "running":
+                ok = False
+                reason = f"{reason}; launch_state still running after cleanup" if reason else "launch_state still running after cleanup"
         if stale_proc is not None:
             terminate(stale_proc)
     ensure_log_has_content(log_path, f"{name} ok={ok} requested_port=8787 chosen_port={launch_state.get('port') if isinstance(launch_state, dict) else None} reason={reason}\n")
@@ -343,6 +362,7 @@ def run_occupied_port_launch_gate() -> dict[str, Any]:
         "requested_port": 8787,
         "chosen_port": launch_state.get("port") if isinstance(launch_state, dict) else None,
         "launch_state": str(launch_state_path),
+        "terminal_launch_status": terminal_state.get("status"),
         "log": str(log_path),
         "stale_server_log": str(stale_log_path),
         "reason": reason,
@@ -644,6 +664,17 @@ def read_launch_state(path: Path) -> dict[str, Any]:
         return {"status": "unreadable", "reason": str(exc)}
 
 
+def wait_for_terminal_launch_state(path: Path) -> dict[str, Any]:
+    deadline = time.time() + 5
+    state: dict[str, Any] = {}
+    while time.time() < deadline:
+        state = read_launch_state(path)
+        if state.get("status") in {"stopped", "failed"}:
+            return state
+        time.sleep(0.1)
+    return state
+
+
 def assert_owned_health(
     health: dict[str, Any],
     *,
@@ -661,9 +692,12 @@ def assert_owned_health(
 
 
 def cleanup_launch_state_processes(launch_state: dict[str, Any], *, existing_default_pids: set[int]) -> None:
+    launcher_pid = int(launch_state.get("launcher_pid") or 0)
     server_pid = int(launch_state.get("server_pid") or 0)
     port = int(launch_state.get("port") or 0)
-    if server_pid and server_pid not in existing_default_pids:
+    if launcher_pid and launcher_pid != os.getpid():
+        terminate_pid_list([launcher_pid])
+    elif server_pid and server_pid not in existing_default_pids:
         terminate_pid_list([server_pid])
     if port and port != 8787:
         terminate_pid_list(pids_for_port(port))
