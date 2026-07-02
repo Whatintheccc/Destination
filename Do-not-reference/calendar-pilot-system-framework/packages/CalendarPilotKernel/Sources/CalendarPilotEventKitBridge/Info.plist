@@ -1,0 +1,20 @@
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>dev.calendarpilot.eventkitbridge</string>
+  <key>CFBundleName</key>
+  <string>CalendarPilotEventKitBridge</string>
+  <key>CFBundleExecutable</key>
+  <string>CalendarPilotEventKitBridge</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>CalendarPilot needs Calendar access only in live Apple Calendar provider mode to read events, check conflicts, create approved events, and undo them.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>CalendarPilot needs full Calendar access only in live Apple Calendar provider mode to verify conflicts, create user-approved events, and roll them back.</string>
+</dict>
+</plist>

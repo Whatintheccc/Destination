@@ -1,0 +1,2 @@
+{"record_type":"envelope_transition","record_id":"envtest:commit","trace_id":"trace_golden","causal_parent_id":null,"payload":{"envelope":{"envelope_id":"env_golden","current_state":"commit","provider":{"rollback_state":"verified"}}}}
+{"record_type":"receipt","record_id":"receipt:undo_golden","trace_id":"trace_golden","causal_parent_id":"envtest:commit","payload":{"receipt":{"sync_status":"reverted","rollback_handle_id":"undo_golden","candidate_id":"cand_golden"}}}
