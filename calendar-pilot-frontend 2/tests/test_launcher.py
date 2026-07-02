@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import socket
+import tempfile
 import unittest
 from pathlib import Path
 
-from calendar_pilot.frontend.launcher import select_port
+from calendar_pilot.frontend.launcher import _load_env_files, select_port
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,10 +41,37 @@ class LauncherTests(unittest.TestCase):
 
         self.assertIn("calendar_pilot.frontend.launcher", wrapper.read_text(encoding="utf-8"))
         self.assertIn("WKWebView", wrapper.read_text(encoding="utf-8"))
+        self.assertIn("removeItem(at: runDirectory.appendingPathComponent(\"launch_state.json\"))", wrapper.read_text(encoding="utf-8"))
         self.assertIn("CalendarPilotMacApp", package.read_text(encoding="utf-8"))
         self.assertIn("--product CalendarPilotMacApp", build_script.read_text(encoding="utf-8"))
         self.assertIn("dev.calendarpilot.dogfood", build_script.read_text(encoding="utf-8"))
         self.assertNotIn("#!/usr/bin/env bash\nAPP_ROOT=", build_script.read_text(encoding="utf-8"))
+
+    def test_load_env_files_reads_only_allowed_secret_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            run_dir = root / "run"
+            app_root = root / "app"
+            run_dir.mkdir()
+            app_root.mkdir()
+            (run_dir / "secrets.env").write_text(
+                "\n".join([
+                    "NVIDIA_API_KEY=dummy",
+                    "CALENDAR_PILOT_NIM_MODEL='google/diffusiongemma-26b-a4b-it'",
+                    "UNRELATED_SECRET=do-not-load",
+                    "CODEX_ACCESS_TOKEN=keep",
+                ]),
+                encoding="utf-8",
+            )
+            env = {"CODEX_ACCESS_TOKEN": "set"}
+
+            loaded = _load_env_files(env, run_dir=run_dir, app_root=app_root)
+
+            self.assertEqual(loaded, [run_dir / "secrets.env"])
+            self.assertEqual(env["NVIDIA_API_KEY"], "dummy")
+            self.assertEqual(env["CALENDAR_PILOT_NIM_MODEL"], "google/diffusiongemma-26b-a4b-it")
+            self.assertNotIn("UNRELATED_SECRET", env)
+            self.assertEqual(env["CODEX_ACCESS_TOKEN"], "set")
 
 
 if __name__ == "__main__":

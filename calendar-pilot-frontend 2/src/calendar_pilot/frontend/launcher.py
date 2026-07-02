@@ -15,6 +15,21 @@ from typing import Any
 from urllib.request import urlopen
 
 
+ALLOWED_SECRET_ENV_KEYS = {
+    "CALENDAR_PILOT_NIM_API_KEY",
+    "NVIDIA_API_KEY",
+    "NIM_API_KEY",
+    "CALENDAR_PILOT_NIM_BASE_URL",
+    "CALENDAR_PILOT_NIM_MODEL",
+    "CALENDAR_PILOT_NIM_CA_FILE",
+    "CALENDAR_PILOT_NIM_TIMEOUT",
+    "CALENDAR_PILOT_CODEX_BIN",
+    "CALENDAR_PILOT_CODEX_MODEL",
+    "CALENDAR_PILOT_CODEX_TIMEOUT",
+    "CODEX_ACCESS_TOKEN",
+}
+
+
 def select_port(host: str, preferred_port: int, *, strict: bool = False) -> int:
     if _port_available(host, preferred_port):
         return preferred_port
@@ -44,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     log_path = run_dir / "CalendarPilot.log"
 
     env = os.environ.copy()
+    _load_env_files(env, run_dir=run_dir, app_root=app_root)
     env["CALENDAR_PILOT_LAUNCH_ID"] = launch_id
     env["CALENDAR_PILOT_LAUNCH_PORT"] = str(port)
     env["CALENDAR_PILOT_LAUNCH_REQUESTED_PORT"] = str(args.port)
@@ -127,6 +143,42 @@ def _api_get(base_url: str, path: str) -> dict[str, Any]:
 def _write_launch_state(path: Path, **payload: Any) -> None:
     payload["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _load_env_files(env: dict[str, str], *, run_dir: Path, app_root: Path) -> list[Path]:
+    configured = env.get("CALENDAR_PILOT_SECRETS_FILE", "")
+    paths = [Path(configured).expanduser()] if configured else [
+        run_dir / "secrets.env",
+        run_dir / ".env",
+        app_root / ".env",
+    ]
+    loaded: list[Path] = []
+    for path in paths:
+        if not path.exists() or not path.is_file():
+            continue
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            parsed = _parse_env_line(raw_line)
+            if parsed is None:
+                continue
+            key, value = parsed
+            if key in ALLOWED_SECRET_ENV_KEYS and key not in env:
+                env[key] = value
+        loaded.append(path)
+    return loaded
+
+
+def _parse_env_line(line: str) -> tuple[str, str] | None:
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#") or "=" not in stripped:
+        return None
+    key, value = stripped.split("=", 1)
+    key = key.strip()
+    if not key or not key.replace("_", "").isalnum():
+        return None
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1]
+    return key, value
 
 
 def _port_available(host: str, port: int) -> bool:

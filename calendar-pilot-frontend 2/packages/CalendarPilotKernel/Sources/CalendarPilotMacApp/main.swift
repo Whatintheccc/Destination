@@ -194,6 +194,7 @@ final class LauncherController: ObservableObject {
         let runDirectory = resolveRunDirectory()
         do {
             try FileManager.default.createDirectory(at: runDirectory, withIntermediateDirectories: true)
+            try? FileManager.default.removeItem(at: runDirectory.appendingPathComponent("launch_state.json"))
             logHandle = try openLogFile(runDirectory.appendingPathComponent("CalendarPilotLauncher.log"))
         } catch {
             fail("CalendarPilot could not prepare its run directory.", detail: error.localizedDescription)
