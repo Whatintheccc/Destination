@@ -1,0 +1,87 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calendarpilot.local/schemas/codex_tool_receipt.schema.json",
+  "title": "CodexToolReceipt",
+  "type": "object",
+  "required": [
+    "tool_call_id",
+    "tool_name",
+    "status",
+    "output",
+    "requires_user_confirmation",
+    "created_at"
+  ],
+  "properties": {
+    "tool_call_id": {
+      "type": "string"
+    },
+    "tool_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "simulated",
+        "stageable",
+        "staged",
+        "committed",
+        "denied",
+        "requires_confirmation",
+        "failed"
+      ]
+    },
+    "output": {
+      "type": "object"
+    },
+    "swift_receipt_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "replay_record_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "denied_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requires_user_confirmation": {
+      "type": "boolean"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "stage_state": {
+      "enum": [
+        "simulated",
+        "stageable",
+        "requires_confirmation",
+        "denied",
+        "committed",
+        "no_op"
+      ]
+    },
+    "authority_grant_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false
+}
