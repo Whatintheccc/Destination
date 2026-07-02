@@ -133,6 +133,8 @@ def run_app_bundle_sanity(
     app_src = APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot"
     app_index = APP_BUNDLE / "Contents" / "Resources" / "app" / "frontend" / "static" / "index.html"
     app_swift_server = APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotKernelServer"
+    app_eventkit_bridge = APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotEventKitBridge"
+    app_eventkit_bridge_app = APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotEventKitBridge.app" / "Contents" / "MacOS" / "CalendarPilotEventKitBridge"
     if not app_exe.exists() or not os.access(app_exe, os.X_OK):
         return {"name": name, "ok": False, "reason": "app executable missing or not executable"}
     if not app_src.exists():
@@ -141,6 +143,10 @@ def run_app_bundle_sanity(
         return {"name": name, "ok": False, "reason": "bundled frontend static assets missing"}
     if runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"} and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
         return {"name": name, "ok": False, "reason": "bundled Swift IPC server missing or not executable"}
+    if not app_eventkit_bridge.exists() or not os.access(app_eventkit_bridge, os.X_OK):
+        return {"name": name, "ok": False, "reason": "bundled EventKit bridge missing or not executable"}
+    if not app_eventkit_bridge_app.exists() or not os.access(app_eventkit_bridge_app, os.X_OK):
+        return {"name": name, "ok": False, "reason": "bundled EventKit bridge app missing or not executable"}
     port = free_port()
     base_url = f"http://127.0.0.1:{port}"
     run_dir = RUN_DIR / f"mac_app_state_{runtime_mode}"
@@ -273,6 +279,9 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot" / "app.py",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "build_id",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotKernelServer",
+        APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotEventKitBridge",
+        APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotEventKitBridge.app" / "Contents" / "Info.plist",
+        APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotEventKitBridge.app" / "Contents" / "MacOS" / "CalendarPilotEventKitBridge",
     ]
     missing = [str(path) for path in expected if not path.exists() or path.stat().st_size == 0]
     bad_json: list[str] = []

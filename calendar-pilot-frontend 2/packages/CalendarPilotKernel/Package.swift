@@ -7,12 +7,26 @@ let package = Package(
     products: [
         .library(name: "CalendarPilotKernel", targets: ["CalendarPilotKernel"]),
         .executable(name: "CalendarPilotDemo", targets: ["CalendarPilotDemo"]),
-        .executable(name: "CalendarPilotKernelServer", targets: ["CalendarPilotKernelServer"])
+        .executable(name: "CalendarPilotKernelServer", targets: ["CalendarPilotKernelServer"]),
+        .executable(name: "CalendarPilotEventKitBridge", targets: ["CalendarPilotEventKitBridge"])
     ],
     targets: [
         .target(name: "CalendarPilotKernel"),
         .executableTarget(name: "CalendarPilotDemo", dependencies: ["CalendarPilotKernel"]),
         .executableTarget(name: "CalendarPilotKernelServer", dependencies: ["CalendarPilotKernel"]),
+        .executableTarget(
+            name: "CalendarPilotEventKitBridge",
+            dependencies: ["CalendarPilotKernel"],
+            exclude: ["Info.plist"],
+            linkerSettings: [
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", "Sources/CalendarPilotEventKitBridge/Info.plist",
+                ])
+            ]
+        ),
         .testTarget(name: "CalendarPilotKernelTests", dependencies: ["CalendarPilotKernel"])
     ]
 )

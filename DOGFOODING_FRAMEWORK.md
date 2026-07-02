@@ -40,18 +40,18 @@ Originally observed after opening the desktop app on `http://127.0.0.1:8787/` on
 - `Codex` started as a deterministic local planner/runtime contract. P5 adds `live_codex` mode through Codex app-server and ChatGPT subscription auth, while fixture mode remains deterministic by design.
 - `DiffusionGemma` started as a deterministic heuristic policy. P6 adds `live_diffusiongemma` mode through NVIDIA NIM while fixture mode remains deterministic by design.
 - `SwiftKernelIPCClient` originally existed but was not selected by the app path. P4 made it satisfy the shared kernel protocol and selected it for `swift_ipc`, `live_codex`, and production-targeted modes.
-- Provider adapters are stubs. Real OAuth, provider sync, conflict truth, external IDs, idempotency, and write execution are not implemented.
+- Provider adapters started as stubs. P7.1 adds deterministic provider truth; P7.2 adds an Apple Calendar/EventKit provider bridge with live read/write/undo evidence after macOS Calendar permission is granted.
 - The UI truthfully reports `local_stub` and `real_oauth: False`.
 - The desktop launcher uses fixed port `8787` and opens the browser after a sleep, so a stale server on that port can be shown if launch ownership is ambiguous.
 
-Conclusion: P0-P2 certify a working local fixture macOS app. P3-P6 now add runtime truth, compiled Swift IPC, live Codex subscription-auth planning evidence, and live DiffusionGemma/NVIDIA NIM policy-ranking evidence. They still do not certify real provider behavior, OAuth, or production desktop launch ownership.
+Conclusion: P0-P2 certify a working local fixture macOS app. P3-P6 now add runtime truth, compiled Swift IPC, live Codex subscription-auth planning evidence, and live DiffusionGemma/NVIDIA NIM policy-ranking evidence. P7 adds deterministic provider truth and live Apple Calendar/EventKit read/write/undo evidence. These phases still do not certify production desktop launch ownership.
 
 ## Dogfood Principles
 
 1. Validate the product that exists, not a presumed product direction.
 2. Every phase must leave runnable evidence: tests, browser/API checks, app build artifacts, replay exports, or logs.
 3. Prefer deterministic fixture state until provider truth, idempotency, and rollback checks are proven.
-4. Credential setup is manual and user-owned. When Codex Auth, OAuth, or DiffusionGemma/NVIDIA NIM keys are required, open the browser for the user and pause at the credential field.
+4. Credential and permission setup is manual and user-owned. When Codex Auth, provider OAuth/OS permission, or DiffusionGemma/NVIDIA NIM keys are required, open the relevant browser or OS prompt for the user and pause at the credential or permission field.
 5. Do not proceed from one phase to the next until the completed phase is committed and reviewed by one architecture-focused subagent.
 6. Reviews are blockers only for correctness, data loss, broken launch, hidden failures, unsafe authority, or missing phase acceptance criteria.
 7. Keep this document current when a phase starts, when evidence is collected, and when a gate changes.
@@ -415,7 +415,7 @@ Acceptance criteria:
 - Replay exports include enough policy metadata to reproduce or debug a frontier.
 - Live policy failures do not create provider writes and do not masquerade as successful heuristic output.
 
-## P7 Provider Truth And OAuth
+## P7 Provider Truth And Permission
 
 Status: In progress
 Owner: provider/runtime engineering
@@ -437,22 +437,29 @@ Acceptance criteria:
 - Undo verifies provider rollback, not just local receipt mutation.
 - Conflict tests use provider truth instead of only sample-calendar heuristics.
 
-### P7.2 Real Provider OAuth
+### P7.2 Apple Calendar / EventKit Provider
 
-Status: Not started
+Status: Done
 
 Required work:
 
-- Implement at least one real provider path end to end: OAuth, token refresh, read observation, write, move/delete where supported, conflict check, rollback, and error recovery.
-- Store provider tokens outside git, replay, logs, screenshots, and release reports.
-- Add a manual credential setup flow where the browser is opened for the user to authenticate.
-- Add provider-specific denial and recovery states for expired tokens, revoked grants, network failures, conflicts, duplicate writes, and partial rollbacks.
+- Implement at least one real provider path end to end. For Apple Calendar this means EventKit OS permission instead of OAuth: permission status, read observation, write, move/delete where supported, conflict check, rollback, and error recovery.
+- Store provider state outside git, replay, logs, screenshots, and release reports. EventKit does not require provider tokens.
+- Add a manual permission setup flow where the provider inspector can request macOS Calendar access for the user.
+- Add provider-specific denial and recovery states for missing permission, denied/restricted access, write-only access, unavailable bridge binaries, conflicts, duplicate writes, and partial rollbacks.
 
 Acceptance criteria:
 
-- A dogfood user can connect a real calendar account and see a real observation.
-- A safe private commit writes to the provider, returns an external ID, and can be undone.
+- With `CALENDAR_PILOT_PROVIDER_BACKEND=apple_eventkit`, the app reports Apple Calendar permission state in `/api/health` and the provider inspector.
+- Once macOS Calendar permission is granted, a dogfood user can read a real Apple Calendar observation.
+- A safe private commit writes through EventKit, returns an external ID, and can be undone through EventKit rollback.
 - Real provider dogfood is separated from fixture dogfood in UI, release reports, and replay exports.
+
+Permission gate:
+
+- Calendar permission is per-machine TCC state. Use the provider inspector or `AppleEventKitProvider.request_access()` to request it.
+- The first direct CLI attempt did not prompt because macOS treated the bridge as an unbundled command-line process. The bridge is now packaged as `CalendarPilotEventKitBridge.app` and Python routes app-bundled bridge commands through LaunchServices with request/result files.
+- On this dogfood machine, the LaunchServices-backed bridge reports `authorization_status: full_access`, real EventKit observation reads work, and the live rollback probe created and undid one temporary `CalendarPilot dogfood rollback probe` event.
 
 ## P8 Production Desktop Launch And Distribution
 
@@ -519,7 +526,7 @@ Run these additional scenarios as P3-P8 come online:
 4. Live Codex: submit a goal and verify the executive plan came from the live model client, with validated tool calls and redacted replay traces.
 5. Live policy: generate a candidate frontier from DiffusionGemma/NIM and verify model provenance appears in the inspector and replay.
 6. Provider fixture: write, detect duplicate write, conflict, undo, and rollback against persisted deterministic provider state.
-7. Real provider: OAuth into one calendar provider, read an observation, write a safe private event, undo it, and verify external state.
+7. Real provider: grant Apple Calendar/EventKit permission or OAuth into another provider, read an observation, write a safe private event, undo it, and verify external state.
 8. Desktop stale-port: start a stale server on `8787`, double-click the app, and verify the launched app either owns the URL or fails visibly.
 
 ## Scorecard
@@ -543,8 +550,8 @@ Run these additional scenarios as P3-P8 come online:
 | Swift backend | labeled stub or IPC | compiled IPC receipts | live Codex routes through kernel | live policy routes through kernel | provider writes behind kernel | packaged lifecycle managed |
 | Codex backend | deterministic labeled | deterministic labeled | live model-backed planner | live planner compatible | live planner compatible | production-gated |
 | DiffusionGemma backend | heuristic labeled | heuristic labeled | heuristic or live labeled | live NIM/model provenance | live or provider-safe fallback | production-gated |
-| Provider backend | `local_stub` labeled | `local_stub` labeled | `local_stub` labeled | `local_stub` labeled | deterministic and real OAuth paths | production-gated |
-| Credentials | none required in fixture | none unless IPC packaging needs local toolchain | Codex subscription auth gate | NVIDIA NIM gate | OAuth gate | all gates visible |
+| Provider backend | `local_stub` labeled | `local_stub` labeled | `local_stub` labeled | `local_stub` labeled | deterministic and Apple EventKit paths | production-gated |
+| Credentials | none required in fixture | none unless IPC packaging needs local toolchain | Codex subscription auth gate | NVIDIA NIM gate | provider permission/OAuth gate | all gates visible |
 | Secret hygiene | scan artifacts | scan IPC logs | scan model traces | scan NIM traces | scan provider traces | scan launch logs |
 | Release evidence | mode report | IPC report | live Codex report | live policy report | provider report | production app report |
 
@@ -576,6 +583,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P6 live DiffusionGemma/NIM verification | Completed manual NVIDIA NIM credential setup through the ignored local `.env`, added certifi-backed TLS handling for the NIM client, and verified live policy ranking without heuristic fallback. `live_diffusiongemma` reports backend `nvidia_nim_diffusiongemma_policy`, selects Swift IPC, records policy provenance in replay, exposes candidate control notes, and turns missing or failed NIM calls into failed receipts instead of provider writes. | `make live-diffusiongemma-e2e` passed with 6 candidate cards and 6 NIM policy replay records under `runs/live_diffusiongemma_e2e/artifacts/`. `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed; release secret scan reported no findings across tracked files, `runs/`, and `dist/`. |
 | 2026-07-01 | P6 architectural review fixes | Addressed Peirce's blockers by making live DiffusionGemma health perform cached remote NIM validation, appending remote health failures to `live_blockers`, exposing timeout/retry/polling/fallback/decoding config in health, surfacing failed frontier generation in chat, preserving structured per-candidate NIM metadata in replay decisions, and fail-closing stale frontier state after live policy failure. NIM ranking now requests JSON-schema structured output and records parser fallback as validation metadata if needed. | `make live-diffusiongemma-e2e` passed with preflight `status: ok`, JSON-schema decoding settings, `/api/health` `diffusiongemma_nim.status: ok`, and 6 replay records containing structured `policy_metadata`. `make py-test`, `make swift-test`, `make swift-ipc-test`, and `make dogfood-release` passed; release secret scan had no findings. |
 | 2026-07-01 | P7 deterministic provider state | Added `DeterministicCalendarProvider` with persisted provider state, external IDs, idempotency keys, provider conflict truth, rollback records, and rollback verification. `CodexToolRuntime` now resolves authority, checks provider truth, asks Swift to authorize/materialize, then persists provider writes and enriches receipts; undo verifies provider rollback. The frontend runtime reports `deterministic_fixture_provider` and the provider inspector shows event/idempotency/rollback state. | `test_deterministic_provider.py` covers external ID/idempotency, idempotent replay, provider rollback verification, and provider-state conflict denial not visible in the original observation. `make py-test`, `make swift-test`, `make swift-ipc-test`, `make browser-e2e`, and `make dogfood-release` passed. Browser replay export contained provider commit and rollback outputs; release secret scan had no findings. |
+| 2026-07-01 | P7 Apple Calendar/EventKit provider | Added `AppleEventKitProvider`, a Swift `CalendarPilotEventKitBridge` executable, nested bridge app packaging with Calendar usage strings, LaunchServices request/result-file IPC for app-bundled EventKit commands, `/api/provider/permission/request`, provider inspector permission controls, provider health reporting, and fail-closed commit/undo gating when live provider permission is missing. EventKit reports `real_provider: true`, `real_oauth: false`, and `auth_method: eventkit_os_calendar_permission`. | `test_apple_eventkit_provider.py` covers fake EventKit commit idempotency, rollback verification, direct unconfigured-provider denial, runtime pre-Swift `provider_not_configured` denial, and session permission request. The app-bundled bridge reports `authorization_status: full_access`; `AppleEventKitProvider.read_observation()` returned `obs_apple_eventkit` with 2 events; the runtime live rollback probe committed one temporary `CalendarPilot dogfood rollback probe` event, returned a provider external ID, and then returned `rollback_verified: true`; a follow-up observation showed 0 rollback-probe events remaining. `make py-test swift-test swift-ipc-test browser-e2e` and `make dogfood-release` passed. |
 
 ## Review Log
 
@@ -602,5 +610,5 @@ Run these additional scenarios as P3-P8 come online:
 | Swift IPC can regress to the Python stub if mode selection or app packaging breaks. | P4 | Shared kernel protocol, packaged IPC binary, `swift_ipc_runtime_mode_gate`, `swift-ipc-test`, and `mac_app_swift_ipc_sanity` now fail if Swift IPC falls back to `SwiftKernelStub`. |
 | Live Codex subscription-auth planning can regress into unsafe model execution order. | P5 | Pre-execution model-plan validation, replayed validation failures, `test_terminal_commit_plan_is_validated_before_any_execution`, and `make live-codex-e2e` now guard this boundary. |
 | DiffusionGemma/NIM live serving depends on external endpoint, credential, and TLS bundle availability. | P6 | P6 now has a live E2E gate, certifi-backed TLS context with `CALENDAR_PILOT_NIM_CA_FILE` override, runtime health provenance, failed-receipt behavior on NIM failure, and artifact secret scans. Rerun `make live-diffusiongemma-e2e` before release decisions that depend on live policy serving. |
-| Real provider/OAuth behavior is not included in fixture dogfood. | P7 | Add deterministic provider state first, then one real OAuth provider with external IDs, idempotency, conflict truth, and rollback verification. |
+| Real provider behavior is not included in fixture dogfood. | P7 | Deterministic provider state is implemented. Apple Calendar/EventKit provider code, UI, health, packaging, idempotency, conflict, rollback, and live read/write/undo evidence are implemented. Calendar permission remains per-machine TCC state and must be revalidated on each dogfood machine. |
 | Fixed-port desktop launch can show a stale server. | P8 | Add port ownership or free-port launch, process identity handshake, and occupied-port release checks. |

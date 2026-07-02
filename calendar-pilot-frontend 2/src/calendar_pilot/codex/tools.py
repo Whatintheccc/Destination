@@ -148,6 +148,21 @@ class CodexToolRuntime:
                     authority_grant=grant,
                     correlation_id=call.correlation_id or candidate.candidate_id,
                 )
+            provider_blocker = self._provider_write_blocker()
+            if provider_blocker is not None:
+                return self._receipt(
+                    call,
+                    CodexToolStatus.DENIED,
+                    {
+                        "stage_state": StageState.DENIED.value,
+                        "provider_id": getattr(self.provider, "provider_id", "unknown_provider"),
+                        "provider_health": provider_blocker,
+                    },
+                    denied="provider_not_configured",
+                    stage_state=StageState.DENIED,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or candidate.candidate_id,
+                )
             swift_receipt = self.kernel.authorize_and_materialize(candidate, observation, authority_grant=grant.grant_id, requested_authority_tier=call.requested_authority_tier, correlation_id=call.correlation_id or candidate.candidate_id)
             provider_receipt = self._commit_to_provider(candidate, swift_receipt, observation) if swift_receipt.denied_reason is None else None
             if provider_receipt is not None and provider_receipt.status == "conflict_denied":
@@ -192,6 +207,21 @@ class CodexToolRuntime:
         if name == CodexToolName.REQUEST_UNDO:
             rollback_id = str(call.input.get("rollback_handle_id", ""))
             grant = self._resolve_grant(call)
+            provider_blocker = self._provider_write_blocker()
+            if provider_blocker is not None:
+                return self._receipt(
+                    call,
+                    CodexToolStatus.DENIED,
+                    {
+                        "stage_state": StageState.DENIED.value,
+                        "provider_id": getattr(self.provider, "provider_id", "unknown_provider"),
+                        "provider_health": provider_blocker,
+                    },
+                    denied="provider_not_configured",
+                    stage_state=StageState.DENIED,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or rollback_id,
+                )
             output = self.kernel.request_undo(rollback_id, observation, authority_grant=grant.grant_id if grant else None, requested_authority_tier=call.requested_authority_tier, correlation_id=call.correlation_id or rollback_id)
             provider_rollback = self._rollback_provider(rollback_id) if output.denied_reason is None else None
             if provider_rollback is not None:
@@ -329,6 +359,18 @@ class CodexToolRuntime:
         if not callable(conflict_truth):
             return []
         return list(conflict_truth(candidate))
+
+    def _provider_write_blocker(self) -> dict[str, Any] | None:
+        is_real_provider = bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False))
+        if self.provider is None or not is_real_provider:
+            return None
+        health_status = getattr(self.provider, "health_status", None)
+        if not callable(health_status):
+            return {"provider": getattr(self.provider, "provider_id", "unknown_provider"), "configured": False, "status": "health_unavailable"}
+        health = dict(health_status())
+        if health.get("configured"):
+            return None
+        return health
 
     def _commit_to_provider(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt, observation: RawCalendarObservation):
         commit_candidate = getattr(self.provider, "commit_candidate", None)

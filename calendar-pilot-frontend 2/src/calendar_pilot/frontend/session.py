@@ -11,7 +11,7 @@ from typing import Any
 
 from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime, LiveCodexToolPlanner
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, LiveDiffusionGemmaPolicy, SelfPlayRunner
-from calendar_pilot.providers import DeterministicCalendarProvider
+from calendar_pilot.providers import AppleEventKitProvider, DeterministicCalendarProvider
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.swift_bridge import SwiftKernelIPCClient, SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
@@ -135,6 +135,8 @@ class DogfoodSessionState:
         requested_provider = os.environ.get("CALENDAR_PILOT_PROVIDER_BACKEND", "deterministic").strip().lower().replace("-", "_")
         if requested_provider in {"stub", "local_stub", "none"}:
             return None
+        if requested_provider in {"apple", "apple_eventkit", "ios_calendar", "macos_calendar", "eventkit"}:
+            return AppleEventKitProvider(state_path=self.run_dir / "apple_eventkit_provider.json")
         return DeterministicCalendarProvider(state_path=self.run_dir / "provider_state.json", seed_observation=self.observation)
 
     def close(self) -> None:
@@ -359,6 +361,14 @@ class DogfoodSessionState:
             "records": [record.envelope() for record in self.replay.records],
         }
 
+    def provider_permission_request(self) -> dict[str, Any]:
+        request_access = getattr(self.provider, "request_access", None)
+        if not callable(request_access):
+            raise ValueError("active provider does not support OS permission requests")
+        result = request_access()
+        self.persist()
+        return {"provider_permission": result, "state": self.snapshot()}
+
     def runtime_report(self) -> dict[str, Any]:
         report = runtime_report(
             mode=self.runtime_mode,
@@ -377,6 +387,11 @@ class DogfoodSessionState:
             policy_health = policy_health_status(validate_remote=validate_remote)
             report["diffusiongemma_health"] = policy_health
             self._apply_live_diffusiongemma_health_blockers(report, policy_health)
+        provider_health_status = getattr(self.provider, "health_status", None)
+        if callable(provider_health_status):
+            provider_health = provider_health_status()
+            report["provider_health"] = provider_health
+            self._apply_live_provider_health_blockers(report, provider_health)
         return report
 
     def _apply_live_diffusiongemma_health_blockers(self, report: dict[str, Any], policy_health: dict[str, Any]) -> None:
@@ -400,6 +415,34 @@ class DogfoodSessionState:
             return
         blocker = f"live DiffusionGemma remote health is {status}"
         reason = policy_health.get("reason")
+        if reason:
+            blocker += f": {reason}"
+        if blocker not in blockers:
+            blockers.append(blocker)
+
+    def _apply_live_provider_health_blockers(self, report: dict[str, Any], provider_health: dict[str, Any]) -> None:
+        credentials = report.get("credentials", {})
+        provider_oauth = credentials.get("provider_oauth") if isinstance(credentials, dict) else None
+        configured = bool(provider_health.get("configured"))
+        if isinstance(provider_oauth, dict):
+            provider_oauth["configured"] = configured
+            provider_oauth["status"] = str(provider_health.get("status", "configured" if configured else "missing_permission"))
+            provider_oauth["source"] = str(provider_health.get("auth_method", "provider_health"))
+            provider_oauth["auth_method"] = str(provider_health.get("auth_method", "provider_health"))
+        blockers = report.setdefault("live_blockers", [])
+        if not isinstance(blockers, list):
+            return
+        blockers[:] = [
+            blocker for blocker in blockers
+            if blocker not in {"required credential missing: provider_oauth", "required credential wrong auth method: provider_oauth"}
+        ]
+        if configured:
+            return
+        if report.get("runtime_mode") not in {"live_provider", "production"}:
+            return
+        status = str(provider_health.get("status", "missing_permission"))
+        blocker = f"live provider health is {status}"
+        reason = provider_health.get("reason")
         if reason:
             blocker += f": {reason}"
         if blocker not in blockers:
@@ -452,6 +495,7 @@ class DogfoodSessionState:
                 {"key": "diffusiongemma", "value": runtime["backends"]["diffusiongemma"]},
                 {"key": "diffusiongemma_health", "value": runtime.get("diffusiongemma_health", {}).get("status", "not_applicable")},
                 {"key": "provider", "value": runtime["backends"]["provider"]},
+                {"key": "provider_health", "value": runtime.get("provider_health", {}).get("status", "not_applicable")},
                 {"key": "codex_health", "value": runtime.get("codex_health", {}).get("status", "not_applicable")},
                 {"key": "live_blockers", "value": runtime["live_blockers"] or "none"},
             ],
@@ -478,14 +522,23 @@ class DogfoodSessionState:
         snapshot = provider_snapshot()
         rows = [
             {"key": "provider", "value": snapshot.get("provider")},
+            {"key": "real_provider", "value": snapshot.get("real_provider", snapshot.get("real_oauth"))},
             {"key": "real_oauth", "value": snapshot.get("real_oauth")},
+            {"key": "permission_status", "value": snapshot.get("permission_status", snapshot.get("oauth_status", "not_applicable"))},
+            {"key": "auth_method", "value": snapshot.get("auth_method", "not_applicable")},
             {"key": "event_count", "value": snapshot.get("event_count")},
             {"key": "idempotency_keys", "value": snapshot.get("idempotency_keys")},
             {"key": "rollback_records", "value": snapshot.get("rollback_records")},
             {"key": "rollback_verified", "value": snapshot.get("rollback_verified")},
         ]
         rows.extend(snapshot.get("recent_mutations", [])[-5:])
-        return {"title": "Deterministic provider state", "rows": rows, "snapshot": snapshot}
+        title = "Apple Calendar provider" if snapshot.get("provider") == "apple_eventkit" else "Deterministic provider state"
+        return {
+            "title": title,
+            "rows": rows,
+            "snapshot": snapshot,
+            "permission": {"connect_enabled": bool(snapshot.get("connect_enabled")), "status": snapshot.get("permission_status")},
+        }
 
     def persist(self) -> None:
         self.run_dir.mkdir(parents=True, exist_ok=True)

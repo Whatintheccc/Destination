@@ -138,6 +138,8 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                 return session.update_authority(tier=tier, scopes=scopes if isinstance(scopes, list) else None, confirmed=body_bool(body.get("confirmed"), default=True))
             if path == "/api/feedback":
                 return session.feedback(str(body.get("receipt_id", "")), str(body.get("feedback", "useful")), reason=str(body.get("reason", "")))
+            if path == "/api/provider/permission/request":
+                return session.provider_permission_request()
             if path == "/api/reset":
                 return session.reset()
             raise ValueError(f"unsupported POST {path}")

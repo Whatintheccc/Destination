@@ -40,6 +40,8 @@ class FrontendServerApiTests(unittest.TestCase):
         health = self.get("/api/health")
         self.assertEqual(health["runtime_mode"], state["runtime"]["runtime_mode"])
         self.assertEqual(health["backends"]["provider"], "deterministic_fixture_provider")
+        provider_permission = self.post("/api/provider/permission/request", {}, expected_status=400)
+        self.assertIn("active provider does not support OS permission requests", provider_permission["error"])
 
         planned = self.post("/api/plans", {"goal": "Make next week less chaotic", "authority_tier": 3})
         candidate_id = planned["chat"]["candidate_cards"][0]["candidate_id"]

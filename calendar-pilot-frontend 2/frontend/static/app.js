@@ -182,7 +182,7 @@ function renderInspector(inspector) {
   else if (app.inspectorTab === 'profile') content.innerHTML = renderProfile(data);
   else if (app.inspectorTab === 'replay') content.innerHTML = renderReplay(data);
   else if (app.inspectorTab === 'self_play') content.innerHTML = renderSelfPlay(data);
-  else if (app.inspectorTab === 'provider') content.innerHTML = renderRows(data.title || 'Provider', data.rows || []);
+  else if (app.inspectorTab === 'provider') content.innerHTML = renderProvider(data);
   else content.innerHTML = renderDebug(data);
 }
 
@@ -203,6 +203,16 @@ function renderRuntime(data, runtime) {
 function renderRows(title, rows) {
   const body = (rows || []).map(row => `<div class="inspector-card">${Object.entries(row).map(([k,v]) => `<div class="kv"><div class="k">${escapeHtml(k)}</div><div class="v">${fmt(v)}</div></div>`).join('')}</div>`).join('') || '<p class="muted">No records yet.</p>';
   return `<div class="inspector-card"><h3>${escapeHtml(title)}</h3></div>${body}`;
+}
+
+function renderProvider(data) {
+  const permission = data.permission || {};
+  const permissionControl = permission.connect_enabled ? `<div class="inspector-card">
+    <h3>Calendar access</h3>
+    <div class="kv"><div class="k">status</div><div class="v">${fmt(permission.status || 'unknown')}</div></div>
+    <div class="card-actions"><button id="request-provider-permission" data-testid="request-provider-permission" class="primary">Request access</button></div>
+  </div>` : '';
+  return `${renderRows(data.title || 'Provider', data.rows || [])}${permissionControl}`;
 }
 
 function renderAuthority(data) {
@@ -286,6 +296,7 @@ document.addEventListener('click', async (event) => {
   if (target.classList.contains('feedback-useful')) return postAndRefresh('/api/feedback', {receipt_id: target.dataset.receiptId, feedback: 'useful'});
   if (target.classList.contains('feedback-wrong')) return postAndRefresh('/api/feedback', {receipt_id: target.dataset.receiptId, feedback: 'wrong'});
   if (target.classList.contains('explain-denial')) return postAndRefresh('/api/denials/explain', {denied_reason: target.dataset.deniedReason});
+  if (target.id === 'request-provider-permission') return postAndRefresh('/api/provider/permission/request');
   if (target.id === 'save-authority') {
     const tier = Number($('#authority-tier').value || 3);
     const scopes = $('#authority-scopes').value.split(',').map(s => s.trim()).filter(Boolean);
