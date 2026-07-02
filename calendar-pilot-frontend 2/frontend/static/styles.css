@@ -53,11 +53,14 @@ button { cursor: pointer; }
 .badge.danger { background: #f4dddd; color: var(--danger); }
 .story { margin: 10px 0; padding-left: 18px; color: #4e463d; font-size: 13px; }
 .card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.runtime-mode-btn.active { background: var(--ink); color: white; border-color: var(--ink); opacity: 1; }
 .primary, .secondary, .ghost, .link-button, .icon-button { border: 0; border-radius: 12px; padding: 10px 14px; }
 .primary { background: var(--accent); color: white; font-weight: 700; }
 .secondary { background: var(--panel); border: 1px solid var(--line); color: var(--ink); }
 .ghost { background: rgba(255,255,255,.55); color: var(--ink); border: 1px solid var(--line); }
 .link-button { background: transparent; color: var(--accent); padding: 6px 0; }
+.auth-link { display: inline-flex; align-items: center; text-decoration: none; }
 .icon-button { background: transparent; font-size: 24px; line-height: 1; color: var(--muted); }
 button:disabled { opacity: .5; cursor: wait; }
 .composer { border-top: 1px solid var(--line); padding: 14px 22px 18px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: end; background: rgba(247,244,238,.96); }

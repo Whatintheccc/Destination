@@ -11,7 +11,7 @@ mkdir -p "$DIST/Contents/MacOS" "$APP_ROOT" "$APP_BIN"
 cat > "$DIST/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>CFBundleName</key><string>CalendarPilot</string><key>CFBundleIdentifier</key><string>dev.calendarpilot.fixture</string><key>CFBundleExecutable</key><string>CalendarPilot</string><key>CFBundlePackageType</key><string>APPL</string><key>NSCalendarsUsageDescription</key><string>CalendarPilot needs Calendar access only when live Apple Calendar provider mode is enabled, so it can read, write, and undo user-approved calendar changes.</string><key>NSCalendarsFullAccessUsageDescription</key><string>CalendarPilot needs full Calendar access only in live Apple Calendar provider mode to verify conflicts, create approved events, and roll them back.</string></dict></plist>
+<plist version="1.0"><dict><key>CFBundleName</key><string>CalendarPilot</string><key>CFBundleIdentifier</key><string>dev.calendarpilot.dogfood</string><key>CFBundleExecutable</key><string>CalendarPilot</string><key>CFBundlePackageType</key><string>APPL</string><key>NSCalendarsUsageDescription</key><string>CalendarPilot needs Calendar access only when live Apple Calendar provider mode is enabled, so it can read, write, and undo user-approved calendar changes.</string><key>NSCalendarsFullAccessUsageDescription</key><string>CalendarPilot needs full Calendar access only in live Apple Calendar provider mode to verify conflicts, create approved events, and roll them back.</string></dict></plist>
 PLIST
 cp -R "$ROOT/src" "$APP_ROOT/src"
 cp -R "$ROOT/data" "$APP_ROOT/data"
@@ -21,6 +21,8 @@ printf '%s\n' "$BUILD_ID" > "$APP_ROOT/build_id"
 SWIFT_BIN_DIR="$(swift build --package-path "$ROOT/packages/CalendarPilotKernel" -c release --product CalendarPilotKernelServer --show-bin-path)"
 swift build --package-path "$ROOT/packages/CalendarPilotKernel" -c release --product CalendarPilotKernelServer
 swift build --package-path "$ROOT/packages/CalendarPilotKernel" -c release --product CalendarPilotEventKitBridge
+swift build --package-path "$ROOT/packages/CalendarPilotKernel" -c release --product CalendarPilotMacApp
+cp "$SWIFT_BIN_DIR/CalendarPilotMacApp" "$DIST/Contents/MacOS/CalendarPilot"
 cp "$SWIFT_BIN_DIR/CalendarPilotKernelServer" "$APP_BIN/CalendarPilotKernelServer"
 cp "$SWIFT_BIN_DIR/CalendarPilotEventKitBridge" "$APP_BIN/CalendarPilotEventKitBridge"
 mkdir -p "$EVENTKIT_BRIDGE_APP/Contents/MacOS"
@@ -29,29 +31,5 @@ cp "$ROOT/packages/CalendarPilotKernel/Sources/CalendarPilotEventKitBridge/Info.
 chmod +x "$APP_BIN/CalendarPilotKernelServer"
 chmod +x "$APP_BIN/CalendarPilotEventKitBridge"
 chmod +x "$EVENTKIT_BRIDGE_APP/Contents/MacOS/CalendarPilotEventKitBridge"
-cat > "$DIST/Contents/MacOS/CalendarPilot" <<'APP'
-#!/usr/bin/env bash
-APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
-RUN_DIR="${CALENDAR_PILOT_RUN_DIR:-$HOME/Library/Application Support/CalendarPilot}"
-HOST="${CALENDAR_PILOT_HOST:-127.0.0.1}"
-PORT="${CALENDAR_PILOT_PORT:-8787}"
-mkdir -p "$RUN_DIR"
-cd "$APP_ROOT" 2>/dev/null || exit 1
-if command -v python3 >/dev/null 2>&1; then
-  export CALENDAR_PILOT_APP_ROOT="$APP_ROOT"
-  if [ -x "$APP_ROOT/bin/CalendarPilotKernelServer" ]; then
-    export CALENDAR_PILOT_SWIFT_KERNEL_SERVER="$APP_ROOT/bin/CalendarPilotKernelServer"
-  fi
-  if [ -x "$APP_ROOT/bin/CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge" ]; then
-    export CALENDAR_PILOT_EVENTKIT_BRIDGE="$APP_ROOT/bin/CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge"
-  elif [ -x "$APP_ROOT/bin/CalendarPilotEventKitBridge" ]; then
-    export CALENDAR_PILOT_EVENTKIT_BRIDGE="$APP_ROOT/bin/CalendarPilotEventKitBridge"
-  fi
-  exec env PYTHONPATH="$APP_ROOT/src" python3 -m calendar_pilot.frontend.launcher --app-root "$APP_ROOT" --host "$HOST" --port "$PORT" --run-dir "$RUN_DIR"
-else
-  echo "python3 not found; install Python 3 or run from the repository checkout."
-  exit 1
-fi
-APP
 chmod +x "$DIST/Contents/MacOS/CalendarPilot"
 echo "Created $DIST"

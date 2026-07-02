@@ -5,7 +5,7 @@ Primary audience: dogfood team, product engineering, runtime engineering
 Source of truth: this file at repository root
 Target implementation: `calendar-pilot-frontend 2/`
 Archived predecessor: `Do-not-reference/calendar-pilot-frontend/`
-Last reviewed: 2026-07-01
+Last reviewed: 2026-07-02
 
 ## Purpose
 
@@ -27,6 +27,7 @@ Observed implementation as of 2026-07-01:
 - `calendar-pilot-frontend 2/packages/CalendarPilotKernel/` contains the Swift kernel and IPC server.
 - `calendar-pilot-frontend 2/scripts/run_browser_e2e.py` is the dogfood browser/API smoke.
 - `calendar-pilot-frontend 2/scripts/build_macos_app.sh` builds the macOS `.app` bundle.
+- `CalendarPilot.app` now uses a native SwiftUI/WKWebView wrapper around the local frontend server and reports as bundle id `dev.calendarpilot.dogfood`.
 
 ## Production Integration Gap
 
@@ -34,7 +35,7 @@ Originally observed after opening the desktop app on `http://127.0.0.1:8787/` on
 
 - The desktop shortcut is current and points to `calendar-pilot-frontend 2/dist/CalendarPilot.app`.
 - The running process is from that v2 app bundle, not the archived predecessor.
-- The bundle is explicitly fixture-scoped: `CFBundleIdentifier` is `dev.calendarpilot.fixture`, and the app packages `data/sample_calendar.json`, `data/sample_profile.json`, `frontend`, and `src`.
+- The bundle was explicitly fixture-scoped: `CFBundleIdentifier` was `dev.calendarpilot.fixture`, and the app packages `data/sample_calendar.json`, `data/sample_profile.json`, `frontend`, and `src`. P9 changes the bundle identity to `dev.calendarpilot.dogfood`; fixture/live status is now a runtime mode, not the app identity.
 - The frontend is dynamic against `/api/*`, but it falls back to `frontend_state.sample.json` when `/api/state` fails.
 - The backend session defaults to sample calendar/profile fixtures and, in fixture mode, constructs `SwiftKernelStub`, `DiffusionGemmaPolicy`, and local `CodexToolRuntime`.
 - `Codex` started as a deterministic local planner/runtime contract. P5 adds `live_codex` mode through Codex app-server and ChatGPT subscription auth, while fixture mode remains deterministic by design.
@@ -44,7 +45,7 @@ Originally observed after opening the desktop app on `http://127.0.0.1:8787/` on
 - The UI truthfully reports `local_stub` and `real_oauth: False`.
 - P8 replaces the desktop launcher's fixed-port sleep/open behavior with a launch handshake: choose the requested port only when available, fall back to a free port when needed, wait for `/api/health` to return the launched server PID and launch ID, then open the verified URL. Launch state is written under the user run directory.
 
-Conclusion: P0-P2 certify a working local fixture macOS app. P3-P6 add runtime truth, compiled Swift IPC, live Codex subscription-auth planning evidence, and live DiffusionGemma/NVIDIA NIM policy-ranking evidence. P7 adds deterministic provider truth and live Apple Calendar/EventKit read/write/undo evidence. P8 adds desktop launch ownership and occupied-port evidence for local dogfood distribution.
+Conclusion: P0-P2 certify a working local fixture macOS app. P3-P6 add runtime truth, compiled Swift IPC, live Codex subscription-auth planning evidence, and live DiffusionGemma/NVIDIA NIM policy-ranking evidence. P7 adds deterministic provider truth and live Apple Calendar/EventKit read/write/undo evidence. P8 adds desktop launch ownership and occupied-port evidence for local dogfood distribution. P9 adds in-app runtime switching, Codex subscription-auth launch affordance, native macOS wrapper lifecycle fixes, and desktop-launched live Codex evidence.
 
 ## Dogfood Principles
 
@@ -501,6 +502,46 @@ Acceptance criteria:
 - Generated artifacts clearly separate fixture, live-model, live-provider, and production evidence.
 - A dogfood team member can identify the app version, backend mode, credential state, and launch process from the UI and release report.
 
+## P9 Desktop Live Runtime UX Correction
+
+Status: Done
+Owner: product engineering, runtime engineering, release engineering
+Goal: make the desktop app visibly switch from fixture mode to live Codex mode from the product UI and prove the desktop-launched server is using Codex subscription auth, not hardcoded planner behavior.
+
+### P9.1 In-App Runtime Switching
+
+Status: Done
+
+Required work:
+
+- Add a backend runtime switch endpoint so the app can move between `fixture`, `swift_ipc`, `live_codex`, `live_diffusiongemma`, `live_provider`, and `production` without relaunching from a terminal.
+- Add inspector controls for runtime selection, Codex subscription-auth status, planner backend, credential source, and a sign-in affordance.
+- Clear transient fixture candidate controls when switching runtime modes so old fixture cards cannot appear under a live label.
+- Keep `/api/state`, `/api/health`, replay export, runtime chip, and inspector metadata consistent after the switch.
+
+Acceptance criteria:
+
+- The chat composer still calls `/api/plans`, but after selecting `live_codex`, `/api/plans` routes to `LiveCodexToolPlanner` and `CodexAppServerClient`.
+- `live_codex` health reports `SwiftKernelIPCClient`, `live_codex_app_server`, ChatGPT subscription auth, and no live blockers when the user is signed in.
+- Missing or wrong Codex auth remains visible as a blocker and is not treated as a Platform API key path.
+
+### P9.2 Native App Identity And Lifecycle
+
+Status: Done
+
+Required work:
+
+- Replace the fixture-scoped app bundle id with a dogfood app identity.
+- Preserve the native SwiftUI/WKWebView wrapper while keeping the Python launcher/server lifecycle owned by the app.
+- Handle SIGTERM/SIGINT in the native wrapper and stop the child Python launcher/server before the app exits.
+- Update LaunchServices release smoke so persisted user runtime state, such as `live_codex`, is accepted when launch state and `/api/health` agree and live blockers are empty.
+
+Acceptance criteria:
+
+- Desktop shortcut launch cannot confuse the dogfood app identity with the old `dev.calendarpilot.fixture` bundle identity.
+- Release cleanup leaves terminal launch state `stopped` and no orphaned app, launcher, server, or Swift kernel process from the check.
+- A desktop-launched app server can be switched to `live_codex`, submit a goal, and produce live Codex planner metadata.
+
 ## Standard Dogfood Scenarios
 
 Run these whenever a phase touches frontend, API, replay, persistence, or packaging:
@@ -519,7 +560,7 @@ Run these whenever a phase touches frontend, API, replay, persistence, or packag
 12. Restart path: stop and restart the server, then verify visible session evidence remains.
 13. App path: build and launch the macOS app, then rerun the critical workflow.
 
-Run these additional scenarios as P3-P8 come online:
+Run these additional scenarios as P3-P9 come online:
 
 1. Mode truth: launch fixture and live-targeted modes, then verify UI, `/api/health`, replay export, and release report agree on backend mode.
 2. Static fallback: break `/api/state` intentionally and verify the app labels the state as offline fixture fallback rather than live product state.
@@ -529,6 +570,7 @@ Run these additional scenarios as P3-P8 come online:
 6. Provider fixture: write, detect duplicate write, conflict, undo, and rollback against persisted deterministic provider state.
 7. Real provider: grant Apple Calendar/EventKit permission or OAuth into another provider, read an observation, write a safe private event, undo it, and verify external state.
 8. Desktop stale-port: start a stale server on `8787`, double-click the app, and verify the launched app either owns the URL or fails visibly.
+9. Desktop live runtime: open the Desktop app, switch runtime to Live Codex from the inspector, submit a realistic goal, and verify runtime metadata shows `live_codex_app_server`, ChatGPT auth, Swift IPC, and no live blockers.
 
 ## Scorecard
 
@@ -591,6 +633,54 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P7 final architecture review | Planck re-reviewed the committed P7 state after the restart/provenance and replay privacy fixes. | Cleared P7 for P8. Remaining caveat is operational only: the mutating packaged `make live-eventkit-e2e` probe remains opt-in and permission-gated until macOS Calendar access is granted to the rebuilt bridge. |
 | 2026-07-01 | P8 desktop launch ownership | Added `calendar_pilot.frontend.launcher`, app-bundle launch state, launch IDs in `/api/health`, verified browser-open sequencing, free-port fallback when the requested port is occupied, app sanity launch-id checks, LaunchServices launch-state smoke, and an occupied-port release gate. | `test_launcher.py` covers preferred/free/strict port selection. `make py-test swift-test swift-ipc-test browser-e2e` passed with 88 Python tests, 16 Swift tests, 8 Swift IPC tests, and browser CDP E2E. `make dogfood-release` passed; `mac_app_sanity` and `mac_app_swift_ipc_sanity` verified launch IDs, `launchservices_smoke` read launch state from the user run directory, and `occupied_port_launch_gate` requested `8787` but served verified app health from an alternate port. |
 | 2026-07-01 | P8 architectural review fixes | Addressed Planck's P8 no-go by making the launcher write terminal `stopped`/`failed` state on server exit, signal termination, and startup failure; release cleanup now verifies terminal launch state and fails if launcher/server PIDs remain alive. | `make dogfood-release` passed at build id `8a3878115990`; `mac_app_sanity`, `mac_app_swift_ipc_sanity`, `launchservices_smoke`, and `occupied_port_launch_gate` all reported `terminal_launch_status: stopped`. Planck re-reviewed and cleared P8. |
+| 2026-07-02 | P9 desktop live Codex correction | Computer use reproduced the stale/offline fixture symptom in a running old app process, while launch state showed the current app had correctly fallen back to a free port because `8787` was occupied. Added `/api/runtime`, `/api/codex/auth/start`, runtime inspector controls, Codex subscription-auth metadata, fixture-candidate clearing on runtime switch, and Codex sign-in launch affordance. | Desktop-launched server was switched from `fixture` to `live_codex`; artifact `calendar-pilot-frontend 2/runs/desktop_live_codex_manual/artifacts/summary.json` reports `SwiftKernelIPCClient`, `live_codex_app_server`, ChatGPT `auth_cache`, no live blockers, and 6 candidate cards. Rendered browser flow against the same desktop server passed under `runs/desktop_live_codex_manual/rendered/`. |
+| 2026-07-02 | P9 native app launch identity and cleanup | Replaced bundle id `dev.calendarpilot.fixture` with `dev.calendarpilot.dogfood`, kept the SwiftUI/WKWebView app wrapper, added SIGTERM/SIGINT cleanup for the child Python launcher, and updated LaunchServices release smoke to validate the owned runtime reported by launch state rather than assuming fixture after a user has persisted `live_codex`. | `make py-test swift-test swift-ipc-test browser-e2e mac-app-build` passed before release. `make dogfood-release` passed with `runtime_mode_gate`, live credential gates, Python, Swift, Swift IPC, browser E2E, app build, fixture app sanity, Swift IPC app sanity, LaunchServices smoke, occupied-port gate, artifact validation, and secret scans all green. |
+| 2026-07-02 | P9 Codex auth button probe | Launched the real `CalendarPilot.app` through LaunchServices with an isolated empty `CODEX_HOME` so no existing Codex session could mask the missing-auth path. The app booted its chat interface server on `http://127.0.0.1:8787`, `/api/health` reported Codex subscription auth `missing_credential`, and the sign-in control invoked `/api/codex/auth/start`. | The app spawned `/Applications/Codex.app/Contents/Resources/codex login`, opened Chrome to `https://auth.openai.com/log-in`, and `lsof` showed Codex listening on `127.0.0.1:1455`, the documented localhost callback port for browser-based Codex ChatGPT sign-in. No credentials were entered during the probe. |
+
+## Canonical Dogfooding Document Journey By Commit
+
+This table follows `git log --reverse -- DOGFOODING_FRAMEWORK.md`. It is the canonical order for how the framework and the implementation journey arrived here.
+
+| Commit | Document Journey | Product / Runtime Meaning |
+|---|---|---|
+| `e27aa28` | Created the first dogfooding framework. | Started the original dogfood plan for the first frontend. |
+| `c0c255c` | Recorded P0 live control-loop work. | Added initial live frontend controls and backend action path. |
+| `3911cfd` | Recorded P0 review fixes. | Closed early review gaps around control-loop correctness. |
+| `ba2f02d` | Recorded P1 undo, feedback, and browser E2E. | Expanded dogfood beyond static render into user-visible action journeys. |
+| `65b7c1a` | Recorded P1 review fixes. | Hardened undo/feedback evidence and browser checks. |
+| `ab572a5` | Recorded P2 macOS app and release gates. | Added first app packaging and release verification plan. |
+| `7130d3b` | Recorded P2 review fixes. | Tightened app/release checks and credential hygiene. |
+| `8f93005` | Archived the first frontend and rewrote the framework for Frontend 2. | Reset assumptions: Frontend 2 dogfood became a general validation plan, not a mandate to copy the first product loop. |
+| `3b8d7ba` | Completed Frontend 2 P0 baseline. | Added persistence, baseline API contract, and runnable local evidence. |
+| `ce5fdd8` | Addressed P0 dogfood review findings. | Fixed persistence, HTTP contract, and restart/corrupt-state gaps. |
+| `f1d4713` | Completed Frontend 2 P1 workflows. | Made chat, candidate controls, commit/undo, replay, feedback, profile, authority, denial, and self-play dogfoodable. |
+| `43e1610` | Addressed P1 dogfood review findings. | Made rendered browser E2E mandatory and stronger against stale state. |
+| `17a4036` | Completed Frontend 2 P2 release gate. | Added macOS app build, release report, artifact validation, and secret scan. |
+| `ec6bc3f` | Addressed P2 dogfood review findings. | Hardened LaunchServices, Desktop shortcut, app sanity, and credential-reference checks. |
+| `8600c24` | Recorded final P2 review clearance. | Locked the fixture-local app as P2 complete. |
+| `a60c745` | Added P3-P8 production integration phases. | Made explicit that fixture app was not yet real Codex, NIM, Swift IPC app selection, provider, or robust launch integration. |
+| `6dc99ed` | Completed P3 runtime mode truth gate. | Added `/api/health`, visible runtime provenance, credential readiness, and release blockers for fixture/stub substitution. |
+| `72cd9d0` | Recorded P3 architecture review clearance. | Cleared runtime truth after invalid-mode and provenance fixes. |
+| `45030c2` | Completed P4 Swift IPC runtime. | Selected compiled Swift IPC for live-targeted modes and packaged the Swift server. |
+| `8af7fd7` | Addressed P4 Swift IPC review findings. | Fixed IPC serialization, correlation IDs, and restart-truthful Swift undo/authority restoration. |
+| `69d4365` | Recorded P4 architecture review clearance. | Cleared Swift IPC for live planner/policy/provider work. |
+| `e320b9e` | Completed P5 live Codex executive. | Wired `live_codex` to Codex app-server and ChatGPT subscription auth. |
+| `2d566f3` | Addressed P5 architecture blockers. | Validated model plans before side effects and restored Swift undo state for live Codex. |
+| `d54a718` | Recorded P5 architecture review clearance. | Cleared live Codex for P6. |
+| `76f2be8` | Added P6 NIM policy serving gate. | Defined live DiffusionGemma/NVIDIA NIM policy-serving criteria. |
+| `ccfe9f0` | Completed P6 live NIM policy verification. | Verified live NIM ranking and policy provenance without heuristic fallback. |
+| `481fcb9` | Addressed P6 architecture blockers. | Added remote health validation, structured NIM replay metadata, and live policy health configuration. |
+| `c7e3e5f` | Failed closed on live NIM frontier errors. | Prevented stale frontier use after live policy failures. |
+| `d88bb93` | Recorded P6 architecture review clearance. | Cleared live policy work for provider truth. |
+| `df1c3ba` | Added deterministic provider state. | Introduced persisted provider truth, external IDs, idempotency, conflict truth, and rollback verification. |
+| `5704664` | Added Apple EventKit provider dogfood path. | Added live Apple Calendar/EventKit read/write/undo path and permission controls. |
+| `73415e2` | Addressed P7 EventKit architecture review. | Required Swift IPC for real-provider writes, improved EventKit truth, rollback, timeout, and release probes. |
+| `d772399` | Fixed P7 live provider restart safety. | Rehydrated live-provider Swift undo and pruned stale fixture candidates after real-provider observations. |
+| `635a382` | Redacted live provider replay details. | Prevented raw calendar event details from leaking through replay exports. |
+| `95d3e00` | Recorded P7 architecture review clearance. | Cleared provider truth for desktop launch work. |
+| `9ffa99c` | Added owned desktop launch handshake. | Added launch IDs, free-port fallback, owned health checks, and desktop launch-state release gates. |
+| `72eefef` | Recorded P8 architecture review clearance. | Cleared desktop launch ownership after terminal-state and release cleanup fixes. |
+| current P9 commit | Adds P9 desktop live runtime UX correction. | Adds in-app runtime switching, Codex sign-in affordance, dogfood bundle identity, native wrapper lifecycle cleanup, and desktop-launched live Codex evidence. |
 
 ## Review Log
 
@@ -615,7 +705,7 @@ Run these additional scenarios as P3-P8 come online:
 
 | Risk | Phase | Mitigation |
 |---|---|---|
-| Fixture mode can be mistaken for production integration. | P3 | Add explicit runtime mode UI, health endpoint, replay provenance, and release-mode gates. |
+| Fixture mode can be mistaken for production integration. | P3/P9 | Runtime mode UI, `/api/health`, replay provenance, release-mode gates, in-app runtime switching, and dogfood bundle identity now separate fixture/runtime state from app identity. |
 | Swift IPC can regress to the Python stub if mode selection or app packaging breaks. | P4 | Shared kernel protocol, packaged IPC binary, `swift_ipc_runtime_mode_gate`, `swift-ipc-test`, and `mac_app_swift_ipc_sanity` now fail if Swift IPC falls back to `SwiftKernelStub`. |
 | Live Codex subscription-auth planning can regress into unsafe model execution order. | P5 | Pre-execution model-plan validation, replayed validation failures, `test_terminal_commit_plan_is_validated_before_any_execution`, and `make live-codex-e2e` now guard this boundary. |
 | DiffusionGemma/NIM live serving depends on external endpoint, credential, and TLS bundle availability. | P6 | P6 now has a live E2E gate, certifi-backed TLS context with `CALENDAR_PILOT_NIM_CA_FILE` override, runtime health provenance, failed-receipt behavior on NIM failure, and artifact secret scans. Rerun `make live-diffusiongemma-e2e` before release decisions that depend on live policy serving. |

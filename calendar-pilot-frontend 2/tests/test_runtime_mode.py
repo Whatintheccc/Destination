@@ -98,6 +98,24 @@ class RuntimeModeTests(unittest.TestCase):
                 reloaded = DogfoodSessionState(run_dir=run_dir)
                 self.assertEqual(reloaded.runtime_report()["runtime_mode"], "live_codex")
 
+    def test_runtime_switch_to_live_codex_clears_fixture_candidate_controls(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {
+            "CALENDAR_PILOT_RUNTIME_MODE": "fixture",
+            "CALENDAR_PILOT_KERNEL_BACKEND": "stub",
+            "CALENDAR_PILOT_CODEX_AUTH_FILE": str(Path(td) / "missing_auth.json"),
+            "CODEX_ACCESS_TOKEN": "",
+        }):
+            session = DogfoodSessionState(run_dir=Path(td))
+            fixture_state = session.create_plan("Make next week less chaotic")
+            self.assertTrue(fixture_state["chat"]["candidate_cards"])
+
+            live_state = session.set_runtime_mode("live_codex")
+
+            self.assertEqual(live_state["runtime"]["runtime_mode"], "live_codex")
+            self.assertEqual(live_state["runtime"]["backends"]["codex"], "live_codex_app_server")
+            self.assertFalse(live_state["chat"]["candidate_cards"])
+            self.assertIn("required credential missing: codex_subscription", live_state["runtime"]["live_blockers"])
+
 
 class FakeUnhealthyLivePolicy:
     backend_name = "nvidia_nim_diffusiongemma_policy"

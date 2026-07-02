@@ -8,7 +8,8 @@ let package = Package(
         .library(name: "CalendarPilotKernel", targets: ["CalendarPilotKernel"]),
         .executable(name: "CalendarPilotDemo", targets: ["CalendarPilotDemo"]),
         .executable(name: "CalendarPilotKernelServer", targets: ["CalendarPilotKernelServer"]),
-        .executable(name: "CalendarPilotEventKitBridge", targets: ["CalendarPilotEventKitBridge"])
+        .executable(name: "CalendarPilotEventKitBridge", targets: ["CalendarPilotEventKitBridge"]),
+        .executable(name: "CalendarPilotMacApp", targets: ["CalendarPilotMacApp"])
     ],
     targets: [
         .target(name: "CalendarPilotKernel"),
@@ -27,6 +28,7 @@ let package = Package(
                 ])
             ]
         ),
+        .executableTarget(name: "CalendarPilotMacApp"),
         .testTarget(name: "CalendarPilotKernelTests", dependencies: ["CalendarPilotKernel"])
     ]
 )

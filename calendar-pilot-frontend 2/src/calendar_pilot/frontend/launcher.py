@@ -157,10 +157,10 @@ def _terminate(proc: subprocess.Popen[str]) -> None:
         return
     proc.terminate()
     try:
-        proc.wait(timeout=5)
+        proc.wait(timeout=10)
     except subprocess.TimeoutExpired:
         proc.kill()
-        proc.wait(timeout=5)
+        proc.wait(timeout=10)
 
 
 if __name__ == "__main__":

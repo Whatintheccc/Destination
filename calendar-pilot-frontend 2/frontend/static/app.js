@@ -196,8 +196,42 @@ function renderRuntime(data, runtime) {
     {key: 'provider', value: report.backends?.provider},
     {key: 'live_blockers', value: report.live_blockers?.length ? report.live_blockers : 'none'},
   ];
-  return `${renderRows(data.title || 'Runtime mode', rows)}
+  return `${renderRuntimeControls(report)}
+    ${renderRows(data.title || 'Runtime mode', rows)}
     <div class="inspector-card"><h3>Runtime report</h3><pre>${escapeHtml(JSON.stringify(report, null, 2))}</pre></div>`;
+}
+
+function renderRuntimeControls(report) {
+  const modes = [
+    ['fixture', 'Fixture'],
+    ['swift_ipc', 'Swift IPC'],
+    ['live_codex', 'Live Codex'],
+    ['live_diffusiongemma', 'Live NIM'],
+    ['live_provider', 'Apple Calendar'],
+    ['production', 'Production'],
+  ];
+  const active = report.runtime_mode || report.mode || 'fixture';
+  const buttons = modes.map(([mode, label]) => `<button class="secondary runtime-mode-btn ${mode === active ? 'active' : ''}" data-testid="runtime-mode-${mode}" data-mode="${mode}" ${mode === active ? 'disabled' : ''}>${label}</button>`).join('');
+  const codex = report.credentials?.codex_subscription || {};
+  const codexHealth = report.codex_health || {};
+  const codexRows = [
+    {key: 'auth status', value: codex.status || codexHealth.status || 'not_applicable'},
+    {key: 'auth method', value: codex.auth_method || codexHealth.auth_method || '—'},
+    {key: 'credential source', value: codex.source || codexHealth.credential_source || '—'},
+    {key: 'planner backend', value: report.backends?.codex || '—'},
+  ];
+  return `<div class="inspector-card">
+      <h3>Runtime controls</h3>
+      <div class="mode-grid">${buttons}</div>
+    </div>
+    <div class="inspector-card">
+      <h3>Codex subscription auth</h3>
+      ${codexRows.map(row => `<div class="kv"><div class="k">${escapeHtml(row.key)}</div><div class="v">${fmt(row.value)}</div></div>`).join('')}
+      <div class="card-actions">
+        <button id="codex-signin" data-testid="codex-signin" class="primary">Open Codex sign-in</button>
+        <a class="link-button auth-link" href="https://developers.openai.com/codex/auth" target="_blank" rel="noreferrer">Auth docs</a>
+      </div>
+    </div>`;
 }
 
 function renderRows(title, rows) {
@@ -296,6 +330,8 @@ document.addEventListener('click', async (event) => {
   if (target.classList.contains('feedback-useful')) return postAndRefresh('/api/feedback', {receipt_id: target.dataset.receiptId, feedback: 'useful'});
   if (target.classList.contains('feedback-wrong')) return postAndRefresh('/api/feedback', {receipt_id: target.dataset.receiptId, feedback: 'wrong'});
   if (target.classList.contains('explain-denial')) return postAndRefresh('/api/denials/explain', {denied_reason: target.dataset.deniedReason});
+  if (target.classList.contains('runtime-mode-btn')) return postAndRefresh('/api/runtime', {runtime_mode: target.dataset.mode});
+  if (target.id === 'codex-signin') return postAndRefresh('/api/codex/auth/start');
   if (target.id === 'request-provider-permission') return postAndRefresh('/api/provider/permission/request');
   if (target.id === 'save-authority') {
     const tier = Number($('#authority-tier').value || 3);

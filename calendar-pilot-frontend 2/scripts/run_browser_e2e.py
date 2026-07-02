@@ -155,6 +155,9 @@ def assert_static_shell() -> None:
         "/api/profile/patch/propose",
         "/api/self-play",
         "/api/authority",
+        "/api/runtime",
+        "runtime-mode-btn",
+        "codex-signin",
     ]
     for marker in required_js:
         if marker not in js:

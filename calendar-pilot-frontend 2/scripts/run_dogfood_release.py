@@ -237,6 +237,8 @@ def run_launchservices_smoke() -> dict[str, Any]:
     launch_state_path = run_dir / "launch_state.json"
     launch_state_path.unlink(missing_ok=True)
     existing_default_pids = set(pids_for_port(8787))
+    app_exe = APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot"
+    existing_app_pids = set(pids_for_command_pattern(str(app_exe)))
     try:
         proc = subprocess.run(["open", "-n", str(APP_BUNDLE)], cwd=ROOT, text=True, capture_output=True, timeout=10)
     except subprocess.TimeoutExpired as exc:
@@ -260,14 +262,23 @@ def run_launchservices_smoke() -> dict[str, Any]:
             expected_server_pid=int(launch_state.get("server_pid")),
         )
         page = http_get_text(base_url, "/")
-        ok = 'data-testid="chat-transcript"' in page and health.get("runtime_mode") == runtime_mode_from_env()
-        reason = "" if ok else "LaunchServices app did not serve frontend/runtime health"
+        launch_health = launch_state.get("health", {}) if isinstance(launch_state.get("health"), dict) else {}
+        no_blockers = not bool(health.get("live_blockers"))
+        ok = (
+            'data-testid="chat-transcript"' in page
+            and health.get("runtime_mode") == launch_health.get("runtime_mode")
+            and no_blockers
+        )
+        reason = "" if ok else f"LaunchServices app did not serve owned frontend/runtime health: runtime={health.get('runtime_mode')} blockers={health.get('live_blockers')}"
     except Exception as exc:
         ok = False
         reason = str(exc)
     finally:
         try:
             cleanup_launch_state_processes(launch_state, existing_default_pids=existing_default_pids)
+            new_app_pids = sorted(set(pids_for_command_pattern(str(app_exe))) - existing_app_pids)
+            if new_app_pids:
+                terminate_pid_list(new_app_pids)
             if launch_state:
                 terminal_state, terminal_error = finalize_terminal_launch_state(launch_state_path, reason="release cleanup completed")
                 if terminal_error:
@@ -758,10 +769,10 @@ def terminate(proc: subprocess.Popen[str]) -> None:
         return
     proc.terminate()
     try:
-        proc.wait(timeout=5)
+        proc.wait(timeout=15)
     except subprocess.TimeoutExpired:
         proc.kill()
-        proc.wait(timeout=5)
+        proc.wait(timeout=10)
 
 
 def ensure_log_has_content(path: Path, fallback: str) -> None:
