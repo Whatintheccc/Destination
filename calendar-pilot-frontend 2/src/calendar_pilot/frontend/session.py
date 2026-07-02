@@ -12,7 +12,7 @@ from typing import Any
 from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime, LiveCodexToolPlanner
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, LiveDiffusionGemmaPolicy, SelfPlayRunner
 from calendar_pilot.providers import AppleEventKitProvider, DeterministicCalendarProvider
-from calendar_pilot.replay import ReplayBuffer
+from calendar_pilot.replay import ReplayBuffer, observation_fingerprint
 from calendar_pilot.swift_bridge import SwiftKernelIPCClient, SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
 from calendar_pilot.types import (
@@ -64,6 +64,8 @@ class DogfoodSessionState:
     planner: CodexToolPlanner = field(init=False)
 
     latest_plan: Any | None = None
+    latest_plan_observation_id: str | None = None
+    latest_plan_observation_fingerprint: str | None = None
     transcript_events: list[dict[str, Any]] = field(default_factory=list)
     feedback_history: list[dict[str, Any]] = field(default_factory=list)
     denial_history: list[dict[str, Any]] = field(default_factory=list)
@@ -157,6 +159,8 @@ class DogfoodSessionState:
             reset_provider(self.observation)
         self.replay = ReplayBuffer()
         self.latest_plan = None
+        self.latest_plan_observation_id = None
+        self.latest_plan_observation_fingerprint = None
         self.authority_tier = DEFAULT_AUTHORITY_TIER
         self.authority_scopes = list(DEFAULT_AUTHORITY_SCOPES)
         self.runtime_mode = runtime_mode_from_env(self.runtime_mode)
@@ -212,6 +216,8 @@ class DogfoodSessionState:
         self.transcript_events.append({"kind": "user", "body": goal, "created_at": _now().isoformat()})
         plan = self.planner.plan_goal(goal, self.observation, self.biography, authority_tier=self.authority_tier, commit=commit)
         self.latest_plan = plan
+        self.latest_plan_observation_id = self.observation.observation_id
+        self.latest_plan_observation_fingerprint = observation_fingerprint(self.observation)
         self.transcript_events.append({
             "kind": "assistant_plan",
             "title": "I found a plan",
@@ -372,6 +378,7 @@ class DogfoodSessionState:
         result = request_access()
         self._hydrate_provider_observation_if_available()
         self._rebuild_runtime()
+        self._hydrate_runtime_frontier()
         self.persist()
         state = self.snapshot()
         state["provider_permission"] = result
@@ -595,6 +602,8 @@ class DogfoodSessionState:
             "authority_scopes": self.authority_scopes,
             "biography": self.biography.to_dict(),
             "latest_plan": self.latest_plan.to_dict() if self.latest_plan is not None else None,
+            "latest_plan_observation_id": self.latest_plan_observation_id,
+            "latest_plan_observation_fingerprint": self.latest_plan_observation_fingerprint,
             "transcript_events": self.transcript_events,
             "feedback_history": self.feedback_history,
             "denial_history": self.denial_history,
@@ -643,6 +652,8 @@ class DogfoodSessionState:
             self.biography = UserBiography.from_dict(biography)
         plan = data.get("latest_plan")
         self.latest_plan = CodexExecutivePlan.from_dict(plan) if isinstance(plan, dict) else None
+        self.latest_plan_observation_id = str(data.get("latest_plan_observation_id") or "") or None
+        self.latest_plan_observation_fingerprint = str(data.get("latest_plan_observation_fingerprint") or "") or None
         self.transcript_events = list(data.get("transcript_events", []))
         self.feedback_history = list(data.get("feedback_history", []))
         self.denial_history = list(data.get("denial_history", []))
@@ -655,7 +666,7 @@ class DogfoodSessionState:
         self.kernel.undo_ledger = {}
         undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
         active_undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
-        if self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"}:
+        if self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}:
             restore_grant = getattr(self.kernel, "restore_authority_grant", None)
             if callable(restore_grant):
                 for grant in grants:
@@ -701,12 +712,18 @@ class DogfoodSessionState:
         return generated
 
     def _hydrate_runtime_frontier(self) -> None:
+        self.runtime.frontier.clear()
+        self._prune_latest_plan_for_active_observation()
         for record in self.replay.records:
             candidate = record.payload.get("candidate")
             if isinstance(candidate, dict) and candidate.get("candidate_id"):
+                if not self._candidate_restore_allowed(record.payload.get("observation_id"), record.payload.get("observation_fingerprint")):
+                    continue
                 restored = CandidateCalendarAction.from_dict(candidate)
                 self.runtime.frontier[restored.candidate_id] = restored
         if self.latest_plan is None:
+            return
+        if not self._candidate_restore_allowed(self.latest_plan_observation_id, self.latest_plan_observation_fingerprint):
             return
         for receipt in self.latest_plan.receipts:
             output = receipt.output if isinstance(receipt.output, dict) else {}
@@ -718,6 +735,39 @@ class DogfoodSessionState:
             if isinstance(candidate, dict) and candidate.get("candidate_id"):
                 restored = CandidateCalendarAction.from_dict(candidate)
                 self.runtime.frontier[restored.candidate_id] = restored
+
+    def _candidate_restore_allowed(self, source_observation_id: Any, source_fingerprint: Any) -> bool:
+        if not self._real_provider_active():
+            return True
+        if source_observation_id != self.observation.observation_id:
+            return False
+        return bool(source_fingerprint and source_fingerprint == observation_fingerprint(self.observation))
+
+    def _prune_latest_plan_for_active_observation(self) -> None:
+        if self.latest_plan is None or self._candidate_restore_allowed(self.latest_plan_observation_id, self.latest_plan_observation_fingerprint):
+            return
+        before = len(self.latest_plan.receipts)
+        self.latest_plan.receipts = [receipt for receipt in self.latest_plan.receipts if self._receipt_is_realized_action(receipt)]
+        if len(self.latest_plan.receipts) == before:
+            return
+        self.transcript_events.append({
+            "kind": "assistant",
+            "title": "Plan needs refresh",
+            "body": "Candidate controls were cleared because the active calendar observation changed. Existing committed receipts remain available for undo and replay.",
+            "created_at": _now().isoformat(),
+            "stale_observation_id": self.latest_plan_observation_id,
+            "active_observation_id": self.observation.observation_id,
+        })
+
+    def _receipt_is_realized_action(self, receipt: Any) -> bool:
+        output = receipt.output if isinstance(receipt.output, dict) else {}
+        swift = output.get("swift_receipt")
+        if not isinstance(swift, dict):
+            return False
+        return str(swift.get("sync_status", "")) in {"materialized", "reverted"} or bool(swift.get("rollback_handle_id"))
+
+    def _real_provider_active(self) -> bool:
+        return bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False))
 
     def _chat_messages(self, snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []

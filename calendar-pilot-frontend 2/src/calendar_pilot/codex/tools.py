@@ -11,7 +11,7 @@ from calendar_pilot.diffusiongemma.live import LiveDiffusionGemmaError
 from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner
 from calendar_pilot.diffusiongemma.signals import extract_signals
 from calendar_pilot.providers import CalendarProviderError
-from calendar_pilot.replay import ReplayBuffer
+from calendar_pilot.replay import ReplayBuffer, observation_fingerprint
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
 from calendar_pilot.types import (
@@ -114,7 +114,14 @@ class CodexToolRuntime:
             if grant is None:
                 return self._receipt(call, CodexToolStatus.DENIED, {"stage_state": StageState.DENIED.value}, denied="missing Swift-issued authority grant for staging", stage_state=StageState.DENIED)
             swift_receipt = self.kernel.stage_candidate(candidate, observation, authority_grant=grant.grant_id, requested_authority_tier=call.requested_authority_tier, correlation_id=call.correlation_id or candidate.candidate_id)
-            self.replay.append_receipt(swift_receipt, candidate, trace_id=call.correlation_id or candidate.candidate_id, causal_parent_id=call.tool_call_id)
+            self.replay.append_receipt(
+                swift_receipt,
+                candidate,
+                trace_id=call.correlation_id or candidate.candidate_id,
+                causal_parent_id=call.tool_call_id,
+                observation_id=observation.observation_id,
+                observation_fingerprint=observation_fingerprint(observation),
+            )
             status = CodexToolStatus.DENIED if swift_receipt.denied_reason else CodexToolStatus.STAGEABLE
             requires_confirmation = swift_receipt.stage_state in {StageState.REQUIRES_CONFIRMATION, StageState.STAGEABLE}
             return self._receipt(
@@ -202,7 +209,14 @@ class CodexToolRuntime:
                     generated_event_ids=provider_receipt.external_ids or swift_receipt.generated_event_ids,
                     rollback_handle_id=provider_receipt.rollback_handle_id or swift_receipt.rollback_handle_id,
                 )
-            self.replay.append_receipt(swift_receipt, candidate, trace_id=call.correlation_id or candidate.candidate_id, causal_parent_id=call.tool_call_id)
+            self.replay.append_receipt(
+                swift_receipt,
+                candidate,
+                trace_id=call.correlation_id or candidate.candidate_id,
+                causal_parent_id=call.tool_call_id,
+                observation_id=observation.observation_id,
+                observation_fingerprint=observation_fingerprint(observation),
+            )
             status = CodexToolStatus.DENIED if swift_receipt.denied_reason else CodexToolStatus.COMMITTED
             return self._receipt(
                 call,
@@ -241,7 +255,13 @@ class CodexToolRuntime:
             provider_rollback = self._rollback_provider(rollback_id) if output.denied_reason is None else None
             if provider_rollback is not None:
                 output = replace(output, provider_id=provider_rollback.provider_id)
-            self.replay.append_receipt(output, trace_id=call.correlation_id or rollback_id, causal_parent_id=call.tool_call_id)
+            self.replay.append_receipt(
+                output,
+                trace_id=call.correlation_id or rollback_id,
+                causal_parent_id=call.tool_call_id,
+                observation_id=observation.observation_id,
+                observation_fingerprint=observation_fingerprint(observation),
+            )
             status = CodexToolStatus.DENIED if output.denied_reason else CodexToolStatus.COMMITTED
             if provider_rollback is not None and not provider_rollback.rollback_verified:
                 status = CodexToolStatus.FAILED
@@ -318,6 +338,8 @@ class CodexToolRuntime:
                 trace_id=call.correlation_id or call.tool_call_id,
                 causal_parent_id=call.tool_call_id,
                 policy_metadata=policy_metadata,
+                observation_id=observation.observation_id,
+                observation_fingerprint=observation_fingerprint(observation),
             )
         return self._receipt(
             call,

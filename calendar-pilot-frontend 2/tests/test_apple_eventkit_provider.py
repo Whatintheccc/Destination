@@ -156,6 +156,7 @@ class AppleEventKitProviderTests(unittest.TestCase):
     def test_session_permission_request_uses_active_apple_provider(self):
         from calendar_pilot.frontend.session import DogfoodSessionState
 
+        FakeSessionAppleProvider.status = "not_determined"
         with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {"CALENDAR_PILOT_PROVIDER_BACKEND": "apple_eventkit"}), patch(
             "calendar_pilot.frontend.session.AppleEventKitProvider",
             FakeSessionAppleProvider,
@@ -169,6 +170,31 @@ class AppleEventKitProviderTests(unittest.TestCase):
             self.assertTrue(result["provider_permission"]["configured"])
             self.assertEqual(result["inspector"]["provider"]["permission"]["status"], "configured")
             self.assertEqual(result["session"]["provider_observation_error"], None)
+
+    def test_session_does_not_restore_fixture_candidates_after_eventkit_observation_loads(self):
+        from calendar_pilot.frontend.session import DogfoodSessionState
+
+        FakeSessionAppleProvider.status = "not_determined"
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {"CALENDAR_PILOT_PROVIDER_BACKEND": "apple_eventkit"}), patch(
+            "calendar_pilot.frontend.session.AppleEventKitProvider",
+            FakeSessionAppleProvider,
+        ):
+            run_dir = Path(td)
+            session = DogfoodSessionState(run_dir=run_dir)
+            planned = session.create_plan("make room for focused work")
+            stale_candidate_id = planned["chat"]["candidate_cards"][0]["candidate_id"]
+            self.assertIn(stale_candidate_id, session.runtime.frontier)
+            session.close()
+
+            FakeSessionAppleProvider.status = "configured"
+            reloaded = DogfoodSessionState(run_dir=run_dir)
+            snapshot = reloaded.snapshot()
+
+            self.assertEqual(reloaded.observation.observation_id, "obs_apple_eventkit")
+            self.assertEqual(reloaded.runtime.frontier, {})
+            self.assertEqual(snapshot["chat"]["candidate_cards"], [])
+            self.assertIn("Plan needs refresh", [event.get("title") for event in reloaded.transcript_events])
+            reloaded.close()
 
 
 class FakeEventKitBridge:
@@ -271,22 +297,23 @@ class FakeSessionAppleProvider:
     provider_id = "apple_eventkit"
     real_provider = True
     real_oauth = False
+    status = "not_determined"
 
     def __init__(self, **_kwargs) -> None:
-        self.status = "not_determined"
+        pass
 
     def health_status(self) -> dict:
-        configured = self.status == "configured"
+        configured = type(self).status == "configured"
         return {
             "provider": self.provider_id,
             "configured": configured,
-            "status": self.status,
-            "authorization_status": self.status,
+            "status": type(self).status,
+            "authorization_status": type(self).status,
             "auth_method": "eventkit_os_calendar_permission",
         }
 
     def request_access(self) -> dict:
-        self.status = "configured"
+        type(self).status = "configured"
         return self.health_status()
 
     def read_observation(self, user_scope_id: str, **_kwargs) -> RawCalendarObservation:
@@ -308,9 +335,9 @@ class FakeSessionAppleProvider:
             "provider": self.provider_id,
             "real_provider": True,
             "real_oauth": False,
-            "permission_status": self.status,
+            "permission_status": type(self).status,
             "auth_method": "eventkit_os_calendar_permission",
-            "event_count": "eventkit_remote" if self.status == "configured" else "permission_required",
+            "event_count": "eventkit_remote" if type(self).status == "configured" else "permission_required",
             "idempotency_keys": 0,
             "rollback_records": 0,
             "rollback_verified": 0,

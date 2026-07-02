@@ -174,6 +174,44 @@ class SwiftIPCRuntimeTests(unittest.TestCase):
             self.assertNotIn(rollback, reloaded.kernel.undo_ledger)
             reloaded.close()
 
+    def test_live_provider_restore_rehydrates_swift_undo_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as td, patch.dict(os.environ, {
+            "CALENDAR_PILOT_RUNTIME_MODE": "live_provider",
+            "CALENDAR_PILOT_PROVIDER_BACKEND": "deterministic",
+        }):
+            run_dir = Path(td)
+            session = DogfoodSessionState(run_dir=run_dir)
+            observation = session.observation
+            candidate = focus_candidate("cand_live_provider_restore")
+            grant = session.issue_authority_grant(
+                confirmed=True,
+                scopes=["commit_private", "undo"],
+                reason="live_provider_restore_test",
+            )
+            committed = session.kernel.authorize_and_materialize(
+                candidate,
+                observation,
+                authority_grant=grant.grant_id,
+                requested_authority_tier=3,
+                correlation_id="trace_live_provider_restore_commit",
+            )
+            rollback = committed.rollback_handle_id or ""
+            self.assertTrue(rollback)
+            self.assertIn(rollback, session.kernel.undo_ledger)
+            session.persist()
+            session.close()
+
+            reloaded = DogfoodSessionState(run_dir=run_dir)
+            self.assertEqual(reloaded.runtime_report()["runtime_mode"], "live_provider")
+            self.assertEqual(reloaded.runtime_report()["backends"]["kernel"], "SwiftKernelIPCClient")
+            self.assertIn(rollback, reloaded.kernel.undo_ledger)
+
+            reloaded.undo(rollback)
+            reverted = [record.payload.get("receipt", {}) for record in reloaded.replay.records if record.payload.get("receipt", {}).get("rollback_handle_id") == rollback]
+            self.assertEqual(reverted[-1]["sync_status"], "reverted")
+            self.assertNotIn(rollback, reloaded.kernel.undo_ledger)
+            reloaded.close()
+
     def test_live_codex_runtime_defaults_to_swift_ipc_kernel(self) -> None:
         with tempfile.TemporaryDirectory() as td, patch.dict(os.environ, {
             "CALENDAR_PILOT_RUNTIME_MODE": "live_codex",

@@ -2,10 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import hashlib
 import json
 from typing import Any
 
-from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RewardEvent, CodexToolCall, CodexToolReceipt, to_jsonable
+from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RawCalendarObservation, RewardEvent, CodexToolCall, CodexToolReceipt, to_jsonable
+
+
+def observation_fingerprint(observation: RawCalendarObservation | None) -> str | None:
+    if observation is None:
+        return None
+    payload = to_jsonable(observation)
+    # observed_at is the read timestamp for live providers; event/task content is the provenance boundary.
+    payload.pop("observed_at", None)
+    if isinstance(payload.get("events"), list):
+        payload["events"] = sorted(payload["events"], key=lambda row: (str(row.get("event_id", "")), str(row.get("start", "")), str(row.get("end", ""))))
+    if isinstance(payload.get("tasks"), list):
+        payload["tasks"] = sorted(payload["tasks"], key=lambda row: (str(row.get("task_id", "")), str(row.get("title", ""))))
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -67,6 +82,8 @@ class ReplayBuffer:
         trace_id: str | None = None,
         causal_parent_id: str | None = None,
         policy_metadata: dict[str, Any] | None = None,
+        observation_id: str | None = None,
+        observation_fingerprint: str | None = None,
     ) -> None:
         trace = trace_id or candidate.candidate_id
         self.records.append(ReplayRecord(
@@ -79,13 +96,29 @@ class ReplayBuffer:
                 "rank": rank,
                 "policy_version": policy_version,
                 "policy_metadata": policy_metadata or {},
+                "observation_id": observation_id,
+                "observation_fingerprint": observation_fingerprint,
                 "trace_id": trace,
             },
         ))
 
-    def append_receipt(self, receipt: CalendarActionReceipt, candidate: CandidateCalendarAction | None = None, *, trace_id: str | None = None, causal_parent_id: str | None = None) -> None:
+    def append_receipt(
+        self,
+        receipt: CalendarActionReceipt,
+        candidate: CandidateCalendarAction | None = None,
+        *,
+        trace_id: str | None = None,
+        causal_parent_id: str | None = None,
+        observation_id: str | None = None,
+        observation_fingerprint: str | None = None,
+    ) -> None:
         trace = trace_id or receipt.correlation_id or receipt.candidate_id
-        payload: dict[str, Any] = {"receipt": receipt.to_dict(), "trace_id": trace}
+        payload: dict[str, Any] = {
+            "receipt": receipt.to_dict(),
+            "observation_id": observation_id,
+            "observation_fingerprint": observation_fingerprint,
+            "trace_id": trace,
+        }
         if candidate is not None:
             payload["candidate"] = candidate.to_dict()
         self.records.append(ReplayRecord(record_type="receipt", record_id=f"receipt:{receipt.receipt_id}", trace_id=trace, causal_parent_id=causal_parent_id, payload=payload))
