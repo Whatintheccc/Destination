@@ -61,11 +61,13 @@ def main() -> None:
             expected_kernel="SwiftKernelIPCClient",
             artifact_dir=RUN_DIR / "app_swift_ipc_browser_artifacts",
         ))
+        checks.append(live_eventkit_release_gate())
         checks.append(run_launchservices_smoke())
     else:
         checks.append({"name": "mac_app_sanity", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "swift_ipc_runtime_mode_gate", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "mac_app_swift_ipc_sanity", "ok": False, "skipped": True, "reason": "app build failed"})
+        checks.append({"name": "live_eventkit_release_gate", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "launchservices_smoke", "ok": False, "skipped": True, "reason": "app build failed"})
     report["finished_at"] = utc_now()
     report["ok"] = False
@@ -264,6 +266,7 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         LOG_DIR / "mac_app_build.log",
         LOG_DIR / "mac_app_sanity.log",
         LOG_DIR / "mac_app_swift_ipc_sanity.log",
+        LOG_DIR / "live_eventkit_release_gate.log",
         LOG_DIR / "launchservices_smoke.log",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_success.png",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "health.json",
@@ -429,6 +432,14 @@ def live_diffusiongemma_credential_mode_gate() -> dict[str, Any]:
         "live_blockers": blockers,
         "reason": "; ".join(blockers),
     }
+
+
+def live_eventkit_release_gate() -> dict[str, Any]:
+    if os.environ.get("CALENDAR_PILOT_RUN_LIVE_EVENTKIT_RELEASE") != "1":
+        log_path = LOG_DIR / "live_eventkit_release_gate.log"
+        log_path.write_text("skipped; set CALENDAR_PILOT_RUN_LIVE_EVENTKIT_RELEASE=1 to run the mutating Apple Calendar read/write/undo probe\n", encoding="utf-8")
+        return {"name": "live_eventkit_release_gate", "ok": True, "skipped": True, "log": str(log_path), "reason": "mutating live provider probe is opt-in"}
+    return run_command("live_eventkit_release_gate", ["make", "live-eventkit-e2e"], timeout=120)
 
 
 def credential_gate() -> dict[str, Any]:

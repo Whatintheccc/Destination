@@ -133,22 +133,7 @@ class CodexToolRuntime:
             grant = self._resolve_grant(call)
             if grant is None:
                 return self._receipt(call, CodexToolStatus.DENIED, {"stage_state": StageState.DENIED.value}, denied="missing Swift-issued authority grant for commit", stage_state=StageState.DENIED)
-            provider_conflicts = self._provider_conflict_truth(candidate)
-            if provider_conflicts:
-                return self._receipt(
-                    call,
-                    CodexToolStatus.DENIED,
-                    {
-                        "stage_state": StageState.DENIED.value,
-                        "provider_conflict_truth": provider_conflicts,
-                        "provider_id": getattr(self.provider, "provider_id", "unknown_provider"),
-                    },
-                    denied="provider_conflict_detected",
-                    stage_state=StageState.DENIED,
-                    authority_grant=grant,
-                    correlation_id=call.correlation_id or candidate.candidate_id,
-                )
-            provider_blocker = self._provider_write_blocker()
+            provider_blocker = self._provider_write_blocker(observation, require_live_observation=True)
             if provider_blocker is not None:
                 return self._receipt(
                     call,
@@ -159,6 +144,36 @@ class CodexToolRuntime:
                         "provider_health": provider_blocker,
                     },
                     denied="provider_not_configured",
+                    stage_state=StageState.DENIED,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or candidate.candidate_id,
+                )
+            try:
+                provider_conflicts = self._provider_conflict_truth(candidate)
+            except CalendarProviderError as exc:
+                return self._receipt(
+                    call,
+                    CodexToolStatus.DENIED,
+                    {
+                        "stage_state": StageState.DENIED.value,
+                        "provider_id": getattr(self.provider, "provider_id", "unknown_provider"),
+                        "provider_error": str(exc),
+                    },
+                    denied="provider_truth_unavailable",
+                    stage_state=StageState.DENIED,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or candidate.candidate_id,
+                )
+            if provider_conflicts:
+                return self._receipt(
+                    call,
+                    CodexToolStatus.DENIED,
+                    {
+                        "stage_state": StageState.DENIED.value,
+                        "provider_conflict_truth": provider_conflicts,
+                        "provider_id": getattr(self.provider, "provider_id", "unknown_provider"),
+                    },
+                    denied="provider_conflict_detected",
                     stage_state=StageState.DENIED,
                     authority_grant=grant,
                     correlation_id=call.correlation_id or candidate.candidate_id,
@@ -207,7 +222,7 @@ class CodexToolRuntime:
         if name == CodexToolName.REQUEST_UNDO:
             rollback_id = str(call.input.get("rollback_handle_id", ""))
             grant = self._resolve_grant(call)
-            provider_blocker = self._provider_write_blocker()
+            provider_blocker = self._provider_write_blocker(observation, require_live_observation=False)
             if provider_blocker is not None:
                 return self._receipt(
                     call,
@@ -360,10 +375,26 @@ class CodexToolRuntime:
             return []
         return list(conflict_truth(candidate))
 
-    def _provider_write_blocker(self) -> dict[str, Any] | None:
+    def _provider_write_blocker(self, observation: RawCalendarObservation | None, *, require_live_observation: bool) -> dict[str, Any] | None:
         is_real_provider = bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False))
         if self.provider is None or not is_real_provider:
             return None
+        if type(self.kernel).__name__ != "SwiftKernelIPCClient":
+            return {
+                "provider": getattr(self.provider, "provider_id", "unknown_provider"),
+                "configured": False,
+                "status": "swift_ipc_required_for_live_provider",
+                "kernel": type(self.kernel).__name__,
+            }
+        expected_observation_id = getattr(self.provider, "observation_id", None)
+        if require_live_observation and expected_observation_id and observation is not None and observation.observation_id != expected_observation_id:
+            return {
+                "provider": getattr(self.provider, "provider_id", "unknown_provider"),
+                "configured": False,
+                "status": "provider_observation_not_loaded",
+                "expected_observation_id": expected_observation_id,
+                "actual_observation_id": observation.observation_id,
+            }
         health_status = getattr(self.provider, "health_status", None)
         if not callable(health_status):
             return {"provider": getattr(self.provider, "provider_id", "unknown_provider"), "configured": False, "status": "health_unavailable"}

@@ -82,6 +82,7 @@ private struct CalendarPilotEventKitBridge {
         if let data = try? encoder.encode(response), let text = String(data: data, encoding: .utf8) {
             if let resultFile {
                 try? data.write(to: URL(fileURLWithPath: resultFile), options: [.atomic])
+                return
             }
             FileHandle.standardOutput.write(Data((text + "\n").utf8))
         }
@@ -147,16 +148,35 @@ private final class EventKitCommandHandler {
     private func commit(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
         try requireAuthorized()
         let actions = try actionList(in: payload)
+        let idempotencyKey = payload["idempotency_key"]?.stringValue ?? ""
+        let writeActions = actions.filter { isWriteAction($0.actionType) }
+        let createActions = writeActions.filter { isCreateAction($0.actionType) }
+        if !idempotencyKey.isEmpty && !createActions.isEmpty && createActions.count == writeActions.count {
+            let existing = existingEventIDs(for: idempotencyKey)
+            if existing.count >= createActions.count {
+                return [
+                    "provider_id": JSONValue("apple_eventkit"),
+                    "external_ids": JSONValue(existing.map(JSONValue.init)),
+                    "created_external_ids": JSONValue(existing.map(JSONValue.init)),
+                    "moved_external_ids": JSONValue([]),
+                    "deleted_external_ids": JSONValue([]),
+                    "before_events": JSONValue([:]),
+                    "idempotent_replay": JSONValue(true),
+                ]
+            }
+        }
         var created: [String] = []
         var moved: [String] = []
         var deleted: [String] = []
         var beforeEvents: [String: JSONValue] = [:]
+        var pendingCreatedEvents: [EKEvent] = []
 
         for action in actions {
             switch action.actionType {
             case .createEvent, .createFocusBlock, .addBuffer, .batchTasks:
-                let id = try createEvent(from: action)
-                created.append(id)
+                let event = try eventFromAction(action, idempotencyKey: idempotencyKey, index: pendingCreatedEvents.count)
+                try store.save(event, span: .thisEvent, commit: false)
+                pendingCreatedEvents.append(event)
             case .moveEvent, .resizeEvent:
                 let id = try action.eventID.orThrow("event_id")
                 let event = try eventForIdentifier(id)
@@ -164,18 +184,20 @@ private final class EventKitCommandHandler {
                 if let start = action.start { event.startDate = start }
                 if let end = action.end { event.endDate = end }
                 if !action.title.isEmpty { event.title = action.title }
-                try store.save(event, span: .thisEvent, commit: true)
+                try store.save(event, span: .thisEvent, commit: false)
                 moved.append(currentIdentifier(for: event))
             case .deleteOwnEvent:
                 let id = try action.eventID.orThrow("event_id")
                 let event = try eventForIdentifier(id)
                 beforeEvents[id] = JSONValue(eventPayload(event))
-                try store.remove(event, span: .thisEvent, commit: true)
+                try store.remove(event, span: .thisEvent, commit: false)
                 deleted.append(id)
             case .doNothing, .notify, .askClarification, .draftSchedulePlan, .autoApplyPlan, .undo:
                 continue
             }
         }
+        try store.commit()
+        created = pendingCreatedEvents.map { currentIdentifier(for: $0) }
 
         let external = created + moved + deleted
         return [
@@ -192,20 +214,24 @@ private final class EventKitCommandHandler {
         try requireAuthorized()
         for eventID in stringArray(payload["created_external_ids"]) {
             if let event = store.event(withIdentifier: eventID) {
-                try store.remove(event, span: .thisEvent, commit: true)
+                try store.remove(event, span: .thisEvent, commit: false)
             }
         }
         for (_, value) in payload["before_events"]?.objectValue ?? [:] {
             guard let row = value.objectValue else { continue }
             try restoreEvent(from: row)
         }
+        try store.commit()
+        let createdGone = stringArray(payload["created_external_ids"]).allSatisfy { store.event(withIdentifier: $0) == nil }
+        let restoredRows = payload["before_events"]?.objectValue?.values.compactMap(\.objectValue) ?? []
+        let restored = restoredRows.allSatisfy { verifyRestoredEvent($0) }
         return [
             "provider_id": JSONValue("apple_eventkit"),
-            "rollback_verified": JSONValue(true),
+            "rollback_verified": JSONValue(createdGone && restored),
         ]
     }
 
-    private func createEvent(from action: EventKitAction) throws -> String {
+    private func eventFromAction(_ action: EventKitAction, idempotencyKey: String, index: Int) throws -> EKEvent {
         let start = try action.start.orThrow("start")
         let end = try action.end.orThrow("end")
         let event = EKEvent(eventStore: store)
@@ -213,13 +239,13 @@ private final class EventKitCommandHandler {
         event.startDate = start
         event.endDate = end
         event.calendar = try calendar(id: action.calendarID)
+        let marker = idempotencyKey.isEmpty ? "" : "\nCalendarPilot-Idempotency: \(idempotencyKey)#\(index)"
         if let notes = action.metadata["notes"], !notes.isEmpty {
-            event.notes = notes
+            event.notes = notes + marker
         } else {
-            event.notes = "Created by CalendarPilot"
+            event.notes = "Created by CalendarPilot" + marker
         }
-        try store.save(event, span: .thisEvent, commit: true)
-        return currentIdentifier(for: event)
+        return event
     }
 
     private func restoreEvent(from row: [String: JSONValue]) throws {
@@ -231,7 +257,7 @@ private final class EventKitCommandHandler {
         event.location = row["location"]?.stringValue ?? ""
         event.notes = row["notes"]?.stringValue ?? ""
         event.calendar = try calendar(id: row["calendar_id"]?.stringValue ?? "default")
-        try store.save(event, span: .thisEvent, commit: true)
+        try store.save(event, span: .thisEvent, commit: false)
     }
 
     private func eventPayload(_ event: EKEvent) -> [String: JSONValue] {
@@ -327,6 +353,49 @@ private final class EventKitCommandHandler {
 
     private func currentIdentifier(for event: EKEvent) -> String {
         event.eventIdentifier ?? event.calendarItemIdentifier
+    }
+
+    private func isWriteAction(_ actionType: AtomicActionType) -> Bool {
+        switch actionType {
+        case .createEvent, .createFocusBlock, .addBuffer, .batchTasks, .moveEvent, .resizeEvent, .deleteOwnEvent:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func isCreateAction(_ actionType: AtomicActionType) -> Bool {
+        switch actionType {
+        case .createEvent, .createFocusBlock, .addBuffer, .batchTasks:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func existingEventIDs(for idempotencyKey: String) -> [String] {
+        guard !idempotencyKey.isEmpty else { return [] }
+        let end = Date().addingTimeInterval(366 * 24 * 60 * 60)
+        let start = Date().addingTimeInterval(-30 * 24 * 60 * 60)
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: store.calendars(for: .event))
+        return store.events(matching: predicate)
+            .filter { ($0.notes ?? "").contains("CalendarPilot-Idempotency: \(idempotencyKey)#") }
+            .map { currentIdentifier(for: $0) }
+    }
+
+    private func verifyRestoredEvent(_ row: [String: JSONValue]) -> Bool {
+        guard
+            let title = row["title"]?.stringValue,
+            let start = try? dateField("start", in: row),
+            let end = try? dateField("end", in: row)
+        else { return false }
+        if let id = row["event_id"]?.stringValue, let event = store.event(withIdentifier: id) {
+            return event.title == title && abs(event.startDate.timeIntervalSince(start)) < 1 && abs(event.endDate.timeIntervalSince(end)) < 1
+        }
+        let predicate = store.predicateForEvents(withStart: start.addingTimeInterval(-1), end: end.addingTimeInterval(1), calendars: store.calendars(for: .event))
+        return store.events(matching: predicate).contains { event in
+            event.title == title && abs(event.startDate.timeIntervalSince(start)) < 1 && abs(event.endDate.timeIntervalSince(end)) < 1
+        }
     }
 
     private func actionList(in payload: [String: JSONValue]) throws -> [EventKitAction] {

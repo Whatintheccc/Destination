@@ -1,4 +1,4 @@
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e mac-app-build desktop-shortcut dogfood-release demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -17,6 +17,9 @@ live-codex-e2e:
 
 live-diffusiongemma-e2e:
 	PYTHONPATH=src python3 scripts/run_live_diffusiongemma_e2e.py
+
+live-eventkit-e2e:
+	PYTHONPATH=src python3 scripts/run_live_eventkit_e2e.py
 
 mac-app-build:
 	scripts/build_macos_app.sh

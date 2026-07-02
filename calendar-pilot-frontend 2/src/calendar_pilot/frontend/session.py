@@ -71,6 +71,7 @@ class DogfoodSessionState:
     self_play_history: list[dict[str, Any]] = field(default_factory=list)
     authority_history: list[dict[str, Any]] = field(default_factory=list)
     restore_error: str | None = None
+    provider_observation_error: str | None = None
 
     def __post_init__(self) -> None:
         self.observation_path = Path(self.observation_path)
@@ -81,6 +82,7 @@ class DogfoodSessionState:
         self.kernel = self._new_kernel_for_mode()
         self.policy = self._new_policy_for_mode()
         self.provider = self._new_provider_for_mode()
+        self._hydrate_provider_observation_if_available()
         self.replay = ReplayBuffer.load_jsonl(self.run_dir / "replay.jsonl")
         self._rebuild_runtime()
         atexit.register(self.close)
@@ -103,7 +105,7 @@ class DogfoodSessionState:
         requested_kernel = os.environ.get("CALENDAR_PILOT_KERNEL_BACKEND", "").strip().lower().replace("-", "_")
         if requested_kernel in {"stub", "swift_stub", "python_stub"}:
             return SwiftKernelStub()
-        if requested_kernel in {"swift_ipc", "ipc"} or self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"}:
+        if requested_kernel in {"swift_ipc", "ipc"} or self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}:
             kernel = SwiftKernelIPCClient()
             kernel.start()
             return kernel
@@ -114,6 +116,7 @@ class DogfoodSessionState:
         self.kernel = self._new_kernel_for_mode()
         self.policy = self._new_policy_for_mode()
         self.provider = self._new_provider_for_mode()
+        self._hydrate_provider_observation_if_available()
         if hasattr(self, "runtime"):
             self._rebuild_runtime()
 
@@ -148,6 +151,7 @@ class DogfoodSessionState:
         self._load_primitives()
         self.policy = self._new_policy_for_mode()
         self.provider = self._new_provider_for_mode()
+        self._hydrate_provider_observation_if_available()
         reset_provider = getattr(self.provider, "reset", None)
         if callable(reset_provider):
             reset_provider(self.observation)
@@ -366,8 +370,12 @@ class DogfoodSessionState:
         if not callable(request_access):
             raise ValueError("active provider does not support OS permission requests")
         result = request_access()
+        self._hydrate_provider_observation_if_available()
+        self._rebuild_runtime()
         self.persist()
-        return {"provider_permission": result, "state": self.snapshot()}
+        state = self.snapshot()
+        state["provider_permission"] = result
+        return state
 
     def runtime_report(self) -> dict[str, Any]:
         report = runtime_report(
@@ -392,6 +400,10 @@ class DogfoodSessionState:
             provider_health = provider_health_status()
             report["provider_health"] = provider_health
             self._apply_live_provider_health_blockers(report, provider_health)
+        report.setdefault("fixture_paths", {})["active_observation_id"] = self.observation.observation_id
+        report.setdefault("fixture_paths", {})["provider_observation_loaded"] = self._provider_observation_loaded()
+        if self.provider_observation_error:
+            report.setdefault("live_blockers", []).append(self.provider_observation_error)
         return report
 
     def _apply_live_diffusiongemma_health_blockers(self, report: dict[str, Any], policy_health: dict[str, Any]) -> None:
@@ -437,6 +449,8 @@ class DogfoodSessionState:
             if blocker not in {"required credential missing: provider_oauth", "required credential wrong auth method: provider_oauth"}
         ]
         if configured:
+            if self._provider_observation_loaded():
+                blockers[:] = [blocker for blocker in blockers if blocker != "live provider/production mode is using sample fixture data"]
             return
         if report.get("runtime_mode") not in {"live_provider", "production"}:
             return
@@ -454,6 +468,31 @@ class DogfoodSessionState:
         provider_backend = getattr(self.provider, "provider_id", "local_stub")
         return RuntimeBackends(kernel=type(self.kernel).__name__, codex=codex_backend, diffusiongemma=policy_backend, provider=provider_backend)
 
+    def _provider_observation_loaded(self) -> bool:
+        expected_observation_id = getattr(self.provider, "observation_id", None)
+        return bool(expected_observation_id and self.observation.observation_id == expected_observation_id)
+
+    def _hydrate_provider_observation_if_available(self) -> bool:
+        if not bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False)):
+            self.provider_observation_error = None
+            return False
+        health_status = getattr(self.provider, "health_status", None)
+        read_observation = getattr(self.provider, "read_observation", None)
+        if not callable(health_status) or not callable(read_observation):
+            self.provider_observation_error = "live provider observation is unavailable"
+            return False
+        health = health_status()
+        if not health.get("configured"):
+            self.provider_observation_error = f"live provider observation not loaded: {health.get('status', 'not_configured')}"
+            return False
+        try:
+            self.observation = read_observation(self.observation.user_scope_id, time_zone_id=self.observation.time_zone_id)
+        except Exception as exc:
+            self.provider_observation_error = f"live provider observation not loaded: {exc}"
+            return False
+        self.provider_observation_error = None
+        return True
+
     def snapshot(self) -> dict[str, Any]:
         plan = self.latest_plan
         if plan is None:
@@ -470,6 +509,7 @@ class DogfoodSessionState:
             "authority_scopes": self.authority_scopes,
             "run_dir": str(self.run_dir),
             "restore_error": self.restore_error,
+            "provider_observation_error": self.provider_observation_error,
         }
         snapshot["runtime"] = runtime
         snapshot["summary"]["runtime_mode"] = runtime["runtime_mode"]
@@ -562,6 +602,7 @@ class DogfoodSessionState:
             "self_play_history": self.self_play_history,
             "authority_history": self.authority_history,
             "restore_error": self.restore_error,
+            "provider_observation_error": self.provider_observation_error,
             "kernel": {
                 "authority_grants": [grant.to_dict() for grant in self.kernel.authority_grants.values()],
                 "undo_ledger": self.kernel.undo_ledger,
@@ -592,6 +633,7 @@ class DogfoodSessionState:
         else:
             self.runtime_mode = restored_runtime_mode
         self.restore_error = data.get("restore_error")
+        self.provider_observation_error = data.get("provider_observation_error")
         self.authority_tier = int(data.get("authority_tier", self.authority_tier))
         scopes = data.get("authority_scopes")
         if isinstance(scopes, list):

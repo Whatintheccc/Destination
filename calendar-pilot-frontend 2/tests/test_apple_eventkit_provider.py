@@ -93,6 +93,66 @@ class AppleEventKitProviderTests(unittest.TestCase):
         self.assertFalse(provider.commit_called)
         self.assertEqual(runtime.kernel.undo_ledger, {})
 
+    def test_runtime_denies_live_provider_when_provider_observation_is_not_loaded(self):
+        obs = load_obs()
+        candidate = create_focus_candidate(obs, "cand_runtime_fixture_observation_denied")
+        provider = FakeConfiguredProvider()
+        runtime = CodexToolRuntime(kernel=SwiftKernelIPCClient(), provider=provider)
+        grant = runtime.kernel.issue_authority_grant(user_scope_id=obs.user_scope_id, max_authority_tier=3, issued_at=obs.observed_at, confirmed_by_user=True)
+
+        denied = runtime.execute(
+            CodexToolCall("commit_fixture_observation_denied", CodexToolName.REQUEST_COMMIT, {"candidate": candidate.to_dict()}, 3, "commit", authority_grant_id=grant.grant_id),
+            obs,
+            load_bio(),
+        )
+
+        self.assertEqual(denied.status, CodexToolStatus.DENIED)
+        self.assertEqual(denied.denied_reason, "provider_not_configured")
+        self.assertEqual(denied.output["provider_health"]["status"], "provider_observation_not_loaded")
+        self.assertFalse(provider.commit_called)
+
+    def test_runtime_denies_when_provider_truth_cannot_be_read(self):
+        obs = load_obs()
+        provider_obs = RawCalendarObservation(
+            observation_id="obs_apple_eventkit",
+            user_scope_id=obs.user_scope_id,
+            observed_at=obs.observed_at,
+            time_zone_id=obs.time_zone_id,
+            events=obs.events,
+            tasks=obs.tasks,
+            device_context=obs.device_context,
+            notification_history=obs.notification_history,
+            prior_actions=obs.prior_actions,
+        )
+        candidate = create_focus_candidate(provider_obs, "cand_runtime_truth_denied")
+        provider = FakeConfiguredProvider(conflict_error=True)
+        runtime = CodexToolRuntime(kernel=SwiftKernelIPCClient(), provider=provider)
+        grant = runtime.kernel.issue_authority_grant(user_scope_id=provider_obs.user_scope_id, max_authority_tier=3, issued_at=provider_obs.observed_at, confirmed_by_user=True)
+
+        denied = runtime.execute(
+            CodexToolCall("commit_truth_denied", CodexToolName.REQUEST_COMMIT, {"candidate": candidate.to_dict()}, 3, "commit", authority_grant_id=grant.grant_id),
+            provider_obs,
+            load_bio(),
+        )
+
+        self.assertEqual(denied.status, CodexToolStatus.DENIED)
+        self.assertEqual(denied.denied_reason, "provider_truth_unavailable")
+        self.assertFalse(provider.commit_called)
+
+    def test_eventkit_snapshot_redacts_private_rollback_event_payloads(self):
+        obs = load_obs()
+        candidate = create_focus_candidate(obs, "cand_eventkit_redaction")
+        receipt = make_receipt(obs, candidate)
+        with tempfile.TemporaryDirectory() as td:
+            provider = AppleEventKitProvider(state_path=Path(td) / "apple_eventkit_state.json", bridge=FakeEventKitBridge(authorized=True, before_event=obs.events[0]))
+            provider.commit_candidate(candidate, receipt, obs)
+
+            snapshot = provider.snapshot()
+            self.assertTrue(snapshot["recent_mutations"])
+            latest = snapshot["recent_mutations"][-1]
+            self.assertNotIn("before_events", latest)
+            self.assertNotIn(obs.events[0].title, json.dumps(snapshot))
+
     def test_session_permission_request_uses_active_apple_provider(self):
         from calendar_pilot.frontend.session import DogfoodSessionState
 
@@ -107,12 +167,14 @@ class AppleEventKitProviderTests(unittest.TestCase):
             result = session.provider_permission_request()
 
             self.assertTrue(result["provider_permission"]["configured"])
-            self.assertEqual(result["state"]["inspector"]["provider"]["permission"]["status"], "configured")
+            self.assertEqual(result["inspector"]["provider"]["permission"]["status"], "configured")
+            self.assertEqual(result["session"]["provider_observation_error"], None)
 
 
 class FakeEventKitBridge:
-    def __init__(self, *, authorized: bool) -> None:
+    def __init__(self, *, authorized: bool, before_event=None) -> None:
         self.authorized = authorized
+        self.before_event = before_event
         self.calls: list[tuple[str, dict]] = []
 
     def call(self, command: str, payload: dict) -> dict:
@@ -125,12 +187,17 @@ class FakeEventKitBridge:
         if command == "read_events":
             return {"events": []}
         if command == "commit":
+            before_events = {}
+            if self.before_event is not None:
+                from calendar_pilot.types import to_jsonable
+
+                before_events[self.before_event.event_id] = to_jsonable(self.before_event)
             return {
                 "external_ids": ["apple_evt_1"],
                 "created_external_ids": ["apple_evt_1"],
                 "moved_external_ids": [],
                 "deleted_external_ids": [],
-                "before_events": {},
+                "before_events": before_events,
             }
         if command == "rollback":
             return {"rollback_verified": True}
@@ -168,6 +235,38 @@ class FakeUnconfiguredProvider:
         raise AssertionError("commit_candidate should not run without provider permission")
 
 
+class FakeConfiguredProvider:
+    provider_id = "apple_eventkit"
+    real_provider = True
+    real_oauth = False
+    observation_id = "obs_apple_eventkit"
+
+    def __init__(self, *, conflict_error: bool = False) -> None:
+        self.conflict_error = conflict_error
+        self.commit_called = False
+
+    def health_status(self) -> dict:
+        return {
+            "provider": self.provider_id,
+            "configured": True,
+            "status": "configured",
+            "auth_method": "eventkit_os_calendar_permission",
+        }
+
+    def conflict_truth(self, _candidate: CandidateCalendarAction) -> list[dict]:
+        if self.conflict_error:
+            raise CalendarProviderError("provider read failed")
+        return []
+
+    def commit_candidate(self, *_args) -> None:
+        self.commit_called = True
+        raise AssertionError("commit_candidate should not run in this test")
+
+
+class SwiftKernelIPCClient(SwiftKernelStub):
+    pass
+
+
 class FakeSessionAppleProvider:
     provider_id = "apple_eventkit"
     real_provider = True
@@ -189,6 +288,20 @@ class FakeSessionAppleProvider:
     def request_access(self) -> dict:
         self.status = "configured"
         return self.health_status()
+
+    def read_observation(self, user_scope_id: str, **_kwargs) -> RawCalendarObservation:
+        obs = load_obs()
+        return RawCalendarObservation(
+            observation_id="obs_apple_eventkit",
+            user_scope_id=user_scope_id,
+            observed_at=obs.observed_at,
+            time_zone_id=obs.time_zone_id,
+            events=obs.events,
+            tasks=obs.tasks,
+            device_context=obs.device_context,
+            notification_history=obs.notification_history,
+            prior_actions=obs.prior_actions,
+        )
 
     def snapshot(self) -> dict:
         return {

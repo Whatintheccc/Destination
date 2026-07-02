@@ -43,15 +43,18 @@ class SwiftEventKitBridge:
         app_result = self._call_app_bridge(Path(executable), request)
         if app_result is not None:
             return app_result
-        proc = subprocess.run(
-            [executable],
-            input=json.dumps(request),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=self.timeout_seconds,
-            check=False,
-        )
+        try:
+            proc = subprocess.run(
+                [executable],
+                input=json.dumps(request),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=self.timeout_seconds,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise CalendarProviderError(f"EventKit bridge failed: {exc}") from exc
         if proc.returncode != 0:
             raise CalendarProviderError(proc.stderr.strip() or f"EventKit bridge exited {proc.returncode}")
         return self._parse_response(proc.stdout)
@@ -66,14 +69,21 @@ class SwiftEventKitBridge:
         with tempfile.NamedTemporaryFile(prefix="calendarpilot-eventkit-", suffix=".json", delete=False) as result_file:
             result_path = Path(result_file.name)
         try:
-            proc = subprocess.run(
-                ["open", "-W", "-n", str(app_bundle), "--args", "--request-file", str(request_path), "--result-file", str(result_path)],
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=self.timeout_seconds,
-                check=False,
-            )
+            try:
+                proc = subprocess.run(
+                    ["open", "-W", "-n", str(app_bundle), "--args", "--request-file", str(request_path), "--result-file", str(result_path)],
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=self.timeout_seconds,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                _terminate_app_bundle(app_bundle)
+                raise CalendarProviderError(f"EventKit bridge app timed out: {exc}") from exc
+            except (OSError, subprocess.SubprocessError) as exc:
+                _terminate_app_bundle(app_bundle)
+                raise CalendarProviderError(f"EventKit bridge app failed: {exc}") from exc
             output = self._wait_for_result_file(
                 result_path,
                 timeout_seconds=self.timeout_seconds if request.get("command") == "request_access" else min(5.0, self.timeout_seconds),
@@ -119,10 +129,16 @@ class AppleEventKitProvider:
     provider_id = PROVIDER_ID
     real_provider = True
     real_oauth = False
+    observation_id = "obs_apple_eventkit"
 
-    def __init__(self, *, state_path: str | Path | None = None, bridge: EventKitBridge | None = None) -> None:
+    def __init__(self, *, state_path: str | Path | None = None, bridge: EventKitBridge | None = None, bridge_path: str | Path | None = None) -> None:
         self.state_path = Path(state_path) if state_path is not None else _default_state_path()
-        self.bridge = bridge or SwiftEventKitBridge()
+        if bridge is not None:
+            self.bridge = bridge
+        elif bridge_path is not None:
+            self.bridge = SwiftEventKitBridge(executable=str(bridge_path))
+        else:
+            self.bridge = SwiftEventKitBridge()
         self.state = self._load_state()
 
     def health_status(self, *, request_access: bool = False) -> dict[str, Any]:
@@ -141,7 +157,7 @@ class AppleEventKitProvider:
                 "authorization_status": status,
                 "bridge": result.get("bridge", "CalendarPilotEventKitBridge"),
             }
-        except CalendarProviderError as exc:
+        except (CalendarProviderError, OSError, subprocess.SubprocessError) as exc:
             return {
                 "provider": self.provider_id,
                 "status": "bridge_unavailable",
@@ -162,7 +178,7 @@ class AppleEventKitProvider:
             "time_max": (now + timedelta(days=14)).isoformat(),
         })
         return RawCalendarObservation(
-            observation_id="obs_apple_eventkit",
+            observation_id=self.observation_id,
             user_scope_id=user_scope_id,
             observed_at=now,
             time_zone_id=time_zone_id,
@@ -173,11 +189,8 @@ class AppleEventKitProvider:
         if self.idempotency_key(candidate) in self.state.get("idempotency", {}):
             return []
         if not self.health_status().get("configured"):
-            return []
-        try:
-            observation = self.read_observation("apple_eventkit_user")
-        except CalendarProviderError:
-            return []
+            raise CalendarProviderError("Apple Calendar permission is not configured")
+        observation = self.read_observation("apple_eventkit_user")
         conflicts: list[dict[str, Any]] = []
         for action in candidate.actions:
             if action.action_type not in WRITE_ACTIONS or action.start is None or action.end is None:
@@ -219,6 +232,7 @@ class AppleEventKitProvider:
             "rollback_handle_id": receipt.rollback_handle_id,
             "actions": [action.to_dict() if hasattr(action, "to_dict") else _jsonable_action(action) for action in candidate.actions],
         })
+        status = "idempotent_replay" if result.get("idempotent_replay") else "materialized"
         record = {
             "idempotency_key": idempotency_key,
             "candidate_id": candidate.candidate_id,
@@ -228,7 +242,7 @@ class AppleEventKitProvider:
             "moved_external_ids": list(result.get("moved_external_ids", [])),
             "deleted_external_ids": list(result.get("deleted_external_ids", [])),
             "before_events": result.get("before_events", {}),
-            "status": "materialized",
+            "status": status,
         }
         self.state.setdefault("idempotency", {})[idempotency_key] = record
         if receipt.rollback_handle_id:
@@ -236,7 +250,7 @@ class AppleEventKitProvider:
         self._save_state()
         return ProviderMutationResult(
             provider_id=self.provider_id,
-            status="materialized",
+            status=status,
             idempotency_key=idempotency_key,
             external_ids=list(result.get("external_ids", [])),
             created_external_ids=list(result.get("created_external_ids", [])),
@@ -284,7 +298,7 @@ class AppleEventKitProvider:
             "idempotency_keys": len(self.state.get("idempotency", {})),
             "rollback_records": len(rollback_records),
             "rollback_verified": sum(1 for row in rollback_records.values() if row.get("rollback_verified")),
-            "recent_mutations": list(self.state.get("idempotency", {}).values())[-8:],
+            "recent_mutations": [_redacted_mutation(row) for row in list(self.state.get("idempotency", {}).values())[-8:]],
             "connect_enabled": True,
         }
 
@@ -342,3 +356,28 @@ def _app_bundle_for_executable(executable: Path) -> Path | None:
         if parent.suffix == ".app":
             return parent
     return None
+
+
+def _terminate_app_bundle(app_bundle: Path) -> None:
+    try:
+        subprocess.run(["osascript", "-e", f'tell application "{app_bundle}" to quit'], text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2, check=False)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        subprocess.run(["pkill", "-f", str(app_bundle)], text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2, check=False)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def _redacted_mutation(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "idempotency_key": row.get("idempotency_key"),
+        "candidate_id": row.get("candidate_id"),
+        "rollback_handle_id": row.get("rollback_handle_id"),
+        "external_ids_count": len(row.get("external_ids", [])),
+        "created_external_ids_count": len(row.get("created_external_ids", [])),
+        "moved_external_ids_count": len(row.get("moved_external_ids", [])),
+        "deleted_external_ids_count": len(row.get("deleted_external_ids", [])),
+        "status": row.get("status"),
+        "rollback_verified": row.get("rollback_verified", False),
+    }
