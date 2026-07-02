@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calendarpilot.local/schemas/reward_event.schema.json",
+  "title": "RewardEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reward_event_id",
+    "receipt_id",
+    "observed_at",
+    "total_reward"
+  ],
+  "properties": {
+    "reward_event_id": {
+      "type": "string"
+    },
+    "receipt_id": {
+      "type": "string"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "accepted": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "edited": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "undone": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "deleted_later": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "ignored": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "explicit_useful": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "explicit_wrong": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "explicit_not_needed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "notification_dismissed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "survived_until_event": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "downstream_conflict": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "reengaged": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "utility_reward": {
+      "type": "number"
+    },
+    "acceptance_reward": {
+      "type": "number"
+    },
+    "engagement_reward": {
+      "type": "number"
+    },
+    "regret_penalty": {
+      "type": "number"
+    },
+    "interruption_penalty": {
+      "type": "number"
+    },
+    "social_risk_penalty": {
+      "type": "number"
+    },
+    "total_reward": {
+      "type": "number"
+    },
+    "provenance": {
+      "enum": [
+        "observed",
+        "provider",
+        "adversarial",
+        "model"
+      ]
+    }
+  }
+}
