@@ -35,10 +35,10 @@ APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 RUN_DIR="${CALENDAR_PILOT_RUN_DIR:-$HOME/Library/Application Support/CalendarPilot}"
 HOST="${CALENDAR_PILOT_HOST:-127.0.0.1}"
 PORT="${CALENDAR_PILOT_PORT:-8787}"
-URL="http://$HOST:$PORT"
 mkdir -p "$RUN_DIR"
 cd "$APP_ROOT" 2>/dev/null || exit 1
 if command -v python3 >/dev/null 2>&1; then
+  export CALENDAR_PILOT_APP_ROOT="$APP_ROOT"
   if [ -x "$APP_ROOT/bin/CalendarPilotKernelServer" ]; then
     export CALENDAR_PILOT_SWIFT_KERNEL_SERVER="$APP_ROOT/bin/CalendarPilotKernelServer"
   fi
@@ -47,10 +47,7 @@ if command -v python3 >/dev/null 2>&1; then
   elif [ -x "$APP_ROOT/bin/CalendarPilotEventKitBridge" ]; then
     export CALENDAR_PILOT_EVENTKIT_BRIDGE="$APP_ROOT/bin/CalendarPilotEventKitBridge"
   fi
-  if command -v open >/dev/null 2>&1 && [ "${CALENDAR_PILOT_OPEN_BROWSER:-1}" != "0" ]; then
-    (sleep 1; open "$URL") >/dev/null 2>&1 &
-  fi
-  exec env PYTHONPATH="$APP_ROOT/src" python3 -m calendar_pilot.app frontend --serve --host "$HOST" --port "$PORT" --run-dir "$RUN_DIR"
+  exec env PYTHONPATH="$APP_ROOT/src" python3 -m calendar_pilot.frontend.launcher --app-root "$APP_ROOT" --host "$HOST" --port "$PORT" --run-dir "$RUN_DIR"
 else
   echo "python3 not found; install Python 3 or run from the repository checkout."
   exit 1

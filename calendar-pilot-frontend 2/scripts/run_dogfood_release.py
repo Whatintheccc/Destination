@@ -63,12 +63,14 @@ def main() -> None:
         ))
         checks.append(live_eventkit_release_gate())
         checks.append(run_launchservices_smoke())
+        checks.append(run_occupied_port_launch_gate())
     else:
         checks.append({"name": "mac_app_sanity", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "swift_ipc_runtime_mode_gate", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "mac_app_swift_ipc_sanity", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "live_eventkit_release_gate", "ok": False, "skipped": True, "reason": "app build failed"})
         checks.append({"name": "launchservices_smoke", "ok": False, "skipped": True, "reason": "app build failed"})
+        checks.append({"name": "occupied_port_launch_gate", "ok": False, "skipped": True, "reason": "app build failed"})
     report["finished_at"] = utc_now()
     report["ok"] = False
     write_report(report)
@@ -153,13 +155,17 @@ def run_app_bundle_sanity(
     base_url = f"http://127.0.0.1:{port}"
     run_dir = RUN_DIR / f"mac_app_state_{runtime_mode}"
     run_dir.mkdir(parents=True, exist_ok=True)
+    launch_state_path = run_dir / "launch_state.json"
+    launch_state_path.unlink(missing_ok=True)
     log_path = LOG_DIR / f"{name}.log"
+    launch_id = f"release_{name}_{int(time.time() * 1000)}"
     env = os.environ.copy()
     env.update({
         "CALENDAR_PILOT_PORT": str(port),
         "CALENDAR_PILOT_RUN_DIR": str(run_dir),
         "CALENDAR_PILOT_OPEN_BROWSER": "0",
         "CALENDAR_PILOT_RUNTIME_MODE": runtime_mode,
+        "CALENDAR_PILOT_LAUNCH_ID": launch_id,
     })
     started = time.time()
     swift_before = pids_for_command_pattern(str(app_swift_server)) if runtime_mode == "swift_ipc" else []
@@ -168,6 +174,10 @@ def run_app_bundle_sanity(
         try:
             wait_for_state(base_url, proc, log_path)
             health = api_get(base_url, "/api/health")
+            assert_owned_health(health, launch_id=launch_id, expected_port=port)
+            launch_state = wait_for_launch_state(launch_state_path, launch_id=launch_id, proc=proc)
+            if launch_state.get("base_url") != base_url:
+                raise AssertionError(f"launch state base_url {launch_state.get('base_url')} did not match expected {base_url}")
             page = http_get_text(base_url, "/")
             app_js = http_get_text(base_url, "/app.js")
             if 'data-testid="chat-transcript"' not in page or 'data-testid="runtime-chip"' not in page or "/api/plans" not in app_js:
@@ -193,11 +203,14 @@ def run_app_bundle_sanity(
                     terminate_pid_list(orphaned)
                     ok = False
                     reason = f"{reason}; orphaned Swift kernel processes: {orphaned}" if reason else f"orphaned Swift kernel processes: {orphaned}"
+    ensure_log_has_content(log_path, f"{name} ok={ok} base_url={base_url} launch_id={launch_id} reason={reason}\n")
     return {
         "name": name,
         "ok": ok,
         "seconds": round(time.time() - started, 3),
         "base_url": base_url,
+        "launch_id": launch_id,
+        "launch_state": str(launch_state_path),
         "runtime_mode": runtime_mode,
         "expected_kernel": expected_kernel,
         "run_dir": str(run_dir),
@@ -211,16 +224,13 @@ def run_launchservices_smoke() -> dict[str, Any]:
         return {"name": "launchservices_smoke", "ok": False, "reason": "LaunchServices smoke requires macOS"}
     if shutil_which("open") is None:
         return {"name": "launchservices_smoke", "ok": False, "reason": "`open` command not found"}
-    default_port = 8787
-    try:
-        existing_pids = pids_for_port(default_port)
-    except Exception as exc:
-        return {"name": "launchservices_smoke", "ok": False, "reason": f"could not inspect default port {default_port}: {exc}"}
-    if existing_pids:
-        return {"name": "launchservices_smoke", "ok": False, "reason": f"default port {default_port} is already in use"}
     started = time.time()
     log_path = LOG_DIR / "launchservices_smoke.log"
-    base_url = f"http://127.0.0.1:{default_port}"
+    run_dir = default_app_run_dir()
+    run_dir.mkdir(parents=True, exist_ok=True)
+    launch_state_path = run_dir / "launch_state.json"
+    launch_state_path.unlink(missing_ok=True)
+    existing_default_pids = set(pids_for_port(8787))
     try:
         proc = subprocess.run(["open", "-n", str(APP_BUNDLE)], cwd=ROOT, text=True, capture_output=True, timeout=10)
     except subprocess.TimeoutExpired as exc:
@@ -231,9 +241,17 @@ def run_launchservices_smoke() -> dict[str, Any]:
     log_path.write_text(open_output if open_output else f"open exited {proc.returncode}\n", encoding="utf-8")
     if proc.returncode != 0:
         return {"name": "launchservices_smoke", "ok": False, "exit_code": proc.returncode, "log": str(log_path), "reason": "`open` failed"}
+    launch_state: dict[str, Any] = {}
     try:
-        wait_for_default_app(base_url, default_port, log_path)
+        launch_state = wait_for_launch_state(launch_state_path)
+        base_url = str(launch_state.get("base_url"))
         health = api_get(base_url, "/api/health")
+        assert_owned_health(
+            health,
+            launch_id=str(launch_state.get("launch_id")),
+            expected_port=int(launch_state.get("port")),
+            expected_server_pid=int(launch_state.get("server_pid")),
+        )
         page = http_get_text(base_url, "/")
         ok = 'data-testid="chat-transcript"' in page and health.get("runtime_mode") == runtime_mode_from_env()
         reason = "" if ok else "LaunchServices app did not serve frontend/runtime health"
@@ -242,7 +260,7 @@ def run_launchservices_smoke() -> dict[str, Any]:
         reason = str(exc)
     finally:
         try:
-            terminate_pids(pids_for_port(default_port), default_port)
+            cleanup_launch_state_processes(launch_state, existing_default_pids=existing_default_pids)
         except Exception as exc:
             ok = False
             reason = f"{reason}; cleanup failed: {exc}" if reason else f"cleanup failed: {exc}"
@@ -250,8 +268,83 @@ def run_launchservices_smoke() -> dict[str, Any]:
         "name": "launchservices_smoke",
         "ok": ok,
         "seconds": round(time.time() - started, 3),
-        "base_url": base_url,
+        "base_url": launch_state.get("base_url"),
+        "launch_state": str(launch_state_path),
         "log": str(log_path),
+        "reason": reason,
+    }
+
+
+def run_occupied_port_launch_gate() -> dict[str, Any]:
+    name = "occupied_port_launch_gate"
+    app_exe = APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot"
+    if not app_exe.exists() or not os.access(app_exe, os.X_OK):
+        return {"name": name, "ok": False, "reason": "app executable missing or not executable"}
+    started = time.time()
+    log_path = LOG_DIR / f"{name}.log"
+    stale_log_path = LOG_DIR / f"{name}_stale_server.log"
+    run_dir = RUN_DIR / "occupied_port_state"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    launch_state_path = run_dir / "launch_state.json"
+    launch_state_path.unlink(missing_ok=True)
+    stale_proc: subprocess.Popen[str] | None = None
+    app_proc: subprocess.Popen[str] | None = None
+    existing_default_pids = set(pids_for_port(8787))
+    try:
+        if not existing_default_pids:
+            stale_dir = RUN_DIR / "occupied_port_stale_server"
+            stale_dir.mkdir(parents=True, exist_ok=True)
+            with stale_log_path.open("w", encoding="utf-8") as stale_log:
+                stale_proc = subprocess.Popen(
+                    [sys.executable, "-m", "http.server", "8787", "--bind", "127.0.0.1"],
+                    cwd=stale_dir,
+                    stdout=stale_log,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+            wait_for_port(8787, stale_proc)
+        launch_id = f"release_occupied_{int(time.time() * 1000)}"
+        env = os.environ.copy()
+        env.update({
+            "CALENDAR_PILOT_PORT": "8787",
+            "CALENDAR_PILOT_RUN_DIR": str(run_dir),
+            "CALENDAR_PILOT_OPEN_BROWSER": "0",
+            "CALENDAR_PILOT_LAUNCH_ID": launch_id,
+        })
+        with log_path.open("w", encoding="utf-8") as log:
+            app_proc = subprocess.Popen([str(app_exe)], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
+            launch_state = wait_for_launch_state(launch_state_path, launch_id=launch_id, proc=app_proc)
+            chosen_port = int(launch_state.get("port"))
+            if chosen_port == 8787:
+                raise AssertionError("app used occupied default port 8787")
+            health = api_get(str(launch_state.get("base_url")), "/api/health")
+            assert_owned_health(health, launch_id=launch_id, expected_port=chosen_port, expected_server_pid=int(launch_state.get("server_pid")))
+            page = http_get_text(str(launch_state.get("base_url")), "/")
+            if 'data-testid="chat-transcript"' not in page:
+                raise AssertionError("alternate-port app did not serve frontend")
+        ok = True
+        reason = ""
+    except Exception as exc:
+        ok = False
+        reason = str(exc)
+        launch_state = read_launch_state(launch_state_path)
+    finally:
+        if app_proc is not None:
+            terminate(app_proc)
+        cleanup_launch_state_processes(launch_state if isinstance(launch_state, dict) else {}, existing_default_pids=existing_default_pids)
+        if stale_proc is not None:
+            terminate(stale_proc)
+    ensure_log_has_content(log_path, f"{name} ok={ok} requested_port=8787 chosen_port={launch_state.get('port') if isinstance(launch_state, dict) else None} reason={reason}\n")
+    return {
+        "name": name,
+        "ok": ok,
+        "seconds": round(time.time() - started, 3),
+        "base_url": launch_state.get("base_url") if isinstance(launch_state, dict) else None,
+        "requested_port": 8787,
+        "chosen_port": launch_state.get("port") if isinstance(launch_state, dict) else None,
+        "launch_state": str(launch_state_path),
+        "log": str(log_path),
+        "stale_server_log": str(stale_log_path),
         "reason": reason,
     }
 
@@ -268,6 +361,7 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         LOG_DIR / "mac_app_swift_ipc_sanity.log",
         LOG_DIR / "live_eventkit_release_gate.log",
         LOG_DIR / "launchservices_smoke.log",
+        LOG_DIR / "occupied_port_launch_gate.log",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_success.png",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "health.json",
         ROOT / "runs" / "browser_e2e" / "artifacts" / "browser_replay_export.json",
@@ -522,20 +616,72 @@ def wait_for_state(base_url: str, proc: subprocess.Popen[str], log_path: Path) -
     raise AssertionError(f"app did not become ready: {last_error}; see {log_path}")
 
 
-def wait_for_default_app(base_url: str, port: int, log_path: Path) -> None:
+def wait_for_launch_state(path: Path, *, launch_id: str | None = None, proc: subprocess.Popen[str] | None = None) -> dict[str, Any]:
     deadline = time.time() + 12
     last_error: Exception | None = None
     while time.time() < deadline:
-        if not pids_for_port(port):
-            time.sleep(0.1)
-            continue
+        if proc is not None and proc.poll() is not None:
+            raise AssertionError(f"app exited with {proc.returncode}; launch state: {read_launch_state(path)}")
         try:
-            api_get(base_url, "/api/state")
-            return
+            state = read_launch_state(path)
+            if state.get("status") != "running":
+                raise AssertionError(f"launch status is {state.get('status')}")
+            if launch_id and state.get("launch_id") != launch_id:
+                raise AssertionError(f"launch id {state.get('launch_id')} did not match {launch_id}")
+            return state
         except Exception as exc:
             last_error = exc
             time.sleep(0.1)
-    raise AssertionError(f"LaunchServices app did not become ready: {last_error}; see {log_path}")
+    raise AssertionError(f"launch state did not become ready: {last_error}; path={path}")
+
+
+def read_launch_state(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"status": "unreadable", "reason": str(exc)}
+
+
+def assert_owned_health(
+    health: dict[str, Any],
+    *,
+    launch_id: str,
+    expected_port: int,
+    expected_server_pid: int | None = None,
+) -> None:
+    process = health.get("process", {}) if isinstance(health, dict) else {}
+    if process.get("launch_id") != launch_id:
+        raise AssertionError(f"health launch id {process.get('launch_id')} did not match {launch_id}")
+    if str(process.get("launch_port")) != str(expected_port):
+        raise AssertionError(f"health launch port {process.get('launch_port')} did not match {expected_port}")
+    if expected_server_pid is not None and process.get("pid") != expected_server_pid:
+        raise AssertionError(f"health pid {process.get('pid')} did not match server pid {expected_server_pid}")
+
+
+def cleanup_launch_state_processes(launch_state: dict[str, Any], *, existing_default_pids: set[int]) -> None:
+    server_pid = int(launch_state.get("server_pid") or 0)
+    port = int(launch_state.get("port") or 0)
+    if server_pid and server_pid not in existing_default_pids:
+        terminate_pid_list([server_pid])
+    if port and port != 8787:
+        terminate_pid_list(pids_for_port(port))
+
+
+def wait_for_port(port: int, proc: subprocess.Popen[str] | None = None) -> None:
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        if proc is not None and proc.poll() is not None:
+            raise AssertionError(f"stale server exited with {proc.returncode}")
+        if pids_for_port(port):
+            return
+        time.sleep(0.1)
+    raise AssertionError(f"port {port} did not become occupied")
+
+
+def default_app_run_dir() -> Path:
+    return Path.home() / "Library" / "Application Support" / "CalendarPilot"
 
 
 def api_get(base_url: str, path: str) -> dict[str, Any]:
@@ -568,6 +714,14 @@ def terminate(proc: subprocess.Popen[str]) -> None:
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+
+
+def ensure_log_has_content(path: Path, fallback: str) -> None:
+    try:
+        if not path.exists() or path.stat().st_size == 0:
+            path.write_text(fallback, encoding="utf-8")
+    except OSError:
+        pass
 
 
 def pids_for_port(port: int) -> list[int]:

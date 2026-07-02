@@ -42,9 +42,9 @@ Originally observed after opening the desktop app on `http://127.0.0.1:8787/` on
 - `SwiftKernelIPCClient` originally existed but was not selected by the app path. P4 made it satisfy the shared kernel protocol and selected it for `swift_ipc`, `live_codex`, and production-targeted modes.
 - Provider adapters started as stubs. P7.1 adds deterministic provider truth; P7.2 adds an Apple Calendar/EventKit provider bridge with live read/write/undo evidence after macOS Calendar permission is granted.
 - The UI truthfully reports `local_stub` and `real_oauth: False`.
-- The desktop launcher uses fixed port `8787` and opens the browser after a sleep, so a stale server on that port can be shown if launch ownership is ambiguous.
+- P8 replaces the desktop launcher's fixed-port sleep/open behavior with a launch handshake: choose the requested port only when available, fall back to a free port when needed, wait for `/api/health` to return the launched server PID and launch ID, then open the verified URL. Launch state is written under the user run directory.
 
-Conclusion: P0-P2 certify a working local fixture macOS app. P3-P6 now add runtime truth, compiled Swift IPC, live Codex subscription-auth planning evidence, and live DiffusionGemma/NVIDIA NIM policy-ranking evidence. P7 adds deterministic provider truth and live Apple Calendar/EventKit read/write/undo evidence. These phases still do not certify production desktop launch ownership.
+Conclusion: P0-P2 certify a working local fixture macOS app. P3-P6 add runtime truth, compiled Swift IPC, live Codex subscription-auth planning evidence, and live DiffusionGemma/NVIDIA NIM policy-ranking evidence. P7 adds deterministic provider truth and live Apple Calendar/EventKit read/write/undo evidence. P8 adds desktop launch ownership and occupied-port evidence for local dogfood distribution.
 
 ## Dogfood Principles
 
@@ -464,13 +464,13 @@ Permission gate:
 
 ## P8 Production Desktop Launch And Distribution
 
-Status: Not started
+Status: In review
 Owner: product engineering and release engineering
 Goal: make the desktop app launch the intended server/runtime and fail visibly when it cannot.
 
 ### P8.1 Port Ownership And Startup Handshake
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -487,7 +487,7 @@ Acceptance criteria:
 
 ### P8.2 Production Release Gate
 
-Status: Not started
+Status: Done
 
 Required work:
 
@@ -589,6 +589,7 @@ Run these additional scenarios as P3-P8 come online:
 | 2026-07-01 | P7 restart/provenance fixes | Addressed Planck's second P7 no-go by including `live_provider` in Swift IPC restore rehydration, persisting plan observation provenance, recording observation id/fingerprint on replay decision and receipt records, pruning stale candidate controls when the active real-provider observation changes, and preserving realized committed/undone receipts so undo/replay remain visible after restart. | `test_apple_eventkit_provider.py` now covers fixture-candidate invalidation after EventKit observation loads. `test_swift_ipc_runtime.py` now covers `live_provider` Swift undo-ledger rehydration after restart. `PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_apple_eventkit_provider.py'`, `CALENDAR_PILOT_RUN_SWIFT_IPC_TESTS=1 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_swift_ipc_runtime.py'`, `make py-test swift-test swift-ipc-test browser-e2e`, and `make dogfood-release` passed. |
 | 2026-07-01 | P7 replay privacy fix | Addressed Planck's privacy blocker by redacting raw event lists from `inspect_week` tool outputs when a real provider is active and redacting private fields from `inspect_event` outputs before they reach `latest_plan`, persisted session state, replay JSONL, or `/api/replay/export`. | `test_apple_eventkit_provider.py` now verifies live-provider inspect receipts do not export event titles, attendees, or locations through replay envelopes. `PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_apple_eventkit_provider.py'`, `make py-test swift-test swift-ipc-test browser-e2e`, and `make dogfood-release` passed. |
 | 2026-07-01 | P7 final architecture review | Planck re-reviewed the committed P7 state after the restart/provenance and replay privacy fixes. | Cleared P7 for P8. Remaining caveat is operational only: the mutating packaged `make live-eventkit-e2e` probe remains opt-in and permission-gated until macOS Calendar access is granted to the rebuilt bridge. |
+| 2026-07-01 | P8 desktop launch ownership | Added `calendar_pilot.frontend.launcher`, app-bundle launch state, launch IDs in `/api/health`, verified browser-open sequencing, free-port fallback when the requested port is occupied, app sanity launch-id checks, LaunchServices launch-state smoke, and an occupied-port release gate. | `test_launcher.py` covers preferred/free/strict port selection. `make py-test swift-test swift-ipc-test browser-e2e` passed with 88 Python tests, 16 Swift tests, 8 Swift IPC tests, and browser CDP E2E. `make dogfood-release` passed; `mac_app_sanity` and `mac_app_swift_ipc_sanity` verified launch IDs, `launchservices_smoke` read launch state from the user run directory, and `occupied_port_launch_gate` requested `8787` but served verified app health from alternate port `61787`. |
 
 ## Review Log
 
@@ -617,4 +618,4 @@ Run these additional scenarios as P3-P8 come online:
 | Live Codex subscription-auth planning can regress into unsafe model execution order. | P5 | Pre-execution model-plan validation, replayed validation failures, `test_terminal_commit_plan_is_validated_before_any_execution`, and `make live-codex-e2e` now guard this boundary. |
 | DiffusionGemma/NIM live serving depends on external endpoint, credential, and TLS bundle availability. | P6 | P6 now has a live E2E gate, certifi-backed TLS context with `CALENDAR_PILOT_NIM_CA_FILE` override, runtime health provenance, failed-receipt behavior on NIM failure, and artifact secret scans. Rerun `make live-diffusiongemma-e2e` before release decisions that depend on live policy serving. |
 | Real provider behavior is not included in fixture dogfood. | P7 | Deterministic provider state is implemented. Apple Calendar/EventKit provider code, UI, health, packaging, idempotency, conflict, rollback, and live read/write/undo evidence are implemented. Calendar permission remains per-machine TCC state and must be revalidated on each dogfood machine. |
-| Fixed-port desktop launch can show a stale server. | P8 | Add port ownership or free-port launch, process identity handshake, and occupied-port release checks. |
+| Signed/notarized distribution is not implemented. | P8+ | Current P8 certifies local dogfood launch ownership only. Add signing, notarization, update channels, and crash/log collection before external distribution. |

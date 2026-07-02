@@ -206,6 +206,9 @@ def runtime_report(
             "python": platform.python_version(),
             "platform": platform.platform(),
             "session_id": session_id,
+            "launch_id": os.environ.get("CALENDAR_PILOT_LAUNCH_ID", ""),
+            "launch_port": os.environ.get("CALENDAR_PILOT_LAUNCH_PORT", ""),
+            "launch_requested_port": os.environ.get("CALENDAR_PILOT_LAUNCH_REQUESTED_PORT", ""),
         },
     }
 
