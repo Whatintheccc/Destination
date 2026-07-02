@@ -1,0 +1,55 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calendarpilot.local/schemas/authority_grant.schema.json",
+  "title": "AuthorityGrant",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "grant_id",
+    "user_scope_id",
+    "max_authority_tier",
+    "scopes",
+    "issued_at",
+    "expires_at",
+    "confirmation_provenance",
+    "issued_by",
+    "confirmed_by_user"
+  ],
+  "properties": {
+    "grant_id": {
+      "type": "string"
+    },
+    "user_scope_id": {
+      "type": "string"
+    },
+    "max_authority_tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "confirmation_provenance": {
+      "type": "string"
+    },
+    "issued_by": {
+      "type": "string"
+    },
+    "confirmed_by_user": {
+      "type": "boolean"
+    }
+  }
+}
