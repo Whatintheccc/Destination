@@ -106,6 +106,24 @@ class CodexToolRuntimeTests(unittest.TestCase):
         has_note = any(any("offline_tuning" in n for n in c.control_notes) for c in candidates)
         self.assertTrue(has_note or not tuning.intent_reward_bias)
 
+    def test_frontier_tool_forwards_user_goal_to_policy(self):
+        policy = GoalCapturePolicy()
+        runtime = CodexToolRuntime(policy=policy)
+        obs = load_obs()
+        bio = load_bio()
+        goal = "Move prep time before investor call"
+
+        receipt = runtime.execute(
+            CodexToolCall("frontier_with_goal", CodexToolName.GENERATE_CANDIDATE_FRONTIER, {"goal": goal, "limit": 2}, 3, "frontier"),
+            obs,
+            bio,
+        )
+
+        self.assertEqual(receipt.status, CodexToolStatus.SUCCEEDED)
+        self.assertEqual(policy.last_goal, goal)
+        self.assertEqual(receipt.output["goal"], goal)
+        self.assertTrue(receipt.output["goal_routed_to_policy"])
+
     def test_live_policy_failure_returns_failed_frontier_receipt(self):
         replay = ReplayBuffer()
         runtime = CodexToolRuntime(policy=MissingLivePolicy(), replay=replay)
@@ -153,6 +171,16 @@ class MissingLivePolicy:
 
     def generate_candidates(self, *_args, **_kwargs):
         raise LiveDiffusionGemmaCredentialError("NVIDIA NIM API key is required")
+
+
+class GoalCapturePolicy(DiffusionGemmaPolicy):
+    def __init__(self):
+        super().__init__()
+        self.last_goal = None
+
+    def generate_candidates(self, observation, biography, *, goal=None):
+        self.last_goal = goal
+        return super().generate_candidates(observation, biography, goal=goal)
 
 
 if __name__ == "__main__":

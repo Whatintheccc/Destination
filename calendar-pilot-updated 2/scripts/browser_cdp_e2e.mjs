@@ -1,4 +1,3 @@
-
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
@@ -16,7 +15,7 @@ if (!baseUrl || !artifactDir) {
 
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const expectedRuntimeMode = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_MODE || 'fixture';
-const expectedRuntimeLabel = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL || (expectedRuntimeMode === 'swift_ipc' ? 'Swift IPC mode' : 'Fixture mode');
+const expectedRuntimeLabel = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL || runtimeLabel(expectedRuntimeMode);
 const waitTimeoutMs = Number(process.env.CALENDAR_PILOT_BROWSER_WAIT_MS || 15000);
 await mkdir(artifactDir, { recursive: true });
 
@@ -63,6 +62,26 @@ async function main() {
   await click(client, '[data-testid="undo-action"]');
   await waitFor(client, 'document.body.innerText.includes("Undo requested")');
   await click(client, '[data-testid="feedback-useful"]');
+  await waitFor(client, 'document.body.innerText.includes("Feedback captured")');
+  const originalSessionId = await evaluate(client, 'document.querySelector(".session-switch.active")?.dataset.sessionId || ""');
+  if (!originalSessionId) {
+    throw new Error('active session id was not visible before New chat');
+  }
+  await click(client, '#new-chat');
+  await waitFor(client, `document.querySelector(".session-switch.active")?.dataset.sessionId !== ${JSON.stringify(originalSessionId)}`);
+  const newSessionId = await evaluate(client, 'document.querySelector(".session-switch.active")?.dataset.sessionId || ""');
+  if (!newSessionId) {
+    throw new Error('new session id was not visible after New chat');
+  }
+  await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length === 0');
+  await evaluate(client, 'window.prompt = () => "Renamed dogfood session"; window.confirm = () => true; true');
+  await click(client, `.session-rename[data-session-id="${newSessionId}"]`);
+  await waitFor(client, 'document.body.innerText.includes("Renamed dogfood session")');
+  await click(client, `.session-archive[data-session-id="${newSessionId}"]`);
+  await waitFor(client, `document.querySelector(".session-switch.active")?.dataset.sessionId === ${JSON.stringify(originalSessionId)}`);
+  await waitFor(client, `!Array.from(document.querySelectorAll(".session-switch")).some(el => el.dataset.sessionId === ${JSON.stringify(newSessionId)})`);
+  await click(client, `.session-switch[data-session-id="${originalSessionId}"]`);
+  await waitFor(client, `document.querySelector(".session-switch.active")?.dataset.sessionId === ${JSON.stringify(originalSessionId)}`);
   await waitFor(client, 'document.body.innerText.includes("Feedback captured")');
 
   await click(client, '#tab-replay');
@@ -130,6 +149,18 @@ async function main() {
 
 function appendLog(chunk) {
   appendFileSync(path.join(artifactDir, 'chrome.log'), chunk);
+}
+
+function runtimeLabel(mode) {
+  return ({
+    auto: 'Auto assistant',
+    fixture: 'Fixture mode',
+    swift_ipc: 'Swift IPC mode',
+    live_codex: 'Live Codex mode',
+    live_diffusiongemma: 'Live DiffusionGemma mode',
+    live_provider: 'Live provider mode',
+    production: 'Production mode',
+  })[mode] || mode;
 }
 
 function freePort() {

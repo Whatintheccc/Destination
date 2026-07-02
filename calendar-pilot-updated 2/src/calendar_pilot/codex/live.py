@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -29,6 +29,7 @@ from calendar_pilot.types import (
 ROOT = Path(__file__).resolve().parents[3]
 LIVE_CODEX_BACKEND = "live_codex_app_server"
 LIVE_CODEX_PROMPT_VERSION = "calendar_pilot_codex_app_server_v1"
+LIVE_CODEX_CHAT_PROMPT_VERSION = "calendar_pilot_codex_conversation_v1"
 CODEX_AUTH_DOC_URL = "https://developers.openai.com/codex/auth"
 SUBSCRIPTION_AUTH_MODES = {"chatgpt", "chatgptAuthTokens", "agentIdentity", "personalAccessToken"}
 API_KEY_AUTH_MODES = {"apikey", "apiKey", "api_key"}
@@ -39,6 +40,17 @@ ALLOWED_LIVE_TOOLS = {
     CodexToolName.SIMULATE_ACTION_PROGRAM,
     CodexToolName.STAGE_ACTION_PACKET,
     CodexToolName.REQUEST_COMMIT,
+}
+CONVERSATION_LIVE_TOOLS = {
+    CodexToolName.INSPECT_AUTHORITY_SCOPE,
+    CodexToolName.REQUEST_UNDO,
+    CodexToolName.QUERY_REPLAY_TRACE,
+    CodexToolName.INSPECT_PROFILE_CLAIMS,
+    CodexToolName.PROPOSE_PROFILE_PATCH,
+    CodexToolName.APPLY_PROFILE_PATCH,
+    CodexToolName.RUN_SELF_PLAY_PROBE,
+    CodexToolName.PROPOSE_AUTONOMY_SCOPE,
+    CodexToolName.EXPLAIN_SWIFT_DENIAL,
 }
 
 
@@ -80,6 +92,14 @@ class LiveCodexPlanResult:
     calls: list[ModelPlannedCall]
     recommended_next_action: str
     metadata: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class LiveCodexChatResult:
+    answer: str
+    route: str
+    metadata: dict[str, Any]
+    tool_calls: list[ModelPlannedCall] = field(default_factory=list)
 
 
 class CodexAppServerClient:
@@ -178,7 +198,7 @@ class CodexAppServerClient:
                 model=self.model,
             )
             planned = self._extract_plan(rpc.wait_for_turn(thread_id=str(thread["id"]), turn_id=str(turn["id"])))
-        calls = [self._planned_call_from_dict(item, idx) for idx, item in enumerate(planned.get("calls", []))]
+        calls = [self._planned_call_from_dict(item, idx, allowed_tools=ALLOWED_LIVE_TOOLS) for idx, item in enumerate(planned.get("calls", []))]
         if not calls:
             raise LiveCodexSchemaError("live Codex returned no tool calls")
         return LiveCodexPlanResult(
@@ -196,6 +216,65 @@ class CodexAppServerClient:
                 "planned_call_count": len(calls),
                 "redaction_policy": "event titles, attendees, notes, and locations omitted from live Codex prompt",
             },
+        )
+
+    def respond_to_message(
+        self,
+        *,
+        message: str,
+        observation: RawCalendarObservation,
+        biography: UserBiography,
+        runtime_report: dict[str, Any],
+        intent: str,
+    ) -> LiveCodexChatResult:
+        local_auth = _local_subscription_auth_state(self.auth_file)
+        if not local_auth["configured"]:
+            if local_auth["status"] == "wrong_auth_method":
+                raise LiveCodexCredentialError("Codex is signed in with API-key auth; live_codex requires ChatGPT subscription auth")
+            raise LiveCodexCredentialError("Codex ChatGPT sign-in or CODEX_ACCESS_TOKEN is required for live_codex mode")
+        with CodexAppServerRPC(self.codex_bin, timeout_seconds=self.timeout_seconds) as rpc:
+            account = rpc.account_read(refresh_token=False)
+            health = _remote_account_health(account, model=self.model)
+            if not health["configured"]:
+                raise LiveCodexCredentialError(f"Codex subscription auth is not configured: {health['status']}")
+            thread = rpc.thread_start(model=self.model)
+            turn = rpc.turn_start(
+                thread_id=str(thread["id"]),
+                prompt=self._conversation_prompt(message, observation, biography, runtime_report=runtime_report, intent=intent),
+                output_schema=self._conversation_output_schema(),
+                model=self.model,
+            )
+            payload = self._extract_plan(rpc.wait_for_turn(thread_id=str(thread["id"]), turn_id=str(turn["id"])))
+        answer = str(payload.get("answer") or "").strip()
+        if not answer:
+            raise LiveCodexSchemaError("live Codex returned an empty conversation answer")
+        route = str(payload.get("route") or "conversation")
+        raw_tool_calls = payload.get("tool_calls", [])
+        if not isinstance(raw_tool_calls, list):
+            raise LiveCodexSchemaError("live Codex conversation tool_calls must be a list")
+        tool_calls = [
+            self._planned_call_from_dict(item, idx, allowed_tools=CONVERSATION_LIVE_TOOLS)
+            for idx, item in enumerate(raw_tool_calls)
+        ]
+        return LiveCodexChatResult(
+            answer=answer,
+            route=route,
+            metadata={
+                "plan_source": LIVE_CODEX_BACKEND,
+                "prompt_version": LIVE_CODEX_CHAT_PROMPT_VERSION,
+                "model": self.model or "codex_default",
+                "response_id": turn.get("id"),
+                "thread_id": thread.get("id"),
+                "turn_id": turn.get("id"),
+                "auth_method": health.get("auth_method"),
+                "plan_type": health.get("plan_type"),
+                "conversation_route": route,
+                "intent": intent,
+                "conversation_tool_call_count": len(tool_calls),
+                "conversation_tool_names": [call.tool_name.value for call in tool_calls],
+                "redaction_policy": "calendar details summarized; provider credentials and raw auth tokens omitted",
+            },
+            tool_calls=tool_calls,
         )
 
     @staticmethod
@@ -224,14 +303,19 @@ class CodexAppServerClient:
         return parsed
 
     @staticmethod
-    def _planned_call_from_dict(data: Any, index: int) -> ModelPlannedCall:
+    def _planned_call_from_dict(
+        data: Any,
+        index: int,
+        *,
+        allowed_tools: set[CodexToolName],
+    ) -> ModelPlannedCall:
         if not isinstance(data, dict):
             raise LiveCodexSchemaError(f"planned call {index} is not an object")
         try:
             tool_name = CodexToolName(str(data["tool_name"]))
         except Exception as exc:
             raise LiveCodexSchemaError(f"planned call {index} used unsupported tool {data.get('tool_name')}") from exc
-        if tool_name not in ALLOWED_LIVE_TOOLS:
+        if tool_name not in allowed_tools:
             raise LiveCodexSchemaError(f"planned call {index} used disallowed live tool {tool_name.value}")
         try:
             input_payload = json.loads(str(data.get("input_json") or "{}"))
@@ -307,6 +391,115 @@ class CodexAppServerClient:
                     },
                 },
                 "recommended_next_action": {"type": "string"},
+                "rationale": {"type": "string"},
+            },
+        }
+
+    @staticmethod
+    def _conversation_prompt(
+        message: str,
+        observation: RawCalendarObservation,
+        biography: UserBiography,
+        *,
+        runtime_report: dict[str, Any],
+        intent: str,
+    ) -> str:
+        context = {
+            "message": message,
+            "intent": intent,
+            "runtime": _conversation_runtime_context(runtime_report, include_diagnostics=intent == "metadata_question"),
+            "calendar_summary": _conversation_calendar_summary(observation),
+            "profile_summary": _conversation_profile_summary(biography),
+            "available_boundaries": {
+                "codex": "conversation and bounded tool planning through CalendarPilot tools",
+                "diffusiongemma": "candidate frontier generation and right-moment policy",
+                "swift": "authority grants, validation, stage/commit/undo receipts",
+                "provider": "calendar read/write only through configured provider adapter",
+            },
+            "conversation_tools": {
+                "allowed_tools": sorted(tool.value for tool in CONVERSATION_LIVE_TOOLS),
+                "usage": (
+                    "Return tool_calls when the user asks to inspect replay evidence, authority scope, "
+                    "profile claims, profile repair proposals, self-play release gates, or Swift denial reasons. "
+                    "Use an empty array when no local evidence tool is needed."
+                ),
+                "safe_inputs": {
+                    "query_replay_trace": {"candidate_id": "optional candidate id"},
+                    "inspect_authority_scope": {},
+                    "inspect_profile_claims": {},
+                    "propose_profile_patch": {"correction": "user-stated profile correction"},
+                    "apply_profile_patch": {"claim": "profile claim", "correction": "user-confirmed correction", "confirmed": True},
+                    "run_self_play_probe": {"episodes": "1 to 3"},
+                    "propose_autonomy_scope": {"candidate_id": "latest or explicit candidate id"},
+                    "explain_swift_denial": {"denied_reason": "denial reason to explain"},
+                    "request_undo": {"rollback_handle_id": "optional; Python can use the latest undoable handle"},
+                },
+            },
+        }
+        return (
+            "You are CalendarPilot's conversational access point. Return only JSON "
+            "matching the schema. Answer the user directly when no calendar operation "
+            "is needed. For smalltalk, answer briefly and do not volunteer backend, "
+            "credential, endpoint, or setup-note details. For metadata/status questions, "
+            "be explicit about which runtime/backends are active and distinguish true "
+            "blockers from optional local fallback modes. Do not describe optional auto "
+            "fallbacks as broken endpoints. If the "
+            "user asks for a calendar change, say that the app should route the next "
+            "turn through the tool planner rather than claiming a write happened. "
+            "When the user asks for replay/profile/self-play/authority/denial evidence, "
+            "include bounded tool_calls so Python can execute them and attach receipts. "
+            "Include request_undo only when the user explicitly asks to undo, revert, or "
+            "roll back the latest change. Include apply_profile_patch only when the user "
+            "explicitly asks to apply or confirm an existing profile patch. Do not include "
+            "commit tool calls in conversation mode; commits require explicit action controls. "
+            "Do not claim to have contacted provider APIs or changed calendars unless "
+            "a local CalendarPilot receipt exists. Redacted app context:\n"
+            + json.dumps(context, sort_keys=True)
+        )
+
+    @staticmethod
+    def _conversation_output_schema() -> dict[str, Any]:
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["answer", "route", "tool_calls", "rationale"],
+            "properties": {
+                "answer": {"type": "string"},
+                "route": {
+                    "type": "string",
+                    "enum": [
+                        "conversation",
+                        "metadata",
+                        "evidence_inspection",
+                        "profile_repair_proposed",
+                        "self_play_probe",
+                        "calendar_planning_recommended",
+                        "safety_refusal",
+                    ],
+                },
+                "tool_calls": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 4,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": [
+                            "tool_name",
+                            "input_json",
+                            "requested_authority_tier",
+                            "user_visible_reason",
+                            "correlation_id",
+                        ],
+                        "properties": {
+                            "tool_name": {"type": "string", "enum": sorted(tool.value for tool in CONVERSATION_LIVE_TOOLS)},
+                            "input_json": {"type": "string", "description": "A JSON object string containing tool input."},
+                            "requested_authority_tier": {"type": "integer", "minimum": 0, "maximum": 6},
+                            "user_visible_reason": {"type": "string"},
+                            "correlation_id": {"type": "string"},
+                        },
+                    },
+                },
                 "rationale": {"type": "string"},
             },
         }
@@ -495,6 +688,26 @@ class LiveCodexToolPlanner:
     def health_status(self, *, validate_remote: bool = False) -> dict[str, Any]:
         return self.client.health_status(validate_remote=validate_remote)
 
+    def chat_response(
+        self,
+        message: str,
+        observation: RawCalendarObservation,
+        biography: UserBiography,
+        *,
+        runtime_report: dict[str, Any],
+        intent: str,
+    ) -> LiveCodexChatResult:
+        try:
+            return self.client.respond_to_message(
+                message=message,
+                observation=observation,
+                biography=biography,
+                runtime_report=runtime_report,
+                intent=intent,
+            )
+        except LiveCodexError as exc:
+            return self._failed_chat_response(message, exc)
+
     def plan_goal(
         self,
         goal: str,
@@ -587,6 +800,25 @@ class LiveCodexToolPlanner:
             if planned.tool_name == CodexToolName.COMPARE_CANDIDATES:
                 winner = str((receipt.output.get("winner") or {}).get("candidate_id") or "")
 
+    def _failed_chat_response(self, message: str, exc: LiveCodexError) -> LiveCodexChatResult:
+        return LiveCodexChatResult(
+            answer=(
+                "Live Codex conversation is unavailable for this turn. "
+                f"{exc} Sign in with ChatGPT for Codex subscription access ({CODEX_AUTH_DOC_URL}) "
+                "or switch back to fixture mode for local deterministic dogfooding."
+            ),
+            route="conversation",
+            metadata={
+                "plan_source": LIVE_CODEX_BACKEND,
+                "prompt_version": LIVE_CODEX_CHAT_PROMPT_VERSION,
+                "error_category": exc.category,
+                "model": getattr(self.client, "model", "") or "codex_default",
+                "conversation_route": "live_codex_unavailable",
+                "input_digest": hashlib.sha1(message.encode()).hexdigest()[:12],
+                "redaction_policy": "no raw prompt, token, or model response persisted",
+            },
+        )
+
     def _run(self, plan: CodexExecutivePlan, call: CodexToolCall, observation: RawCalendarObservation, biography: UserBiography) -> CodexToolReceipt:
         plan.calls.append(call)
         receipt = self.runtime.execute(call, observation, biography)
@@ -669,6 +901,59 @@ class LiveCodexToolPlanner:
     def _tool_call_id(plan_id: str, index: int, planned: ModelPlannedCall) -> str:
         raw = f"{plan_id}|{index}|{planned.tool_name.value}|{planned.input}|{planned.correlation_id}"
         return "tool_" + hashlib.sha1(raw.encode()).hexdigest()[:12]
+
+
+def _conversation_runtime_context(report: dict[str, Any], *, include_diagnostics: bool = True) -> dict[str, Any]:
+    credentials = report.get("credentials", {})
+    safe_credentials: dict[str, Any] = {}
+    if isinstance(credentials, dict):
+        for name, state in credentials.items():
+            if not isinstance(state, dict):
+                continue
+            required = bool(state.get("required"))
+            configured = bool(state.get("configured"))
+            if not include_diagnostics and not required and not configured:
+                continue
+            safe_credentials[str(name)] = {
+                "configured": configured,
+                "required": required,
+                "status": str(state.get("status", "")),
+                "auth_method": str(state.get("auth_method", "")),
+                "source": str(state.get("source", "")),
+            }
+    return {
+        "runtime_mode": report.get("runtime_mode"),
+        "requested_runtime_mode": report.get("requested_runtime_mode"),
+        "mode_label": report.get("mode_label"),
+        "backends": report.get("backends", {}),
+        "live_blockers": report.get("live_blockers", []),
+        "setup_notes": report.get("setup_notes", []) if include_diagnostics else [],
+        "fixture_mode": report.get("fixture_mode"),
+        "live_target": report.get("live_target"),
+        "production_target": report.get("production_target"),
+        "credentials": safe_credentials,
+    }
+
+
+def _conversation_calendar_summary(observation: RawCalendarObservation) -> dict[str, Any]:
+    return {
+        "observation_id": observation.observation_id,
+        "event_count": len(observation.events),
+        "task_count": len(observation.tasks),
+        "time_zone_id": observation.time_zone_id,
+        "device_surface": observation.device_context.active_surface,
+        "focus_mode": observation.device_context.is_focus_mode,
+    }
+
+
+def _conversation_profile_summary(biography: UserBiography) -> dict[str, Any]:
+    return {
+        "preference_claim_count": len(biography.preference_claims),
+        "best_response_hours": biography.best_response_hours,
+        "deep_work_windows": biography.deep_work_windows,
+        "admin_windows": biography.admin_windows,
+        "notification_fatigue": biography.notification_fatigue,
+    }
 
 
 def _remote_account_health(account_result: dict[str, Any], *, model: str) -> dict[str, Any]:

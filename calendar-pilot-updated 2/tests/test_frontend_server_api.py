@@ -8,10 +8,13 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from calendar_pilot.frontend.launch import LaunchConfig
 from calendar_pilot.frontend.server import serve
+from calendar_pilot.frontend.session_manager import SessionManager
 
 
 def _free_port() -> int:
@@ -26,11 +29,14 @@ class FrontendServerApiTests(unittest.TestCase):
         self.run_dir = Path(self.temp.name)
         self.port = _free_port()
         self.base = f"http://127.0.0.1:{self.port}"
+        self.env_patch = patch.dict("os.environ", {"CALENDAR_PILOT_RUNTIME_MODE": "fixture"})
+        self.env_patch.start()
         self.thread = threading.Thread(target=serve, kwargs={"host": "127.0.0.1", "port": self.port, "run_dir": self.run_dir}, daemon=True)
         self.thread.start()
         self._wait_for_server()
 
     def tearDown(self) -> None:
+        self.env_patch.stop()
         self.temp.cleanup()
 
     def test_http_api_routes_and_error_contract(self):
@@ -45,6 +51,7 @@ class FrontendServerApiTests(unittest.TestCase):
         self.assertIn("active provider does not support OS permission requests", provider_permission["error"])
         runtime = self.post("/api/runtime", {"runtime_mode": "fixture"})
         self.assertEqual(runtime["runtime"]["runtime_mode"], "fixture")
+        first_session_id = runtime["session"]["session_id"]
 
         planned = self.post("/api/plans", {"goal": "Make next week less chaotic", "authority_tier": 3})
         candidate_id = planned["chat"]["candidate_cards"][0]["candidate_id"]
@@ -89,6 +96,59 @@ class FrontendServerApiTests(unittest.TestCase):
         self.assertEqual(exported["runtime"]["runtime_mode"], "fixture")
         self.assertTrue(exported["records"])
 
+        created = self.post("/api/sessions", {})
+        second_session_id = created["session"]["session_id"]
+        self.assertNotEqual(second_session_id, first_session_id)
+        self.assertFalse(created["chat"]["candidate_cards"])
+        self.assertEqual(created["inspector"]["replay"]["summary"]["records"], 0)
+        child_manifest = json.loads((Path(created["session"]["run_dir"]) / "launch_state.json").read_text(encoding="utf-8"))
+        self.assertEqual(child_manifest["port"], self.port)
+        self.assertGreaterEqual(len(created["sidebar"]["sessions"]), 2)
+        self.assertEqual([s for s in created["sidebar"]["sessions"] if s["active"]][0]["session_id"], second_session_id)
+
+        child_runtime = self.post("/api/runtime", {"runtime_mode": "live_codex"})
+        self.assertEqual(child_runtime["session"]["session_id"], second_session_id)
+        self.assertEqual(child_runtime["runtime"]["runtime_mode"], "live_codex")
+        child_runtime_manifest = json.loads((Path(child_runtime["session"]["run_dir"]) / "launch_state.json").read_text(encoding="utf-8"))
+        self.assertEqual(child_runtime_manifest["port"], self.port)
+        self.assertEqual(child_runtime_manifest["runtime_mode"], "live_codex")
+        root_runtime_manifest = json.loads((self.run_dir / "launch_state.json").read_text(encoding="utf-8"))
+        self.assertEqual(root_runtime_manifest["port"], self.port)
+        self.assertEqual(root_runtime_manifest["active_session_id"], second_session_id)
+        self.assertEqual(root_runtime_manifest["active_session_run_dir"], str(Path(child_runtime["session"]["run_dir"]).resolve()))
+        self.assertEqual(root_runtime_manifest["runtime_mode"], "live_codex")
+        self.assertEqual(root_runtime_manifest["health"]["runtime_mode"], "live_codex")
+
+        restored_child_runtime = self.post("/api/runtime", {"runtime_mode": "fixture"})
+        self.assertEqual(restored_child_runtime["runtime"]["runtime_mode"], "fixture")
+        renamed = self.post("/api/sessions/rename", {"session_id": second_session_id, "label": "Focus cleanup"})
+        self.assertEqual(renamed["session"]["label"], "Focus cleanup")
+        self.assertEqual([s for s in renamed["sidebar"]["sessions"] if s["session_id"] == second_session_id][0]["label"], "Focus cleanup")
+
+        second_activity = self.post("/api/plans", {"goal": "show replay trace"})
+        self.assertEqual(second_activity["session"]["session_id"], second_session_id)
+        self.assertEqual(second_activity["summary"]["latest_turn"]["metadata"]["tool_sequence"], ["query_replay_trace"])
+
+        restored_first = self.post("/api/sessions/switch", {"session_id": first_session_id})
+        self.assertEqual(restored_first["session"]["session_id"], first_session_id)
+        self.assertTrue(restored_first["chat"]["candidate_cards"])
+        self.assertGreater(restored_first["inspector"]["replay"]["summary"]["records"], second_activity["inspector"]["replay"]["summary"]["records"])
+
+        targeted_second = self.post("/api/plans", {"session_id": second_session_id, "goal": "inspect profile"})
+        self.assertEqual(targeted_second["session"]["session_id"], second_session_id)
+        targeted_error = self.post("/api/not-a-route", {"session_id": second_session_id}, expected_status=400)
+        self.assertEqual(targeted_error["state"]["session"]["session_id"], second_session_id)
+        still_first = self.get("/api/state")
+        self.assertEqual(still_first["session"]["session_id"], first_session_id)
+
+        listed = self.get("/api/sessions")
+        self.assertEqual(listed["active_session_id"], first_session_id)
+        self.assertIn(second_session_id, [s["session_id"] for s in listed["sessions"]])
+        archived = self.post("/api/sessions/archive", {"session_id": second_session_id})
+        self.assertEqual(archived["session"]["session_id"], first_session_id)
+        archived_list = self.get("/api/sessions")
+        self.assertNotIn(second_session_id, [s["session_id"] for s in archived_list["sessions"]])
+
         undone = self.post("/api/undo", {"rollback_handle_id": rollback})
         self.assertIn("Undo requested", json.dumps(undone["chat"]["messages"]))
 
@@ -100,6 +160,51 @@ class FrontendServerApiTests(unittest.TestCase):
         error = self.post("/api/not-a-route", {}, expected_status=400)
         self.assertIn("error", error)
         self.assertIn("state", error)
+
+    def test_session_manager_preserves_manifest_and_active_pointer_without_hydrating_summaries(self):
+        with tempfile.TemporaryDirectory() as td:
+            launch = LaunchConfig.from_env(run_dir=Path(td), host="127.0.0.1", port=9999, runtime_mode="fixture")
+            manager = SessionManager()
+            root = manager.get_or_create(launch)
+            child = manager.create_session(launch)
+
+            root_manifest = json.loads((root.run_dir / "launch_state.json").read_text(encoding="utf-8"))
+            child_manifest = json.loads((child.run_dir / "launch_state.json").read_text(encoding="utf-8"))
+            self.assertEqual(root_manifest["port"], 9999)
+            self.assertEqual(child_manifest["port"], 9999)
+
+            restarted = SessionManager()
+            summaries = restarted.session_summaries(launch)
+            self.assertEqual(restarted.sessions, {})
+            self.assertEqual([s for s in summaries if s["active"]][0]["session_id"], child.session_id)
+
+            restored = restarted.get_or_create(launch)
+            self.assertEqual(restored.session_id, child.session_id)
+            root_launch_manifest = json.loads((Path(td) / "launch_state.json").read_text(encoding="utf-8"))
+            self.assertEqual(root_launch_manifest["port"], 9999)
+            self.assertEqual(root_launch_manifest["active_session_id"], child.session_id)
+            self.assertEqual(root_launch_manifest["active_session_run_dir"], str(child.run_dir.resolve()))
+            self.assertEqual(root_launch_manifest["runtime_mode"], restored.runtime_report()["runtime_mode"])
+            self.assertEqual(root_launch_manifest["health"]["runtime_mode"], restored.runtime_report()["runtime_mode"])
+
+    def test_new_session_inherits_active_live_runtime_when_launch_default_is_fixture(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {
+            "CALENDAR_PILOT_KERNEL_BACKEND": "stub",
+            "CALENDAR_PILOT_CODEX_AUTH_FILE": str(Path(td) / "missing_auth.json"),
+            "CODEX_ACCESS_TOKEN": "",
+        }):
+            launch = LaunchConfig.from_env(run_dir=Path(td), host="127.0.0.1", port=9999, runtime_mode="fixture")
+            manager = SessionManager()
+            root = manager.get_or_create(launch)
+            root.set_runtime_mode("live_codex")
+            manager.refresh_active_launch_manifest(root, launch)
+
+            child = manager.create_session(launch)
+
+            self.assertEqual(child.runtime_mode, "live_codex")
+            root_manifest = json.loads((Path(td) / "launch_state.json").read_text(encoding="utf-8"))
+            self.assertEqual(root_manifest["runtime_mode"], "live_codex")
+            self.assertEqual(root_manifest["active_session_id"], child.session_id)
 
     def get(self, path: str) -> dict:
         with urlopen(f"{self.base}{path}", timeout=5) as response:

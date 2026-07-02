@@ -579,12 +579,15 @@ class LiveDiffusionGemmaPolicy:
         self,
         observation: RawCalendarObservation,
         biography: UserBiography,
+        *,
+        goal: str | None = None,
     ) -> list[CandidateCalendarAction]:
         self._policy_metadata_by_candidate = {}
+        user_goal = (goal or "Generate CalendarPilot candidate futures for user value, right moment, and machine acting.").strip()
         generate_frontier = getattr(self.client, "generate_candidate_frontier", None)
         if callable(generate_frontier):
             result = generate_frontier(
-                goal="Generate CalendarPilot candidate futures for user value, right moment, and machine acting.",
+                goal=user_goal,
                 observation=observation,
                 biography=biography,
                 limit=8,
@@ -611,9 +614,9 @@ class LiveDiffusionGemmaPolicy:
         # Compatibility for old tests/injected clients: if a fake client exposes
         # only rank_candidates, keep that path alive. The production client above
         # generates the frontier.
-        candidates = self.base_policy.generate_candidates(observation, biography)
+        candidates = self.base_policy.generate_candidates(observation, biography, goal=user_goal)
         result = self.client.rank_candidates(
-            goal="Rank CalendarPilot candidate futures for user value and low regret.",
+            goal=user_goal,
             observation=observation,
             biography=biography,
             candidates=candidates,

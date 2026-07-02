@@ -53,6 +53,8 @@ class DiffusionGemmaPolicy:
         self,
         observation: RawCalendarObservation,
         biography: UserBiography,
+        *,
+        goal: str | None = None,
     ) -> list[CandidateCalendarAction]:
         signals = extract_signals(observation, biography)
         candidates: list[CandidateCalendarAction] = []

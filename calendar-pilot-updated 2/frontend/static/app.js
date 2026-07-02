@@ -15,11 +15,22 @@ const fmt = (value) => {
 };
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
+  let requestPath = path;
+  let body = options.body;
+  const currentSessionId = app.state?.session?.session_id;
+  if (currentSessionId && path.startsWith('/api/') && !path.startsWith('/api/sessions')) {
+    if (body && typeof body !== 'string') {
+      body = {...body, session_id: body.session_id || currentSessionId};
+    } else if (!body) {
+      const joiner = path.includes('?') ? '&' : '?';
+      requestPath = `${path}${joiner}session_id=${encodeURIComponent(currentSessionId)}`;
+    }
+  }
+  const response = await fetch(requestPath, {
     cache: 'no-store',
     headers: {'Content-Type': 'application/json', ...(options.headers || {})},
     ...options,
-    body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body,
+    body: body && typeof body !== 'string' ? JSON.stringify(body) : body,
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -82,13 +93,25 @@ function renderRuntimeChip(runtime) {
   const chip = $('#runtime-chip');
   if (!chip) return;
   chip.textContent = label;
-  chip.title = runtime.live_blockers?.length ? `Blocked: ${runtime.live_blockers.join('; ')}` : label;
+  const setupNotes = runtime.setup_notes || [];
+  chip.title = runtime.live_blockers?.length ? `Blocked: ${runtime.live_blockers.join('; ')}` : (setupNotes.length ? `Setup notes: ${setupNotes.join('; ')}` : label);
   chip.classList.toggle('danger', Boolean(runtime.live_blockers?.length));
 }
 
 function renderSidebar(sidebar) {
   const sessions = sidebar.sessions?.length ? sidebar.sessions : [{label: 'Current fixture run', active: true}];
-  $('#session-list').innerHTML = sessions.map(s => `<div class="nav-item ${s.active ? 'active' : ''}">${escapeHtml(s.label || s.session_id || 'Session')}</div>`).join('');
+  $('#session-list').innerHTML = sessions.map(s => {
+    const sessionId = escapeHtml(s.session_id || '');
+    const label = escapeHtml(s.label || s.session_id || 'Session');
+    const meta = s.replay_records === undefined ? '' : `<span>${escapeHtml(s.replay_records)} records</span>`;
+    return `<div class="session-row">
+      <button class="nav-item session-switch ${s.active ? 'active' : ''}" data-session-id="${sessionId}"><strong>${label}</strong>${meta}</button>
+      <div class="session-actions">
+        <button class="session-rename" title="Rename session" data-session-id="${sessionId}">Rename</button>
+        <button class="session-archive" title="Archive session" data-session-id="${sessionId}">Archive</button>
+      </div>
+    </div>`;
+  }).join('');
   const runs = sidebar.recent_runs?.length ? sidebar.recent_runs : [{label: 'No dogfood runs yet'}];
   $('#recent-runs').innerHTML = runs.map(r => `<div class="nav-item">${escapeHtml(r.label || r.plan_id || 'Run')}</div>`).join('');
 }
@@ -103,8 +126,31 @@ function renderMessage(message) {
   const role = message.role === 'user' ? 'user' : 'assistant';
   const title = message.title ? `<h3>${escapeHtml(message.title)}</h3>` : '';
   const body = message.body ? `<p>${escapeHtml(message.body)}</p>` : '';
+  const metadata = renderMessageMetadata(message.metadata);
   const cards = (message.cards || []).map(renderCard).join('');
-  return `<article class="message ${role}" data-testid="message-${role}"><div class="avatar"></div><div class="bubble">${title}${body}<div class="cards">${cards}</div></div></article>`;
+  return `<article class="message ${role}" data-testid="message-${role}"><div class="avatar"></div><div class="bubble">${title}${body}${metadata}<div class="cards">${cards}</div></div></article>`;
+}
+
+function renderMessageMetadata(metadata) {
+  if (!metadata || typeof metadata !== 'object') return '';
+  const model = metadata.model_metadata || {};
+  const rows = [
+    ['source', metadata.response_source],
+    ['intent', metadata.intent],
+    ['runtime', metadata.runtime_mode],
+    ['planner', metadata.planner_backend],
+    ['policy', metadata.policy_backend],
+    ['model reached', metadata.model_reached ? 'yes' : 'no'],
+    ['response id', model.response_id],
+    ['thread id', model.thread_id],
+    ['turn id', model.turn_id],
+    ['model', model.model],
+    ['missing ids', metadata.missing_model_metadata || []],
+    ['plan id', metadata.plan_id],
+    ['tools', metadata.tool_sequence || []],
+  ];
+  const body = rows.map(([key, value]) => `<div class="kv"><div class="k">${escapeHtml(key)}</div><div class="v">${fmt(value)}</div></div>`).join('');
+  return `<details class="message-metadata" data-testid="message-metadata"><summary>Trace metadata</summary>${body}</details>`;
 }
 
 function renderCard(card) {
@@ -196,6 +242,7 @@ function renderRuntime(data, runtime) {
     {key: 'diffusiongemma', value: report.backends?.diffusiongemma},
     {key: 'provider', value: report.backends?.provider},
     {key: 'live_blockers', value: report.live_blockers?.length ? report.live_blockers : 'none'},
+    {key: 'setup_notes', value: report.setup_notes?.length ? report.setup_notes : 'none'},
   ];
   return `${renderRuntimeControls(report)}
     ${renderRows(data.title || 'Runtime mode', rows)}
@@ -204,6 +251,7 @@ function renderRuntime(data, runtime) {
 
 function renderRuntimeControls(report) {
   const modes = [
+    ['auto', 'Auto'],
     ['fixture', 'Fixture'],
     ['swift_ipc', 'Swift IPC'],
     ['live_codex', 'Live Codex'],
@@ -322,7 +370,18 @@ document.addEventListener('click', async (event) => {
   if (target.id === 'inspector-toggle') { $('#inspector').classList.toggle('closed'); return; }
   if (target.id === 'close-inspector') { $('#inspector').classList.add('closed'); return; }
   if (target.classList.contains('tab')) { app.inspectorTab = target.dataset.tab; renderInspector(app.state.inspector || {}); return; }
-  if (target.id === 'new-chat') { await postAndRefresh('/api/reset'); return; }
+  if (target.id === 'new-chat') { await postAndRefresh('/api/sessions'); return; }
+  if (target.classList.contains('session-rename') && target.dataset.sessionId) {
+    const current = target.closest('.session-row')?.querySelector('.session-switch strong')?.textContent || '';
+    const label = window.prompt('Rename conversation', current);
+    if (label === null) return;
+    return postAndRefresh('/api/sessions/rename', {session_id: target.dataset.sessionId, label});
+  }
+  if (target.classList.contains('session-archive') && target.dataset.sessionId) {
+    if (!window.confirm('Archive this conversation?')) return;
+    return postAndRefresh('/api/sessions/archive', {session_id: target.dataset.sessionId});
+  }
+  if (target.classList.contains('session-switch') && target.dataset.sessionId) return postAndRefresh('/api/sessions/switch', {session_id: target.dataset.sessionId});
   const candidateId = target.dataset.candidateId;
   if (target.classList.contains('simulate-btn')) return postAndRefresh(`/api/candidates/${candidateId}/simulate`);
   if (target.classList.contains('stage-btn')) return postAndRefresh(`/api/candidates/${candidateId}/stage`);

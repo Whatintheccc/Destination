@@ -76,6 +76,7 @@ class LiveServer:
     def __enter__(self) -> "LiveServer":
         env = os.environ.copy()
         env["PYTHONPATH"] = str(ROOT / "src")
+        env["CALENDAR_PILOT_RUNTIME_MODE"] = "fixture"
         self.log_file = self.log_path.open("w", encoding="utf-8")
         self.process = subprocess.Popen(
             [

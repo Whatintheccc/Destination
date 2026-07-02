@@ -9,8 +9,11 @@ import platform
 
 
 ROOT = Path(__file__).resolve().parents[3]
-KNOWN_MODES = {"fixture", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
-LIVE_MODES = {"swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
+KNOWN_MODES = {"fixture", "auto", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
+LIVE_MODES = {"auto", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}
+LIVE_CODEX_MODES = {"auto", "live_codex", "production"}
+LIVE_DIFFUSIONGEMMA_MODES = {"live_diffusiongemma", "production"}
+LIVE_PROVIDER_MODES = {"live_provider", "production"}
 MODES_REQUIRING_NON_FIXTURE_DATA = {"live_provider", "production"}
 SUBSCRIPTION_AUTH_MODES = {"chatgpt", "chatgptAuthTokens", "agentIdentity", "personalAccessToken"}
 API_KEY_AUTH_MODES = {"apikey", "apiKey", "api_key"}
@@ -48,6 +51,7 @@ class RuntimeProfile:
 
 RUNTIME_REGISTRY: dict[str, RuntimeProfile] = {
     "fixture": RuntimeProfile("fixture", "Fixture mode", "SwiftKernelStub", "deterministic_codex_tool_planner", "heuristic_diffusiongemma_policy", "deterministic_fixture_provider"),
+    "auto": RuntimeProfile("auto", "Auto assistant", "SwiftKernelIPCClient", "live_codex_app_server", "nvidia_nim_or_heuristic_diffusiongemma_policy", "apple_eventkit_or_deterministic_fixture_provider", required_credentials=("codex_subscription",), live_target=True),
     "swift_ipc": RuntimeProfile("swift_ipc", "Swift IPC mode", "SwiftKernelIPCClient", "deterministic_codex_tool_planner", "heuristic_diffusiongemma_policy", "deterministic_fixture_provider", live_target=True),
     "live_codex": RuntimeProfile("live_codex", "Live Codex mode", "SwiftKernelIPCClient", "live_codex_app_server", "heuristic_diffusiongemma_policy", "deterministic_fixture_provider", required_credentials=("codex_subscription",), live_target=True),
     "live_diffusiongemma": RuntimeProfile("live_diffusiongemma", "Live DiffusionGemma mode", "SwiftKernelIPCClient", "deterministic_codex_tool_planner", "nvidia_nim_diffusiongemma_policy", "deterministic_fixture_provider", required_credentials=("diffusiongemma_nim",), live_target=True),
@@ -119,7 +123,7 @@ def _git_head(root: Path) -> str | None:
 
 def credential_state(mode: str) -> dict[str, dict[str, bool | str]]:
     required = {
-        "codex_subscription": mode in {"live_codex", "production"},
+        "codex_subscription": mode in {"auto", "live_codex", "production"},
         "diffusiongemma_nim": mode in {"live_diffusiongemma", "production"},
         "provider_oauth": mode in {"live_provider", "production"},
     }
@@ -204,6 +208,7 @@ def runtime_report(
     effective_mode = requested_mode if valid_mode else "invalid"
     uses_fixture = observation_path.name.startswith("sample_") or profile_path.name.startswith("sample_")
     blockers: list[str] = []
+    setup_notes: list[str] = []
     if not valid_mode:
         blockers.append(f"invalid runtime mode requested: {requested_mode}")
     if effective_mode in LIVE_MODES:
@@ -220,12 +225,16 @@ def runtime_report(
             blockers.append(f"{effective_mode} mode is using SwiftKernelStub")
         if effective_mode == "swift_ipc" and backends.kernel != "SwiftKernelIPCClient":
             blockers.append("swift_ipc mode is not using SwiftKernelIPCClient")
-        if backends.codex == "deterministic_codex_tool_planner" and effective_mode in {"live_codex", "production"}:
+        if backends.codex == "deterministic_codex_tool_planner" and effective_mode in LIVE_CODEX_MODES:
             blockers.append("live Codex mode is using deterministic planner")
-        if backends.diffusiongemma == "heuristic_diffusiongemma_policy" and effective_mode in {"live_diffusiongemma", "production"}:
+        if backends.diffusiongemma == "heuristic_diffusiongemma_policy" and effective_mode in LIVE_DIFFUSIONGEMMA_MODES:
             blockers.append("live DiffusionGemma mode is using heuristic policy")
-        if backends.provider == "local_stub" and effective_mode in {"live_provider", "production"}:
+        if effective_mode == "auto" and backends.diffusiongemma == "heuristic_diffusiongemma_policy":
+            setup_notes.append("DiffusionGemma is running in local heuristic policy mode for auto runtime")
+        if backends.provider == "local_stub" and effective_mode in LIVE_PROVIDER_MODES:
             blockers.append("live provider mode is using local_stub provider")
+        if effective_mode == "auto" and backends.provider != "apple_eventkit":
+            setup_notes.append("Calendar provider is running through the deterministic local adapter for auto runtime")
     return {
         "runtime_mode": effective_mode,
         "requested_runtime_mode": requested_mode,
@@ -236,6 +245,7 @@ def runtime_report(
         "production_target": effective_mode == "production",
         "live_target": effective_mode in LIVE_MODES,
         "live_blockers": blockers,
+        "setup_notes": setup_notes,
         "backends": backends.to_dict(),
         "credentials": credential_state(effective_mode),
         "fixture_paths": {

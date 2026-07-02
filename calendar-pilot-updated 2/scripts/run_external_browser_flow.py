@@ -31,7 +31,7 @@ def run_live_browser_check(
     node = shutil.which("node")
     chrome = os.environ.get("CHROME_PATH") or "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     cdp_script = ROOT / "scripts" / "browser_cdp_e2e.mjs"
-    expected_runtime_label = expected_runtime_label or ("Swift IPC mode" if expected_runtime_mode == "swift_ipc" else "Fixture mode")
+    expected_runtime_label = expected_runtime_label or runtime_label(expected_runtime_mode)
     if node and Path(chrome).exists():
         env = os.environ.copy()
         env["CALENDAR_PILOT_EXPECTED_RUNTIME_MODE"] = expected_runtime_mode
@@ -113,6 +113,18 @@ def run_live_browser_check(
 def api_get(base_url: str, path: str) -> dict[str, Any]:
     with urlopen(f"{base_url}{path}", timeout=10) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def runtime_label(mode: str) -> str:
+    return {
+        "auto": "Auto assistant",
+        "fixture": "Fixture mode",
+        "swift_ipc": "Swift IPC mode",
+        "live_codex": "Live Codex mode",
+        "live_diffusiongemma": "Live DiffusionGemma mode",
+        "live_provider": "Live provider mode",
+        "production": "Production mode",
+    }.get(mode, mode)
 
 
 if __name__ == "__main__":

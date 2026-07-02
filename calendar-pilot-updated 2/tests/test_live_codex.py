@@ -11,12 +11,14 @@ from unittest.mock import patch
 from calendar_pilot.codex.live import (
     CodexAppServerClient,
     CodexAppServerRPC,
+    LiveCodexChatResult,
     LiveCodexCredentialError,
     LiveCodexNetworkError,
     LiveCodexPlanResult,
     LiveCodexRuntimeError,
     LiveCodexToolPlanner,
     ModelPlannedCall,
+    _conversation_runtime_context,
 )
 from calendar_pilot.codex.tools import CodexToolRuntime
 from calendar_pilot.frontend.runtime import runtime_is_release_safe
@@ -40,8 +42,9 @@ def load_bio() -> UserBiography:
 class FakeLiveCodexClient:
     model = "gpt-5.5-test"
 
-    def __init__(self, calls: list[ModelPlannedCall] | None = None) -> None:
+    def __init__(self, calls: list[ModelPlannedCall] | None = None, chat_tool_calls: list[ModelPlannedCall] | None = None) -> None:
         self.calls = calls
+        self.chat_tool_calls = chat_tool_calls or []
 
     def health_status(self, *, validate_remote: bool = False) -> dict[str, object]:
         return {"status": "ok", "configured": True, "model": self.model, "credential_source": "test_fake"}
@@ -66,6 +69,24 @@ class FakeLiveCodexClient:
             },
         )
 
+    def respond_to_message(self, **kwargs: object) -> LiveCodexChatResult:
+        return LiveCodexChatResult(
+            answer=f"Codex received: {kwargs.get('message')}",
+            route="metadata",
+            metadata={
+                "plan_source": "live_codex_app_server",
+                "prompt_version": "calendar_pilot_codex_conversation_v1",
+                "model": self.model,
+                "response_id": "turn_chat_test",
+                "thread_id": "thread_chat_test",
+                "turn_id": "turn_chat_test",
+                "conversation_route": "metadata",
+                "conversation_tool_call_count": len(self.chat_tool_calls),
+                "conversation_tool_names": [call.tool_name.value for call in self.chat_tool_calls],
+            },
+            tool_calls=self.chat_tool_calls,
+        )
+
 
 class MissingSubscriptionClient:
     model = "codex_default"
@@ -79,6 +100,9 @@ class MissingSubscriptionClient:
         }
 
     def plan_tool_calls(self, **_kwargs: object) -> LiveCodexPlanResult:
+        raise LiveCodexCredentialError("Codex ChatGPT sign-in or CODEX_ACCESS_TOKEN is required")
+
+    def respond_to_message(self, **_kwargs: object) -> LiveCodexChatResult:
         raise LiveCodexCredentialError("Codex ChatGPT sign-in or CODEX_ACCESS_TOKEN is required")
 
 
@@ -137,6 +161,157 @@ class LiveCodexTests(unittest.TestCase):
         self.assertEqual(plan.receipts[-1].tool_name, CodexToolName.STAGE_ACTION_PACKET)
         self.assertEqual(plan.receipts[-1].correlation_id, "trace_live_stage")
         self.assertIn(plan.recommended_next_action, {"stage_for_confirmation", "staged_draft"})
+
+    def test_live_codex_planner_answers_non_calendar_chat_with_metadata(self) -> None:
+        planner = LiveCodexToolPlanner(runtime=CodexToolRuntime(kernel=SwiftKernelStub()), client=FakeLiveCodexClient())
+
+        result = planner.chat_response(
+            "hello metadata check",
+            load_obs(),
+            load_bio(),
+            runtime_report={"runtime_mode": "live_codex", "backends": {"codex": "live_codex_app_server"}},
+            intent="metadata_question",
+        )
+
+        self.assertEqual(result.route, "metadata")
+        self.assertIn("hello metadata check", result.answer)
+        self.assertEqual(result.metadata["response_id"], "turn_chat_test")
+        self.assertEqual(result.metadata["thread_id"], "thread_chat_test")
+        self.assertEqual(result.tool_calls, [])
+
+    def test_session_routes_live_codex_non_calendar_turn_to_conversation_endpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            session = DogfoodSessionState(run_dir=Path(td))
+            session.runtime_mode = "live_codex"
+            session.planner = LiveCodexToolPlanner(runtime=CodexToolRuntime(kernel=SwiftKernelStub()), client=FakeLiveCodexClient())
+
+            state = session.create_plan("hello metadata check")
+
+        assistant = state["chat"]["messages"][-1]
+        metadata = assistant["metadata"]
+        self.assertEqual(assistant["title"], "Codex answered")
+        self.assertEqual(metadata["response_source"], "live_codex_conversation")
+        self.assertTrue(metadata["model_reached"])
+        self.assertEqual(metadata["model_metadata"]["response_id"], "turn_chat_test")
+        self.assertEqual(metadata["conversation_route"], "metadata")
+        self.assertEqual(metadata["tool_call_count"], 0)
+        self.assertEqual(state["summary"]["latest_turn"]["metadata"]["response_source"], "live_codex_conversation")
+
+    def test_auto_runtime_routes_first_smalltalk_turn_to_live_codex(self) -> None:
+        with tempfile.TemporaryDirectory() as td, patch.dict(os.environ, {
+            "CALENDAR_PILOT_RUNTIME_MODE": "auto",
+            "CALENDAR_PILOT_KERNEL_BACKEND": "stub",
+        }):
+            session = DogfoodSessionState(run_dir=Path(td))
+            session.planner = LiveCodexToolPlanner(runtime=session.runtime, client=FakeLiveCodexClient())
+
+            state = session.create_plan("hello")
+
+        assistant = state["chat"]["messages"][-1]
+        metadata = assistant["metadata"]
+        self.assertEqual(state["runtime"]["runtime_mode"], "auto")
+        self.assertEqual(assistant["title"], "Codex answered")
+        self.assertEqual(metadata["response_source"], "live_codex_conversation")
+        self.assertTrue(metadata["model_reached"])
+        self.assertEqual(metadata["model_metadata"]["response_id"], "turn_chat_test")
+
+    def test_smalltalk_runtime_context_hides_absent_optional_credentials(self) -> None:
+        report = {
+            "runtime_mode": "auto",
+            "requested_runtime_mode": "auto",
+            "mode_label": "Auto assistant",
+            "backends": {
+                "codex": "live_codex_app_server",
+                "diffusiongemma": "heuristic_diffusiongemma_policy",
+                "kernel": "SwiftKernelIPCClient",
+                "provider": "deterministic_fixture_provider",
+            },
+            "live_blockers": [],
+            "setup_notes": [
+                "DiffusionGemma is running in local heuristic policy mode for auto runtime",
+                "Calendar provider is running through the deterministic local adapter for auto runtime",
+            ],
+            "credentials": {
+                "codex_subscription": {"configured": True, "required": True, "status": "configured", "auth_method": "chatgpt", "source": "auth_cache"},
+                "diffusiongemma_nim": {"configured": False, "required": False, "status": "missing_credential", "source": "missing"},
+                "provider_oauth": {"configured": False, "required": False, "status": "missing_credential", "source": "missing"},
+            },
+        }
+
+        smalltalk = _conversation_runtime_context(report, include_diagnostics=False)
+        metadata = _conversation_runtime_context(report, include_diagnostics=True)
+
+        self.assertEqual(smalltalk["credentials"], {
+            "codex_subscription": {
+                "configured": True,
+                "required": True,
+                "status": "configured",
+                "auth_method": "chatgpt",
+                "source": "auth_cache",
+            }
+        })
+        self.assertEqual(smalltalk["setup_notes"], [])
+        self.assertIn("diffusiongemma_nim", metadata["credentials"])
+        self.assertTrue(metadata["setup_notes"])
+
+    def test_session_executes_live_codex_conversation_tool_calls(self) -> None:
+        tool_calls = [
+            ModelPlannedCall(
+                CodexToolName.QUERY_REPLAY_TRACE,
+                {},
+                0,
+                "Inspect replay evidence before answering.",
+                "trace_chat_replay",
+            )
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            session = DogfoodSessionState(run_dir=Path(td))
+            session.runtime_mode = "live_codex"
+            session.planner = LiveCodexToolPlanner(
+                runtime=session.runtime,
+                client=FakeLiveCodexClient(chat_tool_calls=tool_calls),
+            )
+
+            state = session.create_plan("show replay metadata")
+
+        assistant = state["chat"]["messages"][-1]
+        metadata = assistant["metadata"]
+        self.assertEqual(assistant["title"], "Codex answered with evidence")
+        self.assertEqual(metadata["response_source"], "live_codex_conversation")
+        self.assertTrue(metadata["model_reached"])
+        self.assertEqual(metadata["tool_sequence"], [CodexToolName.QUERY_REPLAY_TRACE.value])
+        self.assertEqual(metadata["tool_call_count"], 1)
+        self.assertEqual(metadata["conversation_tool_receipt_count"], 1)
+        self.assertEqual(assistant["cards"][0]["type"], "receipt")
+        self.assertEqual(assistant["cards"][0]["receipt"]["tool_name"], CodexToolName.QUERY_REPLAY_TRACE.value)
+        self.assertEqual(assistant["cards"][0]["receipt"]["status"], CodexToolStatus.SUCCEEDED.value)
+        self.assertGreaterEqual(state["inspector"]["replay"]["summary"]["records"], 2)
+
+    def test_conversation_output_schema_requires_tool_calls(self) -> None:
+        schema = CodexAppServerClient._conversation_output_schema()
+
+        self.assertIn("tool_calls", schema["required"])
+        tool_names = schema["properties"]["tool_calls"]["items"]["properties"]["tool_name"]["enum"]
+        self.assertIn(CodexToolName.QUERY_REPLAY_TRACE.value, tool_names)
+        self.assertIn(CodexToolName.RUN_SELF_PLAY_PROBE.value, tool_names)
+        self.assertIn(CodexToolName.REQUEST_UNDO.value, tool_names)
+        self.assertIn(CodexToolName.APPLY_PROFILE_PATCH.value, tool_names)
+        self.assertIn(CodexToolName.PROPOSE_AUTONOMY_SCOPE.value, tool_names)
+
+    def test_session_labels_failed_live_codex_chat_as_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            session = DogfoodSessionState(run_dir=Path(td))
+            session.runtime_mode = "live_codex"
+            session.planner = LiveCodexToolPlanner(runtime=CodexToolRuntime(kernel=SwiftKernelStub()), client=MissingSubscriptionClient())
+
+            state = session.create_plan("hello metadata check")
+
+        assistant = state["chat"]["messages"][-1]
+        metadata = assistant["metadata"]
+        self.assertEqual(assistant["title"], "Codex unavailable")
+        self.assertEqual(metadata["response_source"], "live_codex_unavailable")
+        self.assertFalse(metadata["model_reached"])
+        self.assertEqual(metadata["error_category"], "missing_or_invalid_credential")
 
     def test_invalid_model_plan_is_rejected_as_failed_validation_receipt(self) -> None:
         invalid_calls = [

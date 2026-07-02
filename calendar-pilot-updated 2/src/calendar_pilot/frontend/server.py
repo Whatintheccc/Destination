@@ -37,11 +37,26 @@ def body_bool(value: Any, *, default: bool = False) -> bool:
     return default
 
 
-def get_session() -> DogfoodSessionState:
+def get_session(session_id: str | None = None) -> DogfoodSessionState:
     global _DEFAULT_SESSION
+    if session_id:
+        return _SESSION_MANAGER.get_by_session_id(session_id, _CURRENT_LAUNCH, activate=False)
     if _DEFAULT_SESSION is None:
         _DEFAULT_SESSION = _SESSION_MANAGER.get_or_create(_CURRENT_LAUNCH)
     return _DEFAULT_SESSION
+
+
+def set_current_session(session: DogfoodSessionState) -> DogfoodSessionState:
+    global _DEFAULT_SESSION
+    _DEFAULT_SESSION = session
+    return session
+
+
+def decorate_state(state: dict[str, Any], *, active_session_id: str | None = None) -> dict[str, Any]:
+    active_session_id = active_session_id or str(state.get("session", {}).get("session_id") or "")
+    if isinstance(state.get("sidebar"), dict):
+        state["sidebar"]["sessions"] = _SESSION_MANAGER.session_summaries(_CURRENT_LAUNCH, active_session_id=active_session_id or None)
+    return state
 
 
 def build_demo_snapshot(observation_path: str | Path = "data/sample_calendar.json", profile_path: str | Path = "data/sample_profile.json", *, commit: bool = True) -> dict[str, Any]:
@@ -84,20 +99,30 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             if not parsed.path.startswith("/api/"):
                 self.send_error(HTTPStatus.NOT_FOUND, "API endpoint not found")
                 return
+            body: dict[str, Any] = {}
             try:
                 body = self._read_json_body()
                 result = self._route_post(parsed.path, body)
                 self._json(result)
             except Exception as exc:  # keep dogfood UI debuggable
-                self._json({"error": str(exc), "state": get_session().snapshot()}, status=HTTPStatus.BAD_REQUEST)
+                fallback_session_id = str(body.get("session_id") or "") if isinstance(body, dict) else ""
+                try:
+                    state = decorate_state(get_session(fallback_session_id or None).snapshot(), active_session_id=fallback_session_id or None)
+                except Exception:
+                    state = decorate_state(get_session().snapshot())
+                self._json({"error": str(exc), "state": state}, status=HTTPStatus.BAD_REQUEST)
 
         def _handle_api_get(self, path: str, query: dict[str, list[str]]) -> None:
-            session = get_session()
+            session_id = query.get("session_id", [""])[0]
+            session = get_session(session_id or None)
             if path == "/api/state":
-                self._json(session.snapshot())
+                self._json(decorate_state(session.snapshot()))
                 return
             if path == "/api/health":
                 self._json(session.runtime_report())
+                return
+            if path == "/api/sessions":
+                self._json({"sessions": _SESSION_MANAGER.session_summaries(_CURRENT_LAUNCH, active_session_id=session.session_id), "active_session_id": session.session_id})
                 return
             if path == "/api/replay":
                 candidate = query.get("candidate_id", [""])[0]
@@ -112,46 +137,63 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             self._json({"error": f"unsupported GET {path}"}, status=HTTPStatus.NOT_FOUND)
 
         def _route_post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
-            session = get_session()
+            session = get_session(str(body.get("session_id") or "") or None)
             parts = [p for p in path.split("/") if p]
             if path == "/api/plans":
                 tier = body.get("authority_tier", body.get("max_authority_tier"))
-                return session.create_plan(str(body.get("goal", "")), commit=body_bool(body.get("commit"), default=False), authority_tier=tier)
+                return decorate_state(session.create_plan(str(body.get("goal", "")), commit=body_bool(body.get("commit"), default=False), authority_tier=tier))
+            if path == "/api/sessions":
+                created = set_current_session(_SESSION_MANAGER.create_session(_CURRENT_LAUNCH))
+                return decorate_state(created.snapshot())
+            if path == "/api/sessions/switch":
+                switched = set_current_session(_SESSION_MANAGER.switch_session(str(body.get("session_id", "")), _CURRENT_LAUNCH))
+                return decorate_state(switched.snapshot())
+            if path == "/api/sessions/rename":
+                renamed = _SESSION_MANAGER.rename_session(str(body.get("session_id", "")), str(body.get("label", "")), _CURRENT_LAUNCH)
+                active = get_session()
+                if active.session_id == renamed.session_id:
+                    active = set_current_session(renamed)
+                return decorate_state(active.snapshot())
+            if path == "/api/sessions/archive":
+                active = set_current_session(_SESSION_MANAGER.archive_session(str(body.get("session_id", "")), _CURRENT_LAUNCH))
+                return decorate_state(active.snapshot())
             if len(parts) == 4 and parts[1] == "candidates":
                 candidate_id = parts[2]
                 action = parts[3]
                 if action in {"simulate", "stage", "commit"}:
-                    return session.candidate_action(candidate_id, action, confirmed=body_bool(body.get("confirmed"), default=action == "commit"))
+                    return decorate_state(session.candidate_action(candidate_id, action, confirmed=body_bool(body.get("confirmed"), default=action == "commit")))
                 if action == "confirm":
-                    return session.candidate_action(candidate_id, "commit", confirmed=True)
+                    return decorate_state(session.candidate_action(candidate_id, "commit", confirmed=True))
             if len(parts) == 4 and parts[1] == "receipts" and parts[3] == "confirm":
-                return session.confirm_receipt(parts[2])
+                return decorate_state(session.confirm_receipt(parts[2]))
             if path == "/api/undo":
-                return session.undo(str(body.get("rollback_handle_id", "")))
+                return decorate_state(session.undo(str(body.get("rollback_handle_id", ""))))
             if path == "/api/profile/patch/propose":
-                return session.propose_profile_patch(str(body.get("correction", "")))
+                return decorate_state(session.propose_profile_patch(str(body.get("correction", ""))))
             if path == "/api/profile/patch/apply":
-                return session.apply_profile_patch(str(body.get("claim", "")), str(body.get("correction", "")), confirmed=body_bool(body.get("confirmed"), default=False))
+                return decorate_state(session.apply_profile_patch(str(body.get("claim", "")), str(body.get("correction", "")), confirmed=body_bool(body.get("confirmed"), default=False)))
             if path == "/api/denials/explain":
-                return session.explain_denial(str(body.get("denied_reason", "")))
+                return decorate_state(session.explain_denial(str(body.get("denied_reason", ""))))
             if path == "/api/self-play":
-                return session.run_self_play(int(body.get("episodes", 3)))
+                return decorate_state(session.run_self_play(int(body.get("episodes", 3))))
             if path == "/api/authority":
                 scopes = body.get("scopes")
                 if isinstance(scopes, str):
                     scopes = [s.strip() for s in scopes.split(",") if s.strip()]
                 tier = body.get("max_authority_tier", body.get("authority_tier"))
-                return session.update_authority(tier=tier, scopes=scopes if isinstance(scopes, list) else None, confirmed=body_bool(body.get("confirmed"), default=True))
+                return decorate_state(session.update_authority(tier=tier, scopes=scopes if isinstance(scopes, list) else None, confirmed=body_bool(body.get("confirmed"), default=True)))
             if path == "/api/feedback":
-                return session.feedback(str(body.get("receipt_id", "")), str(body.get("feedback", "useful")), reason=str(body.get("reason", "")))
+                return decorate_state(session.feedback(str(body.get("receipt_id", "")), str(body.get("feedback", "useful")), reason=str(body.get("reason", ""))))
             if path == "/api/runtime":
-                return session.set_runtime_mode(str(body.get("runtime_mode", "")))
+                state = session.set_runtime_mode(str(body.get("runtime_mode", "")))
+                _SESSION_MANAGER.refresh_active_launch_manifest(session, _CURRENT_LAUNCH)
+                return decorate_state(state)
             if path == "/api/codex/auth/start":
-                return session.start_codex_subscription_sign_in()
+                return decorate_state(session.start_codex_subscription_sign_in())
             if path == "/api/provider/permission/request":
-                return session.provider_permission_request()
+                return decorate_state(session.provider_permission_request())
             if path == "/api/reset":
-                return session.reset()
+                return decorate_state(session.reset())
             raise ValueError(f"unsupported POST {path}")
 
         def _read_json_body(self) -> dict[str, Any]:

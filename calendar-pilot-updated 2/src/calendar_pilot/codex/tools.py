@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import hashlib
+import inspect
 from typing import Any
 
 from calendar_pilot.biography import BiographyStore
@@ -366,9 +367,16 @@ class CodexToolRuntime:
 
     def _generate_frontier(self, call: CodexToolCall, observation: RawCalendarObservation, biography: UserBiography) -> CodexToolReceipt:
         limit = int(call.input.get("limit", 5))
+        goal = str(call.input.get("goal") or "").strip()
         self.frontier.clear()
         try:
-            candidates = self.policy.generate_candidates(observation, biography)[:limit]
+            generate_candidates = self.policy.generate_candidates
+            params = inspect.signature(generate_candidates).parameters
+            accepts_goal = "goal" in params or any(param.kind == inspect.Parameter.VAR_KEYWORD for param in params.values())
+            if accepts_goal:
+                candidates = generate_candidates(observation, biography, goal=goal or None)[:limit]
+            else:
+                candidates = generate_candidates(observation, biography)[:limit]
         except LiveDiffusionGemmaError as exc:
             return self._receipt(
                 call,
@@ -402,6 +410,8 @@ class CodexToolRuntime:
                 "candidate_count": len(candidates),
                 "candidates": [c.to_dict() for c in candidates],
                 "frontier_ids": [c.candidate_id for c in candidates],
+                "goal": goal,
+                "goal_routed_to_policy": accepts_goal,
             },
         )
 

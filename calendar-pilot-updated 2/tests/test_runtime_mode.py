@@ -6,11 +6,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from calendar_pilot.frontend.launch import LaunchConfig
 from calendar_pilot.frontend.runtime import runtime_is_release_safe
 from calendar_pilot.frontend.session import DogfoodSessionState
 
 
 class RuntimeModeTests(unittest.TestCase):
+    def test_launch_config_defaults_to_auto_without_runtime_env(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {}, clear=True):
+            launch = LaunchConfig.from_env(run_dir=Path(td))
+
+            self.assertEqual(launch.runtime_mode, "auto")
+
     def test_fixture_runtime_is_explicit_and_release_safe(self):
         with tempfile.TemporaryDirectory() as td:
             session = DogfoodSessionState(run_dir=Path(td))
@@ -23,6 +30,33 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertEqual(report["backends"]["provider"], "deterministic_fixture_provider")
             self.assertEqual(report["live_blockers"], [])
             self.assertTrue(runtime_is_release_safe(report))
+
+    def test_auto_runtime_prefers_live_codex_and_reports_fallbacks(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {
+            "CALENDAR_PILOT_RUNTIME_MODE": "auto",
+            "CALENDAR_PILOT_KERNEL_BACKEND": "stub",
+            "CALENDAR_PILOT_CODEX_AUTH_FILE": str(Path(td) / "missing_auth.json"),
+            "CODEX_ACCESS_TOKEN": "",
+            "CALENDAR_PILOT_NIM_API_KEY": "",
+            "NVIDIA_API_KEY": "",
+            "NIM_API_KEY": "",
+            "CALENDAR_PROVIDER_OAUTH_READY": "",
+        }):
+            session = DogfoodSessionState(run_dir=Path(td))
+            report = session.runtime_report()
+
+            self.assertEqual(report["runtime_mode"], "auto")
+            self.assertEqual(report["backends"]["codex"], "live_codex_app_server")
+            self.assertEqual(report["backends"]["diffusiongemma"], "heuristic_diffusiongemma_policy")
+            self.assertEqual(report["backends"]["provider"], "deterministic_fixture_provider")
+            self.assertFalse(runtime_is_release_safe(report))
+            blockers = " ".join(report["live_blockers"])
+            notes = " ".join(report["setup_notes"])
+            self.assertIn("required credential missing: codex_subscription", blockers)
+            self.assertNotIn("diffusiongemma_nim", blockers)
+            self.assertNotIn("provider_oauth", blockers)
+            self.assertIn("local heuristic policy mode", notes)
+            self.assertIn("deterministic local adapter", notes)
 
     def test_production_mode_cannot_silently_use_fixture_stubs(self):
         with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {

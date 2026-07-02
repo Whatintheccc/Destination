@@ -132,7 +132,7 @@ def run_app_bundle_sanity(
     artifact_dir: Path | None = None,
 ) -> dict[str, Any]:
     runtime_mode = runtime_mode or runtime_mode_from_env()
-    expected_kernel = expected_kernel or ("SwiftKernelIPCClient" if runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"} else "SwiftKernelStub")
+    expected_kernel = expected_kernel or ("SwiftKernelIPCClient" if runtime_mode in {"auto", "swift_ipc", "live_codex", "live_diffusiongemma", "production"} else "SwiftKernelStub")
     artifact_dir = artifact_dir or RUN_DIR / "app_browser_artifacts"
     app_exe = APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot"
     app_src = APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot"
@@ -146,7 +146,7 @@ def run_app_bundle_sanity(
         return {"name": name, "ok": False, "reason": "bundled Python source missing"}
     if not app_index.exists():
         return {"name": name, "ok": False, "reason": "bundled frontend static assets missing"}
-    if runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "production"} and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
+    if runtime_mode in {"auto", "swift_ipc", "live_codex", "live_diffusiongemma", "production"} and (not app_swift_server.exists() or not os.access(app_swift_server, os.X_OK)):
         return {"name": name, "ok": False, "reason": "bundled Swift IPC server missing or not executable"}
     if not app_eventkit_bridge.exists() or not os.access(app_eventkit_bridge, os.X_OK):
         return {"name": name, "ok": False, "reason": "bundled EventKit bridge missing or not executable"}
@@ -169,7 +169,7 @@ def run_app_bundle_sanity(
         "CALENDAR_PILOT_LAUNCH_ID": launch_id,
     })
     started = time.time()
-    swift_before = pids_for_command_pattern(str(app_swift_server)) if runtime_mode == "swift_ipc" else []
+    swift_before = pids_for_command_pattern(str(app_swift_server)) if runtime_mode in {"auto", "swift_ipc"} else []
     terminal_state: dict[str, Any] = {}
     with log_path.open("w", encoding="utf-8") as log:
         proc = subprocess.Popen([str(app_exe)], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
@@ -198,7 +198,7 @@ def run_app_bundle_sanity(
             reason = str(exc)
         finally:
             terminate(proc)
-            if runtime_mode == "swift_ipc":
+            if runtime_mode in {"auto", "swift_ipc"}:
                 swift_after = pids_for_command_pattern(str(app_swift_server))
                 orphaned = sorted(set(swift_after) - set(swift_before))
                 if orphaned:
@@ -255,6 +255,17 @@ def run_launchservices_smoke() -> dict[str, Any]:
     try:
         launch_state = wait_for_launch_state(launch_state_path)
         base_url = str(launch_state.get("base_url"))
+        deadline = time.time() + 12
+        last_error: Exception | None = None
+        while time.time() < deadline:
+            try:
+                api_get(base_url, "/api/state")
+                break
+            except Exception as exc:
+                last_error = exc
+                time.sleep(0.1)
+        else:
+            raise AssertionError(f"LaunchServices app did not become HTTP-ready: {last_error}")
         health = api_get(base_url, "/api/health")
         assert_owned_health(
             health,
@@ -263,12 +274,24 @@ def run_launchservices_smoke() -> dict[str, Any]:
             expected_server_pid=int(launch_state.get("server_pid")),
         )
         page = http_get_text(base_url, "/")
-        launch_health = launch_state.get("health", {}) if isinstance(launch_state.get("health"), dict) else {}
-        no_blockers = not bool(health.get("live_blockers"))
+        refreshed_launch_state = read_launch_state(launch_state_path)
+        launch_health = refreshed_launch_state.get("health", {}) if isinstance(refreshed_launch_state.get("health"), dict) else {}
+        launch_runtime_mode = launch_health.get("runtime_mode") or health.get("runtime_mode")
+        blockers = [str(item) for item in health.get("live_blockers", [])]
+        credentials = health.get("credentials", {})
+        codex_credential = credentials.get("codex_subscription", {}) if isinstance(credentials, dict) else {}
+        auto_codex_usable = (
+            health.get("runtime_mode") == "auto"
+            and health.get("backends", {}).get("codex") == "live_codex_app_server"
+            and isinstance(codex_credential, dict)
+            and bool(codex_credential.get("configured"))
+            and not any("codex_subscription" in blocker for blocker in blockers)
+        )
+        acceptable_blockers = not blockers or auto_codex_usable
         ok = (
             'data-testid="chat-transcript"' in page
-            and health.get("runtime_mode") == launch_health.get("runtime_mode")
-            and no_blockers
+            and health.get("runtime_mode") == launch_runtime_mode
+            and acceptable_blockers
         )
         reason = "" if ok else f"LaunchServices app did not serve owned frontend/runtime health: runtime={health.get('runtime_mode')} blockers={health.get('live_blockers')}"
     except Exception as exc:

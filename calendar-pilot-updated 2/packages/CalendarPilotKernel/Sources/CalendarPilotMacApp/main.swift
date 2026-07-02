@@ -5,6 +5,7 @@ import AppKit
 import WebKit
 
 struct CalendarPilotLaunchConfig: Codable {
+    let status: String
     let launchID: String
     let buildID: String
     let appBundlePath: String
@@ -18,6 +19,9 @@ struct CalendarPilotLaunchConfig: Codable {
     let kernelServerPath: String
     let eventKitBridgePath: String
     let startedAt: String
+    let launcherPID: Int32
+    let serverPID: Int32?
+    let updatedAt: String
 
     var baseURL: URL {
         URL(string: "http://\(host):\(port)")!
@@ -30,7 +34,7 @@ struct CalendarPilotLaunchConfig: Codable {
         let appRoot = env["CALENDAR_PILOT_APP_ROOT"].flatMap(URL.init(fileURLWithPath:))
             ?? resources.appendingPathComponent("app", isDirectory: true)
         let defaultRunDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/CalendarPilot/runs/default", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/CalendarPilot", isDirectory: true)
         let runDir = env["CALENDAR_PILOT_RUN_DIR"].flatMap(URL.init(fileURLWithPath:)) ?? defaultRunDir
         let binDir = appRoot.appendingPathComponent("bin", isDirectory: true)
         let kernelPath = env["CALENDAR_PILOT_SWIFT_KERNEL_SERVER"]
@@ -41,7 +45,12 @@ struct CalendarPilotLaunchConfig: Codable {
         let buildID = env["CALENDAR_PILOT_BUILD_ID"]
             ?? ((try? String(contentsOf: buildIDPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines))
             ?? "unknown"
+        let requestedPort = Int(env["CALENDAR_PILOT_PORT"] ?? "8787") ?? 8787
+        let selectedPort = availablePort(preferred: requestedPort)
+        let requestedRuntime = env["CALENDAR_PILOT_RUNTIME_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let now = ISO8601DateFormatter().string(from: Date())
         return CalendarPilotLaunchConfig(
+            status: "launching",
             launchID: env["CALENDAR_PILOT_LAUNCH_ID"] ?? "launch_\(UUID().uuidString)",
             buildID: buildID,
             appBundlePath: bundleURL.path,
@@ -50,12 +59,71 @@ struct CalendarPilotLaunchConfig: Codable {
             staticDir: appRoot.appendingPathComponent("frontend/static", isDirectory: true).path,
             pythonExecutable: env["CALENDAR_PILOT_PYTHON"] ?? "/usr/bin/python3",
             host: env["CALENDAR_PILOT_HOST"] ?? "127.0.0.1",
-            port: Int(env["CALENDAR_PILOT_PORT"] ?? "8787") ?? 8787,
-            runtimeMode: env["CALENDAR_PILOT_RUNTIME_MODE"] ?? "fixture",
+            port: selectedPort,
+            runtimeMode: requestedRuntime?.isEmpty == false ? requestedRuntime! : "auto",
             kernelServerPath: kernelPath,
             eventKitBridgePath: bridgePath,
-            startedAt: ISO8601DateFormatter().string(from: Date())
+            startedAt: now,
+            launcherPID: ProcessInfo.processInfo.processIdentifier,
+            serverPID: nil,
+            updatedAt: now
         )
+    }
+
+    private static func availablePort(preferred: Int) -> Int {
+        if portIsAvailable(preferred) {
+            return preferred
+        }
+        let socket = socket(AF_INET, SOCK_STREAM, 0)
+        guard socket >= 0 else {
+            return preferred
+        }
+        defer { close(socket) }
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = in_port_t(0).bigEndian
+        address.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
+        let bindResult = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                bind(socket, sockaddrPointer, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bindResult == 0 else {
+            return preferred
+        }
+        var chosen = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let nameResult = withUnsafeMutablePointer(to: &chosen) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                getsockname(socket, sockaddrPointer, &length)
+            }
+        }
+        guard nameResult == 0 else {
+            return preferred
+        }
+        return Int(in_port_t(bigEndian: chosen.sin_port))
+    }
+
+    private static func portIsAvailable(_ port: Int) -> Bool {
+        let socket = socket(AF_INET, SOCK_STREAM, 0)
+        guard socket >= 0 else {
+            return false
+        }
+        defer { close(socket) }
+        var reuse: Int32 = 1
+        setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = in_port_t(port).bigEndian
+        address.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
+        let result = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                bind(socket, sockaddrPointer, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        return result == 0
     }
 
     func writeManifest() throws {
@@ -98,7 +166,8 @@ final class CalendarPilotProcessSupervisor {
         env["CALENDAR_PILOT_RUNTIME_MODE"] = config.runtimeMode
         env["CALENDAR_PILOT_LAUNCH_ID"] = config.launchID
         env["CALENDAR_PILOT_LAUNCH_PORT"] = String(config.port)
-        env["CALENDAR_PILOT_LAUNCH_REQUESTED_PORT"] = String(config.port)
+        env["CALENDAR_PILOT_LAUNCH_REQUESTED_PORT"] = ProcessInfo.processInfo.environment["CALENDAR_PILOT_PORT"] ?? String(config.port)
+        env["CALENDAR_PILOT_LAUNCHER_PID"] = String(config.launcherPID)
         env["CALENDAR_PILOT_APP_ROOT"] = config.appRoot
         env["CALENDAR_PILOT_RUN_DIR"] = config.runDir
         env["CALENDAR_PILOT_BUILD_ID"] = config.buildID
@@ -190,6 +259,12 @@ struct CalendarPilotMacApplication {
     static func main() {
         let app = NSApplication.shared
         let delegate = CalendarPilotAppDelegate()
+        let termSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        signal(SIGTERM, SIG_IGN)
+        termSource.setEventHandler {
+            NSApp.terminate(nil)
+        }
+        termSource.resume()
         app.delegate = delegate
         app.setActivationPolicy(.regular)
         app.activate(ignoringOtherApps: true)

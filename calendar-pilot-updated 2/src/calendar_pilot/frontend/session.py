@@ -30,7 +30,7 @@ from calendar_pilot.types import (
 )
 from calendar_pilot.frontend.surface import build_frontend_snapshot
 from calendar_pilot.frontend.launch import LaunchConfig
-from calendar_pilot.frontend.runtime import KNOWN_MODES, RuntimeBackends, runtime_mode_from_env, runtime_report, runtime_profile
+from calendar_pilot.frontend.runtime import KNOWN_MODES, LIVE_CODEX_MODES, RuntimeBackends, runtime_mode_from_env, runtime_report, runtime_profile
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -57,6 +57,8 @@ class DogfoodSessionState:
     authority_tier: int = DEFAULT_AUTHORITY_TIER
     authority_scopes: list[str] = field(default_factory=lambda: list(DEFAULT_AUTHORITY_SCOPES))
     runtime_mode: str = field(default_factory=runtime_mode_from_env)
+    session_label: str | None = None
+    archived_at: str | None = None
     launch_config: LaunchConfig = field(init=False)
 
     observation: RawCalendarObservation = field(init=False)
@@ -96,15 +98,18 @@ class DogfoodSessionState:
         self._rebuild_runtime()
         atexit.register(self.close)
         if not self._restore_session_state():
+            ready_message = self._assistant_ready_message()
             self.transcript_events.append({
                 "kind": "assistant",
-                "title": "CalendarPilot is ready",
-                "body": "Tell me what you want checked or changed. I will keep actions, undo, feedback, and replay evidence visible.",
+                "title": ready_message["title"],
+                "body": ready_message["body"],
+                "metadata": ready_message["metadata"],
                 "created_at": _now().isoformat(),
             })
             self.issue_authority_grant(confirmed=True, reason="dogfood_session_boot")
             self.persist()
         self._hydrate_runtime_frontier()
+        self._write_launch_manifest_with_health()
 
     def _load_primitives(self) -> None:
         self.observation = RawCalendarObservation.from_dict(json.loads(self.observation_path.read_text(encoding="utf-8")))
@@ -114,7 +119,7 @@ class DogfoodSessionState:
         requested_kernel = os.environ.get("CALENDAR_PILOT_KERNEL_BACKEND", "").strip().lower().replace("-", "_")
         if requested_kernel in {"stub", "swift_stub", "python_stub"}:
             return SwiftKernelStub()
-        if requested_kernel in {"swift_ipc", "ipc"} or self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}:
+        if requested_kernel in {"swift_ipc", "ipc"} or self.runtime_mode in {"auto", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}:
             kernel = SwiftKernelIPCClient()
             kernel.start()
             return kernel
@@ -134,23 +139,32 @@ class DogfoodSessionState:
         self.planner = self._new_planner_for_mode()
 
     def _new_planner_for_mode(self) -> CodexToolPlanner | LiveCodexToolPlanner:
-        if self.runtime_mode in {"live_codex", "production"}:
+        if self.runtime_mode in LIVE_CODEX_MODES:
             return LiveCodexToolPlanner(runtime=self.runtime)
         return CodexToolPlanner(runtime=self.runtime)
 
     def _new_policy_for_mode(self) -> DiffusionGemmaPolicy | LiveDiffusionGemmaPolicy:
-        if self.runtime_mode in {"live_diffusiongemma", "production"}:
+        if self.runtime_mode in {"live_diffusiongemma", "production"} or (self.runtime_mode == "auto" and self._nim_credentials_available()):
             return LiveDiffusionGemmaPolicy()
         return DiffusionGemmaPolicy()
 
     def _new_provider_for_mode(self) -> Any:
         explicit = os.environ.get("CALENDAR_PILOT_PROVIDER_BACKEND", "").strip().lower().replace("-", "_")
+        if self.runtime_mode == "auto" and not explicit:
+            eventkit = AppleEventKitProvider(state_path=self.run_dir / "apple_eventkit_provider.json")
+            if eventkit.health_status().get("configured"):
+                return eventkit
+            return DeterministicCalendarProvider(state_path=self.run_dir / "provider_state.json", seed_observation=self.observation)
         requested_provider = explicit or ("apple_eventkit" if self.runtime_mode in {"live_provider", "production"} else "deterministic")
         if requested_provider in {"stub", "local_stub", "none"}:
             return None
         if requested_provider in {"apple", "apple_eventkit", "ios_calendar", "macos_calendar", "eventkit"}:
             return AppleEventKitProvider(state_path=self.run_dir / "apple_eventkit_provider.json")
         return DeterministicCalendarProvider(state_path=self.run_dir / "provider_state.json", seed_observation=self.observation)
+
+    @staticmethod
+    def _nim_credentials_available() -> bool:
+        return any(os.environ.get(key) for key in ["CALENDAR_PILOT_NIM_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"])
 
     def close(self) -> None:
         close = getattr(getattr(self, "kernel", None), "close", None)
@@ -222,19 +236,614 @@ class DogfoodSessionState:
         goal = (goal or "Make next week less chaotic").strip()
         self.authority_tier = int(authority_tier if authority_tier is not None else self.authority_tier)
         self.transcript_events.append({"kind": "user", "body": goal, "created_at": _now().isoformat()})
+        intent = self._classify_chat_intent(goal)
+        if intent not in {"calendar_goal", "mixed_calendar_operational"}:
+            live_chat = self._live_conversation_response(goal, intent)
+            if live_chat is not None:
+                live_failed = bool(live_chat.metadata.get("error_category"))
+                conversation_receipts = [] if live_failed else self._execute_live_conversation_tools(getattr(live_chat, "tool_calls", []), goal)
+                extra_metadata = {"conversation_route": live_chat.route}
+                if conversation_receipts:
+                    extra_metadata.update(self._conversation_tool_metadata(conversation_receipts))
+                metadata = self._response_metadata(
+                    goal=goal,
+                    intent=intent,
+                    response_source="live_codex_unavailable" if live_failed else "live_codex_conversation",
+                    reason="live Codex conversation endpoint failed" if live_failed else "non-calendar turn routed to live Codex conversation endpoint",
+                    model_metadata=live_chat.metadata,
+                    planner_backend=getattr(self.planner, "backend_name", "live_codex_app_server"),
+                    extra_metadata=extra_metadata,
+                )
+                self.transcript_events.append({
+                    "kind": "assistant_chat",
+                    "title": "Codex unavailable" if live_failed else ("Codex answered with evidence" if conversation_receipts else "Codex answered"),
+                    "body": live_chat.answer,
+                    "metadata": metadata,
+                    "conversation_receipts": conversation_receipts,
+                    "created_at": _now().isoformat(),
+                })
+                self.persist()
+                return self.snapshot()
+            local_tool_response = self._local_conversation_tool_response(goal, intent)
+            if local_tool_response is not None:
+                self.transcript_events.append({
+                    "kind": "assistant_chat",
+                    "title": local_tool_response["title"],
+                    "body": local_tool_response["body"],
+                    "metadata": local_tool_response["metadata"],
+                    "conversation_receipts": local_tool_response["receipts"],
+                    "created_at": _now().isoformat(),
+                })
+                self.persist()
+                return self.snapshot()
+            self.transcript_events.append({
+                "kind": "assistant_chat",
+                "title": "Conversation handled locally",
+                "body": self._local_chat_body(intent),
+                "metadata": self._response_metadata(
+                    goal=goal,
+                    intent=intent,
+                    response_source="local_intent_router",
+                    reason="input did not request calendar planning",
+                ),
+                "created_at": _now().isoformat(),
+            })
+            self.persist()
+            return self.snapshot()
         plan = self.planner.plan_goal(goal, self.observation, self.biography, authority_tier=self.authority_tier, commit=commit)
         self.latest_plan = plan
         self.latest_plan_observation_id = self.observation.observation_id
         self.latest_plan_observation_fingerprint = observation_fingerprint(self.observation)
+        conversation_receipts = []
+        extra_metadata: dict[str, Any] = {}
+        if intent == "mixed_calendar_operational":
+            conversation_receipts = self._execute_live_conversation_tools(self._local_conversation_tool_calls(goal), goal)
+            conversation_metadata = self._conversation_tool_metadata(conversation_receipts)
+            extra_metadata.update({
+                "conversation_route": "mixed_calendar_operational",
+                "planner_tool_sequence": [call.tool_name.value for call in plan.calls],
+                "planner_tool_call_count": len(plan.calls),
+                "conversation_tool_sequence": conversation_metadata["tool_sequence"],
+                "conversation_tool_receipt_count": conversation_metadata["conversation_tool_receipt_count"],
+                "conversation_tool_receipts": conversation_metadata["conversation_tool_receipts"],
+                "tool_sequence": [call.tool_name.value for call in plan.calls] + conversation_metadata["tool_sequence"],
+                "tool_call_count": len(plan.calls) + conversation_metadata["tool_call_count"],
+            })
+        metadata = self._response_metadata(
+            goal=goal,
+            intent=intent,
+            response_source="planner",
+            plan=plan,
+            reason="calendar goal routed to planner" if intent == "calendar_goal" else "calendar planning plus requested operational evidence routed from one composer turn",
+            extra_metadata=extra_metadata or None,
+        )
         self.transcript_events.append({
             "kind": "assistant_plan",
             "title": "I found a plan",
-            "body": "I inspected the week, generated candidate futures, compared reward/regret, and prepared the leading action for Swift.",
+            "body": self._planner_response_body(metadata) if not conversation_receipts else f"{self._planner_response_body(metadata)} I also attached the requested operational evidence receipts.",
             "plan_id": plan.plan_id,
+            "metadata": metadata,
+            "conversation_receipts": conversation_receipts,
             "created_at": _now().isoformat(),
         })
         self.persist()
         return self.snapshot()
+
+    def _live_conversation_response(self, goal: str, intent: str) -> Any | None:
+        if self.runtime_mode not in LIVE_CODEX_MODES:
+            return None
+        chat_response = getattr(self.planner, "chat_response", None)
+        if not callable(chat_response):
+            return None
+        return chat_response(
+            goal,
+            self.observation,
+            self.biography,
+            runtime_report=self.runtime_report(),
+            intent=intent,
+        )
+
+    def _assistant_ready_message(self) -> dict[str, Any]:
+        report = self.runtime_report()
+        backends = report.get("backends", {})
+        blockers = [str(item) for item in report.get("live_blockers", [])] if isinstance(report.get("live_blockers"), list) else []
+        setup_notes = [str(item) for item in report.get("setup_notes", [])] if isinstance(report.get("setup_notes"), list) else []
+        credentials = report.get("credentials", {})
+        if blockers:
+            title = "Assistant needs setup"
+            body = (
+                f"{report.get('mode_label', self.runtime_mode)} is selected, but the assistant is not fully live yet. "
+                f"Active backends: Codex={backends.get('codex')}, DiffusionGemma={backends.get('diffusiongemma')}, "
+                f"Swift={backends.get('kernel')}, provider={backends.get('provider')}. "
+                f"Blockers: {'; '.join(blockers)}."
+            )
+        else:
+            title = "CalendarPilot is ready"
+            body = (
+                f"{report.get('mode_label', self.runtime_mode)} is ready. "
+                f"Active backends: Codex={backends.get('codex')}, DiffusionGemma={backends.get('diffusiongemma')}, "
+                f"Swift={backends.get('kernel')}, provider={backends.get('provider')}. "
+                "Tell me what you want checked or changed; I will keep actions, undo, feedback, and replay evidence visible."
+            )
+            if setup_notes:
+                body += f" Optional setup: {'; '.join(setup_notes)}."
+        return {
+            "title": title,
+            "body": body,
+            "metadata": {
+                "response_source": "ready_assistant_runtime",
+                "runtime_mode": report.get("runtime_mode"),
+                "planner_backend": backends.get("codex"),
+                "policy_backend": backends.get("diffusiongemma"),
+                "kernel_backend": backends.get("kernel"),
+                "provider_backend": backends.get("provider"),
+                "live_blockers": blockers,
+                "setup_notes": setup_notes,
+                "assistant_ready": not blockers,
+                "fully_live": not blockers and not setup_notes,
+            },
+        }
+
+    def _local_conversation_tool_response(self, goal: str, intent: str) -> dict[str, Any] | None:
+        planned_calls = self._local_conversation_tool_calls(goal)
+        if not planned_calls:
+            return None
+        receipts = self._execute_live_conversation_tools(planned_calls, goal)
+        metadata = self._response_metadata(
+            goal=goal,
+            intent=intent,
+            response_source="local_conversation_tools",
+            reason="deterministic composer route to local CalendarPilot tools",
+            extra_metadata={
+                "conversation_route": "local_evidence_tool",
+                **self._conversation_tool_metadata(receipts),
+            },
+        )
+        return {
+            "title": "Assistant handled request",
+            "body": self._local_tool_response_body(receipts),
+            "metadata": metadata,
+            "receipts": receipts,
+        }
+
+    def _local_conversation_tool_calls(self, goal: str) -> list[dict[str, Any]]:
+        normalized = " ".join(goal.lower().replace("-", " ").split())
+        calls: list[dict[str, Any]] = []
+        if any(term in normalized for term in ["replay", "trace", "evidence log", "audit log"]):
+            calls.append(self._planned_conversation_tool(CodexToolName.QUERY_REPLAY_TRACE, {}, "Query replay evidence from the composer.", "local_replay"))
+        if any(term in normalized for term in ["authority", "grant", "scope"]):
+            calls.append(self._planned_conversation_tool(CodexToolName.INSPECT_AUTHORITY_SCOPE, {}, "Inspect Swift authority scope from the composer.", "local_authority"))
+        if any(term in normalized for term in ["autonomy", "autonomous"]) and any(term in normalized for term in ["scope", "proposal", "propose", "allow"]):
+            calls.append(self._planned_conversation_tool(CodexToolName.PROPOSE_AUTONOMY_SCOPE, {"candidate_id": self._latest_candidate_id() or ""}, "Propose a bounded autonomy scope from the composer.", "local_autonomy_scope"))
+        if any(term in normalized for term in ["self play", "selfplay", "release gate", "adversary"]):
+            calls.append(self._planned_conversation_tool(CodexToolName.RUN_SELF_PLAY_PROBE, {"episodes": self._episode_count_from_message(normalized)}, "Run self-play release gate from the composer.", "local_self_play"))
+        if any(term in normalized for term in ["profile", "preference", "biography"]):
+            if self._conversation_message_requests_profile_apply(normalized):
+                calls.append(self._planned_conversation_tool(
+                    CodexToolName.APPLY_PROFILE_PATCH,
+                    self._latest_profile_patch_payload() or {"claim": "user correction", "correction": "", "confirmed": False},
+                    "Apply the confirmed profile repair from the composer.",
+                    "local_profile_apply",
+                ))
+            elif any(term in normalized for term in ["repair", "patch", "correct", "correction", "change", "prefer", "don't", "do not"]):
+                calls.append(self._planned_conversation_tool(CodexToolName.PROPOSE_PROFILE_PATCH, {"correction": goal}, "Draft a profile repair from the composer.", "local_profile_patch"))
+            else:
+                calls.append(self._planned_conversation_tool(CodexToolName.INSPECT_PROFILE_CLAIMS, {}, "Inspect profile claims from the composer.", "local_profile_inspect"))
+        if any(term in normalized for term in ["denial", "denied", "why swift", "swift denied"]):
+            latest_denial = self.denial_history[-1].get("denied_reason", "") if self.denial_history else goal
+            calls.append(self._planned_conversation_tool(CodexToolName.EXPLAIN_SWIFT_DENIAL, {"denied_reason": latest_denial}, "Explain the latest Swift denial from the composer.", "local_denial"))
+        if self._conversation_message_requests_undo(normalized):
+            calls.append(self._planned_conversation_tool(CodexToolName.REQUEST_UNDO, {"rollback_handle_id": self._latest_rollback_handle_id() or ""}, "Request Swift undo from the composer.", "local_undo"))
+        return calls[:4]
+
+    def _planned_conversation_tool(self, tool_name: CodexToolName, payload: dict[str, Any], reason: str, correlation_id: str) -> dict[str, Any]:
+        return {
+            "tool_name": tool_name,
+            "input": payload,
+            "requested_authority_tier": self.authority_tier,
+            "user_visible_reason": reason,
+            "correlation_id": correlation_id,
+        }
+
+    @staticmethod
+    def _episode_count_from_message(normalized: str) -> int:
+        for token in normalized.split():
+            try:
+                value = int(token)
+            except ValueError:
+                continue
+            return max(1, min(3, value))
+        return 1
+
+    @staticmethod
+    def _conversation_message_requests_undo(normalized: str) -> bool:
+        if normalized in {"undo", "undo it", "revert", "revert it", "rollback", "roll back"}:
+            return True
+        return any(term in normalized for term in [
+            "undo ",
+            "undo last",
+            "undo the",
+            "please undo",
+            "revert ",
+            "revert last",
+            "revert the",
+            "roll back",
+            "rollback ",
+            "rollback last",
+            "rollback the",
+        ])
+
+    @staticmethod
+    def _conversation_message_requests_profile_apply(normalized: str) -> bool:
+        return "profile" in normalized and any(term in normalized for term in [
+            "apply patch",
+            "apply profile",
+            "confirm patch",
+            "confirm profile",
+            "save patch",
+            "save profile",
+        ])
+
+    @staticmethod
+    def _conversation_message_has_calendar_action(normalized: str) -> bool:
+        if normalized.startswith(("move ", "reschedule ", "schedule ", "plan ", "create ", "add ", "change ")):
+            return True
+        return any(term in normalized for term in [
+            "make next week",
+            "make this week",
+            "less chaotic",
+            "free up",
+            "make room",
+            "focus block",
+            "prep before",
+            "tomorrow meeting",
+            "calendar",
+            "meeting",
+            "appointment",
+        ])
+
+
+    def _latest_rollback_handle_id(self) -> str | None:
+        if getattr(self.kernel, "undo_ledger", None):
+            return next(reversed(self.kernel.undo_ledger))
+        if self.latest_plan is None:
+            return None
+        for receipt in reversed(self.latest_plan.receipts):
+            output = receipt.output if isinstance(receipt.output, dict) else {}
+            swift = output.get("swift_receipt")
+            if isinstance(swift, dict) and swift.get("rollback_handle_id"):
+                return str(swift["rollback_handle_id"])
+        return None
+
+    def _latest_candidate_id(self) -> str | None:
+        if self.latest_plan is not None:
+            for receipt in reversed(self.latest_plan.receipts):
+                output = receipt.output if isinstance(receipt.output, dict) else {}
+                winner = output.get("winner")
+                if isinstance(winner, dict) and winner.get("candidate_id"):
+                    return str(winner["candidate_id"])
+                candidate = output.get("candidate")
+                if isinstance(candidate, dict) and candidate.get("candidate_id"):
+                    return str(candidate["candidate_id"])
+                candidates = output.get("candidates")
+                if isinstance(candidates, list) and candidates:
+                    first = candidates[0]
+                    if isinstance(first, dict) and first.get("candidate_id"):
+                        return str(first["candidate_id"])
+        if self.runtime.frontier:
+            return next(iter(self.runtime.frontier))
+        return None
+
+    def _latest_profile_patch_payload(self) -> dict[str, Any] | None:
+        for entry in reversed(self.profile_patch_history):
+            if entry.get("kind") != "proposed":
+                continue
+            payload = self._profile_patch_payload_from_receipt(entry.get("receipt", {}))
+            if payload is not None:
+                return payload
+        return None
+
+    @staticmethod
+    def _profile_patch_payload_from_receipt(receipt: Any) -> dict[str, Any] | None:
+        if not isinstance(receipt, dict):
+            return None
+        if str(receipt.get("status")) != "requires_confirmation":
+            return None
+        if not bool(receipt.get("requires_user_confirmation", False)):
+            return None
+        output = receipt.get("output", {})
+        plan = output.get("repair_plan") if isinstance(output, dict) else None
+        if not isinstance(plan, dict):
+            return None
+        claim = str(plan.get("candidate_claim") or "").strip()
+        provenance = plan.get("provenance", {})
+        note = provenance.get("note") if isinstance(provenance, dict) else None
+        correction = str(note).strip() if note is not None else ""
+        if not correction:
+            correction = str(plan.get("prompt") or "").strip()
+        if not claim or not correction:
+            return None
+        return {
+            "claim": claim,
+            "correction": correction,
+            "confirmed": True,
+        }
+
+    @staticmethod
+    def _local_tool_response_body(receipts: list[dict[str, Any]]) -> str:
+        names = [str(receipt.get("tool_name", "")) for receipt in receipts]
+        if CodexToolName.REQUEST_UNDO.value in names:
+            return "I requested Swift undo through the rollback ledger and attached the receipt."
+        if CodexToolName.PROPOSE_AUTONOMY_SCOPE.value in names:
+            autonomy = next((receipt for receipt in receipts if receipt.get("tool_name") == CodexToolName.PROPOSE_AUTONOMY_SCOPE.value), {})
+            if str(autonomy.get("status")) == "failed" or autonomy.get("denied_reason"):
+                return "I could not propose an autonomy scope yet. Generate or select a candidate action first."
+            return "I proposed a bounded autonomy scope and attached the confirmation receipt."
+        if CodexToolName.RUN_SELF_PLAY_PROBE.value in names:
+            return "I ran the self-play release gate and attached the receipt."
+        if CodexToolName.APPLY_PROFILE_PATCH.value in names:
+            applied = next((receipt for receipt in receipts if receipt.get("tool_name") == CodexToolName.APPLY_PROFILE_PATCH.value), {})
+            if str(applied.get("status")) != "succeeded":
+                return "I could not apply a profile repair because there is no confirmed patch ready to apply."
+            return "I applied the confirmed profile repair and attached the receipt."
+        if CodexToolName.PROPOSE_PROFILE_PATCH.value in names:
+            return "I drafted a profile repair proposal. It still requires confirmation before applying."
+        if CodexToolName.INSPECT_PROFILE_CLAIMS.value in names:
+            return "I inspected the learned profile claims and attached the receipt."
+        if CodexToolName.EXPLAIN_SWIFT_DENIAL.value in names:
+            return "I explained the Swift denial and attached the receipt."
+        if CodexToolName.INSPECT_AUTHORITY_SCOPE.value in names:
+            return "I inspected the current Swift authority scope and attached the receipt."
+        return "I queried the replay evidence and attached the receipt."
+
+    def _execute_live_conversation_tools(self, planned_calls: list[Any], user_message: str) -> list[dict[str, Any]]:
+        receipts: list[dict[str, Any]] = []
+        for idx, planned in enumerate(planned_calls):
+            tool_name = planned.get("tool_name") if isinstance(planned, dict) else getattr(planned, "tool_name", None)
+            if isinstance(tool_name, str):
+                try:
+                    tool_name = CodexToolName(tool_name)
+                except ValueError:
+                    continue
+            if not isinstance(tool_name, CodexToolName):
+                continue
+            if tool_name == CodexToolName.REQUEST_UNDO and not self._conversation_message_requests_undo(" ".join(user_message.lower().replace("-", " ").split())):
+                continue
+            if tool_name == CodexToolName.APPLY_PROFILE_PATCH and not self._conversation_message_requests_profile_apply(" ".join(user_message.lower().replace("-", " ").split())):
+                continue
+            raw_input = planned.get("input", {}) if isinstance(planned, dict) else getattr(planned, "input", {})
+            payload = self._conversation_tool_payload(tool_name, dict(raw_input or {}), user_message)
+            grant_id = self._conversation_tool_grant_id(tool_name)
+            raw = f"conversation|{tool_name.value}|{idx}|{_now().isoformat()}|{payload}"
+            call = CodexToolCall(
+                tool_call_id="tool_" + hashlib.sha1(raw.encode()).hexdigest()[:12],
+                tool_name=tool_name,
+                input=payload,
+                requested_authority_tier=max(0, min(6, int((planned.get("requested_authority_tier") if isinstance(planned, dict) else getattr(planned, "requested_authority_tier", self.authority_tier)) or self.authority_tier))),
+                user_visible_reason=str((planned.get("user_visible_reason") if isinstance(planned, dict) else getattr(planned, "user_visible_reason", "")) or "Live Codex requested this local evidence tool."),
+                authority_grant_id=grant_id,
+                correlation_id=str((planned.get("correlation_id") if isinstance(planned, dict) else getattr(planned, "correlation_id", "")) or f"conversation_{idx}"),
+                created_at=_now(),
+            )
+            receipt = self.runtime.execute(call, self.observation, self.biography)
+            receipt_dict = receipt.to_dict()
+            receipts.append(receipt_dict)
+            self._record_conversation_tool_side_effect(tool_name, receipt_dict, payload)
+        return receipts
+
+    def _conversation_tool_payload(self, tool_name: CodexToolName, payload: dict[str, Any], user_message: str) -> dict[str, Any]:
+        if tool_name == CodexToolName.RUN_SELF_PLAY_PROBE:
+            try:
+                episodes = int(payload.get("episodes", 1))
+            except (TypeError, ValueError):
+                episodes = 1
+            payload["episodes"] = max(1, min(3, episodes))
+        if tool_name == CodexToolName.PROPOSE_PROFILE_PATCH and not str(payload.get("correction", "")).strip():
+            payload["correction"] = user_message
+        if tool_name == CodexToolName.APPLY_PROFILE_PATCH:
+            latest = self._latest_profile_patch_payload()
+            if latest is None:
+                payload["claim"] = str(payload.get("claim") or "user correction")
+                payload["correction"] = str(payload.get("correction") or "")
+                payload["confirmed"] = False
+            else:
+                payload["claim"] = str(payload.get("claim") or latest.get("claim") or "user correction")
+                payload["correction"] = str(payload.get("correction") or latest.get("correction") or user_message)
+                payload["confirmed"] = True
+        if tool_name == CodexToolName.PROPOSE_AUTONOMY_SCOPE and not str(payload.get("candidate_id", "")).strip():
+            payload["candidate_id"] = self._latest_candidate_id() or ""
+        if tool_name == CodexToolName.EXPLAIN_SWIFT_DENIAL and not str(payload.get("denied_reason", "")).strip():
+            latest = self.denial_history[-1].get("denied_reason") if self.denial_history else ""
+            payload["denied_reason"] = latest or "No denial reason was supplied."
+        if tool_name == CodexToolName.REQUEST_UNDO and not str(payload.get("rollback_handle_id", "")).strip():
+            payload["rollback_handle_id"] = self._latest_rollback_handle_id() or ""
+        return payload
+
+    def _conversation_tool_grant_id(self, tool_name: CodexToolName) -> str | None:
+        if tool_name in {CodexToolName.INSPECT_AUTHORITY_SCOPE, CodexToolName.RUN_SELF_PLAY_PROBE}:
+            return self.latest_grant_id(confirmed=False)
+        if tool_name in {CodexToolName.PROPOSE_PROFILE_PATCH, CodexToolName.APPLY_PROFILE_PATCH}:
+            return self.latest_grant_id(confirmed=True)
+        if tool_name == CodexToolName.REQUEST_UNDO:
+            return self.issue_authority_grant(confirmed=True, scopes=["undo"], reason="user_confirmed_composer_undo").grant_id
+        return None
+
+    def _record_conversation_tool_side_effect(self, tool_name: CodexToolName, receipt: dict[str, Any], payload: dict[str, Any]) -> None:
+        output = receipt.get("output", {}) if isinstance(receipt.get("output"), dict) else {}
+        if tool_name == CodexToolName.PROPOSE_PROFILE_PATCH:
+            kind = "proposed" if self._profile_patch_payload_from_receipt(receipt) is not None else "proposal_failed"
+            self.profile_patch_history.append({"kind": kind, "receipt": receipt, "created_at": _now().isoformat()})
+        if tool_name == CodexToolName.APPLY_PROFILE_PATCH:
+            bio_payload = output.get("biography") if isinstance(output, dict) else None
+            if isinstance(bio_payload, dict):
+                self.biography = UserBiography.from_dict(bio_payload)
+            kind = "applied" if str(receipt.get("status")) == "succeeded" and isinstance(bio_payload, dict) else "needs_confirmation"
+            self.profile_patch_history.append({"kind": kind, "receipt": receipt, "created_at": _now().isoformat()})
+        if tool_name == CodexToolName.EXPLAIN_SWIFT_DENIAL:
+            self.denial_history.append({
+                "denied_reason": payload.get("denied_reason", ""),
+                "explanation": output,
+                "created_at": _now().isoformat(),
+            })
+        if tool_name == CodexToolName.RUN_SELF_PLAY_PROBE:
+            metrics = output.get("metrics", {}) if isinstance(output.get("metrics"), dict) else {}
+            top_failures = output.get("top_failure_modes", []) if isinstance(output.get("top_failure_modes"), list) else []
+            failed = str(receipt.get("status", "")) != "succeeded" or bool(receipt.get("denied_reason"))
+            release_decision = "probe_failed" if failed else ("hold_autonomy" if top_failures else "ship_fixture_gate")
+            self.self_play_history.append({
+                "episodes": int(payload.get("episodes", 1)),
+                "metrics": metrics,
+                "top_failure_modes": top_failures,
+                "release_decision": release_decision,
+                "failure_reason": receipt.get("denied_reason") if failed else None,
+                "created_at": _now().isoformat(),
+            })
+
+    @staticmethod
+    def _conversation_tool_metadata(receipts: list[dict[str, Any]]) -> dict[str, Any]:
+        compact_receipts = [
+            {
+                "tool_name": str(receipt.get("tool_name", "")),
+                "status": str(receipt.get("status", "")),
+                "tool_call_id": str(receipt.get("tool_call_id", "")),
+                "requires_user_confirmation": bool(receipt.get("requires_user_confirmation", False)),
+                "denied_reason": receipt.get("denied_reason"),
+            }
+            for receipt in receipts
+        ]
+        return {
+            "tool_sequence": [row["tool_name"] for row in compact_receipts],
+            "tool_call_count": len(compact_receipts),
+            "conversation_tool_receipt_count": len(compact_receipts),
+            "conversation_tool_receipts": compact_receipts,
+        }
+
+    def _classify_chat_intent(self, goal: str) -> str:
+        normalized = " ".join(goal.lower().strip(" .!?\n\t").split())
+        if not normalized:
+            return "calendar_goal"
+        calendar_terms = {
+            "agenda", "appointment", "availability", "available", "block", "busy", "calendar", "call",
+            "change", "commit", "day", "deadline", "event", "focus", "free", "lunch", "meeting",
+            "month", "move", "plan", "prep", "reschedule", "schedule", "task", "time", "today",
+            "tomorrow", "week", "weekend", "year",
+        }
+        metadata_terms = {
+            "backend", "hard coded", "hardcoded", "llm", "metadata", "model", "response id", "thread id",
+            "trace", "turn id",
+        }
+        operational_terms = {
+            "autonomy", "autonomous", "biography", "denial", "denied", "grant", "profile", "replay",
+            "rollback", "scope", "self play", "self-play", "selfplay", "undo",
+        }
+        greeting_terms = {"hello", "hi", "hey", "yo", "sup", "good morning", "good afternoon", "good evening"}
+        has_calendar_term = any(term in normalized for term in calendar_terms)
+        has_operational_term = any(term in normalized for term in operational_terms)
+        profile_mutation_terms = {"repair", "patch", "correct", "correction", "prefer", "apply", "confirm", "save"}
+        profile_mutation_request = any(term in normalized for term in ["profile", "preference", "biography"]) and any(term in normalized for term in profile_mutation_terms)
+        undo_request = self._conversation_message_requests_undo(normalized)
+        if has_operational_term and self._conversation_message_has_calendar_action(normalized):
+            return "mixed_calendar_operational"
+        if profile_mutation_request or undo_request:
+            return "operational_tool"
+        if has_operational_term:
+            return "operational_tool"
+        if any(term in normalized for term in metadata_terms) and not has_calendar_term:
+            return "metadata_question"
+        if normalized in greeting_terms or (len(normalized.split()) <= 3 and not has_calendar_term):
+            return "smalltalk"
+        return "calendar_goal" if has_calendar_term else "non_calendar"
+
+    def _local_chat_body(self, intent: str) -> str:
+        if intent == "metadata_question":
+            return "This response was handled by the local app router. No live LLM call ran, so there is no response_id, thread_id, or turn_id for this turn."
+        if intent == "smalltalk":
+            return "I am here. Ask for a calendar change or inspection when you want me to generate candidate actions."
+        return "I only route calendar goals into planning. This turn stayed local and did not contact a live model."
+
+    def _planner_response_body(self, metadata: dict[str, Any]) -> str:
+        if metadata.get("model_reached"):
+            model = metadata.get("model_metadata", {}).get("model") or "live model"
+            return f"Live Codex planned this turn with {model}; the trace metadata includes response, thread, and turn ids."
+        if metadata.get("planner_backend") == "live_codex_app_server":
+            return "Live Codex did not produce an executable model response for this turn. The metadata shows the blocker or failure category."
+        return "I used the deterministic fixture planner, generated candidate futures, compared reward/regret, and prepared the leading action for Swift. No live LLM metadata was produced."
+
+    def _response_metadata(
+        self,
+        *,
+        goal: str,
+        intent: str,
+        response_source: str,
+        reason: str,
+        plan: CodexExecutivePlan | None = None,
+        model_metadata: dict[str, Any] | None = None,
+        planner_backend: str | None = None,
+        extra_metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        backends = self._runtime_backends().to_dict()
+        planner_backend = planner_backend or (plan.planner_backend if plan is not None else backends["codex"])
+        model_metadata = dict(model_metadata if model_metadata is not None else (plan.planner_metadata if plan is not None else {}))
+        error_category = str(model_metadata.get("error_category") or "")
+        model_reached = (
+            planner_backend == "live_codex_app_server"
+            and not error_category
+            and bool(model_metadata.get("response_id") or (model_metadata.get("thread_id") and model_metadata.get("turn_id")))
+        )
+        expected_model_keys = ["response_id", "thread_id", "turn_id", "model"]
+        metadata = {
+            "input": goal,
+            "intent": intent,
+            "response_source": response_source,
+            "reason": reason,
+            "runtime_mode": self.runtime_mode,
+            "planner_backend": planner_backend,
+            "policy_backend": backends["diffusiongemma"],
+            "kernel_backend": backends["kernel"],
+            "provider_backend": backends["provider"],
+            "model_reached": model_reached,
+            "model_metadata": model_metadata,
+            "missing_model_metadata": [key for key in expected_model_keys if not model_metadata.get(key)],
+            "plan_id": plan.plan_id if plan is not None else None,
+            "recommended_next_action": plan.recommended_next_action if plan is not None else None,
+            "tool_sequence": [call.tool_name.value for call in plan.calls] if plan is not None else [],
+            "tool_call_count": len(plan.calls) if plan is not None else 0,
+            "replay_record_count": self.replay.summarize().records,
+        }
+        if error_category:
+            metadata["error_category"] = error_category
+        if extra_metadata:
+            metadata.update(extra_metadata)
+        return metadata
+
+    def _receipt_response_metadata(
+        self,
+        *,
+        goal: str,
+        intent: str,
+        response_source: str,
+        reason: str,
+        receipt: Any,
+        extra_metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        receipt_dict = receipt.to_dict() if hasattr(receipt, "to_dict") else dict(receipt)
+        receipt_extra = {
+            "tool_sequence": [str(receipt_dict.get("tool_name", ""))],
+            "tool_call_count": 1,
+            "receipt_status": receipt_dict.get("status"),
+            "receipt_tool_call_id": receipt_dict.get("tool_call_id"),
+            "receipt_requires_confirmation": bool(receipt_dict.get("requires_user_confirmation", False)),
+            "receipt_denied_reason": receipt_dict.get("denied_reason"),
+        }
+        if extra_metadata:
+            receipt_extra.update(extra_metadata)
+        return self._response_metadata(
+            goal=goal,
+            intent=intent,
+            response_source=response_source,
+            reason=reason,
+            extra_metadata=receipt_extra,
+        )
 
     def candidate_action(self, candidate_id: str, action: str, *, confirmed: bool = False) -> dict[str, Any]:
         candidate = self.runtime.frontier.get(candidate_id)
@@ -266,6 +875,14 @@ class DogfoodSessionState:
             "body": receipt.denied_reason or f"Swift returned {receipt.status.value} for {candidate.intent}.",
             "candidate_id": candidate_id,
             "receipt": receipt.to_dict(),
+            "metadata": self._receipt_response_metadata(
+                goal=f"{action}:{candidate_id}",
+                intent="candidate_action",
+                response_source="ui_candidate_action",
+                reason="candidate action requested from visible card controls",
+                receipt=receipt,
+                extra_metadata={"candidate_id": candidate_id, "candidate_action": action},
+            ),
             "created_at": _now().isoformat(),
         })
         if receipt.denied_reason:
@@ -291,6 +908,14 @@ class DogfoodSessionState:
             "title": "Undo requested",
             "body": receipt.denied_reason or "Swift used the rollback ledger and marked the action reverted.",
             "receipt": receipt.to_dict(),
+            "metadata": self._receipt_response_metadata(
+                goal=f"undo:{rollback_handle_id}",
+                intent="undo",
+                response_source="ui_undo",
+                reason="undo requested through the rollback ledger",
+                receipt=receipt,
+                extra_metadata={"rollback_handle_id": rollback_handle_id},
+            ),
             "created_at": _now().isoformat(),
         })
         self.persist()
@@ -308,6 +933,18 @@ class DogfoodSessionState:
             "kind": "assistant",
             "title": "Feedback captured",
             "body": f"Marked {feedback}. This creates a reward event for replay/training rather than changing authority.",
+            "metadata": self._response_metadata(
+                goal=f"feedback:{receipt_id}",
+                intent="feedback",
+                response_source="ui_feedback",
+                reason="feedback reward captured for replay",
+                extra_metadata={
+                    "receipt_id": receipt_id,
+                    "feedback": feedback,
+                    "reward": reward.to_dict(),
+                    "reward_attached_to_existing_receipt": attached,
+                },
+            ),
             "created_at": _now().isoformat(),
         })
         self.persist()
@@ -318,8 +955,23 @@ class DogfoodSessionState:
         receipt = self.runtime.execute(self._call(CodexToolName.PROPOSE_PROFILE_PATCH, {"correction": correction}, grant_id=grant_id, reason="Draft a profile repair from user correction."), self.observation, self.biography)
         if self.latest_plan is not None:
             self.latest_plan.receipts.append(receipt)
-        self.profile_patch_history.append({"kind": "proposed", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
-        self.transcript_events.append({"kind": "assistant_receipt", "title": "Profile repair drafted", "body": "I drafted a profile patch. It will not apply until confirmed.", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
+        receipt_dict = receipt.to_dict()
+        proposal_kind = "proposed" if self._profile_patch_payload_from_receipt(receipt_dict) is not None else "proposal_failed"
+        self.profile_patch_history.append({"kind": proposal_kind, "receipt": receipt_dict, "created_at": _now().isoformat()})
+        self.transcript_events.append({
+            "kind": "assistant_receipt",
+            "title": "Profile repair drafted" if proposal_kind == "proposed" else "Profile repair unavailable",
+            "body": "I drafted a profile patch. It will not apply until confirmed." if proposal_kind == "proposed" else (receipt.denied_reason or "I could not draft a profile repair."),
+            "receipt": receipt_dict,
+            "metadata": self._receipt_response_metadata(
+                goal=correction,
+                intent="profile_repair",
+                response_source="ui_profile_patch_propose",
+                reason="profile repair proposal requested from profile controls",
+                receipt=receipt,
+            ),
+            "created_at": _now().isoformat(),
+        })
         self.persist()
         return self.snapshot()
 
@@ -331,8 +983,24 @@ class DogfoodSessionState:
         bio_payload = receipt.output.get("biography") if isinstance(receipt.output, dict) else None
         if isinstance(bio_payload, dict):
             self.biography = UserBiography.from_dict(bio_payload)
-        self.profile_patch_history.append({"kind": "applied" if confirmed else "needs_confirmation", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
-        self.transcript_events.append({"kind": "assistant_receipt", "title": "Profile repair applied" if confirmed else "Profile repair needs confirmation", "body": receipt.denied_reason or "Profile claims were updated with correction provenance.", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
+        receipt_dict = receipt.to_dict()
+        applied = str(receipt_dict.get("status")) == "succeeded" and isinstance(bio_payload, dict)
+        self.profile_patch_history.append({"kind": "applied" if applied else "needs_confirmation", "receipt": receipt_dict, "created_at": _now().isoformat()})
+        self.transcript_events.append({
+            "kind": "assistant_receipt",
+            "title": "Profile repair applied" if applied else "Profile repair needs confirmation",
+            "body": receipt.denied_reason or ("Profile claims were updated with correction provenance." if applied else "Profile patch requires confirmation before applying."),
+            "receipt": receipt_dict,
+            "metadata": self._receipt_response_metadata(
+                goal=correction,
+                intent="profile_apply",
+                response_source="ui_profile_patch_apply",
+                reason="profile repair apply requested from profile controls",
+                receipt=receipt,
+                extra_metadata={"profile_patch_confirmed": confirmed},
+            ),
+            "created_at": _now().isoformat(),
+        })
         self.persist()
         return self.snapshot()
 
@@ -341,7 +1009,20 @@ class DogfoodSessionState:
         if self.latest_plan is not None:
             self.latest_plan.receipts.append(receipt)
         self.denial_history.append({"denied_reason": denied_reason, "explanation": receipt.output, "created_at": _now().isoformat()})
-        self.transcript_events.append({"kind": "assistant_receipt", "title": "Why Swift denied it", "body": str(receipt.output.get("denial_explanation", denied_reason)), "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
+        self.transcript_events.append({
+            "kind": "assistant_receipt",
+            "title": "Why Swift denied it",
+            "body": str(receipt.output.get("denial_explanation", denied_reason)),
+            "receipt": receipt.to_dict(),
+            "metadata": self._receipt_response_metadata(
+                goal=denied_reason,
+                intent="denial_explanation",
+                response_source="ui_denial_explain",
+                reason="Swift denial explanation requested from visible controls",
+                receipt=receipt,
+            ),
+            "created_at": _now().isoformat(),
+        })
         self.persist()
         return self.snapshot()
 
@@ -357,7 +1038,21 @@ class DogfoodSessionState:
         top_failures = receipt.output.get("top_failure_modes", []) if isinstance(receipt.output, dict) else []
         release_decision = "hold_autonomy" if top_failures else "ship_fixture_gate"
         self.self_play_history.append({"episodes": episodes, "metrics": metrics, "top_failure_modes": top_failures, "release_decision": release_decision, "created_at": _now().isoformat()})
-        self.transcript_events.append({"kind": "assistant_receipt", "title": "Self-play release gate", "body": f"Decision: {release_decision}.", "receipt": receipt.to_dict(), "created_at": _now().isoformat()})
+        self.transcript_events.append({
+            "kind": "assistant_receipt",
+            "title": "Self-play release gate",
+            "body": f"Decision: {release_decision}.",
+            "receipt": receipt.to_dict(),
+            "metadata": self._receipt_response_metadata(
+                goal=f"self_play:{episodes}",
+                intent="self_play",
+                response_source="ui_self_play",
+                reason="self-play release gate requested from visible controls",
+                receipt=receipt,
+                extra_metadata={"self_play_episodes": episodes, "release_decision": release_decision},
+            ),
+            "created_at": _now().isoformat(),
+        })
         self.persist()
         return self.snapshot()
 
@@ -377,7 +1072,12 @@ class DogfoodSessionState:
             raise ValueError(f"unsupported runtime mode: {runtime_mode}")
         if requested != self.runtime_mode:
             self.runtime_mode = requested
-            self.launch_config = LaunchConfig.from_env(run_dir=self.run_dir, runtime_mode=self.runtime_mode)
+            self.launch_config = LaunchConfig.from_env(
+                run_dir=self.run_dir,
+                host=self.launch_config.host,
+                port=self.launch_config.port,
+                runtime_mode=self.runtime_mode,
+            )
             self.launch_config.write_manifest()
             self.latest_plan = None
             self.latest_plan_observation_id = None
@@ -456,6 +1156,17 @@ class DogfoodSessionState:
         state["provider_permission"] = result
         return state
 
+    def rename_session(self, label: str) -> dict[str, Any]:
+        cleaned = " ".join(str(label or "").split())[:80]
+        self.session_label = cleaned or None
+        self.persist()
+        return self.snapshot()
+
+    def archive_session(self) -> dict[str, Any]:
+        self.archived_at = _now().isoformat()
+        self.persist()
+        return self.snapshot()
+
     def runtime_report(self) -> dict[str, Any]:
         report = runtime_report(
             mode=self.runtime_mode,
@@ -531,7 +1242,7 @@ class DogfoodSessionState:
             if self._provider_observation_loaded():
                 blockers[:] = [blocker for blocker in blockers if blocker != "live provider/production mode is using sample fixture data"]
             return
-        if report.get("runtime_mode") not in {"live_provider", "production"}:
+        if report.get("runtime_mode") not in {"auto", "live_provider", "production"}:
             return
         status = str(provider_health.get("status", "missing_permission"))
         blocker = f"live provider health is {status}"
@@ -582,6 +1293,8 @@ class DogfoodSessionState:
         runtime = self.runtime_report()
         snapshot["session"] = {
             "session_id": self.session_id,
+            "label": self.session_label,
+            "archived_at": self.archived_at,
             "runtime_mode": runtime["runtime_mode"],
             "requested_runtime_mode": runtime["requested_runtime_mode"],
             "authority_tier": self.authority_tier,
@@ -596,13 +1309,17 @@ class DogfoodSessionState:
         snapshot["summary"]["requested_runtime_mode"] = runtime["requested_runtime_mode"]
         snapshot["summary"]["runtime_backends"] = runtime["backends"]
         snapshot["summary"]["runtime_live_blockers"] = runtime["live_blockers"]
+        snapshot["summary"]["runtime_setup_notes"] = runtime.get("setup_notes", [])
         snapshot["chat"]["messages"] = self._chat_messages(snapshot)
+        snapshot["summary"]["latest_turn"] = self._latest_turn_summary()
+        snapshot["chat"]["latest_message_metadata"] = snapshot["summary"]["latest_turn"].get("metadata")
         snapshot["chat"]["runtime"] = {
             "mode": runtime["runtime_mode"],
             "requested_mode": runtime["requested_runtime_mode"],
             "label": runtime["mode_label"],
             "backends": runtime["backends"],
             "live_blockers": runtime["live_blockers"],
+            "setup_notes": runtime.get("setup_notes", []),
         }
         snapshot["inspector"]["authority"]["history"] = self.authority_history[-10:]
         snapshot["inspector"]["runtime"] = {
@@ -618,6 +1335,7 @@ class DogfoodSessionState:
                 {"key": "provider_health", "value": runtime.get("provider_health", {}).get("status", "not_applicable")},
                 {"key": "codex_health", "value": runtime.get("codex_health", {}).get("status", "not_applicable")},
                 {"key": "live_blockers", "value": runtime["live_blockers"] or "none"},
+                {"key": "setup_notes", "value": runtime.get("setup_notes", []) or "none"},
             ],
         }
         snapshot["inspector"]["profile"]["patch_history"] = self.profile_patch_history[-10:]
@@ -631,6 +1349,27 @@ class DogfoodSessionState:
             {"label": event.get("body") or event.get("title", "run"), "created_at": event.get("created_at")} for event in self.transcript_events if event.get("kind") == "user"
         ][-8:]
         return snapshot
+
+    def _latest_turn_summary(self) -> dict[str, Any]:
+        for event in reversed(self.transcript_events):
+            kind = str(event.get("kind", ""))
+            if kind == "user":
+                return {
+                    "role": "user",
+                    "body": event.get("body", ""),
+                    "created_at": event.get("created_at"),
+                    "metadata": None,
+                }
+            if kind.startswith("assistant"):
+                return {
+                    "role": "assistant",
+                    "kind": kind,
+                    "title": event.get("title", ""),
+                    "body": event.get("body", ""),
+                    "created_at": event.get("created_at"),
+                    "metadata": event.get("metadata"),
+                }
+        return {"role": None, "metadata": None}
 
     def _provider_inspector(self) -> dict[str, Any]:
         provider_snapshot = getattr(self.provider, "snapshot", None)
@@ -665,11 +1404,19 @@ class DogfoodSessionState:
         (self.run_dir / "session_state.json").write_text(json.dumps(self._state_payload(), indent=2, sort_keys=True), encoding="utf-8")
         (self.run_dir / "latest_session.json").write_text(json.dumps(self.snapshot(), indent=2, sort_keys=True), encoding="utf-8")
         self.replay.save_jsonl(self.run_dir / "replay.jsonl")
+        self._write_launch_manifest_with_health()
+
+    def _write_launch_manifest_with_health(self) -> None:
+        manifest = self.launch_config.to_dict()
+        manifest["health"] = self.runtime_report()
+        self.launch_config.manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
     def _state_payload(self) -> dict[str, Any]:
         return {
             "version": 1,
             "session_id": self.session_id,
+            "session_label": self.session_label,
+            "archived_at": self.archived_at,
             "runtime_mode": self.runtime_mode,
             "authority_tier": self.authority_tier,
             "authority_scopes": self.authority_scopes,
@@ -709,12 +1456,26 @@ class DogfoodSessionState:
             })
             return False
         self.session_id = str(data.get("session_id") or self.session_id)
+        self.session_label = str(data.get("session_label") or "").strip() or None
+        self.archived_at = str(data.get("archived_at") or "").strip() or None
         restored_runtime_mode = str(data.get("runtime_mode") or self.runtime_mode)
         if restored_runtime_mode != self.runtime_mode:
             self.runtime_mode = restored_runtime_mode
+            self.launch_config = LaunchConfig.from_env(
+                run_dir=self.run_dir,
+                host=self.launch_config.host,
+                port=self.launch_config.port,
+                runtime_mode=self.runtime_mode,
+            )
             self._replace_kernel_for_mode()
         else:
             self.runtime_mode = restored_runtime_mode
+            self.launch_config = LaunchConfig.from_env(
+                run_dir=self.run_dir,
+                host=self.launch_config.host,
+                port=self.launch_config.port,
+                runtime_mode=self.runtime_mode,
+            )
         self.restore_error = data.get("restore_error")
         self.provider_observation_error = data.get("provider_observation_error")
         self.authority_tier = int(data.get("authority_tier", self.authority_tier))
@@ -740,7 +1501,7 @@ class DogfoodSessionState:
         self.kernel.undo_ledger = {}
         undo_ledger = kernel.get("undo_ledger", {}) if isinstance(kernel, dict) else {}
         active_undo_ledger = {str(k): str(v) for k, v in undo_ledger.items()} if isinstance(undo_ledger, dict) else {}
-        if self.runtime_mode in {"swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}:
+        if self.runtime_mode in {"auto", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider", "production"}:
             restore_grant = getattr(self.kernel, "restore_authority_grant", None)
             if callable(restore_grant):
                 for grant in grants:
@@ -852,6 +1613,7 @@ class DogfoodSessionState:
                 "role": role,
                 "title": event.get("title", ""),
                 "body": event.get("body", ""),
+                "metadata": event.get("metadata"),
                 "created_at": event.get("created_at"),
                 "cards": [],
             }
@@ -859,6 +1621,12 @@ class DogfoodSessionState:
                 message["cards"] = snapshot.get("chat", {}).get("candidate_cards", [])[:3]
             if event.get("kind") == "assistant_receipt" and event.get("receipt"):
                 message["cards"] = [{"type": "receipt", "receipt": event["receipt"]}]
+            if event.get("kind", "").startswith("assistant") and event.get("conversation_receipts"):
+                message["cards"].extend([
+                    {"type": "receipt", "receipt": receipt}
+                    for receipt in event.get("conversation_receipts", [])
+                    if isinstance(receipt, dict)
+                ])
             messages.append(message)
         if self.latest_plan is None:
             return messages

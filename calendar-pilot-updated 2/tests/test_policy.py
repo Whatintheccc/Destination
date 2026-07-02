@@ -81,6 +81,14 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(metadata["fallback_state"], "model_generated_frontier")
         self.assertEqual(metadata["prompt_version"], "calendar_pilot_nim_frontier_generator_v2")
 
+    def test_live_diffusiongemma_policy_forwards_user_goal_to_nim_generator(self):
+        client = GoalCaptureNIMGeneratorClient()
+        policy = LiveDiffusionGemmaPolicy(client=client)
+
+        policy.generate_candidates(self.observation, self.biography, goal="Move prep before tomorrow's meeting")
+
+        self.assertEqual(client.last_goal, "Move prep before tomorrow's meeting")
+
     def test_missing_nim_credential_blocks_live_policy_without_heuristic_fallback(self):
         policy = LiveDiffusionGemmaPolicy(client=MissingNIMClient(api_key=""))
         with self.assertRaises(LiveDiffusionGemmaCredentialError):
@@ -143,6 +151,15 @@ class FakeNIMGeneratorClient:
                 "validation": {"candidate_contract": "CandidateCalendarAction", "validation_errors": []},
             },
         )
+
+
+class GoalCaptureNIMGeneratorClient(FakeNIMGeneratorClient):
+    def __init__(self):
+        self.last_goal = None
+
+    def generate_candidate_frontier(self, *, goal, observation, biography, **kwargs):
+        self.last_goal = goal
+        return super().generate_candidate_frontier(goal=goal, observation=observation, biography=biography, **kwargs)
 
 
 class FakeNIMClient:

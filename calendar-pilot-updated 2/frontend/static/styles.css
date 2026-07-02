@@ -27,8 +27,14 @@ button { cursor: pointer; }
 .sidebar h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; margin: 0 0 8px; }
 .sidebar-section { min-height: 0; }
 .nav-list { display: grid; gap: 8px; }
-.nav-item { border: 1px solid transparent; border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,.45); font-size: 14px; }
+.nav-item { border: 1px solid transparent; border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,.45); font-size: 14px; text-align: left; color: inherit; width: 100%; }
 .nav-item.active { border-color: var(--line-strong); background: var(--panel); box-shadow: 0 6px 18px rgba(0,0,0,.04); }
+.nav-item strong, .nav-item span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-item span { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.session-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.session-actions { display: flex; gap: 6px; justify-content: flex-end; min-height: 24px; }
+.session-actions button { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.55); color: var(--muted); font-size: 11px; padding: 4px 6px; }
+.session-actions button:hover { color: var(--ink); border-color: var(--line-strong); }
 .sidebar-footer { margin-top: auto; }
 .chat-main { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 22px 28px 12px; border-bottom: 1px solid var(--line); background: rgba(247,244,238,.92); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 3; }
@@ -44,6 +50,10 @@ button { cursor: pointer; }
 .bubble { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.04); }
 .bubble h3 { margin: 0 0 6px; font-size: 16px; }
 .bubble p { margin: 0; color: #3c352d; line-height: 1.45; }
+.message-metadata { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 12px; }
+.message-metadata summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+.message-metadata .kv { grid-template-columns: 120px minmax(0, 1fr); border-top: 0; padding: 4px 0; }
+.message-metadata .v { color: #3c352d; }
 .cards { margin-top: 14px; display: grid; gap: 12px; }
 .card { border: 1px solid var(--line); background: var(--panel-strong); border-radius: 16px; padding: 14px; }
 .card-header { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
