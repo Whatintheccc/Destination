@@ -89,13 +89,17 @@ class CodexToolRuntime:
     ) -> CodexToolReceipt:
         name = call.tool_name
         if name == CodexToolName.INSPECT_WEEK:
-            return self._receipt(call, CodexToolStatus.SUCCEEDED, self._inspect_week(observation, biography))
+            return self._receipt(
+                call,
+                CodexToolStatus.SUCCEEDED,
+                self._inspect_week(observation, biography, redact_raw_events=self._real_provider_active()),
+            )
         if name == CodexToolName.INSPECT_EVENT:
             event_id = str(call.input.get("event_id", ""))
             event = next((e for e in observation.events if e.event_id == event_id), None)
             if event is None:
                 return self._receipt(call, CodexToolStatus.DENIED, {}, denied="event not found")
-            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"event": self._event_dict(event)})
+            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"event": self._event_dict(event, redact_private=self._real_provider_active())})
         if name == CodexToolName.INSPECT_OPEN_SLOTS:
             signals = extract_signals(observation, biography)
             return self._receipt(call, CodexToolStatus.SUCCEEDED, {"open_slots": [to_jsonable(s) for s in signals.open_slots]})
@@ -425,6 +429,9 @@ class CodexToolRuntime:
             return None
         return health
 
+    def _real_provider_active(self) -> bool:
+        return bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False))
+
     def _commit_to_provider(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt, observation: RawCalendarObservation):
         commit_candidate = getattr(self.provider, "commit_candidate", None)
         if not callable(commit_candidate):
@@ -454,7 +461,7 @@ class CodexToolRuntime:
         raise ValueError("candidate_id or candidate payload required")
 
     @staticmethod
-    def _inspect_week(observation: RawCalendarObservation, biography: UserBiography) -> dict[str, Any]:
+    def _inspect_week(observation: RawCalendarObservation, biography: UserBiography, *, redact_raw_events: bool = False) -> dict[str, Any]:
         signals = extract_signals(observation, biography)
         return {
             "observation_id": observation.observation_id,
@@ -464,12 +471,27 @@ class CodexToolRuntime:
             "fatigue_score": round(signals.fatigue_score, 4),
             "risk_cliffs": signals.risk_cliffs,
             "open_slot_count": len(signals.open_slots),
-            "raw_events": [CodexToolRuntime._event_dict(e) for e in observation.events],
+            "raw_events": [] if redact_raw_events else [CodexToolRuntime._event_dict(e) for e in observation.events],
+            "raw_events_redacted": redact_raw_events,
+            "redaction_reason": "real_provider_replay_privacy" if redact_raw_events else None,
             "best_response_hours": biography.best_response_hours,
         }
 
     @staticmethod
-    def _event_dict(event: RawCalendarEvent) -> dict[str, Any]:
+    def _event_dict(event: RawCalendarEvent, *, redact_private: bool = False) -> dict[str, Any]:
+        if redact_private:
+            return {
+                "event_id": event.event_id,
+                "start": event.start.isoformat(),
+                "end": event.end.isoformat(),
+                "calendar_id": event.calendar_id,
+                "attendees_count": len(event.attendees),
+                "category": event.category,
+                "is_user_owned": event.is_user_owned,
+                "is_flexible": event.is_flexible,
+                "redacted": True,
+                "redaction_reason": "real_provider_replay_privacy",
+            }
         return {
             "event_id": event.event_id,
             "title": event.title,

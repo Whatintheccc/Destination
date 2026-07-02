@@ -139,6 +139,45 @@ class AppleEventKitProviderTests(unittest.TestCase):
         self.assertEqual(denied.denied_reason, "provider_truth_unavailable")
         self.assertFalse(provider.commit_called)
 
+    def test_runtime_redacts_real_provider_calendar_details_from_replay(self):
+        obs = load_obs()
+        provider_obs = RawCalendarObservation(
+            observation_id="obs_apple_eventkit",
+            user_scope_id=obs.user_scope_id,
+            observed_at=obs.observed_at,
+            time_zone_id=obs.time_zone_id,
+            events=obs.events,
+            tasks=obs.tasks,
+            device_context=obs.device_context,
+            notification_history=obs.notification_history,
+            prior_actions=obs.prior_actions,
+        )
+        runtime = CodexToolRuntime(kernel=SwiftKernelIPCClient(), provider=FakeConfiguredProvider())
+
+        week = runtime.execute(
+            CodexToolCall("inspect_real_provider_week", CodexToolName.INSPECT_WEEK, {}, 1, "inspect"),
+            provider_obs,
+            load_bio(),
+        )
+        self.assertEqual(week.output["raw_events"], [])
+        self.assertTrue(week.output["raw_events_redacted"])
+
+        event = runtime.execute(
+            CodexToolCall("inspect_real_provider_event", CodexToolName.INSPECT_EVENT, {"event_id": obs.events[0].event_id}, 1, "inspect"),
+            provider_obs,
+            load_bio(),
+        )
+        self.assertTrue(event.output["event"]["redacted"])
+        self.assertNotIn("title", event.output["event"])
+        self.assertNotIn("attendees", event.output["event"])
+        self.assertNotIn("location", event.output["event"])
+
+        replay_json = json.dumps([record.envelope() for record in runtime.replay.records])
+        self.assertNotIn(obs.events[0].title, replay_json)
+        self.assertNotIn(obs.events[0].location, replay_json)
+        for attendee in obs.events[0].attendees:
+            self.assertNotIn(attendee, replay_json)
+
     def test_eventkit_snapshot_redacts_private_rollback_event_payloads(self):
         obs = load_obs()
         candidate = create_focus_candidate(obs, "cand_eventkit_redaction")
