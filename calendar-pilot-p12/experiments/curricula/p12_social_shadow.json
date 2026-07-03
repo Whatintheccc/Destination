@@ -1,0 +1,1 @@
+{"curriculum_id":"p12_social_shadow","scenario_classes":["social_friction"],"scenarios":[{"scenario_id":"social_friction","behavior_history":[{"outcome":"dismissed"}],"assertions":["no_social_commit_without_scope"]}]}

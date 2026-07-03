@@ -1,8 +1,0 @@
-{
-  "adversaries": ["regret_adversary"],
-  "disturbances": ["expire_authority_grant", "inject_flexible_hold"],
-  "invariant_assertions": ["I2′", "I6", "I7"],
-  "scenario_id": "undo_regret_after_auto_write",
-  "seed_id": "seed_researcher_deadline_fatigue",
-  "simulator_version": "sim_v2"
-}

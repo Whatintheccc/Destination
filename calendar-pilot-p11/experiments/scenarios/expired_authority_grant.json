@@ -1,8 +1,0 @@
-{
-  "adversaries": ["regret_adversary"],
-  "disturbances": ["expire_authority_grant"],
-  "invariant_assertions": ["I5", "I7", "S4"],
-  "scenario_id": "expired_authority_grant",
-  "seed_id": "seed_parent_school_pickup_conflicts",
-  "simulator_version": "sim_v2"
-}

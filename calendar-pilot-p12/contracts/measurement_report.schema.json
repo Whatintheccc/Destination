@@ -1,0 +1,202 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/measurement_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "OTHER_intent_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "codex_latency_ms_p50": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "codex_latency_ms_p95": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cost_per_valid_frontier": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "derived_vs_declared_conflicts": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "empty_frontier_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "engagement_delta": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "estimator_calibration_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "expected_intent_hit_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "frontier_latency_ms_p50": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "frontier_latency_ms_p95": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "git_sha": {
+      "type": "string"
+    },
+    "hard_invariant_violations": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "interruption_delta": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "label_churn_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "label_evidence_coverage": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "measurement_schema_version": {
+      "const": "measurement_report.v1"
+    },
+    "model_generation_rejection_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "nim_request_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "nim_retry_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "policy_backend": {
+      "type": "string"
+    },
+    "policy_tuning_id": {
+      "type": "string"
+    },
+    "provider_backend": {
+      "type": "string"
+    },
+    "provider_idempotency_pass": {
+      "type": "boolean"
+    },
+    "provider_verify_latency_ms_p50": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "provider_verify_latency_ms_p95": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "regret_delta": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rollback_pass_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "runtime_mode": {
+      "type": "string"
+    },
+    "social_risk_delta": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "soft_invariant_violations": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "undo_regret_delta": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "utility_delta": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "valid_frontier_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "measurement_schema_version",
+    "run_id",
+    "git_sha",
+    "runtime_mode",
+    "policy_backend",
+    "provider_backend",
+    "valid_frontier_rate",
+    "hard_invariant_violations",
+    "soft_invariant_violations"
+  ],
+  "title": "MeasurementReportV1",
+  "type": "object"
+}

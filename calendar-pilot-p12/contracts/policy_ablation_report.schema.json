@@ -1,0 +1,48 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/policy_ablation_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "ablation_schema_version": {
+      "const": "policy_ablation_report.v1"
+    },
+    "ablations": {
+      "type": "object"
+    },
+    "candidate_policy_tuning_id": {
+      "type": "string"
+    },
+    "critical_components": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "current_policy_tuning_id": {
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "hold"
+      ]
+    },
+    "non_effective_components": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "ablation_schema_version",
+    "candidate_policy_tuning_id",
+    "current_policy_tuning_id",
+    "ablations",
+    "critical_components",
+    "non_effective_components",
+    "decision"
+  ],
+  "title": "PolicyAblationReportV1",
+  "type": "object"
+}

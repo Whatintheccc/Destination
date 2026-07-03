@@ -1,0 +1,55 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/biography_drift_finding.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "biography_claim": {
+      "type": "string"
+    },
+    "conflict": {
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "finding_id": {
+      "type": "string"
+    },
+    "finding_schema_version": {
+      "const": "biography_drift_finding.v1"
+    },
+    "semantic_signal_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "open",
+        "resolved",
+        "waived"
+      ]
+    },
+    "surfaced_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "user_scope_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "finding_schema_version",
+    "finding_id",
+    "user_scope_id",
+    "biography_claim",
+    "semantic_signal_id",
+    "conflict",
+    "evidence",
+    "surfaced_at",
+    "status"
+  ],
+  "title": "BiographyDriftFindingV1",
+  "type": "object"
+}

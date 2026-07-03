@@ -1,0 +1,91 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/semantic_signal.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activation": {
+      "type": "object"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "created_by": {
+      "enum": [
+        "codex_annotator",
+        "user",
+        "import",
+        "estimator"
+      ]
+    },
+    "estimator_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evidence": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "evidence_window": {
+      "type": "object"
+    },
+    "half_life_days": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "derived",
+        "declared",
+        "conversational"
+      ]
+    },
+    "label": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "signal_id": {
+      "type": "string"
+    },
+    "signal_schema_version": {
+      "const": "semantic_signal.v1"
+    },
+    "statement": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "active",
+        "disabled",
+        "expired",
+        "corrected"
+      ]
+    },
+    "user_scope_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "signal_schema_version",
+    "signal_id",
+    "user_scope_id",
+    "label",
+    "statement",
+    "kind",
+    "created_by",
+    "evidence",
+    "confidence",
+    "half_life_days",
+    "status"
+  ],
+  "title": "SemanticSignalV1",
+  "type": "object"
+}

@@ -1,0 +1,74 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/replay_record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "causal_parent_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "record_id": {
+      "type": "string"
+    },
+    "record_schema_version": {
+      "default": "r1",
+      "type": "string"
+    },
+    "record_type": {
+      "enum": [
+        "decision",
+        "receipt",
+        "reward",
+        "self_play_episode",
+        "adversary_finding",
+        "codex_tool_call",
+        "codex_tool_receipt",
+        "candidate_receipt",
+        "router_decision",
+        "model_generation_rejection",
+        "envelope_transition",
+        "frontier_generation",
+        "provider_transaction",
+        "tuning_reduction",
+        "artifact_ref",
+        "semantic_signal",
+        "signal_estimator_report",
+        "label_activation",
+        "biography_drift_finding",
+        "dogfood_observation",
+        "human_feedback_event",
+        "raw_calendar_observation",
+        "biography_claim",
+        "biography_correction",
+        "profile_update_event"
+      ]
+    },
+    "signal_stream": {
+      "enum": [
+        "action",
+        "world",
+        "biography",
+        "derived",
+        "system"
+      ]
+    },
+    "trace_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_type",
+    "record_id",
+    "trace_id",
+    "payload",
+    "record_schema_version",
+    "signal_stream"
+  ],
+  "title": "ReplayRecordV1",
+  "type": "object"
+}

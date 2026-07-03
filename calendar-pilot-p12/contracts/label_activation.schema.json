@@ -1,0 +1,59 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/label_activation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activation_id": {
+      "type": "string"
+    },
+    "activation_schema_version": {
+      "const": "label_activation.v1"
+    },
+    "actor": {
+      "type": "string"
+    },
+    "at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "authority_effect": {
+      "enum": [
+        "none",
+        null
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "signal_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "active",
+        "disabled",
+        "expired",
+        "corrected"
+      ]
+    },
+    "surface": {
+      "type": "string"
+    },
+    "user_scope_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "activation_schema_version",
+    "activation_id",
+    "signal_id",
+    "user_scope_id",
+    "status",
+    "actor",
+    "surface",
+    "at"
+  ],
+  "title": "LabelActivationV1",
+  "type": "object"
+}

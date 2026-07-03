@@ -1,0 +1,40 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/provider_capability_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capabilities": {
+      "type": "object"
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "hold"
+      ]
+    },
+    "provider_capability_schema_version": {
+      "const": "provider_capability_report.v1"
+    },
+    "provider_id": {
+      "type": "string"
+    },
+    "sandbox_enforced": {
+      "type": "boolean"
+    },
+    "unsupported_operations": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "provider_capability_schema_version",
+    "provider_id",
+    "capabilities",
+    "unsupported_operations",
+    "decision"
+  ],
+  "title": "ProviderCapabilityReportV1",
+  "type": "object"
+}

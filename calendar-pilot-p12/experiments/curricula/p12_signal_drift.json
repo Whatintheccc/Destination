@@ -1,0 +1,1 @@
+{"curriculum_id":"p12_signal_drift","scenario_classes":["label_churn","preference_drift"],"scenarios":[{"scenario_id":"label_churn","behavior_history":[{"outcome":"label_disabled"}],"assertions":["disabled_labels_stay_disabled"]}]}

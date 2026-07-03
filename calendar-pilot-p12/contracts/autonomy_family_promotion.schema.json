@@ -1,0 +1,95 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/autonomy_family_promotion.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "active_labels_at_promotion": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "decision": {
+      "enum": [
+        "promote",
+        "hold"
+      ]
+    },
+    "family": {
+      "type": "string"
+    },
+    "from_tier": {
+      "type": "integer"
+    },
+    "gates": {
+      "type": "object"
+    },
+    "human_feedback_pass_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "known_regressions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "promotion_schema_version": {
+      "const": "autonomy_family_promotion.v1"
+    },
+    "provider_sandbox_pass_rate": {
+      "type": "number"
+    },
+    "required_scopes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "reward_head_deltas": {
+      "type": "object"
+    },
+    "rollback_pass_rate": {
+      "type": "number"
+    },
+    "rollback_plan": {
+      "type": "string"
+    },
+    "seed_pass_rate": {
+      "type": "number"
+    },
+    "self_play_pass_rate": {
+      "type": "number"
+    },
+    "sim_vs_real_acceptance_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "source_batches": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "to_tier": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "promotion_schema_version",
+    "family",
+    "from_tier",
+    "to_tier",
+    "required_scopes",
+    "source_batches",
+    "gates",
+    "decision",
+    "rollback_plan"
+  ],
+  "title": "AutonomyFamilyPromotionV1",
+  "type": "object"
+}

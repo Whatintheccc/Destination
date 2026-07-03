@@ -1,0 +1,85 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/calibration_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_family_metrics": {
+      "type": "object"
+    },
+    "calibration_schema_version": {
+      "const": "calibration_report.v1"
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "hold"
+      ]
+    },
+    "estimator_calibration_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "estimator_versions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "known_biases": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "matched_examples": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "overall_acceptance_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "overall_undo_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "policy_tuning_id": {
+      "type": "string"
+    },
+    "real_source": {
+      "enum": [
+        "dogfood_shadow",
+        "provider_observed",
+        "human_feedback",
+        "fixture"
+      ]
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "simulator_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "calibration_schema_version",
+    "run_id",
+    "policy_tuning_id",
+    "simulator_version",
+    "estimator_versions",
+    "real_source",
+    "matched_examples",
+    "action_family_metrics",
+    "overall_acceptance_gap",
+    "overall_undo_gap",
+    "decision"
+  ],
+  "title": "CalibrationReportV1",
+  "type": "object"
+}

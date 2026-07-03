@@ -1,0 +1,72 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/curriculum_run.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "average_reward": {
+      "type": "number"
+    },
+    "curriculum_id": {
+      "type": "string"
+    },
+    "curriculum_schema_version": {
+      "const": "curriculum_run.v1"
+    },
+    "episode_count": {
+      "type": "integer"
+    },
+    "estimator_versions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "failure_modes": {
+      "type": "object"
+    },
+    "mapped_findings": {
+      "type": "object"
+    },
+    "policy_tuning_id": {
+      "type": "string"
+    },
+    "promotion_blockers": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "reward_head_deltas": {
+      "type": "object"
+    },
+    "scenario_count": {
+      "type": "integer"
+    },
+    "simulator_version": {
+      "type": "string"
+    },
+    "unmapped_findings": {
+      "type": "object"
+    },
+    "waived_findings": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "curriculum_schema_version",
+    "curriculum_id",
+    "simulator_version",
+    "estimator_versions",
+    "policy_tuning_id",
+    "scenario_count",
+    "episode_count",
+    "failure_modes",
+    "mapped_findings",
+    "unmapped_findings",
+    "waived_findings",
+    "average_reward",
+    "promotion_blockers"
+  ],
+  "title": "CurriculumRunV1",
+  "type": "object"
+}

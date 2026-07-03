@@ -1,0 +1,68 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/signal_estimator_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "coverage": {
+      "type": "object"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "estimator_version": {
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "input_hash": {
+      "type": "string"
+    },
+    "input_streams": {
+      "items": {
+        "enum": [
+          "action",
+          "world",
+          "biography",
+          "derived",
+          "system"
+        ]
+      },
+      "type": "array"
+    },
+    "output_signal_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "report_id": {
+      "type": "string"
+    },
+    "report_schema_version": {
+      "const": "signal_estimator_report.v1"
+    },
+    "user_scope_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_schema_version",
+    "report_id",
+    "estimator_version",
+    "user_scope_id",
+    "input_streams",
+    "input_hash",
+    "coverage",
+    "output_signal_ids"
+  ],
+  "title": "SignalEstimatorReportV1",
+  "type": "object"
+}

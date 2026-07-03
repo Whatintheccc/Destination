@@ -1,6 +1,0 @@
-{
-  "path": "experiments/promoted/policy_tuning_baseline_empty_v1.json",
-  "policy_tuning_id": "baseline_empty_v1",
-  "promoted_at": "2026-07-03T00:00:00Z",
-  "source_batch": "bootstrap_current_policy"
-}

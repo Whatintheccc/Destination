@@ -1,0 +1,1 @@
+{"curriculum_id":"p12_provider_failures","scenario_classes":["provider_sync_lag","rollback_failure"],"scenarios":[{"scenario_id":"provider_sync_lag","behavior_history":[{"outcome":"ignored"}],"assertions":["provider_errors_are_replay_rows"]}]}

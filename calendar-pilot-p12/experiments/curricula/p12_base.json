@@ -1,0 +1,1 @@
+{"curriculum_id":"p12_base","scenario_classes":["base_day_pressure","dismissal_saturation","preference_drift"],"scenarios":[{"scenario_id":"base_day_pressure","behavior_history":[],"assertions":["no_hard_invariant_violations"]}]}
