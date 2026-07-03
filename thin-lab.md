@@ -821,3 +821,32 @@ Compare the next frontier.
 ```
 
 Build only as much lab as makes the ML signal repeatable — the four scripts, the seed corpus, and the gates above — then go full throttle. Milestone name: **P10 — Seeded ML Lab and Recommendation Dogfood**.
+
+---
+
+# Codex implementation run log
+
+## thin_lab_codex_20260703
+
+Started: 2026-07-03 PDT
+
+Checkpoint:
+
+```text
+dc6c498 Add thin lab implementation spec
+```
+
+Progress:
+
+```text
+[2026-07-03 PDT] Read thin-lab.md end to end and read the Computer Use policy before UI testing.
+[2026-07-03 PDT] Committed the current non-Do-not-reference checkpoint before implementation. The checkpoint intentionally captured the current ML-testing.md deletion and new thin-lab.md file.
+[2026-07-03 PDT] Started Track 1 implementation: experiments tree, four lab scripts, Makefile/.gitignore changes, prompt-version constant, and Lab surface routing.
+[2026-07-03 PDT] Materialized the full deterministic seed corpus: 20 base seeds plus 100 generated perturbation variants. `seed_calendar_corpus.py --write-base-seeds --generate-variants --validate` passed across all 120 seed files.
+[2026-07-03 PDT] Added and smoke-tested the lab execution loop. `run_lab_experiment.py` completed a fixture run for `seed_ae_renewal_week_high_pressure`, wrote the full artifact set, `compare_lab_runs.py --reindex` rebuilt `experiments/index.json`, and `promote_policy.py --batch thin_lab_smoke` wrote a hold record with explicit failed gates for missing flagged-seed/D12 evidence.
+[2026-07-03 PDT] Ran the days-1/2 starter matrix locally: 5 fixture runs completed and 5 live DiffusionGemma runs skipped with `nim_missing_credential`. Fixture metrics: valid_frontier_rate=1.00, other_intent_rate=0.082, invariant_violations_max=0, bad_intent_committed=0, expected_intent_hit_rate=0.60. `promote_policy.py --batch thin_lab_starter_fixture` wrote a hold record because D11/D12 evidence is not present.
+[2026-07-03 PDT] Tested app routing through `/api/view` and Chrome/Computer Use. The Lab tab showed `Seeded ML experiments` with index loaded and 11 rows; clicking `Run self-play` originally exposed a legacy-state refresh bug, then the frontend was patched to refetch `/api/view` after POSTs. Retest confirmed Lab and the legacy inspector `Self-play` tab keep the seeded experiment panel loaded after self-play.
+[2026-07-03 PDT] Probed the two EventKit-designated seeds through cell D; both wrote skipped lab rows with `nim_missing_credential` before EventKit preflight. Final `make lab-compare` rebuilt `experiments/index.json` with 13 rows: 6 completed and 7 skipped.
+[2026-07-03 PDT] Verification passed: script py_compile, `make lab-validate-seeds`, targeted frontend tests, full Python unittest discovery (147 tests, 10 skipped), Swift package tests (17 tests), and `scripts/run_browser_e2e.py`.
+[2026-07-03 PDT] Exercised dogfood import mode with `run_lab_experiment.py --from-replay` against the smoke replay. `comparison_latest` was rebuilt with 14 indexed rows.
+```

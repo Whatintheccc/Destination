@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 class FrontendProjector:
@@ -20,6 +25,8 @@ class FrontendProjector:
         runtime = snapshot.get("runtime", {})
         inspector = snapshot.get("inspector", {})
         learning = snapshot.get("learning", {}) or {}
+        lab = dict(inspector.get("self_play", {}) or {})
+        lab.update(_lab_index_payload())
         return {
             "view_version": "view_state.v2",
             "state_version": snapshot.get("state_version", 0),
@@ -36,8 +43,28 @@ class FrontendProjector:
             "actions": {"queue": snapshot.get("action_queue", [])},
             "authority": inspector.get("authority", {}),
             "learning": learning,
-            "lab": inspector.get("self_play", {}),
+            "lab": lab,
             "pipeline": snapshot.get("pipeline", {"turns": []}),
             "invariants": snapshot.get("invariants", {"violations": []}),
             "legacy_state": snapshot,
         }
+
+
+def _lab_index_payload() -> dict[str, Any]:
+    index_path = ROOT / "experiments" / "index.json"
+    if not index_path.exists():
+        return {"experiments": [], "lab_index_status": "missing"}
+    try:
+        payload = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"experiments": [], "lab_index_status": "unreadable", "error": str(exc)}
+    rows = payload.get("runs", payload if isinstance(payload, list) else [])
+    if not isinstance(rows, list):
+        rows = []
+    return {
+        "experiments": rows[-20:],
+        "lab_index_status": "loaded",
+        "lab_index_path": str(index_path),
+        "lab_run_count": len(rows),
+        "batch_metrics": payload.get("batch_metrics", {}) if isinstance(payload, dict) else {},
+    }

@@ -42,7 +42,12 @@ def body_bool(value: Any, *, default: bool = False) -> bool:
 def get_session(session_id: str | None = None) -> DogfoodSessionState:
     global _DEFAULT_SESSION
     if session_id:
-        return _SESSION_MANAGER.get_by_session_id(session_id, _CURRENT_LAUNCH, activate=False)
+        try:
+            return _SESSION_MANAGER.get_by_session_id(session_id, _CURRENT_LAUNCH, activate=False)
+        except KeyError:
+            if _DEFAULT_SESSION is None:
+                _DEFAULT_SESSION = _SESSION_MANAGER.get_or_create(_CURRENT_LAUNCH)
+            return _DEFAULT_SESSION
     if _DEFAULT_SESSION is None:
         _DEFAULT_SESSION = _SESSION_MANAGER.get_or_create(_CURRENT_LAUNCH)
     return _DEFAULT_SESSION

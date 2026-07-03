@@ -1,0 +1,111 @@
+{
+  "batch_id": "thin_lab_smoke",
+  "batch_metrics": {
+    "bad_intent_committed": 0,
+    "completed_runs": 1,
+    "duplicate_candidate_rate": 0.0,
+    "expected_intent_hit_rate": 1.0,
+    "invariant_violations_max": 0,
+    "leader_changed_runs": 0,
+    "model_generation_rejection_rate": 0.0,
+    "other_intent_rate": 0.0714,
+    "rejections": 0,
+    "rows": 1,
+    "status_counts": {
+      "completed": 1
+    },
+    "valid_candidates": 8,
+    "valid_frontier_rate": 1.0
+  },
+  "config_rankings": [
+    {
+      "completed_runs": 1,
+      "other_intent_rate": 0.0714,
+      "rejection_rate": 0.0,
+      "runtime_mode": "fixture",
+      "valid_frontier_rate": 1.0
+    }
+  ],
+  "groups": [
+    {
+      "latest_experiment_id": "lab_20260703_001",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
+      "metrics": {
+        "bad_intent_committed": 0,
+        "completed_runs": 1,
+        "duplicate_candidate_rate": 0.0,
+        "expected_intent_hit_rate": 1.0,
+        "invariant_violations_max": 0,
+        "leader_changed_runs": 0,
+        "model_generation_rejection_rate": 0.0,
+        "other_intent_rate": 0.0714,
+        "rejections": 0,
+        "rows": 1,
+        "status_counts": {
+          "completed": 1
+        },
+        "valid_candidates": 8,
+        "valid_frontier_rate": 1.0
+      },
+      "runs": 1,
+      "runtime_mode": "fixture",
+      "seed_id": "seed_ae_renewal_week_high_pressure"
+    }
+  ],
+  "lab_schema_version": "lab_v0.1",
+  "leader_changed_runs": [],
+  "missed_expected_intents": [],
+  "rows": [
+    {
+      "batch_id": "thin_lab_smoke",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "create_prep_block in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_001",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T03:59:51Z",
+        "episodes": 3,
+        "git_sha": "dc6c4987c32d99f9086303ed7d8212d338dd5db9",
+        "imported": false,
+        "self_play_backend": "stub_fast",
+        "started_at": "2026-07-03T03:59:51Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0893,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 8,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 4,
+        "rejections": 0,
+        "self_play_average_reward": 3.324,
+        "top_candidate_expected_reward": 2.574,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 8,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_001",
+      "runtime_mode": "fixture",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "completed"
+    }
+  ]
+}

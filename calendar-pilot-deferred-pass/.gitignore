@@ -13,6 +13,7 @@ dist/
 coverage.xml
 htmlcov/
 runs/
+experiments/runs/
 *.zip
 *.sha256
 .coverage

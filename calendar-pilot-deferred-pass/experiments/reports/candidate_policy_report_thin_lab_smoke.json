@@ -1,0 +1,71 @@
+{
+  "average_reward": 3.324,
+  "decisions": 26,
+  "denials": 0,
+  "envelope_transitions": 6,
+  "episodes": 3,
+  "failure_penalties": {},
+  "intent_adjustments": {
+    "create_prep_block": {
+      "count": 3,
+      "denial_rate": 0.0,
+      "denials": 0,
+      "mean_expected_reward": 2.324,
+      "mean_observed_reward": 3.324,
+      "raw_intents": {
+        "create_prep_block": 3
+      },
+      "reward_provenance": {
+        "adversarial": 3
+      },
+      "reward_residual": 1.0,
+      "supporting_records": [
+        "reward:rew_1",
+        "reward:rew_2",
+        "reward:rew_3"
+      ]
+    }
+  },
+  "model_generation_rejections": 0,
+  "policy_tuning": {
+    "bias_evidence": {
+      "create_prep_block": {
+        "narrative": "3 rows; denial_rate=0.00; bias=+0.25",
+        "raw_intents": {
+          "create_prep_block": 3
+        },
+        "reward_provenance": {
+          "adversarial": 3
+        },
+        "reward_residual": 1.0,
+        "supporting_records": [
+          "reward:rew_1",
+          "reward:rew_2",
+          "reward:rew_3"
+        ]
+      }
+    },
+    "denied_intents": [],
+    "failure_penalties": {},
+    "generated_at": "2026-07-03T04:00:10.055140+00:00",
+    "intent_reward_bias": {
+      "create_prep_block": 0.25
+    },
+    "source_report": "train_offline_policy.py",
+    "taxonomy_health": {
+      "matched_by": {
+        "exact": 3
+      },
+      "other_rate": 0.0
+    },
+    "tuning_id": "offline_replay_v2"
+  },
+  "receipts": 4,
+  "recommended_next_step": "Use policy_tuning as DiffusionGemmaPolicy(policy_tuning=PolicyTuning.from_dict(...)); watch taxonomy OTHER-rate before autonomy promotion.",
+  "records": 52,
+  "rewards": 3,
+  "router_decisions": 0,
+  "tool_calls": 5,
+  "tool_receipts": 5,
+  "training_rows": 3
+}

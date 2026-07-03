@@ -22,6 +22,7 @@ from calendar_pilot.types import CandidateCalendarAction, PolicyTuning, RawCalen
 
 load_local_env()
 LIVE_DIFFUSIONGEMMA_BACKEND = "nvidia_nim_diffusiongemma_policy"
+PROMPT_VERSION = "frontier_v1"
 LIVE_DIFFUSIONGEMMA_PROMPT_VERSION = "calendar_pilot_nim_frontier_generator_v2"
 NVIDIA_NIM_DOC_URL = "https://docs.api.nvidia.com/nim/reference/diffusiongemma-26b-a4b-it-infer"
 DEFAULT_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"

@@ -97,6 +97,7 @@ function renderLab(root, view) {
   const lab = view.lab || {};
   root.append(h('h2', {}, 'Lab'));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Self-play backend'), kv('backend', lab.backend || 'stub_fast'), kv('grant policy', lab.backend_policy || {}), h('label', {}, 'Episodes ', h('input', {id: 'self-play-episodes', type: 'number', min: 1, max: 20, value: 3})), h('div', {class: 'card-actions'}, h('button', {id: 'run-self-play', 'data-testid': 'run-self-play', class: 'primary'}, 'Run self-play'))));
+  root.append(h('div', {class: 'inspector-card', 'data-testid': 'lab-experiments'}, h('h3', {}, 'Seeded ML experiments'), kv('index', lab.lab_index_status || 'missing'), kv('runs', lab.lab_run_count || 0), ...((lab.experiments || []).slice(-6).map(row => h('div', {class: 'nav-item'}, `${row.experiment_id || 'lab run'} · ${row.seed_id || 'seed'} · ${row.runtime_mode || 'runtime'} · ${(row.metrics || {}).invariant_violations ?? 0} violations`)))));
   root.append(h('pre', {}, JSON.stringify(lab, null, 2)));
 }
 
@@ -118,7 +119,9 @@ function renderRail(view) {
 async function postAndRefresh(path, body = {}) {
   setPending(true);
   try {
-    store.checkpoint(normalizeView(await api(path, {method: 'POST', body}, sessionId())));
+    const response = normalizeView(await api(path, {method: 'POST', body}, sessionId()));
+    const nextSession = response.session?.session_id || response.legacy_state?.session?.session_id || sessionId();
+    store.checkpoint(await loadView(nextSession));
   } catch (err) {
     showToast(err.message);
   } finally {

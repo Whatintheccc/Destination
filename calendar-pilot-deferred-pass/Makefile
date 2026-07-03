@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote mac-app-build desktop-shortcut dogfood-release demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -46,6 +46,18 @@ evidence-bundle:
 	PYTHONPATH=src python3 -m calendar_pilot.app frontend --write-snapshot --out runs/ci_evidence/frontend_state.json
 	PYTHONPATH=src python3 scripts/check_invariants.py --replay tests/fixtures/replay_golden.jsonl --out runs/ci_evidence/invariants.json
 	PYTHONPATH=src python3 scripts/run_secret_scan.py --path runs/ci_evidence
+
+lab-validate-seeds:
+	PYTHONPATH=src python3 scripts/seed_calendar_corpus.py --validate
+
+lab-run:
+	PYTHONPATH=src python3 scripts/run_lab_experiment.py --seed $(SEED) --runtime $(RUNTIME)
+
+lab-compare:
+	PYTHONPATH=src python3 scripts/compare_lab_runs.py --reindex --out experiments/reports/comparison_latest.json
+
+lab-promote:
+	PYTHONPATH=src python3 scripts/promote_policy.py --batch $(BATCH)
 
 mac-app-build:
 	scripts/build_macos_app.sh
