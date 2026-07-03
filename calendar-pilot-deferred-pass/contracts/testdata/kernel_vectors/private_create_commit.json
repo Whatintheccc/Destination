@@ -1,0 +1,150 @@
+{
+  "candidate": {
+    "actions": [
+      {
+        "action_type": "create_focus_block",
+        "attendees": [],
+        "calendar_id": "work",
+        "end": "2026-07-01T13:45:00-07:00",
+        "event_id": null,
+        "metadata": {},
+        "start": "2026-07-01T13:15:00-07:00",
+        "title": "Prep block"
+      }
+    ],
+    "affected_event_ids": [],
+    "affected_people_ids": [],
+    "candidate_id": "golden_private_create",
+    "control_notes": [],
+    "counterfactual": "",
+    "expected_reward": 1.5,
+    "explanation": "",
+    "intent": "create_prep_block",
+    "intent_matched_by": "exact",
+    "intent_raw": "create prep block",
+    "model_story": [],
+    "predicted_acceptance": 0.0,
+    "predicted_engagement": 0.0,
+    "predicted_interruption_cost": 0.0,
+    "predicted_long_horizon_value": 0.0,
+    "predicted_regret": 0.0,
+    "predicted_social_risk": 0.0,
+    "predicted_utility": 0.0,
+    "recommended_execution_time": null,
+    "required_authority_tier": 3,
+    "reversibility": "high",
+    "reward_breakdown": {},
+    "right_moment_decision": "auto_write_then_notify",
+    "right_moment_score": 0.0,
+    "simulated_outcomes": {},
+    "target_calendars": [
+      "work"
+    ]
+  },
+  "expect": {
+    "actuation_mode": "materialized_write",
+    "denied_reason": null,
+    "rollback_state": "pending",
+    "stage_state": "committed",
+    "sync_status": "materialized"
+  },
+  "grant": {
+    "confirmation_provenance": "golden_vector",
+    "confirmed_by_user": true,
+    "expires_at": "2026-07-01T16:00:00-07:00",
+    "grant_id": "grant_golden_private",
+    "issued_at": "2026-07-01T08:00:00-07:00",
+    "issued_by": "test",
+    "max_authority_tier": 3,
+    "scopes": [
+      "recommend",
+      "stage",
+      "commit_private",
+      "undo"
+    ],
+    "user_scope_id": "local_demo_user"
+  },
+  "observation": {
+    "device_context": {
+      "active_surface": "calendar_day_view",
+      "is_focus_mode": false,
+      "local_hour": 8
+    },
+    "events": [
+      {
+        "attendees": [
+          "client@example.com",
+          "ae@example.com"
+        ],
+        "calendar_id": "work",
+        "category": "external_meeting",
+        "end": "2026-07-01T16:00:00-07:00",
+        "event_id": "evt_client_call",
+        "is_flexible": false,
+        "is_user_owned": false,
+        "location": "Zoom",
+        "notes": "Discuss renewal options and pricing.",
+        "start": "2026-07-01T15:00:00-07:00",
+        "title": "Client renewal call"
+      },
+      {
+        "attendees": [],
+        "calendar_id": "work",
+        "category": "admin",
+        "end": "2026-07-01T14:30:00-07:00",
+        "event_id": "evt_admin",
+        "is_flexible": true,
+        "is_user_owned": true,
+        "location": "",
+        "notes": "",
+        "start": "2026-07-01T14:00:00-07:00",
+        "title": "Inbox/admin cleanup"
+      },
+      {
+        "attendees": [
+          "team@example.com"
+        ],
+        "calendar_id": "work",
+        "category": "internal_meeting",
+        "end": "2026-07-01T11:30:00-07:00",
+        "event_id": "evt_team_sync",
+        "is_flexible": true,
+        "is_user_owned": false,
+        "location": "Zoom",
+        "notes": "Weekly sync.",
+        "start": "2026-07-01T11:00:00-07:00",
+        "title": "Team sync"
+      }
+    ],
+    "notification_history": [
+      {
+        "kind": "suggestion",
+        "outcome": "dismissed",
+        "sent_at": "2026-06-30T20:15:00-07:00"
+      }
+    ],
+    "observation_id": "obs_demo_001",
+    "observed_at": "2026-07-01T08:00:00-07:00",
+    "prior_actions": [],
+    "tasks": [
+      {
+        "category": "prep",
+        "due": "2026-07-01T15:00:00-07:00",
+        "estimated_minutes": 25,
+        "task_id": "task_renewal_prep",
+        "title": "Prepare renewal notes"
+      },
+      {
+        "category": "admin",
+        "due": "2026-07-04T17:00:00-07:00",
+        "estimated_minutes": 20,
+        "task_id": "task_expense",
+        "title": "File expenses"
+      }
+    ],
+    "time_zone_id": "America/Los_Angeles",
+    "user_scope_id": "local_demo_user"
+  },
+  "requested_authority_tier": 3,
+  "vector_id": "private_create_commit_v1"
+}
