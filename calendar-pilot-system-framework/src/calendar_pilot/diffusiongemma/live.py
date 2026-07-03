@@ -15,7 +15,8 @@ from urllib.request import Request, urlopen
 
 from calendar_pilot.env import load_local_env
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy, apply_policy_tuning
-from calendar_pilot.environment.taxonomy import CanonicalIntent, normalize_intent
+from calendar_pilot.environment.taxonomy import CanonicalIntent, normalize_intent, taxonomy_health
+from calendar_pilot.replay import observation_fingerprint
 from calendar_pilot.types import CandidateCalendarAction, PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
 
 
@@ -86,6 +87,8 @@ class NvidiaNIMPolicyClient:
         self.timeout_seconds = float(timeout_seconds or os.environ.get("CALENDAR_PILOT_NIM_TIMEOUT", "90"))
         self.health_cache_seconds = float(os.environ.get("CALENDAR_PILOT_NIM_HEALTH_CACHE_SECONDS", "60"))
         self._remote_health_cache: tuple[float, dict[str, Any]] | None = None
+        self._last_request_latency_ms: int | None = None
+        self._last_http_status: int | None = None
 
     def health_status(self, *, validate_remote: bool = False) -> dict[str, Any]:
         if not self.api_key:
@@ -170,6 +173,10 @@ class NvidiaNIMPolicyClient:
                     ) from exc
         if parsed is None:
             raise LiveDiffusionGemmaSchemaError("NIM frontier response did not parse")
+        health = taxonomy_health([candidate.to_dict() for candidate in parsed["candidates"]])
+        intent_distribution: dict[str, int] = {}
+        for candidate in parsed["candidates"]:
+            intent_distribution[candidate.intent] = intent_distribution.get(candidate.intent, 0) + 1
         return NIMFrontierResult(
             candidates=parsed["candidates"],
             policy_summary=parsed["policy_summary"],
@@ -179,8 +186,16 @@ class NvidiaNIMPolicyClient:
                 "prompt_version": LIVE_DIFFUSIONGEMMA_PROMPT_VERSION,
                 "model": self.model,
                 "base_url": self.base_url,
+                "goal": goal,
+                "observation_id": observation.observation_id,
+                "observation_fingerprint": observation_fingerprint(observation),
                 "response_id": data.get("id"),
                 "candidate_count": len(parsed["candidates"]),
+                "intent_distribution": intent_distribution,
+                "other_intent_rate": health["other_rate"],
+                "intent_matched_by": health["matched_by"],
+                "request_latency_ms": self._last_request_latency_ms,
+                "http_status": self._last_http_status,
                 "decoding_settings": self._decoding_settings() | {"temperature": 0.2, "top_p": 0.9},
                 "timeout_seconds": self.timeout_seconds,
                 "retry_policy": self._retry_policy(),
@@ -302,6 +317,18 @@ class NvidiaNIMPolicyClient:
                 validation_errors.append(reason)
                 rejections.append({"reason": "skipped_invalid_candidate", "index": idx, "schema_errors": [str(exc)], "raw_item": raw_item})
                 continue
+            action_errors = NvidiaNIMPolicyClient._frontier_action_program_errors(candidate)
+            if action_errors:
+                reason = f"skipped_invalid_action_program:{candidate.candidate_id}"
+                validation_errors.append(reason)
+                rejections.append({
+                    "reason": "skipped_invalid_action_program",
+                    "index": idx,
+                    "schema_errors": action_errors,
+                    "raw_item": raw_item,
+                    "candidate_id": candidate.candidate_id,
+                })
+                continue
             if candidate.candidate_id in seen:
                 validation_errors.append(f"duplicate_candidate_id:{candidate.candidate_id}")
                 rejections.append({"reason": "duplicate_candidate_id", "index": idx, "raw_item": raw_item, "candidate_id": candidate.candidate_id})
@@ -326,6 +353,28 @@ class NvidiaNIMPolicyClient:
             raise LiveDiffusionGemmaSchemaError("NIM frontier response did not contain any valid typed candidates")
         candidates.sort(key=lambda c: c.expected_reward, reverse=True)
         return {"candidates": candidates, "policy_summary": str(payload.get("policy_summary") or ""), "validation_errors": validation_errors, "rejections": rejections}
+
+    @staticmethod
+    def _frontier_action_program_errors(candidate: CandidateCalendarAction) -> list[str]:
+        errors: list[str] = []
+        timed_actions = {
+            "create_event",
+            "create_focus_block",
+            "add_buffer",
+            "batch_tasks",
+            "move_event",
+            "resize_event",
+        }
+        event_id_actions = {"move_event", "resize_event", "delete_own_event"}
+        for index, action in enumerate(candidate.actions):
+            action_type = action.action_type.value
+            if action_type in timed_actions and (action.start is None or action.end is None):
+                errors.append(f"action:{index}:{action_type}:missing_start_or_end")
+            if action_type in timed_actions and action.start is not None and action.end is not None and action.end <= action.start:
+                errors.append(f"action:{index}:{action_type}:non_positive_duration")
+            if action_type in event_id_actions and not action.event_id:
+                errors.append(f"action:{index}:{action_type}:missing_event_id")
+        return errors
 
     @staticmethod
     def _normalize_frontier_candidate(item: dict[str, Any], *, idx: int, validation_errors: list[str]) -> dict[str, Any]:
@@ -415,7 +464,7 @@ class NvidiaNIMPolicyClient:
 
     def _frontier_prompt(self, goal: str, observation: RawCalendarObservation, biography: UserBiography, *, limit: int, retry: bool = False) -> str:
         return json.dumps({
-            "instruction": "Generate a candidate frontier for CalendarPilot. Return only JSON matching the schema: {policy_summary: string, candidates: CandidateCalendarAction[]}. Each candidate must have candidate_id, intent, actions, target_calendars, affected_event_ids, affected_people_ids, required_authority_tier, reversibility, reward heads, right_moment_decision, model_story, counterfactual, control_notes, reward_breakdown, right_moment_score, and simulated_outcomes.",
+            "instruction": "Generate a candidate frontier for CalendarPilot. Return only JSON matching the schema: {policy_summary: string, candidates: CandidateCalendarAction[]}. Each candidate must have candidate_id, intent, actions, target_calendars, affected_event_ids, affected_people_ids, required_authority_tier, reversibility, reward heads, right_moment_decision, model_story, counterfactual, control_notes, reward_breakdown, right_moment_score, and simulated_outcomes. Every create_event, create_focus_block, add_buffer, batch_tasks, move_event, or resize_event action must include ISO-8601 start and end values with end after start. Every move_event, resize_event, or delete_own_event action must include an existing event_id from the observation. Use the observation's dates and timezone; do not return null start/end for write actions.",
             "strict_retry_instruction": "Previous output was not valid JSON. Return one compact JSON object only, with no markdown, no prose, no comments, and no trailing commas." if retry else None,
             "goal": goal,
             "limit": limit,
@@ -601,12 +650,16 @@ class NvidiaNIMPolicyClient:
             },
         )
         try:
+            start = time.monotonic()
             with urlopen(request, timeout=self.timeout_seconds, context=_nim_tls_context()) as response:
+                self._last_http_status = int(getattr(response, "status", 0) or 0)
                 data = json.loads(response.read().decode("utf-8") or "{}")
+                self._last_request_latency_ms = int((time.monotonic() - start) * 1000)
                 if response.status == 202:
                     return self._poll_status(data)
                 return data
         except HTTPError as exc:
+            self._last_http_status = int(exc.code)
             text = _redact_secret_text(exc.read().decode("utf-8", errors="replace"))
             if exc.code in {401, 403}:
                 raise LiveDiffusionGemmaCredentialError(text or f"NIM request unauthorized: {exc.code}") from exc
@@ -758,6 +811,7 @@ class LiveDiffusionGemmaPolicy:
                 biography=biography,
                 limit=max(1, frontier_limit),
             )
+            metadata = dict(result.metadata) | {"policy_tuning_id": self.policy_tuning.tuning_id}
             for idx, candidate in enumerate(result.candidates, start=1):
                 candidate.control_notes.extend([
                     f"policy_backend={LIVE_DIFFUSIONGEMMA_BACKEND}",
@@ -768,7 +822,7 @@ class LiveDiffusionGemmaPolicy:
                     candidate.model_story.append("NIM frontier: " + result.policy_summary[:180])
                 apply_policy_tuning(candidate, self.policy_tuning)
                 self._policy_metadata_by_candidate[candidate.candidate_id] = self._candidate_policy_metadata(
-                    result.metadata,
+                    metadata,
                     candidate_id=candidate.candidate_id,
                     rank=idx,
                     score_delta=0.0,

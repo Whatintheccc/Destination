@@ -62,7 +62,7 @@ def main() -> None:
     )
     self_play_policy = LiveDiffusionGemmaPolicy()
     metrics = SelfPlayRunner(policy=self_play_policy, kernel=kernel, replay=replay).run(
-        observation, biography, episodes=3, authority_tier=3, authority_grant=grant.grant_id
+        observation, biography, episodes=3, authority_tier=3, authority_grant=grant.grant_id, goal=GOAL
     )
     replay_path = RUN_DIR / "replay.jsonl"
     replay.save_jsonl(replay_path)

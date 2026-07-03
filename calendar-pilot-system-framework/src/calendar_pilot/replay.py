@@ -191,7 +191,13 @@ class ReplayBuffer:
 
     def append_tool_receipt(self, receipt: CodexToolReceipt) -> None:
         trace = receipt.correlation_id or receipt.tool_call_id
-        self.append_record(ReplayRecord(record_type="codex_tool_receipt", record_id=f"tool_receipt:{receipt.tool_call_id}:{receipt.created_at.isoformat()}", trace_id=trace, causal_parent_id=receipt.tool_call_id, payload={"receipt": receipt.to_dict(), "trace_id": trace}))
+        self.append_record(ReplayRecord(
+            record_type="codex_tool_receipt",
+            record_id=f"tool_receipt:{receipt.tool_call_id}:{receipt.created_at.isoformat()}",
+            trace_id=trace,
+            causal_parent_id=f"tool_call:{receipt.tool_call_id}",
+            payload={"receipt": receipt.to_dict(), "trace_id": trace},
+        ))
 
     def append_candidate_receipt(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt) -> None:
         trace = candidate.candidate_id
@@ -312,6 +318,8 @@ class ReplayBuffer:
                 "denied_reason": receipt.get("denied_reason"),
                 "right_moment_decision": candidate.get("right_moment_decision"),
                 "failure_heads": list(candidate.get("reward_breakdown", {}).keys()),
+                "observation_id": record.payload.get("observation_id"),
+                "observation_fingerprint": record.payload.get("observation_fingerprint"),
                 "trace_id": record.trace_id or record.payload.get("trace_id"),
                 "record_id": record.record_id,
                 "causal_parent_id": record.causal_parent_id,

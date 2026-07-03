@@ -130,7 +130,7 @@ class CodexToolRuntime:
                 swift_receipt,
                 candidate,
                 trace_id=call.correlation_id or candidate.candidate_id,
-                causal_parent_id=call.tool_call_id,
+                causal_parent_id=f"tool_call:{call.tool_call_id}",
                 observation_id=observation.observation_id,
                 observation_fingerprint=observation_fingerprint(observation),
             )
@@ -225,7 +225,7 @@ class CodexToolRuntime:
                 swift_receipt,
                 candidate,
                 trace_id=call.correlation_id or candidate.candidate_id,
-                causal_parent_id=call.tool_call_id,
+                causal_parent_id=f"tool_call:{call.tool_call_id}",
                 observation_id=observation.observation_id,
                 observation_fingerprint=observation_fingerprint(observation),
             )
@@ -270,7 +270,7 @@ class CodexToolRuntime:
             self.replay.append_receipt(
                 output,
                 trace_id=call.correlation_id or rollback_id,
-                causal_parent_id=call.tool_call_id,
+                causal_parent_id=f"tool_call:{call.tool_call_id}",
                 observation_id=observation.observation_id,
                 observation_fingerprint=observation_fingerprint(observation),
             )
@@ -406,7 +406,7 @@ class CodexToolRuntime:
                 rank=rank,
                 policy_version=policy_version,
                 trace_id=call.correlation_id or call.tool_call_id,
-                causal_parent_id=call.tool_call_id,
+                causal_parent_id=f"tool_call:{call.tool_call_id}",
                 policy_metadata=policy_metadata,
                 observation_id=observation.observation_id,
                 observation_fingerprint=observation_fingerprint(observation),
@@ -415,7 +415,7 @@ class CodexToolRuntime:
             if rank == 0 and isinstance(validation, dict):
                 for rejection in validation.get("rejections", []) or []:
                     if isinstance(rejection, dict):
-                        self.replay.append_model_generation_rejection(rejection, trace_id=call.correlation_id or call.tool_call_id, causal_parent_id=call.tool_call_id)
+                        self.replay.append_model_generation_rejection(rejection, trace_id=call.correlation_id or call.tool_call_id, causal_parent_id=f"tool_call:{call.tool_call_id}")
         return self._receipt(
             call,
             CodexToolStatus.SUCCEEDED,

@@ -198,10 +198,19 @@ class SelfPlayRunner:
         authority_tier: int = 3,
         top_k: int = 4,
         authority_grant: AuthorityGrant | str | None = None,
+        goal: str | None = None,
     ) -> SelfPlayMetrics:
         metrics = SelfPlayMetrics()
         for idx in range(episodes):
-            episode = self.run_episode(observation, biography, idx + 1, authority_tier=authority_tier, top_k=top_k, authority_grant=authority_grant)
+            episode = self.run_episode(
+                observation,
+                biography,
+                idx + 1,
+                authority_tier=authority_tier,
+                top_k=top_k,
+                authority_grant=authority_grant,
+                goal=goal,
+            )
             self._fold_episode(metrics, episode)
         return metrics
 
@@ -213,8 +222,9 @@ class SelfPlayRunner:
         authority_tier: int = 3,
         top_k: int = 4,
         authority_grant: AuthorityGrant | str | None = None,
+        goal: str | None = None,
     ) -> SelfPlayEpisode:
-        candidates = self.policy.generate_candidates(observation, biography)
+        candidates = self.policy.generate_candidates(observation, biography, goal=goal)
         for rank, candidate in enumerate(candidates[: max(1, top_k)]):
             if self.replay is not None:
                 self.replay.append_decision(candidate, rank=rank, trace_id=f"self_play:{episode_index}:{candidate.candidate_id}")
@@ -248,6 +258,7 @@ class SelfPlayRunner:
                     issued_at=observation.observed_at,
                 )
         receipt = self.kernel.authorize_and_materialize(chosen, observation, authority_grant=grant, requested_authority_tier=authority_tier)
+        receipt_record_id = f"receipt:{receipt.receipt_id}"
         if self.replay is not None:
             self.replay.append_receipt(receipt, chosen, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}")
         response = self.user_simulator.respond(chosen)
@@ -276,7 +287,7 @@ class SelfPlayRunner:
             provenance="adversarial",
         )
         if self.replay is not None:
-            self.replay.append_reward(reward_event, chosen, receipt, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}", causal_parent_id=receipt.receipt_id)
+            self.replay.append_reward(reward_event, chosen, receipt, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}", causal_parent_id=receipt_record_id)
         episode = SelfPlayEpisode(
             episode_id=f"self_play_episode_{episode_index}_{chosen.candidate_id}",
             episode_index=episode_index,
@@ -292,7 +303,7 @@ class SelfPlayRunner:
             response_reason=response.reason,
         )
         if self.replay is not None:
-            self.replay.append_episode(episode, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}", causal_parent_id=receipt.receipt_id)
+            self.replay.append_episode(episode, trace_id=f"self_play:{episode_index}:{chosen.candidate_id}", causal_parent_id=receipt_record_id)
         return episode
 
     def _robust_choice(self, candidates: list[CandidateCalendarAction], top_k: int) -> CandidateCalendarAction:

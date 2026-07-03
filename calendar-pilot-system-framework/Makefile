@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop check-invariants evidence-bundle mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard ml-ladder check-invariants evidence-bundle mac-app-build desktop-shortcut dogfood-release demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -25,6 +25,20 @@ live-eventkit-e2e:
 
 replay-offline-tuning-loop:
 	PYTHONPATH=src python3 scripts/run_replay_offline_tuning_loop.py
+
+frontier-diff:
+	PYTHONPATH=src python3 scripts/run_frontier_diff.py --tuning runs/ml_test_001/policy_tuning.json --out runs/ml_test_001/frontier_diff.json
+
+scorecard:
+	PYTHONPATH=src python3 scripts/make_scorecard.py --run-dir runs/ml_test_001 --out runs/ml_test_001/scorecard.json
+
+ml-ladder:
+	rm -rf runs/ml_test_001
+	PYTHONPATH=src python3 -m calendar_pilot.app demo --observation data/sample_calendar.json --goal "Make next week less chaotic" --self-play 5 --replay-out runs/ml_test_001/replay.jsonl --commit
+	PYTHONPATH=src python3 scripts/check_invariants.py --replay runs/ml_test_001/replay.jsonl --out runs/ml_test_001/invariant_report.json
+	PYTHONPATH=src python3 scripts/train_offline_policy.py --replay runs/ml_test_001/replay.jsonl --out runs/ml_test_001/offline_policy_report.json --tuning-out runs/ml_test_001/policy_tuning.json
+	PYTHONPATH=src python3 scripts/run_frontier_diff.py --tuning runs/ml_test_001/policy_tuning.json --out runs/ml_test_001/frontier_diff.json
+	PYTHONPATH=src python3 scripts/make_scorecard.py --run-dir runs/ml_test_001 --out runs/ml_test_001/scorecard.json
 
 check-invariants:
 	PYTHONPATH=src python3 scripts/check_invariants.py --replay tests/fixtures/replay_golden.jsonl

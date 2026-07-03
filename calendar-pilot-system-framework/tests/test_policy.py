@@ -15,6 +15,7 @@ from calendar_pilot.diffusiongemma.live import (
     NIMPolicyResult,
     NvidiaNIMPolicyClient,
 )
+from calendar_pilot.replay import observation_fingerprint
 from calendar_pilot.types import CodexToolCall, CodexToolName, PolicyTuning, RawCalendarObservation, UserBiography, RightMomentDecision
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +83,7 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(metadata["mode"], "model_generated_candidate_frontier")
         self.assertEqual(metadata["fallback_state"], "model_generated_frontier")
         self.assertEqual(metadata["prompt_version"], "calendar_pilot_nim_frontier_generator_v2")
+        self.assertEqual(metadata["policy_tuning_id"], "default")
 
     def test_live_diffusiongemma_policy_forwards_user_goal_to_nim_generator(self):
         client = GoalCaptureNIMGeneratorClient()
@@ -108,6 +110,7 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(payload["observation"]["observation_id"], self.observation.observation_id)
         self.assertEqual(payload["observation"]["events"][0]["event_id"], self.observation.events[0].event_id)
         self.assertEqual(payload["biography"]["user_scope_id"], self.biography.user_scope_id)
+        self.assertIn("do not return null start/end for write actions", payload["instruction"])
 
     def test_nim_frontier_parser_normalizes_common_model_schema_drift(self):
         candidate = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
@@ -144,6 +147,20 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual([candidate.candidate_id for candidate in parsed["candidates"]], [valid["candidate_id"]])
         self.assertIn("skipped_candidate_without_actions:nim_invalid_no_actions", parsed["validation_errors"])
 
+    def test_nim_frontier_parser_rejects_provider_invalid_action_programs(self):
+        valid = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
+        invalid = dict(valid)
+        invalid["candidate_id"] = "nim_invalid_missing_time"
+        invalid["actions"] = [dict(valid["actions"][0]) | {"start": None, "end": None}]
+        text = json.dumps({"policy_summary": "mixed", "candidates": [invalid, valid]})
+
+        parsed = NvidiaNIMPolicyClient._parse_frontier_payload(text, self.observation, limit=2)
+
+        self.assertEqual([candidate.candidate_id for candidate in parsed["candidates"]], [valid["candidate_id"]])
+        self.assertIn("skipped_invalid_action_program:nim_invalid_missing_time", parsed["validation_errors"])
+        self.assertEqual(parsed["rejections"][0]["reason"], "skipped_invalid_action_program")
+        self.assertIn("missing_start_or_end", parsed["rejections"][0]["schema_errors"][0])
+
     def test_nim_frontier_generation_retries_malformed_json_with_smaller_frontier(self):
         valid = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
         client = RetryFrontierNIMClient(valid)
@@ -160,6 +177,12 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(result.metadata["schema_retry_count"], 1)
         self.assertIn("frontier_schema_retry_succeeded", result.metadata["validation"]["validation_errors"])
         self.assertEqual(result.metadata["retry_policy"]["max_attempts"], 2)
+        self.assertEqual(result.metadata["goal"], "Make next week less chaotic")
+        self.assertEqual(result.metadata["observation_id"], self.observation.observation_id)
+        self.assertEqual(result.metadata["observation_fingerprint"], observation_fingerprint(self.observation))
+        self.assertEqual(result.metadata["intent_distribution"], {valid["intent"]: 1})
+        self.assertEqual(result.metadata["other_intent_rate"], 0.0)
+        self.assertIn("exact", result.metadata["intent_matched_by"])
 
     def test_live_diffusiongemma_policy_applies_offline_tuning_to_nim_frontier_candidates(self):
         client = FakeNIMGeneratorClient()
@@ -215,6 +238,8 @@ class PolicyTests(unittest.TestCase):
             health = client.health_status(validate_remote=False)
 
         self.assertEqual(data, {})
+        self.assertIsInstance(client._last_request_latency_ms, int)
+        self.assertEqual(client._last_http_status, 200)
         create_context.assert_called_once_with(cafile="/tmp/calendarpilot-ca.pem")
         self.assertIs(open_url.call_args.kwargs["context"], context)
         self.assertEqual(open_url.call_args.kwargs["timeout"], 1)

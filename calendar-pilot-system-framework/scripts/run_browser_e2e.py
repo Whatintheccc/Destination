@@ -1,5 +1,4 @@
 
-
 #!/usr/bin/env python3
 """Frontend dogfood E2E.
 

@@ -346,6 +346,20 @@ class CandidateCalendarAction:
     intent_raw: str = ""
     intent_matched_by: str = "unknown"
 
+    def __post_init__(self) -> None:
+        if self.intent_raw and self.intent_matched_by not in {"", "unknown"}:
+            return
+        try:
+            from calendar_pilot.environment.taxonomy import normalize_intent
+            normalized_intent = normalize_intent(self.intent_raw or self.intent)
+        except Exception:
+            normalized_intent = {"intent": self.intent, "intent_raw": self.intent_raw or self.intent, "matched_by": "unavailable"}
+        self.intent = normalized_intent.get("intent", self.intent)
+        if not self.intent_raw:
+            self.intent_raw = normalized_intent.get("intent_raw", self.intent)
+        if self.intent_matched_by in {"", "unknown"}:
+            self.intent_matched_by = normalized_intent.get("matched_by", "unknown")
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CandidateCalendarAction":
         try:

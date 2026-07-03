@@ -1,4 +1,4 @@
-.PHONY: py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop check-invariants evidence-bundle mac-app-build desktop-shortcut test dogfood-release demo swift-demo
+.PHONY: py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard ml-ladder check-invariants evidence-bundle mac-app-build desktop-shortcut test dogfood-release demo swift-demo
 
 APP_DIR := calendar-pilot-system-framework
 
@@ -25,6 +25,15 @@ live-eventkit-e2e:
 
 replay-offline-tuning-loop:
 	$(MAKE) -C "$(APP_DIR)" replay-offline-tuning-loop
+
+frontier-diff:
+	$(MAKE) -C "$(APP_DIR)" frontier-diff
+
+scorecard:
+	$(MAKE) -C "$(APP_DIR)" scorecard
+
+ml-ladder:
+	$(MAKE) -C "$(APP_DIR)" ml-ladder
 
 check-invariants:
 	$(MAKE) -C "$(APP_DIR)" check-invariants

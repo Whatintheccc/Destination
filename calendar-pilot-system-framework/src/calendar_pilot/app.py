@@ -10,6 +10,7 @@ from pathlib import Path
 from calendar_pilot.env import load_local_env
 from calendar_pilot.codex import CodexExecutiveAgent, CodexToolPlanner, CodexToolRuntime
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, SelfPlayRunner
+from calendar_pilot.environment.selfplay_backends import SelfPlayActionBackend
 from calendar_pilot.swift_bridge import SwiftKernelStub
 from calendar_pilot.replay import ReplayBuffer
 from calendar_pilot.types import RawCalendarObservation, UserBiography, authority_scopes_for_tier
@@ -76,7 +77,12 @@ def run_demo(args: argparse.Namespace) -> None:
             confirmed_by_user=True,
             issued_at=observation.observed_at,
         )
-        metrics = SelfPlayRunner(policy=policy, kernel=kernel, replay=replay).run(observation, biography, episodes=args.self_play, authority_grant=grant.grant_id)
+        metrics = SelfPlayRunner(
+            policy=policy,
+            kernel=kernel,
+            replay=replay,
+            action_backend=SelfPlayActionBackend(args.self_play_backend),
+        ).run(observation, biography, episodes=args.self_play, authority_grant=grant.grant_id)
         print("\nSelf-play metrics:")
         print(json.dumps(asdict(metrics) | {"acceptance_rate": metrics.acceptance_rate, "undo_rate": metrics.undo_rate, "average_reward": metrics.average_reward}, indent=2))
         print("\nCodex self-play summary:")
@@ -105,6 +111,12 @@ def main() -> None:
     demo.add_argument("--profile", default="data/sample_profile.json")
     demo.add_argument("--authority-tier", type=int, default=3)
     demo.add_argument("--self-play", type=int, default=5)
+    demo.add_argument(
+        "--self-play-backend",
+        choices=[backend.value for backend in SelfPlayActionBackend],
+        default=SelfPlayActionBackend.STUB_FAST.value,
+        help="self-play action backend; sandbox/live backends are env-guarded",
+    )
     demo.add_argument("--replay-out", default="")
     demo.add_argument("--codex-tools", action="store_true", help="kept for CLI compatibility; Codex tools are now the default path")
     demo.add_argument("--goal", default="Make next week less chaotic")
