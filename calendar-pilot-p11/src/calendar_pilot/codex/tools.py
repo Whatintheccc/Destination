@@ -14,7 +14,7 @@ from calendar_pilot.biography import BiographyStore
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
 from calendar_pilot.diffusiongemma.frontier_service import FrontierService
 from calendar_pilot.diffusiongemma.live import LiveDiffusionGemmaError
-from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner
+from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner, UserSimulator
 from calendar_pilot.diffusiongemma.signals import extract_signals
 from calendar_pilot.environment.envelope import rollback_state_from_receipt
 from calendar_pilot.environment.action_lifecycle import ActionLifecycle
@@ -232,6 +232,13 @@ class CodexToolRuntime:
         if name == CodexToolName.RUN_SELF_PLAY_PROBE:
             episodes = int(call.input.get("episodes", 3))
             backend_raw = str(call.input.get("backend", call.input.get("self_play_backend", "stub_fast")) or "stub_fast")
+            simulator_version = str(call.input.get("simulator_version", "sim_v2") or "sim_v2")
+            if simulator_version not in {"sim_v1", "sim_v2"}:
+                simulator_version = "sim_v2"
+            try:
+                simulator_seed = int(call.input.get("simulator_seed", 7) or 7)
+            except (TypeError, ValueError):
+                simulator_seed = 7
             from calendar_pilot.environment.selfplay_backends import SelfPlayActionBackend
             backend = SelfPlayActionBackend(backend_raw)
             grant = self._resolve_grant(call)
@@ -241,9 +248,22 @@ class CodexToolRuntime:
                 replay=self.replay,
                 action_backend=backend,
                 provider=self.provider if backend != SelfPlayActionBackend.STUB_FAST else None,
+                user_simulator=UserSimulator(seed=simulator_seed, simulator_version=simulator_version),
             )
             metrics = runner.run(observation, biography, episodes=episodes, authority_grant=grant.grant_id if grant else None)
-            return self._receipt(call, CodexToolStatus.SUCCEEDED, {"metrics": to_jsonable(metrics), "top_failure_modes": metrics.top_failure_modes, "backend": backend.value}, authority_grant=grant, correlation_id=call.correlation_id)
+            return self._receipt(
+                call,
+                CodexToolStatus.SUCCEEDED,
+                {
+                    "metrics": to_jsonable(metrics),
+                    "top_failure_modes": metrics.top_failure_modes,
+                    "backend": backend.value,
+                    "simulator_version": simulator_version,
+                    "simulator_seed": simulator_seed,
+                },
+                authority_grant=grant,
+                correlation_id=call.correlation_id,
+            )
         if name == CodexToolName.PROPOSE_AUTONOMY_SCOPE:
             candidate = self._candidate_from_input(call)
             proposal = self._autonomy_scope(candidate)

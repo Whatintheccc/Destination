@@ -1,0 +1,8 @@
+{
+  "adversaries": ["fatigue_adversary", "regret_adversary"],
+  "disturbances": ["remove_prep_slot", "increase_notification_fatigue"],
+  "invariant_assertions": ["I2′", "I5", "S3"],
+  "scenario_id": "external_call_no_prep_high_fatigue",
+  "seed_id": "seed_ae_renewal_week_high_pressure",
+  "simulator_version": "sim_v2"
+}

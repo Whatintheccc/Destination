@@ -1,0 +1,8 @@
+{
+  "adversaries": ["conflict_adversary"],
+  "disturbances": ["make_observation_stale"],
+  "invariant_assertions": ["I4", "I5"],
+  "scenario_id": "stale_observation_after_provider_refresh",
+  "seed_id": "seed_consultant_backtoback_clients",
+  "simulator_version": "sim_v2"
+}

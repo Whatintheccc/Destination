@@ -212,7 +212,11 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
             if path == "/api/denials/explain":
                 return decorate_state(session.explain_denial(str(body.get("denied_reason", ""))))
             if path == "/api/self-play":
-                return decorate_state(session.run_self_play(int(body.get("episodes", 3)), backend=str(body.get("backend", body.get("self_play_backend", "stub_fast")))))
+                return decorate_state(session.run_self_play(
+                    int(body.get("episodes", 3)),
+                    backend=str(body.get("backend", body.get("self_play_backend", "stub_fast"))),
+                    simulator_version=str(body.get("simulator_version", "sim_v2")),
+                ))
             if path == "/api/authority":
                 scopes = body.get("scopes")
                 if isinstance(scopes, str):

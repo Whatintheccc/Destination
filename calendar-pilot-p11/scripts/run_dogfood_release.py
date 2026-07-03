@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -156,6 +157,7 @@ def run_app_bundle_sanity(
     port = free_port()
     base_url = f"http://127.0.0.1:{port}"
     run_dir = RUN_DIR / f"mac_app_state_{runtime_mode}"
+    shutil.rmtree(run_dir, ignore_errors=True)
     run_dir.mkdir(parents=True, exist_ok=True)
     launch_state_path = run_dir / "launch_state.json"
     launch_state_path.unlink(missing_ok=True)
@@ -333,6 +335,7 @@ def run_occupied_port_launch_gate() -> dict[str, Any]:
     log_path = LOG_DIR / f"{name}.log"
     stale_log_path = LOG_DIR / f"{name}_stale_server.log"
     run_dir = RUN_DIR / "occupied_port_state"
+    shutil.rmtree(run_dir, ignore_errors=True)
     run_dir.mkdir(parents=True, exist_ok=True)
     launch_state_path = run_dir / "launch_state.json"
     launch_state_path.unlink(missing_ok=True)
@@ -367,6 +370,7 @@ def run_occupied_port_launch_gate() -> dict[str, Any]:
             chosen_port = int(launch_state.get("port"))
             if chosen_port == 8787:
                 raise AssertionError("app used occupied default port 8787")
+            wait_for_state(str(launch_state.get("base_url")), app_proc, log_path)
             health = api_get(str(launch_state.get("base_url")), "/api/health")
             assert_owned_health(health, launch_id=launch_id, expected_port=chosen_port, expected_server_pid=int(launch_state.get("server_pid")))
             page = http_get_text(str(launch_state.get("base_url")), "/")
@@ -429,6 +433,7 @@ def validate_artifacts(artifacts: dict[str, str]) -> dict[str, Any]:
         APP_BUNDLE / "Contents" / "Info.plist",
         APP_BUNDLE / "Contents" / "MacOS" / "CalendarPilot",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "frontend" / "static" / "index.html",
+        APP_BUNDLE / "Contents" / "Resources" / "app" / "configs" / "autonomy_matrix.json",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "src" / "calendar_pilot" / "app.py",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "build_id",
         APP_BUNDLE / "Contents" / "Resources" / "app" / "bin" / "CalendarPilotKernelServer",

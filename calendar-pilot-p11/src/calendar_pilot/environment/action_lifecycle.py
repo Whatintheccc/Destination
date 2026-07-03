@@ -258,7 +258,7 @@ class ActionLifecycle:
             self._append(envelope, transition="commit", causal_parent_id=causal_parent_id)
             return ActionLifecycleResult(envelope=envelope, status="denied", candidate=candidate, denied_reason="provider_not_configured", stage_state=StageState.DENIED, output={"provider_id": getattr(self.provider, "provider_id", "unknown_provider"), "provider_health": blocker})
         try:
-            provider_conflicts = self._provider_conflict_truth(candidate)
+            provider_conflicts = self._provider_conflict_truth(candidate, trace_id=trace_id, causal_parent_id=causal_parent_id)
         except CalendarProviderError as exc:
             envelope.provider.update({"provider_id": getattr(self.provider, "provider_id", "unknown_provider"), "rollback_state": "unsupported"})
             envelope.transition("commit", status="denied", detail={"denied_reason": "provider_truth_unavailable", "provider_error": str(exc)})
@@ -453,11 +453,24 @@ class ActionLifecycle:
             return resolver(grant)
         return None
 
-    def _provider_conflict_truth(self, candidate: CandidateCalendarAction) -> list[dict[str, Any]]:
+    def _provider_conflict_truth(self, candidate: CandidateCalendarAction, *, trace_id: str, causal_parent_id: str | None = None) -> list[dict[str, Any]]:
         conflict_truth = getattr(self.provider, "conflict_truth", None)
         if not callable(conflict_truth):
             return []
-        return list(conflict_truth(candidate))
+        conflicts = list(conflict_truth(candidate))
+        self.replay.append_provider_transaction(
+            operation="preview",
+            transaction={
+                "provider_id": getattr(self.provider, "provider_id", "unknown_provider"),
+                "status": "conflict_detected" if conflicts else "ok",
+                "candidate_id": candidate.candidate_id,
+                "conflict_count": len(conflicts),
+                "conflict_truth": conflicts,
+            },
+            trace_id=trace_id,
+            causal_parent_id=causal_parent_id,
+        )
+        return conflicts
 
     def _provider_write_blocker(self, observation: RawCalendarObservation | None, *, require_live_observation: bool) -> dict[str, Any] | None:
         is_real_provider = bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False))

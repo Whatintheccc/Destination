@@ -96,7 +96,7 @@ function renderLearn(root, view) {
 function renderLab(root, view) {
   const lab = view.lab || {};
   root.append(h('h2', {}, 'Lab'));
-  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Self-play backend'), kv('backend', lab.backend || 'stub_fast'), kv('grant policy', lab.backend_policy || {}), h('label', {}, 'Episodes ', h('input', {id: 'self-play-episodes', type: 'number', min: 1, max: 20, value: 3})), h('div', {class: 'card-actions'}, h('button', {id: 'run-self-play', 'data-testid': 'run-self-play', class: 'primary'}, 'Run self-play'))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Self-play backend'), kv('backend', lab.backend || 'stub_fast'), kv('simulator', lab.simulator_version || 'sim_v2'), kv('grant policy', lab.backend_policy || {}), h('label', {}, 'Episodes ', h('input', {id: 'self-play-episodes', type: 'number', min: 1, max: 20, value: 3})), h('div', {class: 'card-actions'}, h('button', {id: 'run-self-play', 'data-testid': 'run-self-play', class: 'primary'}, 'Run self-play'))));
   root.append(h('div', {class: 'inspector-card', 'data-testid': 'lab-experiments'}, h('h3', {}, 'Seeded ML experiments'), kv('index', lab.lab_index_status || 'missing'), kv('runs', lab.lab_run_count || 0), ...((lab.experiments || []).slice(-6).map(row => h('div', {class: 'nav-item'}, `${row.experiment_id || 'lab run'} · ${row.seed_id || 'seed'} · ${row.runtime_mode || 'runtime'} · ${(row.metrics || {}).invariant_violations ?? 0} violations`)))));
   root.append(h('pre', {}, JSON.stringify(lab, null, 2)));
 }
@@ -154,7 +154,7 @@ document.addEventListener('click', event => {
   if (target.classList.contains('feedback-wrong')) return postAndRefresh('/api/feedback', {receipt_id: target.dataset.receiptId, feedback: 'wrong'});
   if (target.classList.contains('runtime-mode-btn')) return postAndRefresh('/api/runtime', {runtime_mode: target.dataset.mode});
   if (target.id === 'save-authority') return postAndRefresh('/api/authority', {max_authority_tier: Number($('#authority-tier').value || 3), scopes: $('#authority-scopes').value.split(',').map(s => s.trim()).filter(Boolean), confirmed: true});
-  if (target.id === 'run-self-play') return postAndRefresh('/api/self-play', {episodes: Number($('#self-play-episodes')?.value || 3)});
+  if (target.id === 'run-self-play') return postAndRefresh('/api/self-play', {episodes: Number($('#self-play-episodes')?.value || 3), simulator_version: store.view?.lab?.simulator_version || 'sim_v2'});
   if (target.id === 'replay-export' || target.id === 'replay-export-sidebar') return api('/api/replay/export', {}, sessionId()).then(openEnvelopeOverlay).catch(err => showToast(err.message));
   if (target.classList.contains('envelope-open')) return openEnvelope(target.dataset.traceId, target.dataset.envelopeId);
 });

@@ -48,7 +48,7 @@ class ReplayRecord:
     payload: dict[str, Any]
     record_id: str = ""
     trace_id: str = ""
-    causal_parent_id: str | None = None
+    causal_parent_id: str | None = "ROOT"
     record_schema_version: str = REPLAY_SCHEMA_VERSION
 
     def envelope(self) -> dict[str, Any]:
@@ -57,7 +57,7 @@ class ReplayRecord:
             "record_type": self.record_type,
             "record_id": self.record_id,
             "trace_id": self.trace_id,
-            "causal_parent_id": self.causal_parent_id,
+            "causal_parent_id": self.causal_parent_id or "ROOT",
             "payload": self.payload,
         }
 
@@ -112,6 +112,10 @@ class ReplayBuffer:
     def append_record(self, record: ReplayRecord) -> None:
         if not record.record_schema_version:
             record.record_schema_version = REPLAY_SCHEMA_VERSION
+        if not record.trace_id:
+            record.trace_id = record.record_id or record.record_type
+        if not record.causal_parent_id:
+            record.causal_parent_id = "ROOT"
         self.records.append(record)
         key = self._record_key(record)
         if self.jsonl_path is not None and key not in self._persisted_keys:

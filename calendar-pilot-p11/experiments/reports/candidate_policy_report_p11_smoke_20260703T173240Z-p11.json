@@ -1,0 +1,56 @@
+{
+  "artifact_refs": 0,
+  "average_reward": 0.0,
+  "decisions": 0,
+  "denials": 0,
+  "envelope_transitions": 0,
+  "episodes": 0,
+  "failure_penalties": {},
+  "frontier_generations": 0,
+  "intent_adjustments": {},
+  "model_generation_rejections": 0,
+  "partitions": {},
+  "policy_tuning": {
+    "bias_evidence": {},
+    "denied_intents": [],
+    "failure_penalties": {},
+    "generated_at": "2026-07-03T17:47:29.415812+00:00",
+    "intent_reward_bias": {},
+    "partitions": {},
+    "source_report": "train_offline_policy.py",
+    "taxonomy_health": {
+      "matched_by": {},
+      "other_rate": 0.0
+    },
+    "training_weights": {
+      "human_ui": 1.0,
+      "legacy_adversarial": 0.3,
+      "legacy_model": 0.0,
+      "legacy_observed": 1.0,
+      "legacy_provider": 1.0,
+      "self_play_simulator": 0.3,
+      "synthetic_demo": 0.0
+    },
+    "tuning_id": "offline_replay_v3_partitioned"
+  },
+  "provider_transactions": 0,
+  "receipts": 0,
+  "recommended_next_step": "Compare policy_tuning against CURRENT with run_frontier_diff.py --baseline-tuning before promotion.",
+  "records": 0,
+  "rewards": 0,
+  "router_decisions": 0,
+  "skipped_unknown_version_rows": 0,
+  "skipped_zero_weight_rows": 0,
+  "tool_calls": 0,
+  "tool_receipts": 0,
+  "training_rows": 0,
+  "training_weights": {
+    "human_ui": 1.0,
+    "legacy_adversarial": 0.3,
+    "legacy_model": 0.0,
+    "legacy_observed": 1.0,
+    "legacy_provider": 1.0,
+    "self_play_simulator": 0.3,
+    "synthetic_demo": 0.0
+  }
+}

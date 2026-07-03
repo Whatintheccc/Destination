@@ -130,10 +130,11 @@ def _promotion_diffs(batch: str, rows: list[dict[str, Any]], tuning_path: Path) 
         diff_path = out_dir / f"{seed_id}.frontier_diff.json"
         atomic_write_json(diff_path, diff)
         diff_paths.append(_rel(diff_path))
-        if seed.get("expects_tuning_leader_change") and diff.get("leader_changed"):
+        if seed.get("expects_tuning_leader_change") and diff.get("marginal_leader_changed", diff.get("leader_changed")):
             flagged_leader_changes += 1
         by_id = {row.get("candidate_id"): row for row in diff.get("tuned_frontier", []) if isinstance(row, dict)}
-        for candidate_id, delta in (diff.get("per_candidate_delta", {}) or {}).items():
+        marginal_deltas = diff.get("per_candidate_marginal_delta") or diff.get("per_candidate_delta", {}) or {}
+        for candidate_id, delta in marginal_deltas.items():
             candidate = by_id.get(candidate_id, {})
             if float((delta or {}).get("delta") or 0.0) < 0 and float(candidate.get("reward_breakdown", {}).get("offline_adversary_penalty", 0.0) or 0.0) < 0:
                 penalty_effect = True

@@ -1,5 +1,4 @@
 
-
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,6 +15,7 @@ cat > "$DIST/Contents/Info.plist" <<'PLIST'
 <plist version="1.0"><dict><key>CFBundleName</key><string>CalendarPilot</string><key>CFBundleIdentifier</key><string>dev.calendarpilot.dogfood</string><key>CFBundleExecutable</key><string>CalendarPilot</string><key>CFBundlePackageType</key><string>APPL</string><key>NSCalendarsUsageDescription</key><string>CalendarPilot needs Calendar access only when live Apple Calendar provider mode is enabled, so it can read, write, and undo user-approved calendar changes.</string><key>NSCalendarsFullAccessUsageDescription</key><string>CalendarPilot needs full Calendar access only in live Apple Calendar provider mode to verify conflicts, create approved events, and roll them back.</string></dict></plist>
 PLIST
 cp -R "$ROOT/src" "$APP_ROOT/src"
+cp -R "$ROOT/configs" "$APP_ROOT/configs"
 cp -R "$ROOT/data" "$APP_ROOT/data"
 cp -R "$ROOT/frontend" "$APP_ROOT/frontend"
 cp "$ROOT/pyproject.toml" "$APP_ROOT/pyproject.toml"

@@ -551,6 +551,24 @@ def _postprocess(
     lab_report["status"] = status
     lab_report["skip_reason"] = skip_reason
     atomic_write_json(run_dir / "lab_report.json", lab_report)
+    artifact_replay = ReplayBuffer.load_jsonl(replay_path)
+    artifact_trace = f"lab_artifacts:{manifest['experiment_id']}"
+    for artifact_type, artifact_path in [
+        ("invariant_report", run_dir / "invariant_report.json"),
+        ("offline_policy_report", run_dir / "offline_policy_report.json"),
+        ("policy_tuning", run_dir / "policy_tuning.json"),
+        ("frontier_diff", run_dir / "frontier_diff.json"),
+        ("scorecard", run_dir / "scorecard.json"),
+        ("lab_report", run_dir / "lab_report.json"),
+    ]:
+        artifact_replay.append_artifact_ref(
+            artifact_type=artifact_type,
+            path=artifact_path,
+            trace_id=artifact_trace,
+            causal_parent_id="ROOT",
+            extra={"experiment_id": manifest["experiment_id"], "batch_id": manifest.get("batch_id")},
+        )
+    artifact_replay.save_jsonl(replay_path)
 
 
 def run_import(args: argparse.Namespace) -> int:

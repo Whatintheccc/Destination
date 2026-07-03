@@ -26,6 +26,7 @@ class FrontendProjector:
         inspector = snapshot.get("inspector", {})
         learning = snapshot.get("learning", {}) or {}
         lab = dict(inspector.get("self_play", {}) or {})
+        _hydrate_self_play_lab_defaults(lab)
         lab.update(_lab_index_payload())
         return {
             "view_version": "view_state.v2",
@@ -68,3 +69,10 @@ def _lab_index_payload() -> dict[str, Any]:
         "lab_run_count": len(rows),
         "batch_metrics": payload.get("batch_metrics", {}) if isinstance(payload, dict) else {},
     }
+
+
+def _hydrate_self_play_lab_defaults(lab: dict[str, Any]) -> None:
+    history = lab.get("history")
+    latest = history[-1] if isinstance(history, list) and history and isinstance(history[-1], dict) else {}
+    lab.setdefault("backend", latest.get("backend", "stub_fast"))
+    lab.setdefault("simulator_version", latest.get("simulator_version", "sim_v2"))

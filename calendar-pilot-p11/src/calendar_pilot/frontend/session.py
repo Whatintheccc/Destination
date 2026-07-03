@@ -774,6 +774,8 @@ class DogfoodSessionState:
             release_decision = "probe_failed" if failed else ("hold_autonomy" if top_failures else "ship_runtime_gate")
             self.self_play_history.append({
                 "episodes": int(payload.get("episodes", 1)),
+                "backend": output.get("backend", payload.get("backend", "stub_fast")),
+                "simulator_version": output.get("simulator_version", payload.get("simulator_version", "sim_v2")),
                 "metrics": metrics,
                 "top_failure_modes": top_failures,
                 "release_decision": release_decision,
@@ -1301,19 +1303,38 @@ class DogfoodSessionState:
         self.persist()
         return self.snapshot()
 
-    def run_self_play(self, episodes: int = 3, backend: str = "stub_fast") -> dict[str, Any]:
+    def run_self_play(self, episodes: int = 3, backend: str = "stub_fast", simulator_version: str = "sim_v2") -> dict[str, Any]:
         episodes = int(episodes)
         if episodes <= 0:
             raise ValueError("episodes must be positive")
+        simulator_version = simulator_version if simulator_version in {"sim_v1", "sim_v2"} else "sim_v2"
         grant_id = self.latest_grant_id(confirmed=True)
-        receipt = self.runtime.execute(self._call(CodexToolName.RUN_SELF_PLAY_PROBE, {"episodes": episodes, "backend": backend}, grant_id=grant_id, reason="Probe the current policy against self-play adversaries."), self.observation, self.biography)
+        receipt = self.runtime.execute(
+            self._call(
+                CodexToolName.RUN_SELF_PLAY_PROBE,
+                {"episodes": episodes, "backend": backend, "simulator_version": simulator_version},
+                grant_id=grant_id,
+                reason="Probe the current policy against self-play adversaries.",
+            ),
+            self.observation,
+            self.biography,
+        )
         if self.latest_plan is not None:
             self.latest_plan.receipts.append(receipt)
         metrics = receipt.output.get("metrics", {}) if isinstance(receipt.output, dict) else {}
         top_failures = receipt.output.get("top_failure_modes", []) if isinstance(receipt.output, dict) else []
+        simulator_version = str(receipt.output.get("simulator_version", simulator_version)) if isinstance(receipt.output, dict) else simulator_version
         failed = receipt.status == CodexToolStatus.FAILED or not metrics or int(metrics.get("episodes", 0) or 0) < episodes
         release_decision = "probe_failed" if failed else ("hold_autonomy" if top_failures else "ship_runtime_gate")
-        self.self_play_history.append({"episodes": episodes, "backend": backend, "metrics": metrics, "top_failure_modes": top_failures, "release_decision": release_decision, "created_at": _now().isoformat()})
+        self.self_play_history.append({
+            "episodes": episodes,
+            "backend": backend,
+            "simulator_version": simulator_version,
+            "metrics": metrics,
+            "top_failure_modes": top_failures,
+            "release_decision": release_decision,
+            "created_at": _now().isoformat(),
+        })
         self.transcript_events.append({
             "kind": "assistant_receipt",
             "title": "Self-play release gate",
@@ -1325,7 +1346,12 @@ class DogfoodSessionState:
                 response_source="ui_self_play",
                 reason="self-play release gate requested from visible controls",
                 receipt=receipt,
-                extra_metadata={"self_play_episodes": episodes, "self_play_backend": backend, "release_decision": release_decision},
+                extra_metadata={
+                    "self_play_episodes": episodes,
+                    "self_play_backend": backend,
+                    "simulator_version": simulator_version,
+                    "release_decision": release_decision,
+                },
             ),
             "created_at": _now().isoformat(),
         })

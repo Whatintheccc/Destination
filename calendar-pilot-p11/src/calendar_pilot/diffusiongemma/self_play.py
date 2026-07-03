@@ -38,6 +38,7 @@ class SelfPlayEpisode:
     episode_index: int
     simulator_version: str
     simulator_seed: int
+    backend_grant_policy: dict[str, object]
     chosen_candidate_id: str
     chosen_intent: str
     baseline_candidate_id: str
@@ -381,6 +382,13 @@ class SelfPlayRunner:
             episode_index=episode_index,
             simulator_version=self.user_simulator.simulator_version,
             simulator_seed=self.user_simulator.seed,
+            backend_grant_policy={
+                "backend": backend_policy.backend.value,
+                "grant_issuance": backend_policy.grant_issuance,
+                "provider_writes": backend_policy.provider_writes,
+                "max_episodes": backend_policy.max_episodes,
+                "requires_env_flag": backend_policy.requires_env_flag,
+            },
             chosen_candidate_id=chosen.candidate_id,
             chosen_intent=chosen.intent,
             baseline_candidate_id=baseline.candidate_id,

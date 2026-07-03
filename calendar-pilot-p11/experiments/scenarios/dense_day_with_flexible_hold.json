@@ -1,0 +1,8 @@
+{
+  "adversaries": ["fatigue_adversary"],
+  "disturbances": ["inject_flexible_hold", "compress_between_meetings"],
+  "invariant_assertions": ["I2′", "I5"],
+  "scenario_id": "dense_day_with_flexible_hold",
+  "seed_id": "seed_ea_dense_baseline",
+  "simulator_version": "sim_v2"
+}

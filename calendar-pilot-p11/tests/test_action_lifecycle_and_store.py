@@ -41,6 +41,10 @@ class ActionLifecycleAndStoreTests(unittest.TestCase):
         self.assertEqual(env['tool_status'], 'committed')
         self.assertIn(env['provider']['rollback_state'], {'pending', 'verified', 'unsupported', 'impossible'})
         self.assertTrue(any(r.record_type == 'envelope_transition' for r in replay.records))
+        provider_ops = [r.payload.get('operation') for r in replay.records if r.record_type == 'provider_transaction']
+        self.assertIn('preview', provider_ops)
+        self.assertIn('commit', provider_ops)
+        self.assertIn('verify', provider_ops)
 
     def test_session_store_atomic_save_and_restore(self):
         with tempfile.TemporaryDirectory() as td:

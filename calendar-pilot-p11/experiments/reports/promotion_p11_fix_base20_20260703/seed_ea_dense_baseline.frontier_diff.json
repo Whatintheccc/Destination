@@ -1,0 +1,1436 @@
+{
+  "avg_marginal_reward_delta": -0.0557,
+  "avg_reward_delta": -0.0557,
+  "baseline_frontier": [
+    {
+      "actions": [
+        {
+          "action_type": "create_event",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-08T14:55:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "parent_event_id": "evt_pressure_external",
+            "source": "diffusiongemma.prep_blocks",
+            "task_ids": "task_pressure_prep"
+          },
+          "start": "2026-07-08T14:30:00-07:00",
+          "title": "Prep: Executive Assistant Dense external review"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [],
+      "candidate_id": "cand_2e64e961390f",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "prep-near-meeting usually decays quickly after the morning planning window",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a prep block, the meeting stays naked and preparation competes with ambient admin work.",
+      "expected_reward": 2.353,
+      "explanation": "Create a 25-minute prep block before Executive Assistant Dense external review.",
+      "intent": "create_prep_block",
+      "intent_matched_by": "unknown",
+      "intent_raw": "",
+      "model_story": [
+        "Hypothesis: convert meeting pressure into a nearby prep buffer.",
+        "The action creates a concrete runway before the external call.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.826,
+      "predicted_engagement": 0.2,
+      "predicted_interruption_cost": 0.2586,
+      "predicted_long_horizon_value": 0.65,
+      "predicted_regret": 0.06,
+      "predicted_social_risk": 0.02,
+      "predicted_utility": 0.89,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.826,
+        "authority_cost": -0.18,
+        "engagement": 0.05,
+        "interruption": -0.181,
+        "long_horizon": 0.52,
+        "model_story": 0.18,
+        "regret": -0.12,
+        "reversibility": 0.22,
+        "social_risk": -0.03,
+        "utility": 1.068
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.9812,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.6051,
+        "temporal_staleness_risk": 0.37
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "add_buffer",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-08T15:00:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "parent_event_id": "evt_pressure_external",
+            "source": "diffusiongemma.buffer"
+          },
+          "start": "2026-07-08T14:50:00-07:00",
+          "title": "Buffer before Executive Assistant Dense external review"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [],
+      "candidate_id": "cand_875fc79c405d",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "transition buffers matter most before the day hardens",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a buffer, the calendar looks free while the transition cost remains hidden.",
+      "expected_reward": 1.966,
+      "explanation": "Create a small transition buffer before Executive Assistant Dense external review.",
+      "intent": "add_buffer",
+      "intent_matched_by": "unknown",
+      "intent_raw": "add_transition_buffer",
+      "model_story": [
+        "Hypothesis: buy travel/setup slack around a higher-cost event.",
+        "The action turns invisible transition time into reversible calendar reality.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.66,
+      "predicted_engagement": 0.18,
+      "predicted_interruption_cost": 0.2286,
+      "predicted_long_horizon_value": 0.55,
+      "predicted_regret": 0.05,
+      "predicted_social_risk": 0.01,
+      "predicted_utility": 0.7300000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.66,
+        "authority_cost": -0.18,
+        "engagement": 0.045,
+        "interruption": -0.16,
+        "long_horizon": 0.44,
+        "model_story": 0.18,
+        "regret": -0.1,
+        "reversibility": 0.22,
+        "social_risk": -0.015,
+        "utility": 0.876
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.5942,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5751,
+        "temporal_staleness_risk": 0.37
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "batch_tasks",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T17:10:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "source": "diffusiongemma.admin_batch",
+            "task_ids": "task_admin_cleanup"
+          },
+          "start": "2026-07-06T16:30:00-07:00",
+          "title": "Admin batch: Clear admin backlog"
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_a5725723dd79",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "baseline keeps the simulator honest",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Doing nothing is the control arm for self-play and offline evaluation.",
+      "expected_reward": 1.799,
+      "explanation": "Batch 1 admin task(s) into one reversible block.",
+      "intent": "batch_admin",
+      "intent_matched_by": "unknown",
+      "intent_raw": "batch_admin_tasks",
+      "model_story": [
+        "Hypothesis: preserve the current calendar as the counterfactual baseline.",
+        "No actuation risk is introduced.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.6100000000000001,
+      "predicted_engagement": 0.12,
+      "predicted_interruption_cost": 0.21860000000000002,
+      "predicted_long_horizon_value": 0.42,
+      "predicted_regret": 0.04,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.6966666666666667,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.61,
+        "authority_cost": -0.18,
+        "engagement": 0.03,
+        "interruption": -0.153,
+        "long_horizon": 0.336,
+        "model_story": 0.18,
+        "regret": -0.08,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.836
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.4872,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5651,
+        "temporal_staleness_risk": 0.25
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "create_focus_block",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T09:00:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "source": "diffusiongemma.focus_protector"
+          },
+          "start": "2026-07-06T08:00:00-07:00",
+          "title": "Focus block"
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_20729aaf3b23",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "focus protection has long-horizon value but moderate opportunity cost",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without protection, the open slot remains attractive to later demands.",
+      "expected_reward": 1.789,
+      "explanation": "Protect a 60-minute focus window while the gap is still open.",
+      "intent": "protect_deep_work",
+      "intent_matched_by": "unknown",
+      "intent_raw": "protect_focus_window",
+      "model_story": [
+        "Hypothesis: protect a high-yield gap before the day becomes fragmented.",
+        "The action turns an exposed gap into a defended work window.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.575,
+      "predicted_engagement": 0.18,
+      "predicted_interruption_cost": 0.2386,
+      "predicted_long_horizon_value": 0.73,
+      "predicted_regret": 0.1,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.6100000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.575,
+        "authority_cost": -0.18,
+        "engagement": 0.045,
+        "interruption": -0.167,
+        "long_horizon": 0.584,
+        "model_story": 0.18,
+        "regret": -0.2,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.732
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.6172,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5851,
+        "temporal_staleness_risk": 0.13
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "draft_schedule_plan",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T08:05:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "risk_cliffs": "external_meeting_without_preparation_space,notification_fatigue_high",
+            "source": "diffusiongemma.day_repair_plan"
+          },
+          "start": "2026-07-06T08:00:00-07:00",
+          "title": "Draft calendar repair plan"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [
+        "client@example.com",
+        "me@seed.example",
+        "peer@example.com",
+        "team@example.com"
+      ],
+      "candidate_id": "cand_9a380d323158",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "plans are slower but reduce notification spray",
+        "4 affected person signal(s) raise social-risk scrutiny",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a plan, each small repair competes separately for attention.",
+      "expected_reward": 1.74,
+      "explanation": "Draft a small repair plan instead of firing several separate interventions.",
+      "intent": "other",
+      "intent_matched_by": "unknown",
+      "intent_raw": "draft_day_repair_plan",
+      "model_story": [
+        "Hypothesis: bundle several small repairs into a reviewable plan.",
+        "The action lets the user approve a coherent reshaping instead of scattered prompts.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.58,
+      "predicted_engagement": 0.3,
+      "predicted_interruption_cost": 0.35860000000000003,
+      "predicted_long_horizon_value": 0.61,
+      "predicted_regret": 0.04,
+      "predicted_social_risk": 0.2,
+      "predicted_utility": 0.6900000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 2,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.58,
+        "authority_cost": -0.0,
+        "engagement": 0.075,
+        "interruption": -0.251,
+        "long_horizon": 0.488,
+        "model_story": 0.18,
+        "regret": -0.08,
+        "reversibility": 0.22,
+        "social_risk": -0.3,
+        "utility": 0.828
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.5682,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.7051,
+        "temporal_staleness_risk": 0.17
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "do_nothing",
+          "attendees": [],
+          "calendar_id": "default",
+          "end": null,
+          "event_id": null,
+          "metadata": {
+            "source": "baseline"
+          },
+          "start": null,
+          "title": ""
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_148fb1530ea5",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "baseline keeps the simulator honest",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=do_nothing: baseline counterfactual",
+        "temporal_control=do_nothing: baseline counterfactual"
+      ],
+      "counterfactual": "Doing nothing is the control arm for self-play and offline evaluation.",
+      "expected_reward": 0.087,
+      "explanation": "Baseline no-op candidate for counterfactual evaluation.",
+      "intent": "do_nothing",
+      "intent_matched_by": "unknown",
+      "intent_raw": "",
+      "model_story": [
+        "Hypothesis: preserve the current calendar as the counterfactual baseline.",
+        "No actuation risk is introduced.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.0,
+      "predicted_engagement": 0.0,
+      "predicted_interruption_cost": 0.1386,
+      "predicted_long_horizon_value": 0.0,
+      "predicted_regret": 0.15,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.06999999999999999,
+      "recommended_execution_time": "2026-07-06T08:00:00-07:00",
+      "required_authority_tier": 0,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.0,
+        "authority_cost": -0.0,
+        "engagement": 0.0,
+        "interruption": -0.097,
+        "long_horizon": 0.0,
+        "model_story": 0.18,
+        "regret": -0.3,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.084
+      },
+      "right_moment_decision": "do_nothing",
+      "right_moment_score": 0.0,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.4851,
+        "temporal_staleness_risk": 0.21
+      },
+      "target_calendars": []
+    }
+  ],
+  "baseline_leader": "cand_2e64e961390f",
+  "baseline_top_intent": "create_prep_block",
+  "baseline_tuning_id": "empty",
+  "goal": "Protect the renewal call and reduce notification noise",
+  "leader_changed": false,
+  "marginal_leader_changed": false,
+  "observation_id": "obs_seed_ea_dense_baseline",
+  "per_candidate_delta": {
+    "cand_148fb1530ea5": {
+      "after_rank": 6,
+      "after_reward": 0.087,
+      "before_rank": 6,
+      "before_reward": 0.087,
+      "delta": 0.0,
+      "intent": "do_nothing"
+    },
+    "cand_20729aaf3b23": {
+      "after_rank": 4,
+      "after_reward": 1.789,
+      "before_rank": 4,
+      "before_reward": 1.789,
+      "delta": 0.0,
+      "intent": "protect_deep_work"
+    },
+    "cand_2e64e961390f": {
+      "after_rank": 1,
+      "after_reward": 2.0188,
+      "before_rank": 1,
+      "before_reward": 2.353,
+      "delta": -0.3342,
+      "intent": "create_prep_block"
+    },
+    "cand_875fc79c405d": {
+      "after_rank": 2,
+      "after_reward": 1.966,
+      "before_rank": 2,
+      "before_reward": 1.966,
+      "delta": 0.0,
+      "intent": "add_buffer"
+    },
+    "cand_9a380d323158": {
+      "after_rank": 5,
+      "after_reward": 1.74,
+      "before_rank": 5,
+      "before_reward": 1.74,
+      "delta": 0.0,
+      "intent": "other"
+    },
+    "cand_a5725723dd79": {
+      "after_rank": 3,
+      "after_reward": 1.799,
+      "before_rank": 3,
+      "before_reward": 1.799,
+      "delta": 0.0,
+      "intent": "batch_admin"
+    }
+  },
+  "per_candidate_marginal_delta": {
+    "cand_148fb1530ea5": {
+      "after_rank": 6,
+      "after_reward": 0.087,
+      "before_rank": 6,
+      "before_reward": 0.087,
+      "delta": 0.0,
+      "intent": "do_nothing"
+    },
+    "cand_20729aaf3b23": {
+      "after_rank": 4,
+      "after_reward": 1.789,
+      "before_rank": 4,
+      "before_reward": 1.789,
+      "delta": 0.0,
+      "intent": "protect_deep_work"
+    },
+    "cand_2e64e961390f": {
+      "after_rank": 1,
+      "after_reward": 2.0188,
+      "before_rank": 1,
+      "before_reward": 2.353,
+      "delta": -0.3342,
+      "intent": "create_prep_block"
+    },
+    "cand_875fc79c405d": {
+      "after_rank": 2,
+      "after_reward": 1.966,
+      "before_rank": 2,
+      "before_reward": 1.966,
+      "delta": 0.0,
+      "intent": "add_buffer"
+    },
+    "cand_9a380d323158": {
+      "after_rank": 5,
+      "after_reward": 1.74,
+      "before_rank": 5,
+      "before_reward": 1.74,
+      "delta": 0.0,
+      "intent": "other"
+    },
+    "cand_a5725723dd79": {
+      "after_rank": 3,
+      "after_reward": 1.799,
+      "before_rank": 3,
+      "before_reward": 1.799,
+      "delta": 0.0,
+      "intent": "batch_admin"
+    }
+  },
+  "taxonomy_health": {
+    "count": 6,
+    "matched_by": {
+      "unknown": 6
+    },
+    "other_rate": 0.1667
+  },
+  "tuned_frontier": [
+    {
+      "actions": [
+        {
+          "action_type": "create_event",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-08T14:55:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "parent_event_id": "evt_pressure_external",
+            "source": "diffusiongemma.prep_blocks",
+            "task_ids": "task_pressure_prep"
+          },
+          "start": "2026-07-08T14:30:00-07:00",
+          "title": "Prep: Executive Assistant Dense external review"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [],
+      "candidate_id": "cand_2e64e961390f",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "prep-near-meeting usually decays quickly after the morning planning window",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "offline_tuning=intent_bias:-0.33",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a prep block, the meeting stays naked and preparation competes with ambient admin work.",
+      "expected_reward": 2.0188,
+      "explanation": "Create a 25-minute prep block before Executive Assistant Dense external review.",
+      "intent": "create_prep_block",
+      "intent_matched_by": "unknown",
+      "intent_raw": "",
+      "model_story": [
+        "Hypothesis: convert meeting pressure into a nearby prep buffer.",
+        "The action creates a concrete runway before the external call.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.826,
+      "predicted_engagement": 0.2,
+      "predicted_interruption_cost": 0.2586,
+      "predicted_long_horizon_value": 0.65,
+      "predicted_regret": 0.06,
+      "predicted_social_risk": 0.02,
+      "predicted_utility": 0.89,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.826,
+        "authority_cost": -0.18,
+        "engagement": 0.05,
+        "interruption": -0.181,
+        "long_horizon": 0.52,
+        "model_story": 0.18,
+        "offline_intent_bias": -0.3342,
+        "regret": -0.12,
+        "reversibility": 0.22,
+        "social_risk": -0.03,
+        "utility": 1.068
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.647,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.6051,
+        "temporal_staleness_risk": 0.37
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "add_buffer",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-08T15:00:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "parent_event_id": "evt_pressure_external",
+            "source": "diffusiongemma.buffer"
+          },
+          "start": "2026-07-08T14:50:00-07:00",
+          "title": "Buffer before Executive Assistant Dense external review"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [],
+      "candidate_id": "cand_875fc79c405d",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "transition buffers matter most before the day hardens",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a buffer, the calendar looks free while the transition cost remains hidden.",
+      "expected_reward": 1.966,
+      "explanation": "Create a small transition buffer before Executive Assistant Dense external review.",
+      "intent": "add_buffer",
+      "intent_matched_by": "unknown",
+      "intent_raw": "add_transition_buffer",
+      "model_story": [
+        "Hypothesis: buy travel/setup slack around a higher-cost event.",
+        "The action turns invisible transition time into reversible calendar reality.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.66,
+      "predicted_engagement": 0.18,
+      "predicted_interruption_cost": 0.2286,
+      "predicted_long_horizon_value": 0.55,
+      "predicted_regret": 0.05,
+      "predicted_social_risk": 0.01,
+      "predicted_utility": 0.7300000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.66,
+        "authority_cost": -0.18,
+        "engagement": 0.045,
+        "interruption": -0.16,
+        "long_horizon": 0.44,
+        "model_story": 0.18,
+        "regret": -0.1,
+        "reversibility": 0.22,
+        "social_risk": -0.015,
+        "utility": 0.876
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.5942,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5751,
+        "temporal_staleness_risk": 0.37
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "batch_tasks",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T17:10:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "source": "diffusiongemma.admin_batch",
+            "task_ids": "task_admin_cleanup"
+          },
+          "start": "2026-07-06T16:30:00-07:00",
+          "title": "Admin batch: Clear admin backlog"
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_a5725723dd79",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "baseline keeps the simulator honest",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Doing nothing is the control arm for self-play and offline evaluation.",
+      "expected_reward": 1.799,
+      "explanation": "Batch 1 admin task(s) into one reversible block.",
+      "intent": "batch_admin",
+      "intent_matched_by": "unknown",
+      "intent_raw": "batch_admin_tasks",
+      "model_story": [
+        "Hypothesis: preserve the current calendar as the counterfactual baseline.",
+        "No actuation risk is introduced.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.6100000000000001,
+      "predicted_engagement": 0.12,
+      "predicted_interruption_cost": 0.21860000000000002,
+      "predicted_long_horizon_value": 0.42,
+      "predicted_regret": 0.04,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.6966666666666667,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.61,
+        "authority_cost": -0.18,
+        "engagement": 0.03,
+        "interruption": -0.153,
+        "long_horizon": 0.336,
+        "model_story": 0.18,
+        "regret": -0.08,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.836
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.4872,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5651,
+        "temporal_staleness_risk": 0.25
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "create_focus_block",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T09:00:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "source": "diffusiongemma.focus_protector"
+          },
+          "start": "2026-07-06T08:00:00-07:00",
+          "title": "Focus block"
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_20729aaf3b23",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "focus protection has long-horizon value but moderate opportunity cost",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without protection, the open slot remains attractive to later demands.",
+      "expected_reward": 1.789,
+      "explanation": "Protect a 60-minute focus window while the gap is still open.",
+      "intent": "protect_deep_work",
+      "intent_matched_by": "unknown",
+      "intent_raw": "protect_focus_window",
+      "model_story": [
+        "Hypothesis: protect a high-yield gap before the day becomes fragmented.",
+        "The action turns an exposed gap into a defended work window.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.575,
+      "predicted_engagement": 0.18,
+      "predicted_interruption_cost": 0.2386,
+      "predicted_long_horizon_value": 0.73,
+      "predicted_regret": 0.1,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.6100000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.575,
+        "authority_cost": -0.18,
+        "engagement": 0.045,
+        "interruption": -0.167,
+        "long_horizon": 0.584,
+        "model_story": 0.18,
+        "regret": -0.2,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.732
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.6172,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5851,
+        "temporal_staleness_risk": 0.13
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "draft_schedule_plan",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T08:05:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "risk_cliffs": "external_meeting_without_preparation_space,notification_fatigue_high",
+            "source": "diffusiongemma.day_repair_plan"
+          },
+          "start": "2026-07-06T08:00:00-07:00",
+          "title": "Draft calendar repair plan"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [
+        "client@example.com",
+        "me@seed.example",
+        "peer@example.com",
+        "team@example.com"
+      ],
+      "candidate_id": "cand_9a380d323158",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "plans are slower but reduce notification spray",
+        "4 affected person signal(s) raise social-risk scrutiny",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a plan, each small repair competes separately for attention.",
+      "expected_reward": 1.74,
+      "explanation": "Draft a small repair plan instead of firing several separate interventions.",
+      "intent": "other",
+      "intent_matched_by": "unknown",
+      "intent_raw": "draft_day_repair_plan",
+      "model_story": [
+        "Hypothesis: bundle several small repairs into a reviewable plan.",
+        "The action lets the user approve a coherent reshaping instead of scattered prompts.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.58,
+      "predicted_engagement": 0.3,
+      "predicted_interruption_cost": 0.35860000000000003,
+      "predicted_long_horizon_value": 0.61,
+      "predicted_regret": 0.04,
+      "predicted_social_risk": 0.2,
+      "predicted_utility": 0.6900000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 2,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.58,
+        "authority_cost": -0.0,
+        "engagement": 0.075,
+        "interruption": -0.251,
+        "long_horizon": 0.488,
+        "model_story": 0.18,
+        "regret": -0.08,
+        "reversibility": 0.22,
+        "social_risk": -0.3,
+        "utility": 0.828
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.5682,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.7051,
+        "temporal_staleness_risk": 0.17
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "do_nothing",
+          "attendees": [],
+          "calendar_id": "default",
+          "end": null,
+          "event_id": null,
+          "metadata": {
+            "source": "baseline"
+          },
+          "start": null,
+          "title": ""
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_148fb1530ea5",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "baseline keeps the simulator honest",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=do_nothing: baseline counterfactual",
+        "temporal_control=do_nothing: baseline counterfactual"
+      ],
+      "counterfactual": "Doing nothing is the control arm for self-play and offline evaluation.",
+      "expected_reward": 0.087,
+      "explanation": "Baseline no-op candidate for counterfactual evaluation.",
+      "intent": "do_nothing",
+      "intent_matched_by": "unknown",
+      "intent_raw": "",
+      "model_story": [
+        "Hypothesis: preserve the current calendar as the counterfactual baseline.",
+        "No actuation risk is introduced.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.0,
+      "predicted_engagement": 0.0,
+      "predicted_interruption_cost": 0.1386,
+      "predicted_long_horizon_value": 0.0,
+      "predicted_regret": 0.15,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.06999999999999999,
+      "recommended_execution_time": "2026-07-06T08:00:00-07:00",
+      "required_authority_tier": 0,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.0,
+        "authority_cost": -0.0,
+        "engagement": 0.0,
+        "interruption": -0.097,
+        "long_horizon": 0.0,
+        "model_story": 0.18,
+        "regret": -0.3,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.084
+      },
+      "right_moment_decision": "do_nothing",
+      "right_moment_score": 0.0,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.4851,
+        "temporal_staleness_risk": 0.21
+      },
+      "target_calendars": []
+    }
+  ],
+  "tuned_leader": "cand_2e64e961390f",
+  "tuned_top_intent": "create_prep_block",
+  "tuning_id": "p11_fix_base20_20260703",
+  "untuned_frontier": [
+    {
+      "actions": [
+        {
+          "action_type": "create_event",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-08T14:55:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "parent_event_id": "evt_pressure_external",
+            "source": "diffusiongemma.prep_blocks",
+            "task_ids": "task_pressure_prep"
+          },
+          "start": "2026-07-08T14:30:00-07:00",
+          "title": "Prep: Executive Assistant Dense external review"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [],
+      "candidate_id": "cand_2e64e961390f",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "prep-near-meeting usually decays quickly after the morning planning window",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a prep block, the meeting stays naked and preparation competes with ambient admin work.",
+      "expected_reward": 2.353,
+      "explanation": "Create a 25-minute prep block before Executive Assistant Dense external review.",
+      "intent": "create_prep_block",
+      "intent_matched_by": "unknown",
+      "intent_raw": "",
+      "model_story": [
+        "Hypothesis: convert meeting pressure into a nearby prep buffer.",
+        "The action creates a concrete runway before the external call.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.826,
+      "predicted_engagement": 0.2,
+      "predicted_interruption_cost": 0.2586,
+      "predicted_long_horizon_value": 0.65,
+      "predicted_regret": 0.06,
+      "predicted_social_risk": 0.02,
+      "predicted_utility": 0.89,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.826,
+        "authority_cost": -0.18,
+        "engagement": 0.05,
+        "interruption": -0.181,
+        "long_horizon": 0.52,
+        "model_story": 0.18,
+        "regret": -0.12,
+        "reversibility": 0.22,
+        "social_risk": -0.03,
+        "utility": 1.068
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.9812,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.6051,
+        "temporal_staleness_risk": 0.37
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "add_buffer",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-08T15:00:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "parent_event_id": "evt_pressure_external",
+            "source": "diffusiongemma.buffer"
+          },
+          "start": "2026-07-08T14:50:00-07:00",
+          "title": "Buffer before Executive Assistant Dense external review"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [],
+      "candidate_id": "cand_875fc79c405d",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "transition buffers matter most before the day hardens",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a buffer, the calendar looks free while the transition cost remains hidden.",
+      "expected_reward": 1.966,
+      "explanation": "Create a small transition buffer before Executive Assistant Dense external review.",
+      "intent": "add_buffer",
+      "intent_matched_by": "unknown",
+      "intent_raw": "add_transition_buffer",
+      "model_story": [
+        "Hypothesis: buy travel/setup slack around a higher-cost event.",
+        "The action turns invisible transition time into reversible calendar reality.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.66,
+      "predicted_engagement": 0.18,
+      "predicted_interruption_cost": 0.2286,
+      "predicted_long_horizon_value": 0.55,
+      "predicted_regret": 0.05,
+      "predicted_social_risk": 0.01,
+      "predicted_utility": 0.7300000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.66,
+        "authority_cost": -0.18,
+        "engagement": 0.045,
+        "interruption": -0.16,
+        "long_horizon": 0.44,
+        "model_story": 0.18,
+        "regret": -0.1,
+        "reversibility": 0.22,
+        "social_risk": -0.015,
+        "utility": 0.876
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.5942,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5751,
+        "temporal_staleness_risk": 0.37
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "batch_tasks",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T17:10:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "source": "diffusiongemma.admin_batch",
+            "task_ids": "task_admin_cleanup"
+          },
+          "start": "2026-07-06T16:30:00-07:00",
+          "title": "Admin batch: Clear admin backlog"
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_a5725723dd79",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "baseline keeps the simulator honest",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Doing nothing is the control arm for self-play and offline evaluation.",
+      "expected_reward": 1.799,
+      "explanation": "Batch 1 admin task(s) into one reversible block.",
+      "intent": "batch_admin",
+      "intent_matched_by": "unknown",
+      "intent_raw": "batch_admin_tasks",
+      "model_story": [
+        "Hypothesis: preserve the current calendar as the counterfactual baseline.",
+        "No actuation risk is introduced.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.6100000000000001,
+      "predicted_engagement": 0.12,
+      "predicted_interruption_cost": 0.21860000000000002,
+      "predicted_long_horizon_value": 0.42,
+      "predicted_regret": 0.04,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.6966666666666667,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.61,
+        "authority_cost": -0.18,
+        "engagement": 0.03,
+        "interruption": -0.153,
+        "long_horizon": 0.336,
+        "model_story": 0.18,
+        "regret": -0.08,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.836
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.4872,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5651,
+        "temporal_staleness_risk": 0.25
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "create_focus_block",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T09:00:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "source": "diffusiongemma.focus_protector"
+          },
+          "start": "2026-07-06T08:00:00-07:00",
+          "title": "Focus block"
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_20729aaf3b23",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "focus protection has long-horizon value but moderate opportunity cost",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without protection, the open slot remains attractive to later demands.",
+      "expected_reward": 1.789,
+      "explanation": "Protect a 60-minute focus window while the gap is still open.",
+      "intent": "protect_deep_work",
+      "intent_matched_by": "unknown",
+      "intent_raw": "protect_focus_window",
+      "model_story": [
+        "Hypothesis: protect a high-yield gap before the day becomes fragmented.",
+        "The action turns an exposed gap into a defended work window.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.575,
+      "predicted_engagement": 0.18,
+      "predicted_interruption_cost": 0.2386,
+      "predicted_long_horizon_value": 0.73,
+      "predicted_regret": 0.1,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.6100000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 3,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.575,
+        "authority_cost": -0.18,
+        "engagement": 0.045,
+        "interruption": -0.167,
+        "long_horizon": 0.584,
+        "model_story": 0.18,
+        "regret": -0.2,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.732
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.6172,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.5851,
+        "temporal_staleness_risk": 0.13
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "draft_schedule_plan",
+          "attendees": [],
+          "calendar_id": "work",
+          "end": "2026-07-06T08:05:00-07:00",
+          "event_id": null,
+          "metadata": {
+            "risk_cliffs": "external_meeting_without_preparation_space,notification_fatigue_high",
+            "source": "diffusiongemma.day_repair_plan"
+          },
+          "start": "2026-07-06T08:00:00-07:00",
+          "title": "Draft calendar repair plan"
+        }
+      ],
+      "affected_event_ids": [
+        "evt_pressure_external"
+      ],
+      "affected_people_ids": [
+        "client@example.com",
+        "me@seed.example",
+        "peer@example.com",
+        "team@example.com"
+      ],
+      "candidate_id": "cand_9a380d323158",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "plans are slower but reduce notification spray",
+        "4 affected person signal(s) raise social-risk scrutiny",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=bundle_into_digest: fatigue or bad response hour favors bundled intervention",
+        "temporal_control=bundle_into_digest: fatigue or response-window cost favors digest exposure"
+      ],
+      "counterfactual": "Without a plan, each small repair competes separately for attention.",
+      "expected_reward": 1.74,
+      "explanation": "Draft a small repair plan instead of firing several separate interventions.",
+      "intent": "other",
+      "intent_matched_by": "unknown",
+      "intent_raw": "draft_day_repair_plan",
+      "model_story": [
+        "Hypothesis: bundle several small repairs into a reviewable plan.",
+        "The action lets the user approve a coherent reshaping instead of scattered prompts.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.58,
+      "predicted_engagement": 0.3,
+      "predicted_interruption_cost": 0.35860000000000003,
+      "predicted_long_horizon_value": 0.61,
+      "predicted_regret": 0.04,
+      "predicted_social_risk": 0.2,
+      "predicted_utility": 0.6900000000000001,
+      "recommended_execution_time": "2026-07-06T18:00:00-07:00",
+      "required_authority_tier": 2,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.58,
+        "authority_cost": -0.0,
+        "engagement": 0.075,
+        "interruption": -0.251,
+        "long_horizon": 0.488,
+        "model_story": 0.18,
+        "regret": -0.08,
+        "reversibility": 0.22,
+        "social_risk": -0.3,
+        "utility": 0.828
+      },
+      "right_moment_decision": "bundle_into_digest",
+      "right_moment_score": 1.5682,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.7051,
+        "temporal_staleness_risk": 0.17
+      },
+      "target_calendars": [
+        "work"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "action_type": "do_nothing",
+          "attendees": [],
+          "calendar_id": "default",
+          "end": null,
+          "event_id": null,
+          "metadata": {
+            "source": "baseline"
+          },
+          "start": null,
+          "title": ""
+        }
+      ],
+      "affected_event_ids": [],
+      "affected_people_ids": [],
+      "candidate_id": "cand_148fb1530ea5",
+      "control_notes": [
+        "pressure=1.00, fatigue=0.77",
+        "baseline keeps the simulator honest",
+        "notification fatigue pushes the policy toward draft, digest, or silent write",
+        "risk_cliffs=external_meeting_without_preparation_space,notification_fatigue_high",
+        "right_moment=do_nothing: baseline counterfactual",
+        "temporal_control=do_nothing: baseline counterfactual"
+      ],
+      "counterfactual": "Doing nothing is the control arm for self-play and offline evaluation.",
+      "expected_reward": 0.087,
+      "explanation": "Baseline no-op candidate for counterfactual evaluation.",
+      "intent": "do_nothing",
+      "intent_matched_by": "unknown",
+      "intent_raw": "",
+      "model_story": [
+        "Hypothesis: preserve the current calendar as the counterfactual baseline.",
+        "No actuation risk is introduced.",
+        "Schedule pressure 1.00: 150 occupied workday minutes and 5 usable gaps.",
+        "1 external meeting(s) create preparation and social-risk cliffs."
+      ],
+      "predicted_acceptance": 0.0,
+      "predicted_engagement": 0.0,
+      "predicted_interruption_cost": 0.1386,
+      "predicted_long_horizon_value": 0.0,
+      "predicted_regret": 0.15,
+      "predicted_social_risk": 0.0,
+      "predicted_utility": 0.06999999999999999,
+      "recommended_execution_time": "2026-07-06T08:00:00-07:00",
+      "required_authority_tier": 0,
+      "reversibility": "high",
+      "reward_breakdown": {
+        "acceptance": 0.0,
+        "authority_cost": -0.0,
+        "engagement": 0.0,
+        "interruption": -0.097,
+        "long_horizon": 0.0,
+        "model_story": 0.18,
+        "regret": -0.3,
+        "reversibility": 0.22,
+        "social_risk": -0.0,
+        "utility": 0.084
+      },
+      "right_moment_decision": "do_nothing",
+      "right_moment_score": 0.0,
+      "simulated_outcomes": {
+        "temporal_exposure_cost": 0.4851,
+        "temporal_staleness_risk": 0.21
+      },
+      "target_calendars": []
+    }
+  ],
+  "untuned_leader": "cand_2e64e961390f",
+  "untuned_top_intent": "create_prep_block"
+}

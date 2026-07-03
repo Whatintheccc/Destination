@@ -1,0 +1,8 @@
+{
+  "adversaries": ["conflict_adversary"],
+  "disturbances": ["add_social_conflict"],
+  "invariant_assertions": ["I3", "S2", "S4"],
+  "scenario_id": "social_conflict_move_meeting",
+  "seed_id": "seed_ea_dense_double_bookings",
+  "simulator_version": "sim_v2"
+}

@@ -1,0 +1,8 @@
+{
+  "adversaries": ["engagement_adversary"],
+  "disturbances": ["increase_notification_fatigue"],
+  "invariant_assertions": ["M3", "S3"],
+  "scenario_id": "high_engagement_low_utility",
+  "seed_id": "seed_burnout_notification_saturation",
+  "simulator_version": "sim_v2"
+}

@@ -1,0 +1,70 @@
+{
+  "candidate_tuning": "experiments/reports/candidate_policy_tuning_p11_smoke_20260703T173240Z-p11.json",
+  "decided_at": "2026-07-03T17:47:29Z",
+  "frontier_diffs": [],
+  "gates": {
+    "bad_intent_committed": {
+      "actual": 0,
+      "status": "pass",
+      "threshold": 0
+    },
+    "flagged_seed_leader_changes": {
+      "actual": 0,
+      "status": "fail",
+      "threshold": 3
+    },
+    "invariant_violations": {
+      "actual": 0,
+      "status": "pass",
+      "threshold": 0
+    },
+    "model_generation_rejection_rate": {
+      "actual": 0.0,
+      "status": "pass",
+      "threshold": 0.15
+    },
+    "other_intent_rate": {
+      "actual": 0.0,
+      "status": "pass",
+      "threshold": 0.1
+    },
+    "self_play_penalty_effect": {
+      "actual": {
+        "has_failure_penalties": false,
+        "negative_penalty_delta": false
+      },
+      "status": "fail",
+      "threshold": "required"
+    },
+    "valid_frontier_rate": {
+      "actual": 0.0,
+      "status": "fail",
+      "threshold": 0.95
+    }
+  },
+  "git_sha": "21e401bc9dea1d36cf218c5f5f580650be4c345f",
+  "human_note": "P11 candidate promotion review after Step 10 lab seed hold",
+  "known_regressions": [
+    "valid_frontier_rate",
+    "flagged_seed_leader_changes",
+    "self_play_penalty_effect"
+  ],
+  "lab_schema_version": "lab_v0.1",
+  "metrics_after": {
+    "flagged_seed_leader_changes": 0,
+    "other_intent_rate": 0.0,
+    "rejection_rate": 0.0,
+    "self_play_penalty_effect": false
+  },
+  "metrics_before": {
+    "flagged_seed_leader_changes": 0,
+    "other_intent_rate": 0.0,
+    "rejection_rate": 0.0
+  },
+  "policy_tuning_id": "p11_smoke_20260703T173240Z-p11",
+  "pooled_replay": "experiments/reports/pooled_p11_smoke_20260703T173240Z-p11.jsonl",
+  "promoted_tuning": null,
+  "promotion_decision": "hold",
+  "source_batch": "p11_smoke_20260703T173240Z-p11",
+  "source_runs": []
+}

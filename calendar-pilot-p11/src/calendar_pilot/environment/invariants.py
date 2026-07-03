@@ -36,6 +36,27 @@ def _payload(rec: dict[str, Any]) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def check_r1_replay_row_shape(records: list[dict[str, Any]]) -> list[Violation]:
+    """Strict P11 row shape for replay rows that can feed debugging/training."""
+    out: list[Violation] = []
+    allowed_versions = {"r1"}
+    for rec in _records(records):
+        rid = _rid(rec)
+        version = rec.get("record_schema_version")
+        if version not in allowed_versions:
+            out.append(Violation("R1", rid, f"record_schema_version={version!r}"))
+        if not rec.get("record_type"):
+            out.append(Violation("R1", rid, "missing record_type"))
+        if not rec.get("record_id"):
+            out.append(Violation("R1", rid, "missing record_id"))
+        if not rec.get("trace_id"):
+            out.append(Violation("R1", rid, "missing trace_id"))
+        parent = rec.get("causal_parent_id")
+        if parent in {None, ""}:
+            out.append(Violation("R1", rid, "missing causal_parent_id"))
+    return out
+
+
 def check_i2_rollback_state_never_absent(records: list[dict[str, Any]]) -> list[Violation]:
     out: list[Violation] = []
     allowed = {"verified", "pending", "failed", "impossible", "unsupported"}
@@ -59,9 +80,10 @@ def check_i2a_committed_writes_have_meaningful_rollback(records: list[dict[str, 
         if env.get("current_state") != "commit":
             continue
         provider = env.get("provider", {}) if isinstance(env.get("provider", {}), dict) else {}
+        swift_receipt = env.get("swift_receipt") if isinstance(env.get("swift_receipt"), dict) else {}
         rollback_state = provider.get("rollback_state") or env.get("rollback_state")
-        sync_status = env.get("sync_status") or env.get("swift_receipt", {}).get("sync_status")
-        actuation_mode = env.get("actuation_mode") or env.get("swift_receipt", {}).get("actuation_mode")
+        sync_status = env.get("sync_status") or swift_receipt.get("sync_status")
+        actuation_mode = env.get("actuation_mode") or swift_receipt.get("actuation_mode")
         candidate = env.get("candidate") if isinstance(env.get("candidate"), dict) else {}
         reversibility = candidate.get("reversibility") or env.get("reversibility")
         committed_write = sync_status in {"materialized", "committed"} or actuation_mode == "materialized_write" or env.get("tool_status") == "committed"
@@ -87,6 +109,8 @@ def check_i3_causal_parent_exists(records: list[dict[str, Any]]) -> list[Violati
     for rec in rows:
         parent = rec.get("causal_parent_id")
         if not parent:
+            continue
+        if parent == "ROOT":
             continue
         if str(parent).startswith("self_play_episode:") or str(parent).startswith("lab_frontier"):
             continue
@@ -147,6 +171,7 @@ def check_i7_rate_cap_denials_visible(records: list[dict[str, Any]]) -> list[Vio
 
 
 CHECKS: dict[str, Check] = {
+    "R1": check_r1_replay_row_shape,
     "I2": check_i2_rollback_state_never_absent,
     "I2′": check_i2a_committed_writes_have_meaningful_rollback,
     "I3": check_i3_causal_parent_exists,

@@ -81,6 +81,9 @@ class FrontendServerApiTests(unittest.TestCase):
 
         self_play = self.post("/api/self-play", {"episodes": 1})
         self.assertTrue(self_play["inspector"]["self_play"]["history"])
+        self.assertEqual(self_play["inspector"]["self_play"]["history"][-1]["simulator_version"], "sim_v2")
+        lab_view = self.get("/api/view")
+        self.assertEqual(lab_view["lab"]["simulator_version"], "sim_v2")
 
         authority = self.post("/api/authority", {"authority_tier": 2, "scopes": "recommend, stage", "confirmed": "false"})
         self.assertEqual(authority["session"]["authority_tier"], 2)

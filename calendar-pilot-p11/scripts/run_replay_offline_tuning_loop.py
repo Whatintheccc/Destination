@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """Prove the full replay -> offline tuning -> next NIM generation loop.
 
@@ -24,7 +23,12 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from calendar_pilot.env import load_local_env  # noqa: E402
 from calendar_pilot.app import load_observation, load_profile  # noqa: E402
 from calendar_pilot.diffusiongemma import LiveDiffusionGemmaPolicy, SelfPlayRunner  # noqa: E402
-from calendar_pilot.diffusiongemma.live import NvidiaNIMPolicyClient  # noqa: E402
+from calendar_pilot.diffusiongemma.live import (  # noqa: E402
+    DEFAULT_NIM_MODEL,
+    LIVE_DIFFUSIONGEMMA_BACKEND,
+    LiveDiffusionGemmaSchemaError,
+    NvidiaNIMPolicyClient,
+)
 from calendar_pilot.replay import ReplayBuffer  # noqa: E402
 from calendar_pilot.swift_bridge import SwiftKernelStub  # noqa: E402
 from calendar_pilot.types import PolicyTuning, authority_scopes_for_tier  # noqa: E402
@@ -33,6 +37,7 @@ from train_offline_policy import build_policy_report  # noqa: E402
 RUN_DIR = ROOT / "runs" / "replay_offline_tuning_loop"
 ARTIFACT_DIR = RUN_DIR / "artifacts"
 GOAL = "Make next week less chaotic"
+LIVE_SCHEMA_FAILURE_EXIT = 4
 
 
 def main() -> None:
@@ -61,10 +66,19 @@ def main() -> None:
         issued_at=observation.observed_at,
     )
     self_play_policy = LiveDiffusionGemmaPolicy()
-    metrics = SelfPlayRunner(policy=self_play_policy, kernel=kernel, replay=replay).run(
-        observation, biography, episodes=3, authority_tier=3, authority_grant=grant.grant_id
-    )
     replay_path = RUN_DIR / "replay.jsonl"
+    try:
+        metrics = SelfPlayRunner(policy=self_play_policy, kernel=kernel, replay=replay).run(
+            observation, biography, episodes=3, authority_tier=3, authority_grant=grant.grant_id
+        )
+    except LiveDiffusionGemmaSchemaError as exc:
+        _exit_on_live_schema_failure(
+            "self_play_frontier",
+            exc,
+            replay=replay,
+            replay_path=replay_path,
+            extra={"episodes_requested": 3},
+        )
     replay.save_jsonl(replay_path)
     write_artifact(
         "self_play_metrics.json",
@@ -86,8 +100,26 @@ def main() -> None:
     tuning = PolicyTuning.from_dict(tuning_payload)
 
     # 3. Next live NIM frontier generation: untuned vs tuned, same goal/observation.
-    untuned_candidates = LiveDiffusionGemmaPolicy().generate_candidates(observation, biography, goal=GOAL)
-    tuned_candidates = LiveDiffusionGemmaPolicy(policy_tuning=tuning).generate_candidates(observation, biography, goal=GOAL)
+    try:
+        untuned_candidates = LiveDiffusionGemmaPolicy().generate_candidates(observation, biography, goal=GOAL)
+    except LiveDiffusionGemmaSchemaError as exc:
+        _exit_on_live_schema_failure(
+            "frontier_untuned",
+            exc,
+            replay=replay,
+            replay_path=replay_path,
+            extra={"goal": GOAL, "policy_tuning_id": None},
+        )
+    try:
+        tuned_candidates = LiveDiffusionGemmaPolicy(policy_tuning=tuning).generate_candidates(observation, biography, goal=GOAL)
+    except LiveDiffusionGemmaSchemaError as exc:
+        _exit_on_live_schema_failure(
+            "frontier_tuned",
+            exc,
+            replay=replay,
+            replay_path=replay_path,
+            extra={"goal": GOAL, "policy_tuning_id": tuning_payload.get("tuning_id")},
+        )
     write_artifact("frontier_untuned.json", {"candidates": [c.to_dict() for c in untuned_candidates]})
     write_artifact("frontier_tuned.json", {"candidates": [c.to_dict() for c in tuned_candidates]})
 
@@ -135,7 +167,57 @@ def diff_frontiers(untuned: list, tuned: list, tuning_payload: dict[str, Any]) -
 
 
 def write_artifact(name: str, payload: dict[str, Any]) -> None:
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     (ARTIFACT_DIR / name).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def record_live_nim_schema_failure(
+    stage: str,
+    exc: LiveDiffusionGemmaSchemaError,
+    *,
+    replay: ReplayBuffer | None = None,
+    replay_path: Path | None = None,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload = {
+        "reason": "live_nim_frontier_schema_failure",
+        "stage": stage,
+        "category": getattr(exc, "category", "model_policy_schema_failure"),
+        "message": str(exc),
+        "recoverable": False,
+        "backend": LIVE_DIFFUSIONGEMMA_BACKEND,
+        "model": os.environ.get("CALENDAR_PILOT_NIM_MODEL") or DEFAULT_NIM_MODEL,
+        "retry_policy": "live client schema retry exhausted before raising",
+    }
+    if extra:
+        payload.update(extra)
+    write_artifact(f"nim_schema_failure_{stage}.json", payload)
+    write_artifact("nim_schema_failure.json", payload)
+    if replay is not None:
+        replay.append_model_generation_rejection(
+            payload,
+            trace_id=f"replay_offline_tuning_loop:{stage}",
+            causal_parent_id="ROOT",
+        )
+        if replay_path is not None:
+            replay.save_jsonl(replay_path)
+    return payload
+
+
+def _exit_on_live_schema_failure(
+    stage: str,
+    exc: LiveDiffusionGemmaSchemaError,
+    *,
+    replay: ReplayBuffer,
+    replay_path: Path,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    payload = record_live_nim_schema_failure(stage, exc, replay=replay, replay_path=replay_path, extra=extra)
+    print(
+        "replay offline tuning loop stopped because live NIM returned invalid frontier JSON "
+        f"during {stage}; recorded {payload['category']} evidence in {ARTIFACT_DIR / 'nim_schema_failure.json'}"
+    )
+    raise SystemExit(LIVE_SCHEMA_FAILURE_EXIT)
 
 
 if __name__ == "__main__":

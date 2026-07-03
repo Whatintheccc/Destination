@@ -4,10 +4,7 @@
   "additionalProperties": false,
   "properties": {
     "causal_parent_id": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": "string"
     },
     "payload": {
       "type": "object"
@@ -46,6 +43,7 @@
     "record_type",
     "record_id",
     "trace_id",
+    "causal_parent_id",
     "payload",
     "record_schema_version"
   ],

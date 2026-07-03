@@ -374,7 +374,9 @@ function renderReplay(data) {
 }
 
 function renderSelfPlay(data) {
-  return `${renderRows('Latest failure modes', data.history || data.rows || [])}<div class="inspector-card"><h3>Run release gate</h3><label>Episodes <input id="self-play-episodes" type="number" min="1" max="20" value="3" /></label><div class="card-actions"><button id="run-self-play" data-testid="run-self-play" class="primary">Run self-play</button></div></div>`;
+  const latest = (data.history || [])[Math.max(0, (data.history || []).length - 1)] || {};
+  const simulatorVersion = latest.simulator_version || data.simulator_version || 'sim_v2';
+  return `${renderRows('Latest failure modes', data.history || data.rows || [])}<div class="inspector-card"><h3>Run release gate</h3><div class="kv"><div class="k">simulator</div><div class="v"><code>${escapeHtml(simulatorVersion)}</code></div></div><label>Episodes <input id="self-play-episodes" type="number" min="1" max="20" value="3" /></label><div class="card-actions"><button id="run-self-play" data-testid="run-self-play" class="primary">Run self-play</button></div></div>`;
 }
 
 function renderDebug(data) {
@@ -464,7 +466,7 @@ document.addEventListener('click', async (event) => {
   }
   if (target.id === 'propose-profile') return postAndRefresh('/api/profile/patch/propose', {correction: $('#profile-correction').value});
   if (target.id === 'apply-profile') return postAndRefresh('/api/profile/patch/apply', {claim: 'user correction', correction: $('#profile-correction').value, confirmed: true});
-  if (target.id === 'run-self-play') return postAndRefresh('/api/self-play', {episodes: Number($('#self-play-episodes').value || 3)});
+  if (target.id === 'run-self-play') return postAndRefresh('/api/self-play', {episodes: Number($('#self-play-episodes').value || 3), simulator_version: 'sim_v2'});
   if (target.id === 'refresh-replay') { app.inspectorTab = 'replay'; await refresh(); return; }
   if (target.id === 'replay-export' || target.id === 'replay-export-sidebar') {
     const exported = await api('/api/replay/export');

@@ -40,7 +40,7 @@ export function normalizeView(payload) {
     actions: {queue: state.action_queue || []},
     authority: state.inspector?.authority || {},
     learning: state.learning || {},
-    lab: state.inspector?.self_play || {},
+    lab: {simulator_version: 'sim_v2', ...(state.inspector?.self_play || {})},
     pipeline: state.pipeline || {turns: state.trace ? [{trace_id: state.summary?.plan_id || 'sample', stages: state.trace}] : []},
     invariants: state.invariants || {violations: []},
     legacy_state: state,

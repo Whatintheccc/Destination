@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-validate-scenarios variance-probe lab-run lab-compare lab-promote mac-app-build desktop-shortcut dogfood-release demo zip
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -49,6 +49,12 @@ evidence-bundle:
 
 lab-validate-seeds:
 	PYTHONPATH=src python3 scripts/seed_calendar_corpus.py --validate
+
+lab-validate-scenarios:
+	PYTHONPATH=src python3 scripts/validate_self_play_scenarios.py
+
+variance-probe:
+	PYTHONPATH=src python3 scripts/run_variance_probe.py
 
 lab-run:
 	PYTHONPATH=src python3 scripts/run_lab_experiment.py --seed $(SEED) --runtime $(RUNTIME)

@@ -1,0 +1,112 @@
+{
+  "candidate_tuning": "experiments/reports/candidate_policy_tuning_p11_fix_base20_20260703.json",
+  "decided_at": "2026-07-03T18:15:27Z",
+  "frontier_diffs": [
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_admin_frag_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_admin_frag_context_thrash.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_ae_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_ae_renewal_week_high_pressure.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_burnout_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_burnout_notification_saturation.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_consultant_backtoback_clients.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_consultant_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_ea_dense_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_ea_dense_double_bookings.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_em_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_em_incident_review_overload.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_founder_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_founder_board_week_crunch.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_parent_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_parent_school_pickup_conflicts.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_researcher_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_researcher_deadline_fatigue.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_travel_baseline.frontier_diff.json",
+    "experiments/reports/promotion_p11_fix_base20_20260703/seed_travel_timezone_hop.frontier_diff.json"
+  ],
+  "gates": {
+    "bad_intent_committed": {
+      "actual": 0,
+      "status": "pass",
+      "threshold": 0
+    },
+    "flagged_seed_leader_changes": {
+      "actual": 0,
+      "status": "fail",
+      "threshold": 3
+    },
+    "invariant_violations": {
+      "actual": 0,
+      "status": "pass",
+      "threshold": 0
+    },
+    "model_generation_rejection_rate": {
+      "actual": 0.0,
+      "status": "pass",
+      "threshold": 0.15
+    },
+    "other_intent_rate": {
+      "actual": 0.1081,
+      "status": "fail",
+      "threshold": 0.1
+    },
+    "self_play_penalty_effect": {
+      "actual": {
+        "has_failure_penalties": false,
+        "negative_penalty_delta": false
+      },
+      "status": "fail",
+      "threshold": "required"
+    },
+    "valid_frontier_rate": {
+      "actual": 1.0,
+      "status": "pass",
+      "threshold": 0.95
+    }
+  },
+  "git_sha": "21e401bc9dea1d36cf218c5f5f580650be4c345f",
+  "human_note": "P11 blocker fix promotion smoke",
+  "known_regressions": [
+    "other_intent_rate",
+    "flagged_seed_leader_changes",
+    "self_play_penalty_effect"
+  ],
+  "lab_schema_version": "lab_v0.1",
+  "metrics_after": {
+    "flagged_seed_leader_changes": 0,
+    "other_intent_rate": 0.1081,
+    "rejection_rate": 0.0,
+    "self_play_penalty_effect": false
+  },
+  "metrics_before": {
+    "flagged_seed_leader_changes": 0,
+    "other_intent_rate": 0.1081,
+    "rejection_rate": 0.0
+  },
+  "policy_tuning_id": "p11_fix_base20_20260703",
+  "pooled_replay": "experiments/reports/pooled_p11_fix_base20_20260703.jsonl",
+  "promoted_tuning": null,
+  "promotion_decision": "hold",
+  "source_batch": "p11_fix_base20_20260703",
+  "source_runs": [
+    "lab_20260703_006",
+    "lab_20260703_007",
+    "lab_20260703_008",
+    "lab_20260703_009",
+    "lab_20260703_010",
+    "lab_20260703_011",
+    "lab_20260703_012",
+    "lab_20260703_013",
+    "lab_20260703_014",
+    "lab_20260703_015",
+    "lab_20260703_016",
+    "lab_20260703_017",
+    "lab_20260703_018",
+    "lab_20260703_019",
+    "lab_20260703_020",
+    "lab_20260703_021",
+    "lab_20260703_022",
+    "lab_20260703_023",
+    "lab_20260703_024",
+    "lab_20260703_025"
+  ]
+}

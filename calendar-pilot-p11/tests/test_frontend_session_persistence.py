@@ -66,6 +66,7 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
             self_play = self_play_state["chat"]["messages"][-1]
             self.assertEqual(self_play["metadata"]["tool_sequence"], ["run_self_play_probe"])
             self.assertTrue(self_play_state["inspector"]["self_play"]["history"])
+            self.assertEqual(self_play_state["inspector"]["self_play"]["history"][-1]["simulator_version"], "sim_v2")
 
             denial_state = session.create_plan("explain the denial")
             denial = denial_state["chat"]["messages"][-1]
@@ -455,6 +456,7 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
             self.assertTrue(snapshot["inspector"]["feedback"])
             self.assertTrue(snapshot["inspector"]["profile"]["patch_history"])
             self.assertTrue(snapshot["inspector"]["self_play"]["history"])
+            self.assertEqual(snapshot["inspector"]["self_play"]["history"][-1]["simulator_version"], "sim_v2")
             self.assertTrue(snapshot["inspector"]["denials"])
             self.assertEqual(snapshot["session"]["authority_tier"], 2)
             self.assertEqual(snapshot["session"]["authority_scopes"], ["recommend", "stage", "undo"])
