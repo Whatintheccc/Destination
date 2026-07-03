@@ -1,0 +1,129 @@
+{
+  "$id": "https://calendarpilot.local/schemas/reward_event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "acceptance_reward": {
+      "type": "number"
+    },
+    "accepted": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "deleted_later": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "downstream_conflict": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "edited": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "engagement_reward": {
+      "type": "number"
+    },
+    "explicit_not_needed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "explicit_useful": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "explicit_wrong": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "ignored": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "interruption_penalty": {
+      "type": "number"
+    },
+    "notification_dismissed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "observed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "provenance": {
+      "enum": [
+        "human_ui",
+        "self_play_simulator",
+        "synthetic_demo",
+        "observed",
+        "provider",
+        "adversarial",
+        "model"
+      ]
+    },
+    "receipt_id": {
+      "type": "string"
+    },
+    "reengaged": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "regret_penalty": {
+      "type": "number"
+    },
+    "reward_event_id": {
+      "type": "string"
+    },
+    "social_risk_penalty": {
+      "type": "number"
+    },
+    "survived_until_event": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "total_reward": {
+      "type": "number"
+    },
+    "undone": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "utility_reward": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "reward_event_id",
+    "receipt_id",
+    "observed_at",
+    "total_reward"
+  ],
+  "title": "RewardEvent",
+  "type": "object"
+}

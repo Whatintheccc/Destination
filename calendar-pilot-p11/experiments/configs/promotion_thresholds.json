@@ -1,0 +1,18 @@
+{
+  "entry_bars": {
+    "expected_intent_hit_rate_min": 0.8,
+    "hard_invariant_violations_max": 0,
+    "model_generation_rejection_rate_max": 0.2,
+    "other_intent_rate_max": 0.1,
+    "valid_frontier_rate_min": 0.9
+  },
+  "promotion_gates": {
+    "bad_intent_committed_max": 0,
+    "flagged_seed_leader_changes_min": 3,
+    "invariant_violations_max": 0,
+    "model_generation_rejection_rate_max": 0.15,
+    "other_intent_rate_max": 0.1,
+    "self_play_penalty_effect_required": true,
+    "valid_frontier_rate_min": 0.95
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/action_envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "authority": {
+      "type": "object"
+    },
+    "backends": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "candidate_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "envelope_id": {
+      "type": "string"
+    },
+    "envelope_version": {
+      "const": "calendar_action_envelope.v2"
+    },
+    "lifecycle": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "observation_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provider": {
+      "additionalProperties": true,
+      "properties": {
+        "external_event_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "local_time_echo_ok": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "provider_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider_transaction_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rollback_handle_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rollback_state": {
+          "enum": [
+            "verified",
+            "pending",
+            "failed",
+            "impossible",
+            "unsupported"
+          ]
+        },
+        "rollback_verified": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "rollback_state"
+      ],
+      "type": "object"
+    },
+    "replay_record_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "reward": {
+      "type": "object"
+    },
+    "runtime_mode": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "trace_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "envelope_id",
+    "trace_id",
+    "candidate_id",
+    "runtime_mode",
+    "backends",
+    "provider",
+    "lifecycle",
+    "envelope_version"
+  ],
+  "title": "ActionEnvelopeV2",
+  "type": "object"
+}

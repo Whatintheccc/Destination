@@ -1,0 +1,54 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/policy_tuning.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "bias_evidence": {
+      "type": "object"
+    },
+    "denied_intents": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "failure_penalties": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "type": "object"
+    },
+    "frontier_effect": {
+      "type": "object"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "intent_reward_bias": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "type": "object"
+    },
+    "partitions": {
+      "type": "object"
+    },
+    "source_report": {
+      "type": "string"
+    },
+    "training_weights": {
+      "type": "object"
+    },
+    "tuning_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "tuning_id",
+    "intent_reward_bias",
+    "failure_penalties",
+    "denied_intents"
+  ],
+  "title": "PolicyTuningV1",
+  "type": "object"
+}

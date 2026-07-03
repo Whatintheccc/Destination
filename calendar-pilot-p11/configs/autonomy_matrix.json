@@ -1,0 +1,52 @@
+{
+  "add_buffer": {
+    "max_auto_tier": 3,
+    "personas": "all",
+    "requires_confirmation": false
+  },
+  "ask_clarification": {
+    "max_auto_tier": 1,
+    "personas": "all",
+    "requires_confirmation": false
+  },
+  "batch_admin": {
+    "max_auto_tier": 3,
+    "personas": "all",
+    "requires_confirmation": false
+  },
+  "create_prep_block": {
+    "max_auto_tier": 3,
+    "personas": "all",
+    "requires_confirmation": false
+  },
+  "do_nothing": {
+    "max_auto_tier": 0,
+    "personas": "all",
+    "requires_confirmation": false
+  },
+  "move_meeting": {
+    "max_auto_tier": 3,
+    "personas": "all",
+    "requires_confirmation": true
+  },
+  "notify_summary": {
+    "max_auto_tier": 2,
+    "personas": "all",
+    "requires_confirmation": false
+  },
+  "other": {
+    "max_auto_tier": 1,
+    "personas": "all",
+    "requires_confirmation": true
+  },
+  "protect_deep_work": {
+    "max_auto_tier": 3,
+    "personas": "all",
+    "requires_confirmation": false
+  },
+  "reschedule_conflict": {
+    "max_auto_tier": 2,
+    "personas": "all",
+    "requires_confirmation": true
+  }
+}
