@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: PYTHONPATH=src python -m unittest discover -s tests -q
+      - run: PYTHONPATH=src python scripts/check_invariants.py --replay tests/fixtures/replay_golden.jsonl --out ci_evidence/invariants.json
+      - name: evidence bundle
+        run: |
+          mkdir -p ci_evidence
+          PYTHONPATH=src python -m calendar_pilot.app frontend --write-snapshot --out ci_evidence/frontend_state.json
+          PYTHONPATH=src python scripts/run_secret_scan.py --path ci_evidence
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evidence
+          path: ci_evidence/
+  swift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+      - run: swift test --package-path packages/CalendarPilotKernel
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build --package-path packages/CalendarPilotKernel --product CalendarPilotMacApp
+      - run: scripts/build_macos_app.sh
