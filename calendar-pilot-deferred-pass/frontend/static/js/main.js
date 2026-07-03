@@ -1,4 +1,4 @@
-import {api, loadView} from './api.js';
+import {api, loadView, normalizeView} from './api.js';
 import {connectEvents} from './bus.js';
 import {candidateCard, receiptCard} from './components/cards.js';
 import {openEnvelopeOverlay} from './components/envelope.js';
@@ -115,7 +115,16 @@ function renderRail(view) {
   content.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Replay'), h('button', {id: 'replay-export', 'data-testid': 'replay-export', class: 'primary'}, 'Export JSON')));
 }
 
-async function postAndRefresh(path, body = {}) { setPending(true); try { await api(path, {method: 'POST', body}, sessionId()); await refresh(); } catch (err) { showToast(err.message); } finally { setPending(false); } }
+async function postAndRefresh(path, body = {}) {
+  setPending(true);
+  try {
+    store.checkpoint(normalizeView(await api(path, {method: 'POST', body}, sessionId())));
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    setPending(false);
+  }
+}
 async function sendGoal(goal) { return postAndRefresh('/api/plans', {goal, commit: false}); }
 
 async function openEnvelope(traceId, envelopeId) {

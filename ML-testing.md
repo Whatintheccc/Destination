@@ -1166,3 +1166,66 @@ You can promote the deferred pass when all of these are true:
 ```
 
 The bottom line: test each deferred item as part of the same closed loop — **candidate → envelope → receipt → replay → invariant → tuning → frontier diff → UI evidence** — not as isolated unit behavior.
+
+---
+
+# Codex validation run log
+
+## deferred_pass_codex_20260702
+
+Started: 2026-07-02 18:59:19 PDT
+
+Workspace commit checkpoint:
+
+```text
+7322977 Add calendar pilot deferred pass
+```
+
+Scope:
+
+```text
+Project under test: calendar-pilot-deferred-pass
+Run directory: calendar-pilot-deferred-pass/runs/deferred_pass_codex_20260702
+Do-not-reference directory left unstaged and uncommitted.
+```
+
+Progress:
+
+```text
+[2026-07-02 18:59 PDT] Read the deferred-work testing framework and Computer Use policy.
+[2026-07-02 18:59 PDT] Committed the current non-Do-not-reference snapshot before starting validation.
+[2026-07-02 18:59 PDT] Preparing run directory and starting baseline repo validation.
+[2026-07-02 19:00 PDT] Baseline Python unit tests passed: 147 tests, 10 skipped.
+[2026-07-02 19:00 PDT] Baseline Swift package tests passed: 17 XCTest tests, plus Swift Testing empty suite.
+[2026-07-02 19:00 PDT] Golden replay invariants passed with no violations; artifact: runs/deferred_pass_codex_20260702/invariant_report_baseline.json.
+[2026-07-02 19:00 PDT] Deterministic demo produced runs/deferred_pass_codex_20260702/replay.jsonl with 63 records, a committed SwiftKernelStub receipt, and 5 accepted self-play episodes.
+[2026-07-02 19:00 PDT] Generated invariant_report.json with zero violations.
+[2026-07-02 19:00 PDT] Generated offline_policy_report.json and policy_tuning.json; training_rows=5, taxonomy other_rate=0.0.
+[2026-07-02 19:01 PDT] Generated frontier_diff.json; leader_changed=false, tuned_leader=cand_ce7cb50eb254, valid_candidates=6.
+[2026-07-02 19:01 PDT] Generated scorecard.json using explicit replay/frontier/offline-report arguments; decision=promote_candidate.
+[2026-07-02 19:02 PDT] Started frontend server on 127.0.0.1:8787 with run dir runs/deferred_pass_codex_20260702/frontend_live.
+[2026-07-02 19:02 PDT] Exercised /api/health, /api/state, /api/view, /api/plans, candidate simulate/stage/commit, /api/replay, and /api/trace/cand_ce7cb50eb254. /api/view returned view_state.v2 with all required regions and state_version 6; trace returned 17 records and an envelope with rollback_state=pending.
+[2026-07-02 19:03 PDT] Initial /api/events stream emitted router/planner/frontier frames but did not expose action lifecycle transitions after candidate actions.
+[2026-07-02 19:06 PDT] Patched frontend session SSE emission to publish action-envelope lifecycle transitions as action_lifecycle trace events.
+[2026-07-02 19:06 PDT] Focused frontend/session/action-lifecycle tests passed after the SSE patch.
+[2026-07-02 19:07 PDT] Re-ran /api/events lifecycle capture; stream emitted 18 events with route_classified, planner_started, frontier_generated, prepare, simulate, stage, and commit stages. Every event had seq, state_version, and trace_id.
+[2026-07-02 19:14 PDT] Updated browser CDP e2e coverage for the ES-module Glass Cockpit shell after it exposed stale legacy selectors and a leading-shebang parse issue.
+[2026-07-02 19:15 PDT] Patched the client refresh path so POST responses update the active session view immediately instead of refreshing a stale session id.
+[2026-07-02 19:16 PDT] Browser e2e passed through the app shell: prompt, simulate, stage, commit, undo, feedback, envelope overlay, surface navigation, Lab self-play, Authority denial, replay export, and New chat reset.
+[2026-07-02 19:19 PDT] Computer Use visual testing exposed a real layout regression: Glass Cockpit tabs stretched vertically over the work surface and the composer was not reliably reachable.
+[2026-07-02 19:20 PDT] Patched CSS grid/tab/composer sizing; Computer Use then showed reachable horizontal surface tabs, visible composer, and inspector rail.
+[2026-07-02 19:21 PDT] Computer Use submitted "Computer Use smoke: create prep before client call" through Chrome. The app routed to Observe, state_version advanced to 2, route/planner/frontier events rendered, and Learn/Lab/Authority surfaces routed with matching inspector surface names.
+[2026-07-02 19:22 PDT] Full Python unit suite passed after patches: 147 tests, 10 skipped.
+[2026-07-02 19:22 PDT] Swift package tests passed after patches: 17 XCTest tests, plus Swift Testing empty suite.
+[2026-07-02 19:22 PDT] Browser e2e re-run passed after layout/client patches; artifacts: runs/browser_e2e/artifacts/browser_success.png and browser_replay_export.json.
+[2026-07-02 19:22 PDT] Rechecked deterministic replay invariants after patches; runs/deferred_pass_codex_20260702/invariant_report_after_patches.json is ok with 63 records and zero violations.
+[2026-07-02 19:22 PDT] Contract golden vector passed on Python stub; artifact: runs/deferred_pass_codex_20260702/contract_vectors_python_kernel.json.
+[2026-07-02 19:23 PDT] Built CalendarPilotKernelServer and ran the same contract golden vector through Swift IPC; artifact: runs/deferred_pass_codex_20260702/contract_vectors_swift_kernel.json.
+[2026-07-02 19:23 PDT] Built CalendarPilotEventKitBridge successfully.
+[2026-07-02 19:23 PDT] Ran swift_ipc_deterministic self-play for 5 episodes; accepted=5, rejected=0, replay artifact: runs/deferred_pass_codex_20260702/selfplay_swift_ipc.jsonl.
+[2026-07-02 19:23 PDT] Invariants passed on swift_ipc_deterministic self-play replay; artifact: runs/deferred_pass_codex_20260702/invariant_report_selfplay_swift_ipc.json.
+[2026-07-02 19:24 PDT] Ran swift_ipc_eventkit_sandbox without the required env flag; the lifecycle denied actuation with provider_not_configured and wrote a replay instead of touching a real provider.
+[2026-07-02 19:24 PDT] Ran production_shadow without the required env flag; actuation was denied because no Swift-issued write grant was available. Invariants passed on the sandbox and shadow replays.
+[2026-07-02 19:25 PDT] Focused ActionLifecycle, SessionStore persistence, Tier-6 plan graph, right-moment temporal controller, safety-contract, and Swift IPC runtime suites passed. Swift IPC was run with CALENDAR_PILOT_RUN_SWIFT_IPC_TESTS=1: 9 tests passed.
+[2026-07-02 19:27 PDT] After a defensive SSE helper cleanup, re-ran frontend server API tests, session persistence tests, action-lifecycle/store tests, and browser e2e; all passed.
+```

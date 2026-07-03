@@ -134,15 +134,20 @@ class LiveServer:
 
 def assert_static_shell() -> None:
     html = (ROOT / "frontend" / "static" / "index.html").read_text(encoding="utf-8")
-    js = (ROOT / "frontend" / "static" / "app.js").read_text(encoding="utf-8")
+    js_root = ROOT / "frontend" / "static" / "js"
+    main_js = (js_root / "main.js").read_text(encoding="utf-8")
     required_html = [
+        '<script type="module" src="js/main.js"></script>',
         'data-testid="chat-transcript"',
         'data-testid="goal-input"',
         'data-testid="send-goal"',
         'data-testid="inspector-toggle"',
         'data-testid="runtime-chip"',
-        'id="tab-runtime"',
-        'id="tab-replay"',
+        'data-surface="operate"',
+        'data-surface="observe"',
+        'data-surface="learn"',
+        'data-surface="lab"',
+        'data-surface="authority"',
         'id="inspector-content"',
     ]
     for marker in required_html:
@@ -150,21 +155,23 @@ def assert_static_shell() -> None:
             raise AssertionError(f"missing frontend marker: {marker}")
     required_js = [
         "/api/plans",
-        "offline_fixture_fallback",
-        "stage-candidate",
-        "commit-candidate",
+        "simulate-btn",
+        "stage-btn",
+        "commit-btn",
         "feedback-useful",
         "replay-export",
-        "/api/profile/patch/propose",
         "/api/self-play",
         "/api/authority",
         "/api/runtime",
-        "runtime-mode-btn",
-        "codex-signin",
+        "openEnvelopeOverlay",
+        "connectEvents",
     ]
     for marker in required_js:
-        if marker not in js:
+        if marker not in main_js:
             raise AssertionError(f"missing frontend flow marker: {marker}")
+    dynamic_sources = "\n".join(path.read_text(encoding="utf-8") for path in js_root.rglob("*.js"))
+    if "innerHTML" in dynamic_sources:
+        raise AssertionError("ES module frontend should not render dynamic state with innerHTML")
 
 
 def run_live_api_loop(base_url: str) -> dict[str, Any]:

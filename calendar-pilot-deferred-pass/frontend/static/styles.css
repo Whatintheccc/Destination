@@ -37,12 +37,12 @@ button { cursor: pointer; }
 .session-actions button { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.55); color: var(--muted); font-size: 11px; padding: 4px 6px; }
 .session-actions button:hover { color: var(--ink); border-color: var(--line-strong); }
 .sidebar-footer { margin-top: auto; }
-.chat-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.chat-main { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; height: 100vh; overflow: hidden; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 22px 28px 12px; border-bottom: 1px solid var(--line); background: rgba(247,244,238,.92); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 3; }
 .topbar h1 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .eyebrow { margin: 0 0 4px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
-.chat-transcript { padding: 28px; overflow: auto; display: flex; flex-direction: column; gap: 22px; }
+.chat-transcript { min-height: 0; padding: 28px; overflow: auto; display: flex; flex-direction: column; gap: 22px; }
 .message { display: grid; grid-template-columns: 36px minmax(0, 760px); gap: 12px; align-items: start; }
 .message.user { justify-content: end; grid-template-columns: minmax(0, 760px) 36px; }
 .message.user .avatar { grid-column: 2; background: var(--accent-2); }
@@ -75,7 +75,7 @@ button { cursor: pointer; }
 .auth-link { display: inline-flex; align-items: center; text-decoration: none; }
 .icon-button { background: transparent; font-size: 24px; line-height: 1; color: var(--muted); }
 button:disabled { opacity: .5; cursor: wait; }
-.composer { border-top: 1px solid var(--line); padding: 14px 22px 18px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: end; background: rgba(247,244,238,.96); }
+.composer { min-height: 78px; border-top: 1px solid var(--line); padding: 14px 22px 18px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: end; background: rgba(247,244,238,.96); position: sticky; bottom: 0; z-index: 4; }
 .authority-chip, .runtime-chip { align-self: center; padding: 8px 10px; background: #e7f0ec; color: var(--accent); border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .runtime-chip { background: #f1e4d5; color: var(--accent-2); border: 1px solid var(--line); }
 .runtime-chip.danger { background: #f4dddd; color: var(--danger); border-color: #dfb8b8; }
@@ -85,7 +85,7 @@ textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,95,8
 .inspector.closed { display: none; }
 .inspector-header { padding: 18px; display: flex; align-items: start; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .inspector-header h2 { margin: 0; font-size: 18px; }
-.tabs { display: flex; gap: 6px; padding: 10px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; align-items: center; gap: 6px; padding: 10px; overflow-x: auto; border-bottom: 1px solid var(--line); }
 .tab { border: 1px solid var(--line); background: #fbf7ef; border-radius: 999px; padding: 8px 10px; color: var(--muted); font-size: 12px; }
 .tab.active { background: var(--ink); color: white; border-color: var(--ink); }
 .inspector-content { overflow: auto; padding: 16px; }
@@ -115,7 +115,7 @@ pre { white-space: pre-wrap; background: #f4ede3; padding: 10px; border-radius: 
   .composer { grid-template-columns: 1fr auto; }
   .authority-chip { display: none; }
 }
-.glass-tabs { padding: 0 18px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.glass-tabs { align-self: start; width: 100%; max-height: 58px; padding: 0 18px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .pipeline-strip { display:flex; gap:8px; flex-wrap:wrap; padding:8px 0 16px; }
 .stage-pill { border:1px solid var(--line); border-radius:999px; padding:5px 9px; font-size:12px; background:#fff; color:var(--muted); }
 .stage-pill.failed,.stage-pill.denied { border-color:#dfb8b8; color:var(--danger); background:#f8e7e7; }

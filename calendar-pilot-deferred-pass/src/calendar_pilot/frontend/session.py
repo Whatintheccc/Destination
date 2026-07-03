@@ -853,6 +853,59 @@ class DogfoodSessionState:
             causal_parent_id=causal_parent_id,
         )
 
+    def _emit_action_lifecycle_trace(self, receipt: Any, *, fallback_stage: str, fallback_trace_id: str) -> None:
+        if hasattr(receipt, "to_dict"):
+            receipt_dict = receipt.to_dict()
+        elif isinstance(receipt, dict):
+            receipt_dict = receipt
+        else:
+            receipt_dict = {}
+        output = receipt_dict.get("output", {}) if isinstance(receipt_dict.get("output"), dict) else {}
+        envelope = output.get("action_envelope") if isinstance(output, dict) else None
+        trace_id = str(fallback_trace_id)
+        if isinstance(envelope, dict):
+            trace_id = str(envelope.get("trace_id") or fallback_trace_id)
+        stage_aliases = {
+            "undo": "rollback",
+            "verify": "provider_verify",
+            "reward": "reward_recorded",
+        }
+        lifecycle = envelope.get("lifecycle", []) if isinstance(envelope, dict) else []
+        emitted = False
+        if isinstance(lifecycle, list):
+            for step in lifecycle:
+                if not isinstance(step, dict):
+                    continue
+                transition = str(step.get("transition") or "").strip()
+                if not transition:
+                    continue
+                payload = {
+                    "receipt_id": receipt_dict.get("swift_receipt_id") or receipt_dict.get("tool_call_id"),
+                    "envelope_id": envelope.get("envelope_id") if isinstance(envelope, dict) else None,
+                    "candidate_id": envelope.get("candidate_id") if isinstance(envelope, dict) else output.get("candidate_id"),
+                    "rollback_state": (envelope.get("provider") or {}).get("rollback_state") if isinstance(envelope, dict) else None,
+                    "stage_state": receipt_dict.get("stage_state"),
+                    "transition": transition,
+                    "detail": step.get("detail", {}),
+                }
+                self._emit_trace(
+                    trace_id,
+                    "action_lifecycle",
+                    stage_aliases.get(transition, transition),
+                    status=str(step.get("status") or receipt_dict.get("status") or "succeeded"),
+                    payload=payload,
+                    causal_parent_id=str(step.get("swift_receipt_id") or receipt_dict.get("tool_call_id") or "") or None,
+                )
+                emitted = True
+        if not emitted:
+            self._emit_trace(
+                trace_id,
+                "action_lifecycle",
+                stage_aliases.get(fallback_stage, fallback_stage),
+                status=str(receipt_dict.get("status") or "succeeded"),
+                payload={"receipt": receipt_dict},
+            )
+
     def _record_frontier_rejections_from_plan(self, plan: Any) -> None:
         for receipt in getattr(plan, "receipts", []):
             if getattr(receipt, "tool_name", None) != CodexToolName.GENERATE_CANDIDATE_FRONTIER:
@@ -1087,6 +1140,7 @@ class DogfoodSessionState:
         else:
             raise ValueError(f"unsupported candidate action: {action}")
         receipt = self.runtime.execute(self._call(name, {"candidate_id": candidate_id}, grant_id=grant_id, reason=reason, correlation_id=candidate_id), self.observation, self.biography)
+        self._emit_action_lifecycle_trace(receipt, fallback_stage=action, fallback_trace_id=candidate_id)
         if self.latest_plan is not None:
             self.latest_plan.receipts.append(receipt)
         self.transcript_events.append({
@@ -1121,6 +1175,7 @@ class DogfoodSessionState:
         rollback_handle_id = rollback_handle_id.strip()
         grant_id = self.issue_authority_grant(confirmed=True, scopes=["undo"], reason=f"user_confirmed_undo:{rollback_handle_id}").grant_id
         receipt = self.runtime.execute(self._call(CodexToolName.REQUEST_UNDO, {"rollback_handle_id": rollback_handle_id}, grant_id=grant_id, reason="Request Swift rollback through the undo ledger.", correlation_id=rollback_handle_id), self.observation, self.biography)
+        self._emit_action_lifecycle_trace(receipt, fallback_stage="rollback", fallback_trace_id=rollback_handle_id)
         if self.latest_plan is not None:
             self.latest_plan.receipts.append(receipt)
         self.transcript_events.append({

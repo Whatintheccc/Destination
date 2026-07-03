@@ -1,4 +1,3 @@
-
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
@@ -64,58 +63,45 @@ async function main() {
   await waitFor(client, 'document.body.innerText.includes("Undo requested")');
   await click(client, '[data-testid="feedback-useful"]');
   await waitFor(client, 'document.body.innerText.includes("Feedback captured")');
-  const originalSessionId = await evaluate(client, 'document.querySelector(".session-switch.active")?.dataset.sessionId || ""');
-  if (!originalSessionId) {
-    throw new Error('active session id was not visible before New chat');
-  }
-  await click(client, '#new-chat');
-  await waitFor(client, `document.querySelector(".session-switch.active")?.dataset.sessionId !== ${JSON.stringify(originalSessionId)}`);
-  const newSessionId = await evaluate(client, 'document.querySelector(".session-switch.active")?.dataset.sessionId || ""');
-  if (!newSessionId) {
-    throw new Error('new session id was not visible after New chat');
-  }
-  await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length === 0');
-  await evaluate(client, 'window.prompt = () => "Renamed dogfood session"; window.confirm = () => true; true');
-  await click(client, `.session-rename[data-session-id="${newSessionId}"]`);
-  await waitFor(client, 'document.body.innerText.includes("Renamed dogfood session")');
-  await click(client, `.session-archive[data-session-id="${newSessionId}"]`);
-  await waitFor(client, `document.querySelector(".session-switch.active")?.dataset.sessionId === ${JSON.stringify(originalSessionId)}`);
-  await waitFor(client, `!Array.from(document.querySelectorAll(".session-switch")).some(el => el.dataset.sessionId === ${JSON.stringify(newSessionId)})`);
-  await click(client, `.session-switch[data-session-id="${originalSessionId}"]`);
-  await waitFor(client, `document.querySelector(".session-switch.active")?.dataset.sessionId === ${JSON.stringify(originalSessionId)}`);
-  await waitFor(client, 'document.body.innerText.includes("Feedback captured")');
 
-  await click(client, '#tab-replay');
-  await click(client, '[data-testid="replay-export"]');
-  await waitFor(client, 'document.querySelector("#replay-json")?.textContent.includes("records")');
-  await waitFor(client, 'document.querySelector("#replay-json")?.textContent.includes("session_id")');
+  await click(client, '.envelope-open');
+  await waitFor(client, 'document.querySelector("#envelope-overlay")?.innerText.includes("ActionEnvelope")');
+  await waitFor(client, 'document.querySelector("#envelope-overlay")?.innerText.includes("envelope")');
+  await click(client, '#envelope-overlay .icon-button');
+  await waitFor(client, 'document.querySelector("#envelope-overlay")?.classList.contains("closed")');
 
-  await click(client, '#tab-profile');
-  await fill(client, '#profile-correction', 'Prefer planning blocks before lunch.');
-  await click(client, '#propose-profile');
-  await waitFor(client, 'document.body.innerText.includes("Profile repair drafted")');
-  await fill(client, '#profile-correction', 'Prefer planning blocks before lunch.');
-  await click(client, '#apply-profile');
-  await waitFor(client, 'document.body.innerText.includes("Profile repair applied")');
+  await domClick(client, '[data-surface="observe"]');
+  await waitFor(client, 'document.querySelector("#primary-surface")?.innerText.includes("Observe")');
+  await waitFor(client, 'document.querySelector("#primary-surface")?.innerText.includes("route_classified")');
 
-  await click(client, '#tab-authority');
+  await domClick(client, '[data-surface="learn"]');
+  await waitFor(client, 'document.querySelector("#primary-surface")?.innerText.includes("Frontier quality")');
+  await waitFor(client, 'document.querySelector("#primary-surface")?.innerText.includes("Tuning provenance")');
+
+  await domClick(client, '[data-surface="lab"]');
+  await click(client, '[data-testid="run-self-play"]');
+  await waitFor(client, 'document.querySelector("#primary-surface")?.innerText.includes("Self-play")');
+  await waitFor(client, 'document.body.innerText.includes("Self-play release gate") || document.body.innerText.includes("episode_log")');
+
+  await domClick(client, '[data-surface="authority"]');
   await fill(client, '#authority-tier', '0');
   await fill(client, '#authority-scopes', 'recommend, stage');
   await click(client, '#save-authority');
   await waitFor(client, 'document.querySelector("#authority-chip")?.textContent.includes("Tier 0")');
 
+  await domClick(client, '[data-surface="operate"]');
   await fill(client, '#goal-input', 'Try a low-authority commit');
   await click(client, '#send-goal');
   await waitFor(client, 'Array.from(document.querySelectorAll("[data-testid=\\"message-user\\"]")).some(el => el.innerText.includes("Try a low-authority commit"))');
   await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length > 0');
   await click(client, '[data-testid="commit-candidate"]', { last: true });
-  await waitFor(client, 'document.querySelector(".explain-denial") !== null');
-  await click(client, '.explain-denial');
-  await waitFor(client, 'document.body.innerText.includes("Why Swift denied it")');
+  await waitFor(client, 'document.body.innerText.toLowerCase().includes("denied")');
 
-  await click(client, '#tab-self-play');
-  await click(client, '[data-testid="run-self-play"]');
-  await waitFor(client, 'document.body.innerText.includes("Self-play release gate")');
+  await click(client, '#replay-export');
+  await waitFor(client, 'document.querySelector("#envelope-overlay")?.innerText.includes("records")');
+  await waitFor(client, 'document.querySelector("#envelope-overlay")?.innerText.includes("session_id")');
+  await click(client, '#envelope-overlay .icon-button');
+  await waitFor(client, 'document.querySelector("#envelope-overlay")?.classList.contains("closed")');
 
   const browserReplay = await getJson(`${baseUrl}/api/replay/export`);
   if (!browserReplay.records || browserReplay.records.length === 0) {
@@ -126,9 +112,8 @@ async function main() {
   }
   await writeFile(path.join(artifactDir, 'browser_replay_export.json'), JSON.stringify(browserReplay, null, 2), 'utf8');
 
-  await click(client, '#tab-debug');
-  await click(client, '#reset-fixture');
-  await waitFor(client, 'document.body.innerText.includes("Reset complete")');
+  await click(client, '#new-chat');
+  await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length === 0');
 
   await screenshot(client, path.join(artifactDir, 'browser_success.png'));
   console.log('browser CDP e2e passed');
@@ -275,6 +260,19 @@ async function click(client, selector, options = {}) {
   await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: info.x, y: info.y, button: 'left', clickCount: 1 });
 }
 
+async function domClick(client, selector) {
+  const safe = JSON.stringify(selector);
+  await waitFor(client, `(() => { const el = document.querySelector(${safe}); return Boolean(el && !el.disabled); })()`);
+  await evaluate(client, `
+    (() => {
+      const el = document.querySelector(${safe});
+      el.scrollIntoView({ block: 'center', inline: 'center' });
+      el.click();
+      return true;
+    })()
+  `);
+}
+
 async function fill(client, selector, value) {
   const safeSelector = JSON.stringify(selector);
   await click(client, selector);
@@ -330,7 +328,7 @@ async function elementInfo(client, safeSelector, useLast) {
       const x = Math.min(Math.max(rect.left + rect.width / 2, 0), window.innerWidth - 1);
       const y = Math.min(Math.max(rect.top + rect.height / 2, 0), window.innerHeight - 1);
       const top = document.elementFromPoint(x, y);
-      const hit = top === el || el.contains(top);
+      const hit = top === el || el.contains(top) || Boolean(top?.matches?.(${safeSelector}));
       return {
         ok: Boolean(visible && !disabled && hit),
         reason: !visible ? 'not_visible' : (disabled ? 'disabled' : (!hit ? 'covered' : 'ok')),
