@@ -2,21 +2,22 @@
   "batch_id": "all",
   "batch_metrics": {
     "bad_intent_committed": 0,
-    "completed_runs": 7,
+    "completed_runs": 18,
     "duplicate_candidate_rate": 0.0,
-    "expected_intent_hit_rate": 0.7143,
+    "expected_intent_hit_rate": 0.7778,
     "invariant_violations_max": 0,
-    "leader_changed_runs": 0,
-    "model_generation_rejection_rate": 0.0,
-    "other_intent_rate": 0.0787,
-    "rejections": 0,
-    "rows": 14,
+    "leader_changed_runs": 7,
+    "model_generation_rejection_rate": 0.1325,
+    "other_intent_rate": 0.08,
+    "rejections": 11,
+    "rows": 30,
     "status_counts": {
-      "completed": 7,
-      "skipped": 7
+      "completed": 18,
+      "failed": 3,
+      "skipped": 9
     },
-    "valid_candidates": 48,
-    "valid_frontier_rate": 0.8571
+    "valid_candidates": 72,
+    "valid_frontier_rate": 0.6667
   },
   "config_rankings": [
     {
@@ -27,11 +28,11 @@
       "valid_frontier_rate": 0.8571
     },
     {
-      "completed_runs": 0,
-      "other_intent_rate": 0.0,
-      "rejection_rate": 0.0,
+      "completed_runs": 11,
+      "other_intent_rate": 0.0809,
+      "rejection_rate": 0.3143,
       "runtime_mode": "live_diffusiongemma",
-      "valid_frontier_rate": 0.0
+      "valid_frontier_rate": 0.5455
     }
   ],
   "groups": [
@@ -86,27 +87,29 @@
       "seed_id": "seed_ae_renewal_week_high_pressure"
     },
     {
-      "latest_experiment_id": "lab_20260703_012",
-      "latest_skip_reason": "nim_missing_credential",
+      "latest_experiment_id": "lab_20260703_029",
+      "latest_skip_reason": "eventkit_sandbox_flag_missing",
       "latest_status": "skipped",
       "metrics": {
         "bad_intent_committed": 0,
-        "completed_runs": 0,
+        "completed_runs": 3,
         "duplicate_candidate_rate": 0.0,
-        "expected_intent_hit_rate": 0.0,
+        "expected_intent_hit_rate": 1.0,
         "invariant_violations_max": 0,
-        "leader_changed_runs": 0,
-        "model_generation_rejection_rate": 0.0,
-        "other_intent_rate": 0.0,
-        "rejections": 0,
-        "rows": 2,
+        "leader_changed_runs": 3,
+        "model_generation_rejection_rate": 0.25,
+        "other_intent_rate": 0.0714,
+        "rejections": 3,
+        "rows": 8,
         "status_counts": {
-          "skipped": 2
+          "completed": 3,
+          "failed": 2,
+          "skipped": 3
         },
-        "valid_candidates": 0,
-        "valid_frontier_rate": 0.0
+        "valid_candidates": 9,
+        "valid_frontier_rate": 0.6667
       },
-      "runs": 2,
+      "runs": 8,
       "runtime_mode": "live_diffusiongemma",
       "seed_id": "seed_ae_renewal_week_high_pressure"
     },
@@ -136,27 +139,28 @@
       "seed_id": "seed_burnout_notification_saturation"
     },
     {
-      "latest_experiment_id": "lab_20260703_010",
-      "latest_skip_reason": "nim_missing_credential",
-      "latest_status": "skipped",
+      "latest_experiment_id": "lab_20260703_027",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
       "metrics": {
         "bad_intent_committed": 0,
-        "completed_runs": 0,
+        "completed_runs": 2,
         "duplicate_candidate_rate": 0.0,
-        "expected_intent_hit_rate": 0.0,
+        "expected_intent_hit_rate": 0.5,
         "invariant_violations_max": 0,
-        "leader_changed_runs": 0,
-        "model_generation_rejection_rate": 0.0,
-        "other_intent_rate": 0.0,
-        "rejections": 0,
-        "rows": 1,
+        "leader_changed_runs": 1,
+        "model_generation_rejection_rate": 0.2,
+        "other_intent_rate": 0.0833,
+        "rejections": 1,
+        "rows": 3,
         "status_counts": {
+          "completed": 2,
           "skipped": 1
         },
-        "valid_candidates": 0,
-        "valid_frontier_rate": 0.0
+        "valid_candidates": 4,
+        "valid_frontier_rate": 0.5
       },
-      "runs": 1,
+      "runs": 3,
       "runtime_mode": "live_diffusiongemma",
       "seed_id": "seed_burnout_notification_saturation"
     },
@@ -186,27 +190,29 @@
       "seed_id": "seed_ea_dense_double_bookings"
     },
     {
-      "latest_experiment_id": "lab_20260703_009",
-      "latest_skip_reason": "nim_missing_credential",
-      "latest_status": "skipped",
+      "latest_experiment_id": "lab_20260703_026",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
       "metrics": {
         "bad_intent_committed": 0,
-        "completed_runs": 0,
+        "completed_runs": 2,
         "duplicate_candidate_rate": 0.0,
-        "expected_intent_hit_rate": 0.0,
+        "expected_intent_hit_rate": 0.5,
         "invariant_violations_max": 0,
-        "leader_changed_runs": 0,
-        "model_generation_rejection_rate": 0.0,
-        "other_intent_rate": 0.0,
-        "rejections": 0,
-        "rows": 1,
+        "leader_changed_runs": 1,
+        "model_generation_rejection_rate": 0.25,
+        "other_intent_rate": 0.0714,
+        "rejections": 2,
+        "rows": 4,
         "status_counts": {
+          "completed": 2,
+          "failed": 1,
           "skipped": 1
         },
-        "valid_candidates": 0,
-        "valid_frontier_rate": 0.0
+        "valid_candidates": 6,
+        "valid_frontier_rate": 1.0
       },
-      "runs": 1,
+      "runs": 4,
       "runtime_mode": "live_diffusiongemma",
       "seed_id": "seed_ea_dense_double_bookings"
     },
@@ -236,27 +242,28 @@
       "seed_id": "seed_parent_school_pickup_conflicts"
     },
     {
-      "latest_experiment_id": "lab_20260703_011",
-      "latest_skip_reason": "nim_missing_credential",
-      "latest_status": "skipped",
+      "latest_experiment_id": "lab_20260703_028",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
       "metrics": {
         "bad_intent_committed": 0,
-        "completed_runs": 0,
+        "completed_runs": 2,
         "duplicate_candidate_rate": 0.0,
-        "expected_intent_hit_rate": 0.0,
+        "expected_intent_hit_rate": 1.0,
         "invariant_violations_max": 0,
-        "leader_changed_runs": 0,
-        "model_generation_rejection_rate": 0.0,
-        "other_intent_rate": 0.0,
-        "rejections": 0,
-        "rows": 1,
+        "leader_changed_runs": 1,
+        "model_generation_rejection_rate": 0.6,
+        "other_intent_rate": 0.0833,
+        "rejections": 3,
+        "rows": 3,
         "status_counts": {
+          "completed": 2,
           "skipped": 1
         },
-        "valid_candidates": 0,
+        "valid_candidates": 2,
         "valid_frontier_rate": 0.0
       },
-      "runs": 1,
+      "runs": 3,
       "runtime_mode": "live_diffusiongemma",
       "seed_id": "seed_parent_school_pickup_conflicts"
     },
@@ -286,33 +293,70 @@
       "seed_id": "seed_researcher_deadline_fatigue"
     },
     {
-      "latest_experiment_id": "lab_20260703_013",
-      "latest_skip_reason": "nim_missing_credential",
+      "latest_experiment_id": "lab_20260703_030",
+      "latest_skip_reason": "eventkit_sandbox_flag_missing",
       "latest_status": "skipped",
       "metrics": {
         "bad_intent_committed": 0,
-        "completed_runs": 0,
+        "completed_runs": 2,
         "duplicate_candidate_rate": 0.0,
-        "expected_intent_hit_rate": 0.0,
+        "expected_intent_hit_rate": 1.0,
         "invariant_violations_max": 0,
-        "leader_changed_runs": 0,
-        "model_generation_rejection_rate": 0.0,
-        "other_intent_rate": 0.0,
-        "rejections": 0,
-        "rows": 2,
+        "leader_changed_runs": 1,
+        "model_generation_rejection_rate": 0.4,
+        "other_intent_rate": 0.1111,
+        "rejections": 2,
+        "rows": 5,
         "status_counts": {
-          "skipped": 2
+          "completed": 2,
+          "skipped": 3
         },
-        "valid_candidates": 0,
-        "valid_frontier_rate": 0.0
+        "valid_candidates": 3,
+        "valid_frontier_rate": 0.5
       },
-      "runs": 2,
+      "runs": 5,
       "runtime_mode": "live_diffusiongemma",
       "seed_id": "seed_researcher_deadline_fatigue"
     }
   ],
   "lab_schema_version": "lab_v0.1",
-  "leader_changed_runs": [],
+  "leader_changed_runs": [
+    {
+      "experiment_id": "lab_20260703_015",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure"
+    },
+    {
+      "experiment_id": "lab_20260703_016",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure"
+    },
+    {
+      "experiment_id": "lab_20260703_017",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_researcher_deadline_fatigue"
+    },
+    {
+      "experiment_id": "lab_20260703_018",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ea_dense_double_bookings"
+    },
+    {
+      "experiment_id": "lab_20260703_019",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_burnout_notification_saturation"
+    },
+    {
+      "experiment_id": "lab_20260703_020",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_parent_school_pickup_conflicts"
+    },
+    {
+      "experiment_id": "lab_20260703_023",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure"
+    }
+  ],
   "missed_expected_intents": [
     {
       "detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
@@ -324,6 +368,18 @@
       "detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
       "experiment_id": "lab_20260703_005",
       "runtime_mode": "fixture",
+      "seed_id": "seed_burnout_notification_saturation"
+    },
+    {
+      "detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+      "experiment_id": "lab_20260703_026",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ea_dense_double_bookings"
+    },
+    {
+      "detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+      "experiment_id": "lab_20260703_027",
+      "runtime_mode": "live_diffusiongemma",
       "seed_id": "seed_burnout_notification_saturation"
     }
   ],
@@ -1027,6 +1083,727 @@
       "seed_id": "imported_smoke_replay",
       "skip_reason": null,
       "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_smoke",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_015",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:18:44Z",
+        "episodes": 3,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "stub_fast",
+        "started_at": "2026-07-03T04:17:58Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -0.5223,
+        "denials": 6,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 3
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 4,
+        "rejections": 2,
+        "self_play_average_reward": -1.85,
+        "top_candidate_expected_reward": 1.937,
+        "top_candidate_intent": "add_buffer",
+        "top_candidate_predicted_regret": 0.05,
+        "top_candidate_predicted_social_risk": 0.01,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 2,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_015",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_b",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "move_meeting in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_016",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:21:11Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "stub_fast",
+        "started_at": "2026-07-03T04:19:28Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -1.0255,
+        "denials": 20,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 10
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 11,
+        "rejections": 1,
+        "self_play_average_reward": -1.7,
+        "top_candidate_expected_reward": 1.77,
+        "top_candidate_intent": "batch_admin",
+        "top_candidate_predicted_regret": 0.04,
+        "top_candidate_predicted_social_risk": 0.0,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 3,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_016",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_b",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_017",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:22:27Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "stub_fast",
+        "started_at": "2026-07-03T04:21:11Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -0.4903,
+        "denials": 18,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 9
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.1111,
+        "receipts": 11,
+        "rejections": 1,
+        "self_play_average_reward": -1.6,
+        "top_candidate_expected_reward": 1.937,
+        "top_candidate_intent": "add_buffer",
+        "top_candidate_predicted_regret": 0.05,
+        "top_candidate_predicted_social_risk": 0.01,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 9,
+        "valid_candidates": 3,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_017",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_researcher_deadline_fatigue",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_b",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_018",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:23:49Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "stub_fast",
+        "started_at": "2026-07-03T04:22:27Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -0.5563,
+        "denials": 12,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 6
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 11,
+        "rejections": 1,
+        "self_play_average_reward": -1.3,
+        "top_candidate_expected_reward": 1.937,
+        "top_candidate_intent": "add_buffer",
+        "top_candidate_predicted_regret": 0.05,
+        "top_candidate_predicted_social_risk": 0.01,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 3,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_018",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ea_dense_double_bookings",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_b",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "move_meeting in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_019",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:25:11Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "stub_fast",
+        "started_at": "2026-07-03T04:23:50Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -0.933,
+        "denials": 16,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 8
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0833,
+        "receipts": 11,
+        "rejections": 0,
+        "self_play_average_reward": -1.5,
+        "top_candidate_expected_reward": 1.711,
+        "top_candidate_intent": "other",
+        "top_candidate_predicted_regret": 0.04,
+        "top_candidate_predicted_social_risk": 0.2,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 12,
+        "valid_candidates": 4,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_019",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_burnout_notification_saturation",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_b",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_020",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:26:14Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "stub_fast",
+        "started_at": "2026-07-03T04:25:11Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -0.516,
+        "denials": 8,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 4
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0833,
+        "receipts": 11,
+        "rejections": 2,
+        "self_play_average_reward": -1.1,
+        "top_candidate_expected_reward": 1.937,
+        "top_candidate_intent": "add_buffer",
+        "top_candidate_predicted_regret": 0.05,
+        "top_candidate_predicted_social_risk": 0.01,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 12,
+        "valid_candidates": 2,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_020",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_parent_school_pickup_conflicts",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "experiment_id": "lab_20260703_021",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:29:58Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:26:55Z"
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_021",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "failed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "experiment_id": "lab_20260703_022",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:30:21Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:30:11Z"
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_022",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "failed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_023",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:33:09Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:31:22Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -0.6219,
+        "denials": 11,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 9
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 2,
+        "rejections": 0,
+        "self_play_average_reward": -1.6,
+        "top_candidate_expected_reward": 1.937,
+        "top_candidate_intent": "add_buffer",
+        "top_candidate_predicted_regret": 0.05,
+        "top_candidate_predicted_social_risk": 0.01,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 4,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_023",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": true,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_024",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:33:17Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:33:09Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 1,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.1111,
+        "receipts": 0,
+        "rejections": 1,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 9,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_024",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_researcher_deadline_fatigue",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "experiment_id": "lab_20260703_025",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:34:13Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:33:17Z"
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_025",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ea_dense_double_bookings",
+      "skip_reason": null,
+      "status": "failed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": true,
+        "expected_intent_hit": false,
+        "expected_intent_hit_detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_026",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:35:11Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:35:05Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 11,
+        "rejections": 1,
+        "self_play_average_reward": -0.7,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 3,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_026",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ea_dense_double_bookings",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": true,
+        "expected_intent_hit": false,
+        "expected_intent_hit_detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_027",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:35:19Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:35:11Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 1,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0833,
+        "receipts": 0,
+        "rejections": 1,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 12,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_027",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_burnout_notification_saturation",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "create_prep_block in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_028",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:35:27Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:35:19Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 1,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0833,
+        "receipts": 0,
+        "rejections": 1,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 12,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_028",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_parent_school_pickup_conflicts",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_eventkit_probe",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "create_prep_block in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_029",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:36:25Z",
+        "episodes": 5,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_eventkit_sandbox",
+        "started_at": "2026-07-03T04:36:25Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 0,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 0,
+        "rejections": 0,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_029",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": "eventkit_sandbox_flag_missing",
+      "status": "skipped"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_eventkit_probe",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": true,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_030",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:36:26Z",
+        "episodes": 5,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_eventkit_sandbox",
+        "started_at": "2026-07-03T04:36:26Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 0,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.1111,
+        "receipts": 0,
+        "rejections": 0,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 9,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_030",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_researcher_deadline_fatigue",
+      "skip_reason": "eventkit_sandbox_flag_missing",
+      "status": "skipped"
     }
   ]
 }

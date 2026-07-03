@@ -57,12 +57,7 @@ def main() -> None:
         with LiveDiffusionGemmaServer() as server:
             health_report = api_get(server.base_url, "/api/health", timeout=20)
             assert_live_policy_health(health_report)
-            planned = api_post(
-                server.base_url,
-                "/api/plans",
-                {"goal": "Make next week less chaotic using live DiffusionGemma policy ranking.", "authority_tier": 3},
-                timeout=150,
-            )
+            planned = post_live_plan_with_schema_retry(server.base_url)
             assert_live_policy_plan(planned)
             replay = api_get(server.base_url, "/api/replay/export", timeout=20)
             assert_no_secret_leak({"health": health_report, "planned": planned, "replay": replay})
@@ -79,6 +74,37 @@ def main() -> None:
         (ARTIFACT_DIR / "failure.txt").write_text(str(exc), encoding="utf-8")
         raise
     print(f"live DiffusionGemma e2e passed; artifacts: {ARTIFACT_DIR}")
+
+
+def post_live_plan_with_schema_retry(base_url: str, *, attempts: int = 3) -> dict[str, Any]:
+    last: dict[str, Any] = {}
+    for attempt in range(1, attempts + 1):
+        planned = api_post(
+            base_url,
+            "/api/plans",
+            {"goal": "Make next week less chaotic using live DiffusionGemma policy ranking.", "authority_tier": 3},
+            timeout=150,
+        )
+        write_artifact(f"live_policy_state_attempt_{attempt}.json", planned)
+        last = planned
+        if planned.get("chat", {}).get("candidate_cards"):
+            return planned
+        if not _is_model_schema_failure(planned):
+            return planned
+        if attempt < attempts:
+            time.sleep(1)
+    return last
+
+
+def _is_model_schema_failure(state: dict[str, Any]) -> bool:
+    metadata = state.get("chat", {}).get("latest_message_metadata", {})
+    if metadata.get("plan_failure_category") == "model_policy_schema_failure":
+        return True
+    for receipt in state.get("latest_plan", {}).get("receipts", []) or []:
+        output = receipt.get("output", {}) if isinstance(receipt, dict) else {}
+        if isinstance(output, dict) and output.get("error_category") == "model_policy_schema_failure":
+            return True
+    return False
 
 
 class LiveDiffusionGemmaServer:

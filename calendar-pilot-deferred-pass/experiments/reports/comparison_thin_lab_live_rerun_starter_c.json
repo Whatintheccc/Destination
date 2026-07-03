@@ -1,0 +1,492 @@
+{
+  "batch_id": "thin_lab_live_rerun_starter_c",
+  "batch_metrics": {
+    "bad_intent_committed": 0,
+    "completed_runs": 5,
+    "duplicate_candidate_rate": 0.0,
+    "expected_intent_hit_rate": 0.6,
+    "invariant_violations_max": 0,
+    "leader_changed_runs": 1,
+    "model_generation_rejection_rate": 0.3636,
+    "other_intent_rate": 0.082,
+    "rejections": 4,
+    "rows": 8,
+    "status_counts": {
+      "completed": 5,
+      "failed": 3
+    },
+    "valid_candidates": 7,
+    "valid_frontier_rate": 0.4
+  },
+  "config_rankings": [
+    {
+      "completed_runs": 5,
+      "other_intent_rate": 0.082,
+      "rejection_rate": 0.3636,
+      "runtime_mode": "live_diffusiongemma",
+      "valid_frontier_rate": 0.4
+    }
+  ],
+  "groups": [
+    {
+      "latest_experiment_id": "lab_20260703_023",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
+      "metrics": {
+        "bad_intent_committed": 0,
+        "completed_runs": 1,
+        "duplicate_candidate_rate": 0.0,
+        "expected_intent_hit_rate": 1.0,
+        "invariant_violations_max": 0,
+        "leader_changed_runs": 1,
+        "model_generation_rejection_rate": 0.0,
+        "other_intent_rate": 0.0714,
+        "rejections": 0,
+        "rows": 3,
+        "status_counts": {
+          "completed": 1,
+          "failed": 2
+        },
+        "valid_candidates": 4,
+        "valid_frontier_rate": 1.0
+      },
+      "runs": 3,
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure"
+    },
+    {
+      "latest_experiment_id": "lab_20260703_027",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
+      "metrics": {
+        "bad_intent_committed": 0,
+        "completed_runs": 1,
+        "duplicate_candidate_rate": 0.0,
+        "expected_intent_hit_rate": 0.0,
+        "invariant_violations_max": 0,
+        "leader_changed_runs": 0,
+        "model_generation_rejection_rate": 1.0,
+        "other_intent_rate": 0.0833,
+        "rejections": 1,
+        "rows": 1,
+        "status_counts": {
+          "completed": 1
+        },
+        "valid_candidates": 0,
+        "valid_frontier_rate": 0.0
+      },
+      "runs": 1,
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_burnout_notification_saturation"
+    },
+    {
+      "latest_experiment_id": "lab_20260703_026",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
+      "metrics": {
+        "bad_intent_committed": 0,
+        "completed_runs": 1,
+        "duplicate_candidate_rate": 0.0,
+        "expected_intent_hit_rate": 0.0,
+        "invariant_violations_max": 0,
+        "leader_changed_runs": 0,
+        "model_generation_rejection_rate": 0.25,
+        "other_intent_rate": 0.0714,
+        "rejections": 1,
+        "rows": 2,
+        "status_counts": {
+          "completed": 1,
+          "failed": 1
+        },
+        "valid_candidates": 3,
+        "valid_frontier_rate": 1.0
+      },
+      "runs": 2,
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ea_dense_double_bookings"
+    },
+    {
+      "latest_experiment_id": "lab_20260703_028",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
+      "metrics": {
+        "bad_intent_committed": 0,
+        "completed_runs": 1,
+        "duplicate_candidate_rate": 0.0,
+        "expected_intent_hit_rate": 1.0,
+        "invariant_violations_max": 0,
+        "leader_changed_runs": 0,
+        "model_generation_rejection_rate": 1.0,
+        "other_intent_rate": 0.0833,
+        "rejections": 1,
+        "rows": 1,
+        "status_counts": {
+          "completed": 1
+        },
+        "valid_candidates": 0,
+        "valid_frontier_rate": 0.0
+      },
+      "runs": 1,
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_parent_school_pickup_conflicts"
+    },
+    {
+      "latest_experiment_id": "lab_20260703_024",
+      "latest_skip_reason": null,
+      "latest_status": "completed",
+      "metrics": {
+        "bad_intent_committed": 0,
+        "completed_runs": 1,
+        "duplicate_candidate_rate": 0.0,
+        "expected_intent_hit_rate": 1.0,
+        "invariant_violations_max": 0,
+        "leader_changed_runs": 0,
+        "model_generation_rejection_rate": 1.0,
+        "other_intent_rate": 0.1111,
+        "rejections": 1,
+        "rows": 1,
+        "status_counts": {
+          "completed": 1
+        },
+        "valid_candidates": 0,
+        "valid_frontier_rate": 0.0
+      },
+      "runs": 1,
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_researcher_deadline_fatigue"
+    }
+  ],
+  "lab_schema_version": "lab_v0.1",
+  "leader_changed_runs": [
+    {
+      "experiment_id": "lab_20260703_023",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure"
+    }
+  ],
+  "missed_expected_intents": [
+    {
+      "detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+      "experiment_id": "lab_20260703_026",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ea_dense_double_bookings"
+    },
+    {
+      "detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+      "experiment_id": "lab_20260703_027",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_burnout_notification_saturation"
+    }
+  ],
+  "rows": [
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "experiment_id": "lab_20260703_021",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:29:58Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:26:55Z"
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_021",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "failed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "experiment_id": "lab_20260703_022",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:30:21Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:30:11Z"
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_022",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "failed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_023",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:33:09Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:31:22Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": -0.6219,
+        "denials": 11,
+        "duplicate_rejections": 0,
+        "failure_modes": {
+          "denied_actuation": 9
+        },
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": true,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 2,
+        "rejections": 0,
+        "self_play_average_reward": -1.6,
+        "top_candidate_expected_reward": 1.937,
+        "top_candidate_intent": "add_buffer",
+        "top_candidate_predicted_regret": 0.05,
+        "top_candidate_predicted_social_risk": 0.01,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 4,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_023",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ae_renewal_week_high_pressure",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": true,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "add_buffer in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_024",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:33:17Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:33:09Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 1,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.1111,
+        "receipts": 0,
+        "rejections": 1,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 9,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_024",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_researcher_deadline_fatigue",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "experiment_id": "lab_20260703_025",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:34:13Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:33:17Z"
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_025",
+      "runtime_mode": "live_diffusiongemma",
+      "seed_id": "seed_ea_dense_double_bookings",
+      "skip_reason": null,
+      "status": "failed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": true,
+        "expected_intent_hit": false,
+        "expected_intent_hit_detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_026",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:35:11Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:35:05Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 4,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0714,
+        "receipts": 11,
+        "rejections": 1,
+        "self_play_average_reward": -0.7,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 14,
+        "valid_candidates": 3,
+        "valid_frontier": true
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_026",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_ea_dense_double_bookings",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": true,
+        "expected_intent_hit": false,
+        "expected_intent_hit_detail": "top3=['create_prep_block', 'create_prep_block', 'create_prep_block'] expected=['add_buffer', 'move_meeting', 'protect_deep_work']",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_027",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:35:19Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:35:11Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 1,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0833,
+        "receipts": 0,
+        "rejections": 1,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 12,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_027",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_burnout_notification_saturation",
+      "skip_reason": null,
+      "status": "completed"
+    },
+    {
+      "batch_id": "thin_lab_live_rerun_starter_c",
+      "expectation_results": {
+        "bad_intent_committed": false,
+        "bad_intent_top1": false,
+        "expected_intent_hit": true,
+        "expected_intent_hit_detail": "create_prep_block in tuned top 3",
+        "perturbation_checks": []
+      },
+      "experiment_id": "lab_20260703_028",
+      "lab_schema_version": "lab_v0.1",
+      "manifest": {
+        "ended_at": "2026-07-03T04:35:27Z",
+        "episodes": 10,
+        "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+        "imported": false,
+        "self_play_backend": "swift_ipc_deterministic",
+        "started_at": "2026-07-03T04:35:19Z"
+      },
+      "metrics": {
+        "avg_reward_delta_after_tuning": 0.0,
+        "denials": 0,
+        "duplicate_rejections": 0,
+        "failure_modes": {},
+        "frontier_distinct_intents": 6,
+        "generated_items": 1,
+        "invariant_violations": 0,
+        "leader_changed_after_tuning": false,
+        "other_intent_count": 1,
+        "other_intent_rate": 0.0833,
+        "receipts": 0,
+        "rejections": 1,
+        "self_play_average_reward": 0.0,
+        "top_candidate_expected_reward": 2.324,
+        "top_candidate_intent": "create_prep_block",
+        "top_candidate_predicted_regret": 0.06,
+        "top_candidate_predicted_social_risk": 0.02,
+        "top_candidate_right_moment_decision": "bundle_into_digest",
+        "tuned_frontier_candidates": 12,
+        "valid_candidates": 0,
+        "valid_frontier": false
+      },
+      "policy_tuning_id": "empty",
+      "run_dir": "experiments/runs/lab_20260703_028",
+      "runtime_mode": "live_diffusiongemma",
+      "scorecard_decision": "promote_candidate",
+      "seed_id": "seed_parent_school_pickup_conflicts",
+      "skip_reason": null,
+      "status": "completed"
+    }
+  ]
+}

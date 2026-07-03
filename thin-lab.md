@@ -850,3 +850,24 @@ Progress:
 [2026-07-03 PDT] Verification passed: script py_compile, `make lab-validate-seeds`, targeted frontend tests, full Python unittest discovery (147 tests, 10 skipped), Swift package tests (17 tests), and `scripts/run_browser_e2e.py`.
 [2026-07-03 PDT] Exercised dogfood import mode with `run_lab_experiment.py --from-replay` against the smoke replay. `comparison_latest` was rebuilt with 14 indexed rows.
 ```
+
+## thin_lab_codex_20260702_rerun
+
+Started: 2026-07-02 PDT
+
+Progress:
+
+```text
+[2026-07-02 PDT] Re-read the thin-lab spec plus the deferred-work, ML/self-play, Swift runtime, control-surface, frontend-surface, and README access-point docs. Confirmed the prior live cells were skipped because NIM credentials were absent, and confirmed `calendar-pilot-deferred-pass/.env` is now present as an ignored local file with `NVIDIA_API_KEY`.
+[2026-07-02 PDT] Initial non-Do-not-reference status check found no committable app changes outside ignored/sentinel files before this rerun; `.env` is intentionally not staged.
+[2026-07-02 PDT] `make lab-validate-seeds` passed across the 120 committed seeds. Live DiffusionGemma preflight is now healthy: the repo client reports remote status `ok` for `google/diffusiongemma-26b-a4b-it` using the ignored `.env` credential.
+[2026-07-02 PDT] Live smoke run `lab_20260703_015` completed with zero invariant violations; it surfaced a manifest attribution bug where default live model names were recorded as `null`. Patched `run_lab_experiment.py` so live manifests record `google/diffusiongemma-26b-a4b-it` when no model override is set.
+[2026-07-02 PDT] Cell B starter rerun `thin_lab_live_rerun_starter_b` completed 5/5 live DiffusionGemma + `stub_fast` runs (`lab_20260703_016` through `020`). Batch metrics: valid_frontier_rate=0.80, model_generation_rejection_rate=0.25, other_intent_rate=0.082, expected_intent_hit_rate=1.00, invariant_violations_max=0, bad_intent_committed=0. The remaining gap is model/frontier quality, not missing credentials.
+[2026-07-02 PDT] Cell C initially exposed two lab robustness gaps: malformed live `move_event` payloads reached provider-backed Swift IPC self-play, and downstream Codex/self-play asked NIM for fresh untracked frontiers after the run's initial frontier. Hardened the NIM frontier parser to reject malformed write actions as `model_generation_rejection` rows, made schema-exhausted live frontiers complete as zero-frontier rejection rows, and cached the validated frontier for downstream Codex/self-play.
+[2026-07-02 PDT] Cell C starter rerun `thin_lab_live_rerun_starter_c` now has 5 completed rerun rows plus 3 failed pre-fix attempts retained in the index. Completed C metrics: valid_frontier_rate=0.40, model_generation_rejection_rate=0.3636, other_intent_rate=0.082, expected_intent_hit_rate=0.60, invariant_violations_max=0, bad_intent_committed=0. Swift IPC self-play produced replay-visible denied_actuation findings on `seed_ae_renewal_week_high_pressure`.
+[2026-07-02 PDT] Gate E access point `make live-eventkit-e2e` reached the EventKit provider probe and reported `authorization_status=not_determined` with mutation disabled. Cell D lab probe wrote two skipped rows (`lab_20260703_029` and `030`) with `eventkit_sandbox_flag_missing`; NIM is no longer the EventKit blocker.
+[2026-07-02 PDT] Promotion attempts for `thin_lab_live_rerun_starter_b` and `thin_lab_live_rerun_starter_c` both wrote hold records. Passing gates: bad_intent_committed, flagged_seed_leader_changes, invariant_violations, other_intent_rate. Failing gates: valid_frontier_rate, model_generation_rejection_rate, and D12 self_play_penalty_effect.
+[2026-07-02 PDT] UI routing tested through live frontend on localhost with Computer Use. `/api/view` reported `lab_index_status=loaded`, `lab_run_count=30`, and runtime `live_diffusiongemma`; the Lab tab showed seeded experiments and batch metrics. Clicking `Run self-play` completed with POST 200, state_version advanced to 2, controls reenabled, and the Lab index remained loaded. The legacy inspector `Self-play` tab kept the same Lab surface visible.
+[2026-07-02 PDT] Scripted live app access point initially exposed two E2E harness assumptions: live browser flow required an undo button even when Swift only produced a stageable receipt, and a single model schema failure made the live plan test flaky. Updated the browser harness to allow stage-only non-fixture flows with feedback, and added bounded full-plan retry for live model schema failures. `make live-diffusiongemma-e2e` now passes with artifacts under `runs/live_diffusiongemma_e2e/artifacts`.
+[2026-07-02 PDT] Final verification passed: `make lab-validate-seeds`, full Python unittest discovery (148 tests, 10 skipped), Swift package tests (17 tests), fixture browser CDP E2E, `make live-diffusiongemma-e2e`, and `git diff --check`. No localhost listener remained on 8787 or the live E2E ports after cleanup.
+```

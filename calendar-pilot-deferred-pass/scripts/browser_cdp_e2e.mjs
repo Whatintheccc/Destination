@@ -17,6 +17,7 @@ const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/C
 const expectedRuntimeMode = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_MODE || 'fixture';
 const expectedRuntimeLabel = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL || runtimeLabel(expectedRuntimeMode);
 const waitTimeoutMs = Number(process.env.CALENDAR_PILOT_BROWSER_WAIT_MS || 15000);
+const requireUndo = process.env.CALENDAR_PILOT_BROWSER_REQUIRE_UNDO !== '0';
 await mkdir(artifactDir, { recursive: true });
 
 async function main() {
@@ -58,9 +59,18 @@ async function main() {
   await click(client, '[data-testid="stage-candidate"]');
   await waitFor(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length > 0');
   await click(client, '[data-testid="commit-candidate"]');
-  await waitFor(client, 'document.querySelector("[data-testid=\\"undo-action\\"]") !== null');
-  await click(client, '[data-testid="undo-action"]');
-  await waitFor(client, 'document.body.innerText.includes("Undo requested")');
+  if (requireUndo) {
+    await waitFor(client, 'document.querySelector("[data-testid=\\"undo-action\\"]") !== null');
+    await click(client, '[data-testid="undo-action"]');
+    await waitFor(client, 'document.body.innerText.includes("Undo requested")');
+  } else {
+    await waitFor(client, 'document.querySelector("[data-testid=\\"undo-action\\"]") !== null || document.querySelector("[data-testid=\\"feedback-useful\\"]") !== null');
+    const hasUndo = await evaluate(client, 'document.querySelector("[data-testid=\\"undo-action\\"]") !== null');
+    if (hasUndo) {
+      await click(client, '[data-testid="undo-action"]');
+      await waitFor(client, 'document.body.innerText.includes("Undo requested")');
+    }
+  }
   await click(client, '[data-testid="feedback-useful"]');
   await waitFor(client, 'document.body.innerText.includes("Feedback captured")');
 

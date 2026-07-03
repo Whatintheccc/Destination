@@ -1,0 +1,139 @@
+{
+  "bias_evidence": {
+    "add_buffer": {
+      "narrative": "2 rows; denial_rate=1.00; bias=-0.40",
+      "raw_intents": {
+        "add_buffer": 2
+      },
+      "reward_provenance": {
+        "adversarial": 2
+      },
+      "reward_residual": -1.6,
+      "supporting_records": [
+        "reward:rew_5",
+        "reward:rew_4"
+      ]
+    },
+    "batch_admin": {
+      "narrative": "10 rows; denial_rate=0.20; bias=-0.21",
+      "raw_intents": {
+        "batch_admin": 10
+      },
+      "reward_provenance": {
+        "adversarial": 10
+      },
+      "reward_residual": -0.85,
+      "supporting_records": [
+        "reward:rew_3",
+        "reward:rew_4",
+        "reward:rew_6",
+        "reward:rew_8",
+        "reward:rew_9",
+        "reward:rew_10",
+        "reward:rew_3",
+        "reward:rew_4",
+        "reward:rew_5",
+        "reward:rew_7"
+      ]
+    },
+    "create_prep_block": {
+      "narrative": "20 rows; denial_rate=0.95; bias=-0.41",
+      "raw_intents": {
+        "create_prep_block": 20
+      },
+      "reward_provenance": {
+        "adversarial": 20
+      },
+      "reward_residual": -1.65,
+      "supporting_records": [
+        "reward:rew_1",
+        "reward:rew_2",
+        "reward:rew_3",
+        "reward:rew_4",
+        "reward:rew_7",
+        "reward:rew_8",
+        "reward:rew_9",
+        "reward:rew_7",
+        "reward:rew_9",
+        "reward:rew_10",
+        "reward:rew_1",
+        "reward:rew_2",
+        "reward:rew_3",
+        "reward:rew_5",
+        "reward:rew_6",
+        "reward:rew_8",
+        "reward:rew_9",
+        "reward:rew_10",
+        "reward:rew_2",
+        "reward:rew_10"
+      ]
+    },
+    "protect_deep_work": {
+      "narrative": "13 rows; denial_rate=0.77; bias=-0.39",
+      "raw_intents": {
+        "protect_deep_work": 13
+      },
+      "reward_provenance": {
+        "adversarial": 13
+      },
+      "reward_residual": -1.5423,
+      "supporting_records": [
+        "reward:rew_6",
+        "reward:rew_1",
+        "reward:rew_2",
+        "reward:rew_4",
+        "reward:rew_5",
+        "reward:rew_6",
+        "reward:rew_8",
+        "reward:rew_5",
+        "reward:rew_1",
+        "reward:rew_2",
+        "reward:rew_7",
+        "reward:rew_1",
+        "reward:rew_6"
+      ]
+    },
+    "reschedule_conflict": {
+      "narrative": "5 rows; denial_rate=0.80; bias=-0.36",
+      "raw_intents": {
+        "reschedule_conflict": 5
+      },
+      "reward_provenance": {
+        "adversarial": 5
+      },
+      "reward_residual": -1.45,
+      "supporting_records": [
+        "reward:rew_10",
+        "reward:rew_7",
+        "reward:rew_3",
+        "reward:rew_8",
+        "reward:rew_9"
+      ]
+    }
+  },
+  "denied_intents": [
+    "add_buffer",
+    "create_prep_block",
+    "protect_deep_work",
+    "reschedule_conflict"
+  ],
+  "failure_penalties": {
+    "denied_actuation": -2.96
+  },
+  "generated_at": "2026-07-03T04:36:47.258297+00:00",
+  "intent_reward_bias": {
+    "add_buffer": -0.4,
+    "batch_admin": -0.2125,
+    "create_prep_block": -0.4125,
+    "protect_deep_work": -0.3856,
+    "reschedule_conflict": -0.3625
+  },
+  "source_report": "train_offline_policy.py",
+  "taxonomy_health": {
+    "matched_by": {
+      "exact": 50
+    },
+    "other_rate": 0.0
+  },
+  "tuning_id": "thin_lab_live_rerun_starter_b"
+}

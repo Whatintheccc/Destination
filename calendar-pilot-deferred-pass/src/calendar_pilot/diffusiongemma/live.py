@@ -17,7 +17,7 @@ from calendar_pilot.env import load_local_env
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy, apply_policy_tuning
 from calendar_pilot.diffusiongemma.temporal_controller import RightMomentTemporalController
 from calendar_pilot.environment.taxonomy import CanonicalIntent, normalize_intent
-from calendar_pilot.types import CandidateCalendarAction, PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
+from calendar_pilot.types import AtomicActionType, CandidateCalendarAction, PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
 
 
 load_local_env()
@@ -313,6 +313,17 @@ class NvidiaNIMPolicyClient:
                 validation_errors.append(f"skipped_candidate_without_actions:{candidate.candidate_id}")
                 rejections.append({"reason": "skipped_candidate_without_actions", "index": idx, "raw_item": raw_item, "candidate_id": candidate.candidate_id})
                 continue
+            action_errors = NvidiaNIMPolicyClient._frontier_action_errors(candidate)
+            if action_errors:
+                validation_errors.append(f"skipped_invalid_action_payload:{candidate.candidate_id}")
+                rejections.append({
+                    "reason": "skipped_invalid_action_payload",
+                    "index": idx,
+                    "raw_item": raw_item,
+                    "candidate_id": candidate.candidate_id,
+                    "schema_errors": action_errors,
+                })
+                continue
             if not candidate.target_calendars:
                 validation_errors.append(f"missing_target_calendars:{candidate.candidate_id}")
                 rejections.append({"reason": "missing_target_calendars", "index": idx, "raw_item": raw_item, "candidate_id": candidate.candidate_id, "recoverable": True})
@@ -328,6 +339,42 @@ class NvidiaNIMPolicyClient:
             raise LiveDiffusionGemmaSchemaError("NIM frontier response did not contain any valid typed candidates")
         candidates.sort(key=lambda c: c.expected_reward, reverse=True)
         return {"candidates": candidates, "policy_summary": str(payload.get("policy_summary") or ""), "validation_errors": validation_errors, "rejections": rejections}
+
+    @staticmethod
+    def _frontier_action_errors(candidate: CandidateCalendarAction) -> list[str]:
+        errors: list[str] = []
+        create_types = {
+            AtomicActionType.CREATE_EVENT,
+            AtomicActionType.CREATE_FOCUS_BLOCK,
+            AtomicActionType.ADD_BUFFER,
+            AtomicActionType.BATCH_TASKS,
+        }
+        move_types = {AtomicActionType.MOVE_EVENT, AtomicActionType.RESIZE_EVENT}
+        id_required = {AtomicActionType.DELETE_OWN_EVENT, AtomicActionType.UNDO}
+        for idx, action in enumerate(candidate.actions):
+            prefix = f"action[{idx}] {action.action_type.value}"
+            if action.action_type in create_types:
+                if action.start is None or action.end is None:
+                    errors.append(f"{prefix} requires start and end")
+                elif action.end <= action.start:
+                    errors.append(f"{prefix} requires end after start")
+            elif action.action_type in move_types:
+                if not action.event_id:
+                    errors.append(f"{prefix} requires event_id")
+                if action.start is None or action.end is None:
+                    errors.append(f"{prefix} requires start and end")
+                elif action.end <= action.start:
+                    errors.append(f"{prefix} requires end after start")
+            elif action.action_type in id_required and not action.event_id:
+                errors.append(f"{prefix} requires event_id")
+            elif action.action_type == AtomicActionType.AUTO_APPLY_PLAN:
+                has_nested_plan = bool(action.metadata.get("plan_actions") or action.metadata.get("actions"))
+                if not has_nested_plan:
+                    if action.start is None or action.end is None:
+                        errors.append(f"{prefix} requires plan_actions metadata or start and end")
+                    elif action.end <= action.start:
+                        errors.append(f"{prefix} requires end after start")
+        return errors
 
     @staticmethod
     def _normalize_frontier_candidate(item: dict[str, Any], *, idx: int, validation_errors: list[str]) -> dict[str, Any]:

@@ -144,6 +144,26 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual([candidate.candidate_id for candidate in parsed["candidates"]], [valid["candidate_id"]])
         self.assertIn("skipped_candidate_without_actions:nim_invalid_no_actions", parsed["validation_errors"])
 
+    def test_nim_frontier_parser_rejects_malformed_write_actions(self):
+        valid = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
+        invalid = dict(valid)
+        invalid["candidate_id"] = "nim_invalid_move_without_times"
+        invalid["actions"] = [
+            {
+                "action_type": "move_event",
+                "event_id": self.observation.events[0].event_id,
+                "calendar_id": self.observation.events[0].calendar_id,
+            }
+        ]
+        text = json.dumps({"policy_summary": "mixed", "candidates": [invalid, valid]})
+
+        parsed = NvidiaNIMPolicyClient._parse_frontier_payload(text, self.observation, limit=2)
+
+        self.assertEqual([candidate.candidate_id for candidate in parsed["candidates"]], [valid["candidate_id"]])
+        self.assertIn("skipped_invalid_action_payload:nim_invalid_move_without_times", parsed["validation_errors"])
+        self.assertEqual(parsed["rejections"][0]["reason"], "skipped_invalid_action_payload")
+        self.assertIn("requires start and end", parsed["rejections"][0]["schema_errors"][0])
+
     def test_nim_frontier_generation_retries_malformed_json_with_smaller_frontier(self):
         valid = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
         client = RetryFrontierNIMClient(valid)

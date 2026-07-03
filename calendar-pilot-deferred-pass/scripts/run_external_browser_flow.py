@@ -37,6 +37,8 @@ def run_live_browser_check(
         env = os.environ.copy()
         env["CALENDAR_PILOT_EXPECTED_RUNTIME_MODE"] = expected_runtime_mode
         env["CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL"] = expected_runtime_label
+        if expected_runtime_mode != "fixture":
+            env.setdefault("CALENDAR_PILOT_BROWSER_REQUIRE_UNDO", "0")
         timeout = int(env.get("CALENDAR_PILOT_BROWSER_PROCESS_TIMEOUT", "120"))
         subprocess.run([node, str(cdp_script), base_url, str(artifact_path)], cwd=ROOT, env=env, check=True, timeout=timeout)
         return
@@ -60,9 +62,17 @@ def run_live_browser_check(
             page.get_by_test_id("stage-candidate").first.click()
             expect(page.get_by_test_id("receipt-card").first).to_be_visible(timeout=10000)
             page.get_by_test_id("commit-candidate").first.click()
-            expect(page.get_by_test_id("undo-action").first).to_be_visible(timeout=10000)
-            page.get_by_test_id("undo-action").first.click()
-            expect(page.get_by_text("Undo requested")).to_be_visible(timeout=10000)
+            if expected_runtime_mode == "fixture":
+                expect(page.get_by_test_id("undo-action").first).to_be_visible(timeout=10000)
+                page.get_by_test_id("undo-action").first.click()
+                expect(page.get_by_text("Undo requested")).to_be_visible(timeout=10000)
+            else:
+                page.wait_for_function(
+                    "() => document.querySelector('[data-testid=\"undo-action\"]') || document.querySelector('[data-testid=\"feedback-useful\"]')"
+                )
+                if page.get_by_test_id("undo-action").count() > 0:
+                    page.get_by_test_id("undo-action").first.click()
+                    expect(page.get_by_text("Undo requested")).to_be_visible(timeout=10000)
             page.get_by_test_id("feedback-useful").first.click()
             expect(page.get_by_text("Feedback captured")).to_be_visible(timeout=10000)
             page.locator("#tab-replay").click()

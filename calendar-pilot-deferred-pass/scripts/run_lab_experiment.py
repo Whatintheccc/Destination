@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from calendar_pilot.codex import CodexToolPlanner, CodexToolRuntime
-from calendar_pilot.diffusiongemma.live import LIVE_DIFFUSIONGEMMA_BACKEND, PROMPT_VERSION, LiveDiffusionGemmaError, LiveDiffusionGemmaPolicy
+from calendar_pilot.diffusiongemma.live import DEFAULT_NIM_MODEL, LIVE_DIFFUSIONGEMMA_BACKEND, PROMPT_VERSION, LiveDiffusionGemmaSchemaError, LiveDiffusionGemmaPolicy
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
 from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner
 from calendar_pilot.environment.fsio import atomic_write_json, atomic_write_text
@@ -31,8 +31,8 @@ from calendar_pilot.providers.apple_eventkit import AppleEventKitProvider
 from calendar_pilot.providers.deterministic import DeterministicCalendarProvider
 from calendar_pilot.replay import ReplayBuffer, observation_fingerprint
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
-from calendar_pilot.swift_bridge.ipc import SwiftKernelIPCClient, SwiftKernelIPCError
-from calendar_pilot.types import PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
+from calendar_pilot.swift_bridge.ipc import SwiftKernelIPCClient
+from calendar_pilot.types import CandidateCalendarAction, PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
 from make_scorecard import build_scorecard
 from run_frontier_diff import build_diff
 from seed_calendar_corpus import lint_seed
@@ -41,6 +41,28 @@ from train_offline_policy import build_policy_report
 
 LAB_SCHEMA_VERSION = "lab_v0.1"
 DEFAULT_OUT_ROOT = ROOT / "experiments" / "runs"
+
+
+class StaticFrontierPolicy:
+    def __init__(self, source_policy: Any, candidates: list[CandidateCalendarAction]) -> None:
+        self.source_policy = source_policy
+        self.candidates = [CandidateCalendarAction.from_dict(candidate.to_dict()) for candidate in candidates]
+        self.backend_name = getattr(source_policy, "backend_name", type(source_policy).__name__)
+
+    def generate_candidates(
+        self,
+        observation: RawCalendarObservation,
+        biography: UserBiography,
+        *,
+        goal: str | None = None,
+    ) -> list[CandidateCalendarAction]:
+        return [CandidateCalendarAction.from_dict(candidate.to_dict()) for candidate in self.candidates]
+
+    def policy_metadata_for_candidate(self, candidate_id: str) -> dict[str, Any]:
+        metadata_for = getattr(self.source_policy, "policy_metadata_for_candidate", None)
+        if callable(metadata_for):
+            return metadata_for(candidate_id)
+        return {}
 
 
 def _utc_now() -> str:
@@ -276,7 +298,7 @@ def _base_manifest(
         "codex_backend": backends.codex,
         "kernel_backend": backends.kernel,
         "provider_backend": provider_backend,
-        "model": os.environ.get("CALENDAR_PILOT_NIM_MODEL") or os.environ.get("NIM_MODEL") if runtime == "live_diffusiongemma" else None,
+        "model": (os.environ.get("CALENDAR_PILOT_NIM_MODEL") or os.environ.get("NIM_MODEL") or DEFAULT_NIM_MODEL) if runtime == "live_diffusiongemma" else None,
         "prompt_version": PROMPT_VERSION,
         "decoding": _decoding(),
         "policy_tuning_id": tuning.tuning_id,
@@ -628,24 +650,38 @@ def run_seed(args: argparse.Namespace) -> int:
         )
         print(json.dumps({"experiment_id": experiment_id, "run_dir": _rel(run_dir), "status": "skipped", "skip_reason": skip_reason}, indent=2, sort_keys=True))
         return 2
+    valid_rows: list[dict[str, Any]] = []
+    rejection_rows: list[dict[str, Any]] = []
     try:
-        candidates = policy.generate_candidates(observation, biography, goal=seed.get("goal"))[:8]
-        valid_rows, rejection_rows = _frontier_rows(policy, candidates)
+        try:
+            candidates = policy.generate_candidates(observation, biography, goal=seed.get("goal"))[:8]
+        except LiveDiffusionGemmaSchemaError as exc:
+            candidates = []
+            rejection_rows = [{
+                "reason": "live_frontier_schema_failure",
+                "schema_errors": [str(exc)],
+                "recoverable": False,
+            }]
+        else:
+            valid_rows, rejection_rows = _frontier_rows(policy, candidates)
         _append_frontier_replay(replay, candidates, rejection_rows, policy, observation)
-        with _kernel_context(backend) as kernel:
-            provider = _provider_for_backend(backend, run_dir, observation)
-            runtime = CodexToolRuntime(policy=policy, kernel=kernel, replay=replay, provider=provider)
-            CodexToolPlanner(runtime=runtime).plan_goal(str(seed.get("goal", "")), observation, biography, authority_tier=_authority_tier(seed), commit=bool(args.commit))
-            runner = SelfPlayRunner(
-                policy=policy,
-                kernel=kernel,
-                replay=replay,
-                action_backend=backend,
-                provider=provider if backend != SelfPlayActionBackend.STUB_FAST else None,
-            )
-            runner.run(observation, biography, episodes=episodes, authority_tier=_authority_tier(seed))
+        if candidates:
+            execution_policy = StaticFrontierPolicy(policy, candidates)
+            with _kernel_context(backend) as kernel:
+                provider = _provider_for_backend(backend, run_dir, observation)
+                runtime = CodexToolRuntime(policy=execution_policy, kernel=kernel, replay=replay, provider=provider)
+                CodexToolPlanner(runtime=runtime).plan_goal(str(seed.get("goal", "")), observation, biography, authority_tier=_authority_tier(seed), commit=bool(args.commit))
+                runner = SelfPlayRunner(
+                    policy=execution_policy,
+                    kernel=kernel,
+                    replay=replay,
+                    action_backend=backend,
+                    provider=provider if backend != SelfPlayActionBackend.STUB_FAST else None,
+                )
+                runner.run(observation, biography, episodes=episodes, authority_tier=_authority_tier(seed))
         replay.save_jsonl(run_dir / "replay.jsonl")
-    except (LiveDiffusionGemmaError, SwiftKernelIPCError) as exc:
+    except Exception as exc:
+        replay.save_jsonl(run_dir / "replay.jsonl")
         _finish_manifest(run_dir / "manifest.json", manifest, "failed", None)
         raise RuntimeError(str(exc)) from exc
     _postprocess(

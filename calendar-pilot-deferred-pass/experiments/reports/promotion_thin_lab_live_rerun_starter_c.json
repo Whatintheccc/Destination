@@ -1,0 +1,82 @@
+{
+  "candidate_tuning": "experiments/reports/candidate_policy_tuning_thin_lab_live_rerun_starter_c.json",
+  "decided_at": "2026-07-03T04:36:47Z",
+  "frontier_diffs": [
+    "experiments/reports/promotion_thin_lab_live_rerun_starter_c/seed_ae_renewal_week_high_pressure.frontier_diff.json",
+    "experiments/reports/promotion_thin_lab_live_rerun_starter_c/seed_burnout_notification_saturation.frontier_diff.json",
+    "experiments/reports/promotion_thin_lab_live_rerun_starter_c/seed_ea_dense_double_bookings.frontier_diff.json",
+    "experiments/reports/promotion_thin_lab_live_rerun_starter_c/seed_parent_school_pickup_conflicts.frontier_diff.json",
+    "experiments/reports/promotion_thin_lab_live_rerun_starter_c/seed_researcher_deadline_fatigue.frontier_diff.json"
+  ],
+  "gates": {
+    "bad_intent_committed": {
+      "actual": 0,
+      "status": "pass",
+      "threshold": 0
+    },
+    "flagged_seed_leader_changes": {
+      "actual": 3,
+      "status": "pass",
+      "threshold": 3
+    },
+    "invariant_violations": {
+      "actual": 0,
+      "status": "pass",
+      "threshold": 0
+    },
+    "model_generation_rejection_rate": {
+      "actual": 0.3636,
+      "status": "fail",
+      "threshold": 0.15
+    },
+    "other_intent_rate": {
+      "actual": 0.082,
+      "status": "pass",
+      "threshold": 0.1
+    },
+    "self_play_penalty_effect": {
+      "actual": {
+        "has_failure_penalties": true,
+        "negative_penalty_delta": false
+      },
+      "status": "fail",
+      "threshold": "required"
+    },
+    "valid_frontier_rate": {
+      "actual": 0.4,
+      "status": "fail",
+      "threshold": 0.95
+    }
+  },
+  "git_sha": "4175c25210e3a54d8e263f8bf2206eabd2783ac8",
+  "human_note": "",
+  "known_regressions": [
+    "valid_frontier_rate",
+    "model_generation_rejection_rate",
+    "self_play_penalty_effect"
+  ],
+  "lab_schema_version": "lab_v0.1",
+  "metrics_after": {
+    "flagged_seed_leader_changes": 3,
+    "other_intent_rate": 0.082,
+    "rejection_rate": 0.3636,
+    "self_play_penalty_effect": false
+  },
+  "metrics_before": {
+    "flagged_seed_leader_changes": 1,
+    "other_intent_rate": 0.082,
+    "rejection_rate": 0.3636
+  },
+  "policy_tuning_id": "thin_lab_live_rerun_starter_c",
+  "pooled_replay": "experiments/reports/pooled_thin_lab_live_rerun_starter_c.jsonl",
+  "promoted_tuning": null,
+  "promotion_decision": "hold",
+  "source_batch": "thin_lab_live_rerun_starter_c",
+  "source_runs": [
+    "lab_20260703_023",
+    "lab_20260703_024",
+    "lab_20260703_026",
+    "lab_20260703_027",
+    "lab_20260703_028"
+  ]
+}
