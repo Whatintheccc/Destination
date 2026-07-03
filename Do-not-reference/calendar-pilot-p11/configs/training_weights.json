@@ -1,0 +1,9 @@
+{
+  "human_ui": 1.0,
+  "legacy_adversarial": 0.3,
+  "legacy_model": 0.0,
+  "legacy_observed": 1.0,
+  "legacy_provider": 1.0,
+  "self_play_simulator": 0.3,
+  "synthetic_demo": 0.0
+}

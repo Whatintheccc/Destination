@@ -1,0 +1,15 @@
+{
+  "action_envelope.schema.json": "v1",
+  "authority_grant.schema.json": "v1",
+  "calendar_action_receipt.schema.json": "v2",
+  "candidate_calendar_action.schema.json": "v2",
+  "codex_tool_call.schema.json": "v1",
+  "codex_tool_receipt.schema.json": "v1",
+  "lab/frontier_diff.schema.json": "v1",
+  "lab/lab_report.schema.json": "v1",
+  "lab/scorecard.schema.json": "v1",
+  "policy_tuning.schema.json": "v1",
+  "raw_calendar_observation.schema.json": "v2",
+  "replay_record.schema.json": "v1",
+  "reward_event.schema.json": "v2"
+}
