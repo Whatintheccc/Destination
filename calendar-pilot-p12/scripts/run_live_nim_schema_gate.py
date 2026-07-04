@@ -5,7 +5,22 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT/'src'))
 from calendar_pilot.environment.fsio import atomic_write_json
 
+def load_dotenv(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw in path.read_text(encoding='utf-8').splitlines():
+        line=raw.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key,value=line.split('=',1)
+        key=key.strip()
+        if not key or key in os.environ:
+            continue
+        value=value.strip().strip('"').strip("'")
+        os.environ[key]=value
+
 def main():
+ load_dotenv(ROOT/'.env')
  ap=argparse.ArgumentParser(); ap.add_argument('--out',default='runs/p12_live_nim_schema_gate.json'); args=ap.parse_args()
  strict=os.environ.get('CALENDAR_PILOT_REQUIRE_LIVE_NIM') in {'1','true','TRUE','yes'}
  has_cred=bool(os.environ.get('NVIDIA_API_KEY') or os.environ.get('NIM_API_KEY') or os.environ.get('CALENDAR_PILOT_NIM_API_KEY'))

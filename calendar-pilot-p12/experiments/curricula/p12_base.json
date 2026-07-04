@@ -1,1 +1,111 @@
-{"curriculum_id":"p12_base","scenario_classes":["base_day_pressure","dismissal_saturation","preference_drift"],"scenarios":[{"scenario_id":"base_day_pressure","behavior_history":[],"assertions":["no_hard_invariant_violations"]}]}
+{
+  "curriculum_id": "p12_base",
+  "scenario_classes": [
+    "base_day_pressure",
+    "dismissal_saturation",
+    "stale_observation",
+    "provider_sync_lag",
+    "timezone_shift",
+    "preference_drift",
+    "undo_regret",
+    "engagement_gaming",
+    "social_friction",
+    "dense_day_repair",
+    "authority_expiry",
+    "rollback_failure",
+    "label_churn"
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "base_day_pressure",
+      "scenario_class": "base_day_pressure",
+      "behavior_history": [],
+      "assertions": ["no_hard_invariant_violations"],
+      "canonical_failure_keys": []
+    },
+    {
+      "scenario_id": "dismissal_saturation",
+      "scenario_class": "dismissal_saturation",
+      "behavior_history": [{"outcome": "dismissed"}, {"outcome": "dismissed"}, {"outcome": "ignored"}],
+      "assertions": ["interruption_tolerance_v1_used"],
+      "canonical_failure_keys": ["interruption_tolerance_low"]
+    },
+    {
+      "scenario_id": "stale_observation",
+      "scenario_class": "stale_observation",
+      "behavior_history": [{"outcome": "provider_refresh_required"}],
+      "assertions": ["stale_world_rows_do_not_commit"],
+      "canonical_failure_keys": ["stale_observation"]
+    },
+    {
+      "scenario_id": "provider_sync_lag",
+      "scenario_class": "provider_sync_lag",
+      "behavior_history": [{"outcome": "provider_error"}],
+      "assertions": ["provider_errors_are_replay_rows"],
+      "canonical_failure_keys": ["provider_sync_lag"]
+    },
+    {
+      "scenario_id": "timezone_shift",
+      "scenario_class": "timezone_shift",
+      "behavior_history": [{"outcome": "local_time_echo_mismatch"}],
+      "assertions": ["timezone_integrity_checked"],
+      "canonical_failure_keys": ["timezone_shift"]
+    },
+    {
+      "scenario_id": "preference_drift",
+      "scenario_class": "preference_drift",
+      "behavior_history": [{"outcome": "user_correction"}],
+      "assertions": ["biography_drift_finding_emitted"],
+      "canonical_failure_keys": ["preference_drift"]
+    },
+    {
+      "scenario_id": "undo_regret",
+      "scenario_class": "undo_regret",
+      "behavior_history": [{"outcome": "accepted"}, {"outcome": "undone"}],
+      "assertions": ["undo_regret_penalized"],
+      "canonical_failure_keys": ["undo_regret"]
+    },
+    {
+      "scenario_id": "engagement_gaming",
+      "scenario_class": "engagement_gaming",
+      "behavior_history": [{"outcome": "clicked"}, {"outcome": "explicit_wrong"}],
+      "assertions": ["engagement_not_only_positive"],
+      "canonical_failure_keys": ["engagement_over_utility"]
+    },
+    {
+      "scenario_id": "social_friction",
+      "scenario_class": "social_friction",
+      "behavior_history": [{"outcome": "denied_social_scope"}],
+      "assertions": ["no_social_commit_without_scope"],
+      "canonical_failure_keys": ["social_conflict"]
+    },
+    {
+      "scenario_id": "dense_day_repair",
+      "scenario_class": "dense_day_repair",
+      "behavior_history": [{"outcome": "accepted"}],
+      "assertions": ["repair_plan_stays_reversible"],
+      "canonical_failure_keys": ["dense_day_repair"]
+    },
+    {
+      "scenario_id": "authority_expiry",
+      "scenario_class": "authority_expiry",
+      "behavior_history": [{"outcome": "grant_expired"}],
+      "assertions": ["expired_grants_deny_commit"],
+      "canonical_failure_keys": ["authority_expiry"]
+    },
+    {
+      "scenario_id": "rollback_failure",
+      "scenario_class": "rollback_failure",
+      "behavior_history": [{"outcome": "rollback_failed"}],
+      "assertions": ["rollback_failures_block_promotion"],
+      "canonical_failure_keys": ["rollback_failure"]
+    },
+    {
+      "scenario_id": "label_churn",
+      "scenario_class": "label_churn",
+      "behavior_history": [{"outcome": "label_disabled"}, {"outcome": "label_corrected"}],
+      "assertions": ["disabled_labels_stay_disabled"],
+      "canonical_failure_keys": ["label_churn"]
+    }
+  ]
+}

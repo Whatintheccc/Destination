@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from calendar_pilot.frontend.session import DogfoodSessionState
+from calendar_pilot.environment.invariants import check_replay
 from calendar_pilot.providers.deterministic import ProviderMutationResult
 from calendar_pilot.types import CodexToolName, CodexToolReceipt, CodexToolStatus
 
@@ -91,6 +92,29 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
 
             self.assertIn("granted autonomy tier", receipts[0]["output"]["denial_explanation"])
             self.assertEqual(session.denial_history[-1]["denied_reason"], "required authority tier exceeds Swift-issued grant")
+
+    def test_signal_control_appends_action_stream_activation(self):
+        with tempfile.TemporaryDirectory() as td:
+            session = DogfoodSessionState(run_dir=Path(td))
+            session.replay.append_semantic_signal({
+                "signal_id": "sig_evening",
+                "user_scope_id": "local_demo_user",
+                "label": "dismisses_evening_suggestions",
+                "statement": "Dismisses evening suggestions",
+                "kind": "derived",
+                "evidence": ["notification_history:evening"],
+                "confidence": 0.8,
+                "status": "proposed",
+            }, trace_id="sig_evening")
+
+            session.set_signal_activation("sig_evening", status="disabled", reason="user says label is not me")
+
+            rows = [record.envelope() for record in session.replay.records]
+            activations = [row for row in rows if row["record_type"] == "label_activation"]
+            self.assertEqual(activations[-1]["signal_stream"], "action")
+            self.assertEqual(activations[-1]["payload"]["status"], "disabled")
+            self.assertFalse([v for v in check_replay(rows) if v.invariant_id in {"B1", "B2", "B3"}])
+            self.assertIn("sig_evening", session.view()["signals"]["disabled_signal_ids"])
 
     def test_denied_action_queue_exposes_swift_reason(self):
         with tempfile.TemporaryDirectory() as td:

@@ -1,1 +1,39 @@
-{"curriculum_id":"p12_provider_failures","scenario_classes":["provider_sync_lag","rollback_failure"],"scenarios":[{"scenario_id":"provider_sync_lag","behavior_history":[{"outcome":"ignored"}],"assertions":["provider_errors_are_replay_rows"]}]}
+{
+  "curriculum_id": "p12_provider_failures",
+  "scenario_classes": [
+    "provider_sync_lag",
+    "rollback_failure",
+    "rate_cap_denial",
+    "outside_sandbox_mutation"
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "provider_sync_lag",
+      "scenario_class": "provider_sync_lag",
+      "behavior_history": [{"outcome": "ignored"}],
+      "assertions": ["provider_errors_are_replay_rows"],
+      "canonical_failure_keys": ["provider_sync_lag"]
+    },
+    {
+      "scenario_id": "rollback_failure",
+      "scenario_class": "rollback_failure",
+      "behavior_history": [{"outcome": "rollback_failed"}],
+      "assertions": ["rollback_failures_block_promotion"],
+      "canonical_failure_keys": ["rollback_failure"]
+    },
+    {
+      "scenario_id": "rate_cap_denial",
+      "scenario_class": "rate_cap_denial",
+      "behavior_history": [{"outcome": "rate_cap_exceeded"}],
+      "assertions": ["rate_cap_exceeded_becomes_denial_receipt"],
+      "canonical_failure_keys": ["rate_cap_denial"]
+    },
+    {
+      "scenario_id": "outside_sandbox_mutation",
+      "scenario_class": "outside_sandbox_mutation",
+      "behavior_history": [{"outcome": "outside_sandbox_denied"}],
+      "assertions": ["no_outside_sandbox_mutation"],
+      "canonical_failure_keys": ["outside_sandbox_mutation"]
+    }
+  ]
+}

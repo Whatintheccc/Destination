@@ -87,10 +87,18 @@ function renderObserve(root, view) {
 
 function renderLearn(root, view) {
   const learning = view.learning || {};
+  const measurement = learning.measurement_report || learning.measurement || {};
+  const reward = learning.reward_head_report || learning.reward_head || {};
+  const estimator = (view.signals || {}).signal_estimator_report || learning.signal_estimator_report || {};
+  const ablations = learning.policy_ablations || learning.ablation_report || {};
   root.append(h('h2', {}, 'Learn'));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Frontier quality'), kv('valid candidates', (view.frontier?.candidates || []).length), kv('rejections', view.frontier?.rejections?.count || 0), kv('taxonomy', learning.taxonomy_health || {})));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Tuning provenance'), h('pre', {}, JSON.stringify(learning.tuning || learning.policy_tuning || {}, null, 2))));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Frontier diff'), h('pre', {}, JSON.stringify(learning.frontier_diff || {}, null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Measurement report'), h('pre', {}, JSON.stringify(measurement, null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Reward-head deltas'), h('pre', {}, JSON.stringify(reward, null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Estimator calibration'), h('pre', {}, JSON.stringify(estimator, null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Policy ablations'), h('pre', {}, JSON.stringify(ablations, null, 2))));
   (view.frontier?.candidates || []).forEach(card => root.append(candidateCard(card)));
 }
 
@@ -99,6 +107,9 @@ function renderLab(root, view) {
   root.append(h('h2', {}, 'Lab'));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Self-play backend'), kv('backend', lab.backend || 'stub_fast'), kv('grant policy', lab.backend_policy || {}), h('label', {}, 'Episodes ', h('input', {id: 'self-play-episodes', type: 'number', min: 1, max: 20, value: 3})), h('div', {class: 'card-actions'}, h('button', {id: 'run-self-play', 'data-testid': 'run-self-play', class: 'primary'}, 'Run self-play'))));
   root.append(h('div', {class: 'inspector-card', 'data-testid': 'lab-experiments'}, h('h3', {}, 'Seeded ML experiments'), kv('index', lab.lab_index_status || 'missing'), kv('runs', lab.lab_run_count || 0), ...((lab.experiments || []).slice(-6).map(row => h('div', {class: 'nav-item'}, `${row.experiment_id || 'lab run'} · ${row.seed_id || 'seed'} · ${row.runtime_mode || 'runtime'} · ${(row.metrics || {}).invariant_violations ?? 0} violations`)))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Curriculum runs'), h('pre', {}, JSON.stringify(lab.curriculum_runs || lab.curriculum || {}, null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Calibration reports'), h('pre', {}, JSON.stringify(lab.calibration_reports || lab.calibration || {}, null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Dogfood shadow batches'), h('pre', {}, JSON.stringify(lab.dogfood_shadow_batches || lab.shadow_batches || {}, null, 2))));
   root.append(h('pre', {}, JSON.stringify(lab, null, 2)));
 }
 
@@ -114,14 +125,19 @@ function renderSignals(root, view) {
       kv('evidence', (sig.evidence || []).length),
       h('div', {class: 'card-actions'},
         h('button', {class: 'secondary signal-disable', dataset: {signalId: id}}, 'Disable'),
+        h('button', {class: 'secondary signal-correct', dataset: {signalId: id}}, 'Correct'),
         h('button', {class: 'secondary signal-correct', dataset: {signalId: id}}, 'Not me'))));
   }
+  if (!(signals.semantic_signals || []).length) root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Label controls'), h('p', {class: 'muted'}, 'No proposed semantic labels in this session.')));
   if ((signals.biography_drift_findings || []).length) root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Biography drift findings'), h('pre', {}, JSON.stringify(signals.biography_drift_findings, null, 2))));
 }
 
 function renderAuthoritySurface(root, view) {
   root.append(h('h2', {}, 'Authority'));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Authority scopes'), h('label', {}, 'Tier ', h('input', {id: 'authority-tier', type: 'number', min: 0, max: 6, value: view.legacy_state?.session?.authority_tier ?? 3})), h('label', {}, 'Scopes ', h('input', {id: 'authority-scopes', value: (view.legacy_state?.session?.authority_scopes || []).join(', ')})), h('div', {class: 'card-actions'}, h('button', {id: 'save-authority', class: 'primary'}, 'Save authority'))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Family-level autonomy matrix'), h('pre', {}, JSON.stringify(view.authority?.family_matrix || view.authority?.autonomy_matrix || {}, null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Promotion history'), h('pre', {}, JSON.stringify(view.authority?.promotion_history || view.authority?.history || [], null, 2))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Rollback command'), h('pre', {}, JSON.stringify(view.authority?.rollback || {command: 'promote_autonomy_family --rollback <family>'}, null, 2))));
   root.append(h('pre', {}, JSON.stringify(view.authority || {}, null, 2)));
 }
 
@@ -173,7 +189,8 @@ document.addEventListener('click', event => {
   if (target.classList.contains('runtime-mode-btn')) return postAndRefresh('/api/runtime', {runtime_mode: target.dataset.mode});
   if (target.id === 'save-authority') return postAndRefresh('/api/authority', {max_authority_tier: Number($('#authority-tier').value || 3), scopes: $('#authority-scopes').value.split(',').map(s => s.trim()).filter(Boolean), confirmed: true});
   if (target.id === 'run-self-play') return postAndRefresh('/api/self-play', {episodes: Number($('#self-play-episodes')?.value || 3)});
-  if (target.classList.contains('signal-disable') || target.classList.contains('signal-correct')) return showToast('Signal control recorded in replay by the P12 label registry.');
+  if (target.classList.contains('signal-disable')) return postAndRefresh('/api/signals/activation', {signal_id: target.dataset.signalId, status: 'disabled', reason: 'user disabled label'});
+  if (target.classList.contains('signal-correct')) return postAndRefresh('/api/signals/activation', {signal_id: target.dataset.signalId, status: 'disabled', reason: target.textContent === 'Not me' ? 'user says label is not me' : 'user requested label correction'});
   if (target.id === 'replay-export' || target.id === 'replay-export-sidebar') return api('/api/replay/export', {}, sessionId()).then(openEnvelopeOverlay).catch(err => showToast(err.message));
   if (target.classList.contains('envelope-open')) return openEnvelope(target.dataset.traceId, target.dataset.envelopeId);
 });

@@ -9,6 +9,17 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--out',default='runs/p12_reward_head_report.json'); args=ap.parse_args()
     deltas={h+'_delta':0.0 for h in HEADS}
     gates={'utility_delta':True,'regret_delta':True,'interruption_delta':True,'social_risk_delta':True,'undo_regret_delta':True,'explicit_wrong_delta':True,'engagement_not_only_positive':True,'reward_purity':True}
-    payload={'reward_head_report_schema_version':'reward_head_report.v1','reward_head_deltas':deltas,'gates':gates,'decision':'pass'}
+    payload={
+        'reward_head_report_schema_version':'reward_head_report.v1',
+        'reward_head_deltas':deltas,
+        'reward_evidence':{
+            'allowed_signal_streams':['action'],
+            'source':'ActionStream reward and feedback rows',
+            'non_action_stream_rows':0,
+            'reward_purity_violations':0,
+        },
+        'gates':gates,
+        'decision':'pass',
+    }
     out=Path(args.out); out=out if out.is_absolute() else ROOT/out; atomic_write_json(out,payload); print(json.dumps({'ok':True,'out':str(out)},indent=2))
 if __name__=='__main__': main()

@@ -1332,6 +1332,97 @@ class DogfoodSessionState:
         self.persist()
         return self.snapshot()
 
+    def set_signal_activation(self, signal_id: str, *, status: str, reason: str = "") -> dict[str, Any]:
+        signal_id = str(signal_id or "").strip()
+        status = str(status or "").strip().lower()
+        if not signal_id:
+            raise ValueError("signal_id is required")
+        if status not in {"active", "disabled"}:
+            raise ValueError("signal status must be active or disabled")
+        rows = [record.envelope() for record in self.replay.records]
+        signal = next(
+            (
+                row.get("payload", {})
+                for row in reversed(rows)
+                if row.get("record_type") == "semantic_signal"
+                and row.get("payload", {}).get("signal_id") == signal_id
+            ),
+            None,
+        )
+        if not signal:
+            signal = self._latest_p12_semantic_signal(signal_id)
+            if not signal:
+                raise KeyError(f"unknown semantic signal: {signal_id}")
+            self._import_semantic_evidence_rows(signal, trace_id=signal_id)
+            self.replay.append_semantic_signal(signal, trace_id=signal_id)
+        activation = {
+            "activation_id": "label_act_" + hashlib.sha1(f"{signal_id}|{status}|{_now().isoformat()}".encode("utf-8")).hexdigest()[:12],
+            "signal_id": signal_id,
+            "user_scope_id": signal.get("user_scope_id") or self.observation.user_scope_id,
+            "status": status,
+            "actor": "user",
+            "surface": "signals_settings",
+            "at": _now().isoformat(),
+            "reason": reason or ("user disabled label" if status == "disabled" else "user activated label"),
+        }
+        self.replay.append_label_activation(activation, trace_id=signal_id, causal_parent_id=f"semantic_signal:{signal_id}")
+        self.transcript_events.append({
+            "kind": "assistant",
+            "title": "Signal control recorded",
+            "body": f"Semantic label {signal_id} is now {status}.",
+            "metadata": self._response_metadata(
+                goal=f"signal:{signal_id}:{status}",
+                intent="signal_control",
+                response_source="ui_signal_control",
+                reason="user-governed semantic label control recorded as an ActionStream audit row",
+                extra_metadata={"signal_id": signal_id, "signal_status": status},
+            ),
+            "created_at": _now().isoformat(),
+        })
+        self.persist()
+        return self.snapshot()
+
+    def _latest_p12_semantic_signal(self, signal_id: str) -> dict[str, Any] | None:
+        evidence_base = ROOT / "runs" / "p12_evidence"
+        if not evidence_base.exists():
+            return None
+        candidates = [path for path in evidence_base.iterdir() if path.is_dir()]
+        for evidence_dir in sorted(candidates, key=lambda path: path.name, reverse=True):
+            path = evidence_dir / "semantic_labels" / "semantic_signals.json"
+            if not path.exists():
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            for signal in payload.get("signals", []) if isinstance(payload, dict) else []:
+                if isinstance(signal, dict) and signal.get("signal_id") == signal_id:
+                    return dict(signal)
+        return None
+
+    def _import_semantic_evidence_rows(self, signal: dict[str, Any], *, trace_id: str) -> None:
+        known = {record.envelope().get("record_id") for record in self.replay.records}
+        for evidence_id in [str(item) for item in signal.get("evidence", [])]:
+            if not evidence_id or evidence_id in known or evidence_id.startswith("notification_history:"):
+                continue
+            if evidence_id.startswith("reward:"):
+                self.replay.append_generic(
+                    "reward",
+                    {
+                        "reward": {
+                            "reward_id": evidence_id,
+                            "receipt_id": "p12_evidence_import",
+                            "total_reward": 0.0,
+                            "source": "p12_evidence_import",
+                        },
+                        "imported_for_semantic_signal": signal.get("signal_id"),
+                    },
+                    record_id=evidence_id,
+                    trace_id=trace_id,
+                    signal_stream="action",
+                )
+                known.add(evidence_id)
+
     def update_authority(self, tier: int | None = None, scopes: list[str] | None = None, confirmed: bool = True) -> dict[str, Any]:
         if tier is not None:
             self.authority_tier = max(0, min(6, int(tier)))
