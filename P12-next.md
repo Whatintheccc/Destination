@@ -15,9 +15,9 @@ This document is now the team control surface for P12-next. The technical plan b
 | live product freeze | `make p12-release` from `P12-test.md` run `20260703T224814Z-p12` |
 | archive root | `/Users/temp/Desktop/Destination/Do-not-reference` |
 | current implementation root | `/Users/temp/Desktop/Destination/calendar-pilot-p12` |
-| source purpose scope | every file, class, function, method, nested definition, durable constant, CLI entrypoint, provider surface, frontend component, contract schema, and fixture that takes meaningful space |
+| source purpose scope | structural rows for every file, class, function, method, nested definition, durable constant, CLI entrypoint, provider surface, frontend component, contract schema, and fixture that takes meaningful space |
 | protected runway | Program A paths in §2; no deletion/consolidation/signature change without explicit promotion evidence |
-| Stage A/B verdict state | **Stage C readiness ACHIEVED** (`20260704T041118Z-p12-next-stage-c-readiness`): archive-diff per-symbol resolution → **54/54 files expansion-ready**, 1506 rows all settled + 119 waivers, 100% src coverage, 0 open blockers. **B-SA-001/002/003 resolved** (duplicate folders proven P8-era; P8.5 folder is doc/runway). Retention verdicts still **deferred to Stage C** (not performed). Prior: Stage B acceptance `20260704T032235Z`; expansion `20260704T034739Z`. |
+| Stage A/B verdict state | **Stage C structural readiness ACHIEVED** (`20260704T041118Z-p12-next-stage-c-readiness`): archive-diff per-symbol resolution -> **54/54 files expansion-ready**, 1506 structural rows all settled + 119 waivers, 100% source-symbol coverage, 0 open blockers. **This is not line-level provenance.** `B-SA-001/002/003` resolved (duplicate folders proven P8-era; P8.5 folder is doc/runway). Retention verdicts still **deferred to Stage C** (not performed). Prior: Stage B acceptance `20260704T032235Z`; expansion `20260704T034739Z`. |
 
 ## Status vocabulary
 
@@ -29,6 +29,7 @@ assigned           owner named, no durable artifact yet
 inventorying       repo/file is being listed and counted
 diffing            archive/current or duplicate diff is in progress
 mapping            lineage or symbol-purpose rows are being filled
+line-mapping       line spans are being mapped to structural rows and phases
 review             artifact exists and needs peer review
 annexed            archive repo is fully represented in phase_timeline.md, lineage.json, and tombstones
 verified           gate/evidence checks prove the row's final verdict
@@ -43,8 +44,9 @@ blocked            blocked with a named reason, owner, and next unblock action
 | Cold-start runway ops | TBD | not started | daily imported observation, shadow frontier, provider preview, calibration report | no autonomy matrix diff | write evidence target JSON and daily operator checklist |
 | Archive repo annex | TBD | not started | `lineage/phase_timeline.md`, duplicate deltas, archive inventory | every repo row below has non-blank status | assign owners for all `/Do-not-reference` repos |
 | Source purpose census | TBD | not started | `lineage/src_symbol_manifest.json` and file-level ledger | AST parse succeeds for all Python files | seed manifest from current `calendar-pilot-p12/src` |
-| Reachability + root set | TBD | not started | `reachability/coverage.json`, root list, verdict coverage | deterministic + release + live-NIM + browser legs recorded | write root-set file before tagging |
-| Legacy deletion wave | TBD | not started | tombstones for D1-D6, inverted quarantine tests | accepted Stage A/B lineage plus Stage C verdicts for each item; `make p12-release` green after each deletion | wait for annex/source-purpose/lineage/root-set work, then start with `notification_fatigue` and `sim_v1` |
+| Line-level provenance | TBD | not started | `lineage/line_span_manifest.jsonl`, `lineage/line_span_coverage.json`, gap report | every executable/nonblank line is assigned, waived, or blocked | build current-line inventory and map spans to accepted structural lineage |
+| Reachability + root set | TBD | not started | `reachability/coverage.json`, root list, verdict coverage | deterministic + release + live-NIM + browser legs recorded; line spans available for verdicts | write root-set file after line-level pass |
+| Legacy deletion wave | TBD | not started | tombstones for D1-D6, inverted quarantine tests | accepted Stage A/B lineage, line-level provenance for removed spans, plus Stage C verdicts for each item; `make p12-release` green after each deletion | wait for annex/source-purpose/lineage/root-set work, then start with `notification_fatigue` and `sim_v1` |
 | Consolidation waves | TBD | not started | per-wave LOC delta, tombstones, survivor map | protected-path diff clean | plan ML -> backend -> frontend order |
 | Current-truth docs | TBD | not started | `docs/LINEAGE.md`, README refresh, history archive pointer | `grep` finds no deleted-flow docs | draft docs index after Wave 1 |
 
@@ -93,6 +95,13 @@ The repo annex ledger handles directory snapshots. These loose documents provide
 
 The current Python source seed inventory is 54 files, 136 classes, 132 top-level functions, 532 methods, and 14 nested definitions, for 814 AST-level symbols before manual cleanup. That count is a starting point only: properties, dataclass fields, module constants, protocol fields, static JS components, contract schemas, fixtures, and scripts also need purpose rows when they materially shape behavior.
 
+Important boundary: the accepted `20260704T041118Z-p12-next-stage-c-readiness`
+run proves structural provenance coverage, not literal line-by-line provenance.
+It is sufficient to start a retention/reachability pass, but not sufficient to
+delete arbitrary line spans. Before Stage D edits, every removed or consolidated
+line span must point back to a structural lineage row and either a phase-level
+archive match, a current-only row, or an explicit waiver.
+
 Required row schema for the source-purpose manifest:
 
 During Stage A lineage discovery, fill only discovery fields. Leave
@@ -105,6 +114,7 @@ blank until Stage C retention judgment.
 | `symbol` | class/function/method/constant/component/schema name, or `__module__` for whole-file rows |
 | `kind` | module, class, method, function, nested_def, constant, dataclass_field, provider_surface, cli_entrypoint, js_component, contract_schema, fixture |
 | `line_start` / `line_end` | current location when mapped |
+| `line_provenance_status` | line-level only: mapped, waived, generated, blank/comment-only, or blocked |
 | `purpose` | one sentence naming the behavior this symbol exists to provide |
 | `introduced_phase` | phase from archive annex, or `unknown` with reason |
 | `root_reachability` | Stage C/final only: named root, coverage evidence, or `unreached` |
@@ -137,12 +147,15 @@ Stage C/final DoD for a source row:
    archive/deletion evidence as applicable.
 4. No verdict is based only on tests, docs/history, examples, archive presence,
    parent-module import, or importing a parent module as proof for child symbols.
-5. Deletion/consolidation evidence belongs to Stage D, after Stage C verdicts.
+5. Any DELETE/CONSOLIDATE row names the exact current line spans it affects or
+   records a blocker explaining why line-span provenance is incomplete.
+6. Deletion/consolidation implementation belongs to Stage D, after Stage C
+   verdicts and line-span provenance are accepted.
 ```
 
 ### File-level source assignment queue
 
-Expansion disposition (run `20260704T041118Z-p12-next-stage-c-readiness`): every file below is **100% symbol-expanded with archive-diff-resolved per-symbol phases** — **all 54 files are now expansion-ready** (1506 rows all `stage_c_ready: true`, 0 open blockers; 119 class-attr waivers). Per-symbol introducing phases come from a cross-snapshot AST first-sighting; B-SA-001/002/003 resolved. Per-file status in `expanded_file_status.md`; per-symbol rows in `expanded_symbol_lineage.jsonl`; blocker evidence in `blocker_resolution.md`. No retention verdict assigned. (Chain: Stage B `20260704T032235Z` insufficient → expansion `20260704T034739Z` 100% coverage but 27 blocked → this pass resolved blockers + mixed-phase.)
+Expansion disposition (run `20260704T041118Z-p12-next-stage-c-readiness`): every file below is **100% symbol-expanded with archive-diff-resolved per-symbol phases** — **all 54 files are structurally expansion-ready** (1506 rows all `stage_c_ready: true`, 0 open blockers; 119 class-attr waivers). Per-symbol introducing phases come from a cross-snapshot AST first-sighting; B-SA-001/002/003 resolved. Per-file status in `expanded_file_status.md`; per-symbol rows in `expanded_symbol_lineage.jsonl`; blocker evidence in `blocker_resolution.md`. No retention verdict assigned. This does **not** claim literal every-line provenance; that is the next required pass before Stage D edits. (Chain: Stage B `20260704T032235Z` insufficient -> expansion `20260704T034739Z` structural 100% coverage but 27 blocked -> this pass resolved blockers + mixed-phase.)
 
 | src file | classes | top-level funcs | methods | nested defs | inventory status | purpose map | owner |
 |---|---:|---:|---:|---:|---|---|---|
@@ -269,7 +282,7 @@ Symbol/file expansion sufficiency at Stage B exit: **INSUFFICIENT.** All 40 sour
 
 Blocker carry-forward at Stage B exit: B-SA-001, B-SA-002, B-SA-003 remained open; no blocker was resolved and none was newly opened in that pass. All three are now resolved in `20260704T041118Z-p12-next-stage-c-readiness`.
 
-## Stage C readiness (symbol/file expansion)
+## Stage C readiness (structural symbol/file expansion)
 
 Run: `20260704T034739Z-p12-next-symbol-expansion` (Git SHA `906cc68`).
 Scope: expand flow-level lineage into symbol/file-level rows + waivers. No retention verdicts, roots, tombstones, deletions, or consolidations. Detail rows live in run-scoped JSONL, not inline here.
@@ -283,7 +296,7 @@ Scope: expand flow-level lineage into symbol/file-level rows + waivers. No reten
 | Stage C readiness summary | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/review/stage_c_readiness_summary.md` |
 | P12-next update note | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/docs/p12_next_updates.md` |
 
-Coverage: **100% of current `src/calendar_pilot`** — 814 AST symbols + 69 module constants + 549 dataclass fields rowed; 119 non-dataclass class attributes waived. Non-src carriers: 21 contract schemas + 10 frontend carriers + 30 scripts rowed, 8 scripts waived. Every row carries `retention_verdict: null`; no root/reachability claim.
+Structural coverage: **100% of current `src/calendar_pilot` symbols/carriers** — 814 AST symbols + 69 module constants + 549 dataclass fields rowed; 119 non-dataclass class attributes waived. Non-src carriers: 21 contract schemas + 10 frontend carriers + 30 scripts rowed, 8 scripts waived. Every row carries `retention_verdict: null`; no root/reachability claim; no literal line-by-line provenance claim.
 
 AST reconciliation: prior 813 vs ledger 814 = the nested class `frontend/server.py::Handler` (defined in `serve()`). Counting all ClassDefs → 137 classes / 541 methods / 4 nested = **814**; every definition is rowed, so the boundary no longer affects coverage.
 
@@ -291,7 +304,7 @@ Initial expansion-run status: **partial.** 27 of 54 files were **expansion-ready
 
 ### Update — Stage C readiness ACHIEVED (`20260704T041118Z-p12-next-stage-c-readiness`)
 
-Both blocking causes were cleared by an archive-level per-symbol diff (`archive_index.py`) across all 11 snapshots. Result: **54/54 files expansion-ready**, 1506 rows all `stage_c_ready: true`, 0 open blockers, 100% src coverage.
+Both blocking causes were cleared by an archive-level per-symbol diff (`archive_index.py`) across all 11 snapshots. Result: **54/54 files structurally expansion-ready**, 1506 rows all `stage_c_ready: true`, 0 open blockers, 100% source-symbol coverage.
 
 | artifact | path |
 |---|---|
@@ -304,6 +317,93 @@ Both blocking causes were cleared by an archive-level per-symbol diff (`archive_
 | P12-next update note | `…/20260704T041118Z-p12-next-stage-c-readiness/docs/p12_next_updates.md` |
 
 Method: cross-snapshot AST first-sighting; ambiguous duplicates positioned P8-era by content (P8 files present, P9 `environment/` absent). Each symbol's `introduced_phase` = earliest name-matching snapshot; body stabilization tracked separately. Blockers resolved: `updated 2`/`frontend 2` proven P8-era accumulated snapshots; **0 symbols depend on an ambiguous folder alone**, **0 first-seen in the P8.5 folder**. Refinements over the coarse flow rows include `BiographyStore`/`RawCalendarObservation` at P6.5 (not P7). Retention verdicts remain deferred — Stage C is now unblocked, not executed.
+
+## Line-level provenance pass (required before Stage D edits)
+
+The next implementation pass upgrades structural lineage into current-line
+provenance. It does not redo Stage A/B lineage; it attaches exact line spans to
+the accepted structural rows and records any lines that cannot be safely mapped.
+
+Line-level provenance answers: "which accepted lineage row owns this current
+line span, and can Stage C/Stage D cite that span directly?" It is stricter than
+symbol readiness and narrower than retention judgment.
+
+Required inputs:
+
+```text
+accepted structural lineage:
+  calendar-pilot-p12/runs/p12_next_evidence/20260704T041118Z-p12-next-stage-c-readiness/lineage/expanded_symbol_lineage.jsonl
+accepted waivers:
+  calendar-pilot-p12/runs/p12_next_evidence/20260704T041118Z-p12-next-stage-c-readiness/lineage/waivers.jsonl
+current tree:
+  calendar-pilot-p12/{src,scripts,contracts,frontend,examples,tests,packages}
+archive root for escalation only:
+  /Users/temp/Desktop/Destination/Do-not-reference
+```
+
+Line-level manifest schema:
+
+```json
+{
+  "path": "",
+  "line_start": 0,
+  "line_end": 0,
+  "line_kind": "",
+  "owning_symbol": "",
+  "owning_lineage_row_id": "",
+  "introduced_phase": "",
+  "source_archive_repo": "",
+  "archive_evidence_path": "",
+  "match_type": "",
+  "match_confidence": "",
+  "current_text_hash": "",
+  "purpose_observed": "",
+  "line_provenance_status": "",
+  "waiver_reason": "",
+  "uncertainty": "",
+  "stage_c_use": ""
+}
+```
+
+Line kinds:
+
+```text
+code                  executable or declarative behavior
+import                import/export surface
+constant              module/global/class constant line
+schema                JSON schema line or key span
+frontend              HTML/CSS/JS behavior line
+script_entry          CLI/script command surface
+test_fixture          test vector or fixture line
+comment_docstring     human-facing implementation context
+blank                 blank/format-only line
+generated             generated or vendored line, if any
+```
+
+Line provenance statuses:
+
+```text
+mapped                assigned to an accepted structural lineage row
+mapped_current_only   P12-current row, not found in archive, evidence cited
+waived_blank          blank/format-only line
+waived_comment        comment/docstring with no independent behavior
+waived_generated      generated/vendored line, generator or source named
+blocked              cannot map without archive reinspection or human decision
+```
+
+Acceptance:
+
+```text
+1. Every nonblank current line in src, scripts, contracts, frontend, examples,
+   tests, and packages is mapped, waived, or blocked.
+2. Every mapped line span names one accepted structural lineage row.
+3. Every DELETE/CONSOLIDATE candidate has exact line spans before Stage D.
+4. Blank/comment/docstring waivers are counted separately and cannot hide
+   executable behavior.
+5. Imported tests/docs/examples may be mapped as carriers, but they still do
+   not prove KEEP unless tied to a frozen root in Stage C.
+6. Output is run-scoped JSONL; do not paste line manifests inline in this file.
+```
 
 ## Hygiene rules for delegated work
 
@@ -619,10 +719,11 @@ No autonomy matrix diff ships. create_prep_block stays recommend/stage/confirm.
 The prior draft's grep-audit and quarantine tests ran and passed. Now finish the job — these are the first, easiest LOC:
 
 Prerequisite: none of D1-D6 may land until its accepted Stage A/B lineage row is
-named, its symbol/file expansion is complete enough for the affected code, and a
-Stage C retention verdict exists with root evidence or an explicit unreachable
-finding. This section lists intended deletion candidates; it is not permission
-to delete during Stage A/B.
+named, its structural symbol/file expansion is complete, its exact current
+line spans are mapped in `line_span_manifest.jsonl`, and a Stage C retention
+verdict exists with root evidence or an explicit unreachable finding. This
+section lists intended deletion candidates; it is not permission to delete
+during Stage A/B or before line-level provenance.
 
 ```text
 D1. UserBiography.notification_fatigue: delete field, parsers, and the
@@ -717,6 +818,18 @@ scripts/build_src_purpose_manifest.py
   output:  src_symbol_manifest.json rows matching the schema in the working
            delegation layer. During Stage A, retention fields stay null; this
            manifest is the assignment sheet for file-level lineage discovery.
+
+scripts/build_line_provenance.py
+  inputs:  accepted expanded_symbol_lineage.jsonl + waivers.jsonl + current
+           tree under src, scripts, contracts, frontend, examples, tests,
+           packages
+  method:  build a current line inventory, assign line spans to accepted
+           structural lineage rows by AST spans, JSON key spans, frontend
+           parser spans, script/CLI carrier rows, and explicit blank/comment
+           waivers. Escalate to archive reinspection only when a line span
+           cannot be assigned to an accepted structural row.
+  output:  line_span_manifest.jsonl rows matching the "Line-level provenance
+           pass" schema, plus line_span_coverage.json and line_span_gaps.md.
 ```
 
 ```bash
@@ -728,6 +841,14 @@ PYTHONPATH=src python3 scripts/build_lineage.py \
 PYTHONPATH=src python3 scripts/build_src_purpose_manifest.py \
   --src src/calendar_pilot \
   --out runs/p12_next_evidence/$RUN_ID/lineage/src_symbol_manifest.json
+
+PYTHONPATH=src python3 scripts/build_line_provenance.py \
+  --lineage runs/p12_next_evidence/20260704T041118Z-p12-next-stage-c-readiness/lineage/expanded_symbol_lineage.jsonl \
+  --waivers runs/p12_next_evidence/20260704T041118Z-p12-next-stage-c-readiness/lineage/waivers.jsonl \
+  --root . \
+  --out runs/p12_next_evidence/$RUN_ID/lineage/line_span_manifest.jsonl \
+  --coverage runs/p12_next_evidence/$RUN_ID/lineage/line_span_coverage.json \
+  --gaps runs/p12_next_evidence/$RUN_ID/lineage/line_span_gaps.md
 ```
 
 `build_lineage.py` is itself scaffolding: it moves to the evidence bundle at phase end, not into the permanent tree (record in LINEAGE.md where it lives).
@@ -743,6 +864,10 @@ Every file in the source assignment queue has an owner or a blocking reason.
 No KEEP/CONSOLIDATE/DELETE/ARCHIVE verdicts appear in lineage discovery output.
 Every discovered row has phase, archive evidence, match type, confidence, and
 an uncertainty note when evidence is weak or conflicting.
+line_span_manifest.jsonl exists and every current line is mapped, waived, or
+blocked. line_span_coverage.json separates executable, schema, frontend,
+script, blank, comment, generated, and blocked counts by path.
+No Stage D deletion/consolidation candidate lacks line-span provenance.
 ```
 
 ---
@@ -778,7 +903,7 @@ Every quota miss at phase end requires a per-file KEEP justification in LINEAGE.
 # LINEAGE[P7.5][keep]: tool receipt path consumed by replay reducer (root: p12-release)
 ```
 
-Engineers apply tags while tracing **backwards from ML**: start at what learning consumes (replay record types, reward reduction, tuning, frontier provenance), walk into backend (lifecycle, kernel bridge, providers), then frontend (projector → surfaces). Tag as you go using `lineage.json` for the phase id.
+Engineers apply tags while tracing **backwards from ML**: start at what learning consumes (replay record types, reward reduction, tuning, frontier provenance), walk into backend (lifecycle, kernel bridge, providers), then frontend (projector -> surfaces). Tag as you go using `lineage.json` for the phase id and `line_span_manifest.jsonl` for the exact line spans. A tag may cover a symbol or flow while investigating, but the final evidence for a deletion/consolidation must cite line spans.
 
 ```text
 Tag lint (added to p12-release for this phase only):
@@ -824,6 +949,11 @@ discovery review are complete for the relevant repo/file slice. A verifier must
 be able to point to the accepted lineage row and the frozen root before a KEEP
 or CONSOLIDATE verdict is accepted.
 
+DELETE and ARCHIVE verdicts must additionally point to line-span evidence before
+implementation begins. A symbol-level DELETE is not enough if the containing
+file also has KEEP lines; Stage D removes only the mapped spans or records why
+whole-file deletion is safe.
+
 ## Acceptance
 
 ```text
@@ -834,6 +964,8 @@ Every env-gated live path is either covered or explicitly root-listed.
 and evidence fields filled before final wave acceptance.
 Every verdict references an accepted Stage A lineage row; no verdict is based
 only on docs/history, examples, tests, parent-module import, or archive presence.
+100% of DELETE/CONSOLIDATE/ARCHIVE verdicts cite exact line spans or carry a
+Stage C blocker. Mixed files name both the survivor spans and the removed spans.
 ```
 
 ---
@@ -917,7 +1049,9 @@ make py-test swift-test check-invariants contract-vectors
 - [ ] phase_timeline.md + lineage.json complete; every row has a verdict.
 - [ ] Repo annex ledger has every `/Do-not-reference` repo marked annexed, verified, or blocked with user sign-off.
 - [ ] src_symbol_manifest.json covers every class/function/method/nested def and every waived non-AST behavior carrier.
+- [ ] line_span_manifest.jsonl covers every current nonblank line as mapped, waived, or blocked.
 - [ ] Every source-purpose row has purpose, owner, phase, reachability, verdict, and evidence.
+- [ ] Every DELETE/CONSOLIDATE/ARCHIVE verdict names exact current line spans or an accepted whole-file deletion reason.
 - [ ] Coverage union included live legs or explicit root-listing (L4).
 - [ ] Zero LINEAGE tags remain (lint enforced).
 - [ ] loc_report_after ≤ 15,700 tracked LOC, OR every shortfall itemized
@@ -942,13 +1076,14 @@ PR 2  p12-next-runway-ops      evidence-target file, daily-procedure doc, protec
 PR 3  p12-next-annex           repo annex ledger assignments, phase_timeline.md, duplicate deltas
 PR 4  p12-next-source-purpose  build_src_purpose_manifest.py, source owners, initial purpose rows
 PR 5  p12-next-lineage         build_lineage.py, lineage.json, source_archive_repo mapping
-PR 6  p12-next-root-verdicts   LINEAGE tag lint + tagging sweep + reachability/coverage union + Stage C verdict gate
-PR 7  p12-next-legacy-delete   §3 D1–D6 after accepted lineage/Stage C verdicts, inverted quarantine tests
-PR 8  p12-next-wave-1          remaining dead-by-reachability deletions + tombstones
-PR 9  p12-next-wave-2          lineage-dead flow deletions (ML → backend → frontend order)
-PR 10 p12-next-wave-3          lab.py CLI consolidation, shared report writer, session decomposition
-PR 11 p12-next-docs            LINEAGE.md, history archive, README refresh, tag-lint removal
-PR 12 p12-next-final           final release run, loc gate, acceptance ledger
+PR 6  p12-next-line-spans      build_line_provenance.py, line_span_manifest.jsonl, line-span gap review
+PR 7  p12-next-root-verdicts   LINEAGE tag lint + tagging sweep + reachability/coverage union + Stage C verdict gate
+PR 8  p12-next-legacy-delete   §3 D1–D6 after accepted lineage/line spans/Stage C verdicts, inverted quarantine tests
+PR 9  p12-next-wave-1          remaining dead-by-reachability deletions + tombstones
+PR 10 p12-next-wave-2          lineage-dead flow deletions (ML -> backend -> frontend order)
+PR 11 p12-next-wave-3          lab.py CLI consolidation, shared report writer, session decomposition
+PR 12 p12-next-docs            LINEAGE.md, history archive, README refresh, tag-lint removal
+PR 13 p12-next-final           final release run, loc gate, acceptance ledger
 ```
 
 ---
