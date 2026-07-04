@@ -44,7 +44,7 @@ blocked            blocked with a named reason, owner, and next unblock action
 | Cold-start runway ops | TBD | not started | daily imported observation, shadow frontier, provider preview, calibration report | no autonomy matrix diff | write evidence target JSON and daily operator checklist |
 | Archive repo annex | TBD | not started | `lineage/phase_timeline.md`, duplicate deltas, archive inventory | every repo row below has non-blank status | assign owners for all `/Do-not-reference` repos |
 | Source purpose census | TBD | not started | `lineage/src_symbol_manifest.json` and file-level ledger | AST parse succeeds for all Python files | seed manifest from current `calendar-pilot-p12/src` |
-| Line-level provenance | TBD | not started | `lineage/line_span_manifest.jsonl`, `lineage/line_span_coverage.json`, gap report | every executable/nonblank line is assigned, waived, or blocked | build current-line inventory and map spans to accepted structural lineage |
+| Line-level provenance | Codex | review | `runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/lineage/line_span_manifest.jsonl`, coverage, gap report | every current line is assigned, waived, or blocked; blockers are isolated to scopes absent from accepted structural lineage | review `examples`/`tests`/`packages` blockers before Stage D |
 | Reachability + root set | TBD | not started | `reachability/coverage.json`, root list, verdict coverage | deterministic + release + live-NIM + browser legs recorded; line spans available for verdicts | write root-set file after line-level pass |
 | Legacy deletion wave | TBD | not started | tombstones for D1-D6, inverted quarantine tests | accepted Stage A/B lineage, line-level provenance for removed spans, plus Stage C verdicts for each item; `make p12-release` green after each deletion | wait for annex/source-purpose/lineage/root-set work, then start with `notification_fatigue` and `sim_v1` |
 | Consolidation waves | TBD | not started | per-wave LOC delta, tombstones, survivor map | protected-path diff clean | plan ML -> backend -> frontend order |
@@ -404,6 +404,22 @@ Acceptance:
    not prove KEEP unless tied to a frozen root in Stage C.
 6. Output is run-scoped JSONL; do not paste line manifests inline in this file.
 ```
+
+### Update — line provenance run `20260704T060917Z-p12-next-line-provenance`
+
+Artifacts:
+
+| artifact | path |
+|---|---|
+| Line inventory | `calendar-pilot-p12/runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/lineage/line_inventory.jsonl` |
+| Line span manifest | `calendar-pilot-p12/runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/lineage/line_span_manifest.jsonl` |
+| Line span coverage | `calendar-pilot-p12/runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/lineage/line_span_coverage.json` |
+| Line span gaps | `calendar-pilot-p12/runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/lineage/line_span_gaps.md` |
+| Line span waivers | `calendar-pilot-p12/runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/lineage/line_span_waivers.jsonl` |
+| Review summary | `calendar-pilot-p12/runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/review/line_provenance_summary.md` |
+| Update note | `calendar-pilot-p12/runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/docs/p12_next_updates.md` |
+
+Counts: 170 scoped files, 29,888 current lines, 20,279 mapped to accepted structural rows, 3,358 waived (3,001 blank; 357 comment/docstring; 0 generated), 6,251 blocked across 41 files. Blockers are confined to `examples`, `tests`, and `packages`, which were in current scope but absent from the accepted Stage C structural lineage artifact. No retention verdicts assigned.
 
 ## Hygiene rules for delegated work
 
