@@ -2,7 +2,344 @@ According to a document from **July 3, 2026**, P12's target is not broad autonom
 
 **Status input (from the completed `P12-test.md` run `20260703T224814Z-p12`):** overall decision **pass**. All deterministic, fixture, contract, invariant, browser, and release gates green (`make p12-release` → `ok: true`). Three explicit, correct holds: calibration (`matched_examples: 0` — cold start), live EventKit (macOS permission/environment), and `create_prep_block` autonomy promotion (insufficient human feedback + sim-real calibration). Two data-quality flags recorded in the fixture measurement snapshot that must be carried forward, not forgotten: `OTHER_intent_rate: 0.1429` (above the 0.10 gate at fixture scale) and `expected_intent_hit_rate: 0.0`.
 
+# Working delegation layer
+
+This document is now the team control surface for P12-next. The technical plan below stays intact; the tables in this section are the working ledgers engineers update as they annex archive repos, map source purpose, cut dead code, and keep the P12 gate green.
+
+## Operating state
+
+| field | value |
+|---|---|
+| phase | P12-next: cold-start runway + debt erasure |
+| current checkpoint before this working-doc edit | `906cc68` (`chore: checkpoint p12 workspace`) |
+| live product freeze | `make p12-release` from `P12-test.md` run `20260703T224814Z-p12` |
+| archive root | `/Users/temp/Desktop/Destination/Do-not-reference` |
+| current implementation root | `/Users/temp/Desktop/Destination/calendar-pilot-p12` |
+| source purpose scope | every file, class, function, method, nested definition, durable constant, CLI entrypoint, provider surface, frontend component, contract schema, and fixture that takes meaningful space |
+| protected runway | Program A paths in §2; no deletion/consolidation/signature change without explicit promotion evidence |
+| Stage A/B verdict state | **Stage C readiness ACHIEVED** (`20260704T041118Z-p12-next-stage-c-readiness`): archive-diff per-symbol resolution → **54/54 files expansion-ready**, 1506 rows all settled + 119 waivers, 100% src coverage, 0 open blockers. **B-SA-001/002/003 resolved** (duplicate folders proven P8-era; P8.5 folder is doc/runway). Retention verdicts still **deferred to Stage C** (not performed). Prior: Stage B acceptance `20260704T032235Z`; expansion `20260704T034739Z`. |
+
+## Status vocabulary
+
+Use exactly these statuses in the working tables so progress can be filtered without interpretation:
+
+```text
+not started        row exists, no engineer has accepted it
+assigned           owner named, no durable artifact yet
+inventorying       repo/file is being listed and counted
+diffing            archive/current or duplicate diff is in progress
+mapping            lineage or symbol-purpose rows are being filled
+review             artifact exists and needs peer review
+annexed            archive repo is fully represented in phase_timeline.md, lineage.json, and tombstones
+verified           gate/evidence checks prove the row's final verdict
+blocked            blocked with a named reason, owner, and next unblock action
+```
+
+## Delegation board
+
+| workstream | owner | status | required artifact | gate before merge | next action |
+|---|---|---|---|---|---|
+| Baseline freeze + LOC report | TBD | not started | `runs/p12_next_evidence/$RUN_ID/baseline/loc_report_before.json` | `make p12-release` green | implement `scripts/loc_report.py` and freeze numbers |
+| Cold-start runway ops | TBD | not started | daily imported observation, shadow frontier, provider preview, calibration report | no autonomy matrix diff | write evidence target JSON and daily operator checklist |
+| Archive repo annex | TBD | not started | `lineage/phase_timeline.md`, duplicate deltas, archive inventory | every repo row below has non-blank status | assign owners for all `/Do-not-reference` repos |
+| Source purpose census | TBD | not started | `lineage/src_symbol_manifest.json` and file-level ledger | AST parse succeeds for all Python files | seed manifest from current `calendar-pilot-p12/src` |
+| Reachability + root set | TBD | not started | `reachability/coverage.json`, root list, verdict coverage | deterministic + release + live-NIM + browser legs recorded | write root-set file before tagging |
+| Legacy deletion wave | TBD | not started | tombstones for D1-D6, inverted quarantine tests | accepted Stage A/B lineage plus Stage C verdicts for each item; `make p12-release` green after each deletion | wait for annex/source-purpose/lineage/root-set work, then start with `notification_fatigue` and `sim_v1` |
+| Consolidation waves | TBD | not started | per-wave LOC delta, tombstones, survivor map | protected-path diff clean | plan ML -> backend -> frontend order |
+| Current-truth docs | TBD | not started | `docs/LINEAGE.md`, README refresh, history archive pointer | `grep` finds no deleted-flow docs | draft docs index after Wave 1 |
+
+## Blocker and decision log
+
+| id | type | owner | status | affected rows | decision or unblock needed | next action |
+|---|---|---|---|---|---|---|
+| B-001 | environment | TBD | open | live EventKit evidence | macOS permission/environment available | operator schedules live run or records env-held evidence |
+| B-002 | data | TBD | open | cold-start runway | matched examples and explicit feedback below threshold | continue daily Program A collection |
+| B-003 | quality | TBD | open | frontier measurement | `OTHER_intent_rate` and `expected_intent_hit_rate` are baseline flags | freeze baseline; do not treat deletion waves as owner unless worsened |
+| B-SA-001 | lineage | Codex Stage A | **resolved** (`20260704T041118Z`) | P7 `calendar-pilot-updated 2` | Resolved: `updated 2` proven a **P8-era accumulated snapshot** (has P8 files, lacks P9 `environment/`); archive-diff shows 0 current symbols depend on it alone. Affected providers attributed P8-era first-sighting. Evidence: `blocker_resolution.md`. | none — resolved |
+| B-SA-002 | lineage | Codex Stage A | **resolved** (`20260704T041118Z`) | P8 frontend duplicate pair | Resolved: `frontend 2` proven P8-era (same content test); 0 current symbols depend on it alone. `frontend/*`, `swift_bridge/*` attributed P8-era first-sighting. | none — resolved |
+| B-SA-003 | lineage | Codex Stage A | **resolved** (`20260704T041118Z`) | P8.5 `calendar-pilot` dogfood/safety row | Resolved: **0 current symbols/carriers first-seen in the P8.5 folder** (no P8.5 in the first-sighting distribution); session/live/release originate P8. P8.5 confirmed doc/runway only. | none — resolved |
+
+## Repo annex progress ledger
+
+Every repository directory under `/Do-not-reference` gets one row. "Annexed" means the repo is no longer just an archive folder: it is represented in the phase timeline, duplicate status is known, current-path matches have been attempted, source-symbol lineage has been mined where applicable, and any deletion tombstones point back to it.
+
+Current disposition (run `20260704T041118Z-p12-next-stage-c-readiness`): prior Stage B blockers `B-SA-001`, `B-SA-002`, and `B-SA-003` are **resolved** by archive-level per-symbol diff. `calendar-pilot-updated 2` and `calendar-pilot-frontend 2` are treated as P8-era accumulated snapshots for rows whose evidence supports that; P8.5 `calendar-pilot` is doc/runway only with 0 current symbols first-seen there. All repos remain lineage/review artifacts only; no repo reached retention judgment.
+
+| phase | archive repo | duplicate group | owner | intake | duplicate diff | current path map | symbol/purpose map | tombstone index | status | next action |
+|---|---|---|---|---|---|---|---|---|---|---|
+| P6.5 | `Do-not-reference/calendar-pilot-revised` | unique | Codex Stage A | review | n/a | review | review | not started | review | Stage A early ML lineage captured in `SA-P6.5-001` through `SA-P6.5-006`; no retention judgment |
+| P7 | `Do-not-reference/calendar-pilot-updated` | primary for updated pair | Codex Stage A | review | review | review | review | not started | review | Stage A P7 biography/provider/core-contract/package rows captured in `SA-P7-001` through `SA-P7-005`; duplicate delta in `SA-P7-DUP-001` |
+| P7 | `Do-not-reference/calendar-pilot-updated 2` | P8-era accumulated snapshot in updated pair | Codex Stage A | review | review | review | review | not started | review | `B-SA-001` resolved in `20260704T041118Z`: 0 current symbols depend on this folder alone; row-level evidence only, no retention judgment |
+| P7.5 | `Do-not-reference/calendar-pilot-executive` | primary for executive pair | Codex Stage A | review | review | review | review | not started | review | Stage A Codex planner/runtime/replay rows captured in `SA-P7.5-001` through `SA-P7.5-003`; duplicate delta in `SA-P7.5-DUP-001` |
+| P7.5 | `Do-not-reference/calendar-pilot-executive 2` | duplicate of P7.5 executive | Codex Stage A | review | review | review | review | not started | review | Executive2 adds authority/safety contract deltas; row-level evidence captured with uncertainty in `SA-P7.5-DUP-001` |
+| P8 | `Do-not-reference/calendar-pilot-frontend` | primary for frontend pair | Codex Stage A | review | review | review | review | not started | review | Stage A frontend/static/control-surface rows captured in `SA-P8-001` through `SA-P8-003`; duplicate delta in `SA-P8-DUP-001` |
+| P8 | `Do-not-reference/calendar-pilot-frontend 2` | P8-era accumulated snapshot in frontend pair | Codex Stage A | review | review | review | review | not started | review | `B-SA-002` resolved in `20260704T041118Z`: 0 current symbols depend on this folder alone; row-level chat-first/live/runtime sightings retained |
+| P8.5 | `Do-not-reference/calendar-pilot` | dogfood/safety repo | Codex Stage A | review | n/a | review | review | not started | review | `B-SA-003` resolved in `20260704T041118Z`: P8.5 folder has 0 current first-seen symbols; use as doc/runway evidence only |
+| P9 | `Do-not-reference/calendar-pilot-system-framework` | unique | Codex Stage A | review | n/a | review | review | not started | review | Stage A environment substrate rows captured in `SA-P9-001` through `SA-P9-004`: trace, envelope, fsio, object protocols, router, taxonomy, invariants, selfplay backend policy |
+| P10 | `Do-not-reference/calendar-pilot-deferred-pass` | unique | Codex Stage A | review | n/a | review | review | not started | review | Stage A deferred runtime rows captured in `SA-P10-001` through `SA-P10-007`: ActionLifecycle, SessionStore, plan graph, temporal controller, EventKit sandbox/bridge, ES-module frontend/runtime, live DiffusionGemma current-body expansion |
+| P11 | `Do-not-reference/calendar-pilot-p11` | unique | Codex Stage A | review | n/a | review | review | not started | review | Stage A sim/autonomy/provider rows captured in `SA-P11-001` through `SA-P11-006`: FrontierService, sim_v2 self-play, provider transactions, autonomy/action lifecycle, replay/invariant hardening, DiffusionGemma package exports |
+
+## Archive document intake ledger
+
+The repo annex ledger handles directory snapshots. These loose documents provide phase anchors or test evidence and must be linked from `phase_timeline.md` before any repo is considered annexed.
+
+| document group | files | purpose | owner | status | next action |
+|---|---|---|---|---|---|
+| Phase plans | `plan-6-revised.md`, `plan-7-revised.md`, `plan-8.md`, `plan-8-analysis.md`, `plan-9.md`, `readme.md` | P5-P9 timeline reconstruction | Codex Stage A | review | Phase anchors for `SA-P6.5-001`..`SA-P6.5-006`, `SA-P7-001`..`SA-P7-005`, `SA-P8-001`..`SA-P8-003`, and `SA-P9-001`..`SA-P9-004`; review as timeline evidence only |
+| Dogfood and safety | `DOGFOODING_FRAMEWORK.md`, `dogfooding framework 2.md`, `dogfooding.md`, `thin-lab.md`, `thickening-the-lab.md` | dogfood/lab/runway lineage | Codex Stage A | review | Supports `SA-P8.5-000`..`SA-P8.5-004`, `SA-P10-004`, `SA-P10-005`, `SA-P11-002`, and `SA-P11-004` as doc/runway evidence; `B-SA-003` resolved in `20260704T041118Z`, so these docs remain timeline/runway evidence only |
+| System and ML tests | `SYSTEM_FRAMEWORK.md`, `ML-E2E.md`, `ML-testing.md`, `P11-test.md` | framework gates, ML evidence, prior acceptance | Codex Stage A | review | Gate/test anchors for `SA-P9-001`..`SA-P9-004`, `SA-P10-001`..`SA-P10-007`, and `SA-P11-001`..`SA-P11-006`; do not use tests as retention or root proof |
+
+## Source purpose census
+
+The current Python source seed inventory is 54 files, 136 classes, 132 top-level functions, 532 methods, and 14 nested definitions, for 814 AST-level symbols before manual cleanup. That count is a starting point only: properties, dataclass fields, module constants, protocol fields, static JS components, contract schemas, fixtures, and scripts also need purpose rows when they materially shape behavior.
+
+Required row schema for the source-purpose manifest:
+
+During Stage A lineage discovery, fill only discovery fields. Leave
+`root_reachability`, `verdict`, tombstone, deletion, and consolidation fields
+blank until Stage C retention judgment.
+
+| field | meaning |
+|---|---|
+| `path` | repo-relative file path |
+| `symbol` | class/function/method/constant/component/schema name, or `__module__` for whole-file rows |
+| `kind` | module, class, method, function, nested_def, constant, dataclass_field, provider_surface, cli_entrypoint, js_component, contract_schema, fixture |
+| `line_start` / `line_end` | current location when mapped |
+| `purpose` | one sentence naming the behavior this symbol exists to provide |
+| `introduced_phase` | phase from archive annex, or `unknown` with reason |
+| `root_reachability` | Stage C/final only: named root, coverage evidence, or `unreached` |
+| `verdict` | Stage C/final only: KEEP, CONSOLIDATE, DELETE, ARCHIVE |
+| `owner` | engineer accountable for the row |
+| `evidence` | test, gate, trace, grep, diff, or tombstone path |
+
+Stage A DoD for a source row:
+
+```text
+1. Every row has path.
+2. Every row names the symbol or flow being discovered.
+3. Every row states observed purpose.
+4. Every row states introduced phase.
+5. Every row points to archive evidence.
+6. Every row states match type and confidence.
+7. Every row records uncertainty and blockers.
+8. Every row has owner/status.
+9. Any row covering multiple files/classes/functions is marked as a flow-level
+   discovery row with symbol_expansion_required=true in the run artifact or queue.
+10. root_reachability, verdict, and tombstone fields stay blank.
+```
+
+Stage C/final DoD for a source row:
+
+```text
+1. Reachability/root evidence is filled from the explicit Stage C root set.
+2. Retention verdict is assigned only after Stage A lineage and Stage B review.
+3. KEEP/CONSOLIDATE/DELETE/ARCHIVE rows name their root, survivor, tombstone, or
+   archive/deletion evidence as applicable.
+4. No verdict is based only on tests, docs/history, examples, archive presence,
+   parent-module import, or importing a parent module as proof for child symbols.
+5. Deletion/consolidation evidence belongs to Stage D, after Stage C verdicts.
+```
+
+### File-level source assignment queue
+
+Expansion disposition (run `20260704T041118Z-p12-next-stage-c-readiness`): every file below is **100% symbol-expanded with archive-diff-resolved per-symbol phases** — **all 54 files are now expansion-ready** (1506 rows all `stage_c_ready: true`, 0 open blockers; 119 class-attr waivers). Per-symbol introducing phases come from a cross-snapshot AST first-sighting; B-SA-001/002/003 resolved. Per-file status in `expanded_file_status.md`; per-symbol rows in `expanded_symbol_lineage.jsonl`; blocker evidence in `blocker_resolution.md`. No retention verdict assigned. (Chain: Stage B `20260704T032235Z` insufficient → expansion `20260704T034739Z` 100% coverage but 27 blocked → this pass resolved blockers + mixed-phase.)
+
+| src file | classes | top-level funcs | methods | nested defs | inventory status | purpose map | owner |
+|---|---:|---:|---:|---:|---|---|---|
+| `calendar-pilot-p12/src/calendar_pilot/__init__.py` | 0 | 0 | 0 | 0 | review: `SA-P7-005` | review: root package marker first appears P6.5; current version/export body exact from P7 onward | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/app.py` | 0 | 5 | 0 | 0 | review: `SA-P10-006` | review: current app/demo orchestration body exact by P10/P11; older load helper symbols predate P10 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/biography.py` | 1 | 0 | 8 | 0 | review: `SA-P7-001` | review: biography provenance and repair flow introduced P7 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/codex/__init__.py` | 0 | 0 | 0 | 0 | review: `SA-P7.5-003` | review: package export body first current match in ambiguous P7 updated2, exact by P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/codex/agent.py` | 1 | 0 | 8 | 0 | review: `SA-P7.5-003` | review: narrative Codex agent starts P6.5/P7, distinct from P7.5 tool runtime | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/codex/annotator.py` | 1 | 1 | 2 | 0 | review: `SA-P12-NF-001` | review: no archive source found; P12 signal annotator current-phase row | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/codex/live.py` | 12 | 13 | 34 | 0 | review: `SA-P8.5-003` | review: live Codex app-server path first row-level sighting in ambiguous updated2, dogfood docs trace live mode | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/codex/planner.py` | 2 | 0 | 7 | 0 | review: `SA-P7.5-001` | review: Codex tool planner introduced by P7.5 doc/source, current body later | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/codex/tools.py` | 1 | 0 | 26 | 0 | review: `SA-P7.5-001`, `SA-P11-004` | review: Codex tool runtime introduced by P7.5; autonomy matrix and FrontierService integration are P11 row-level additions | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/__init__.py` | 0 | 0 | 0 | 0 | review: `SA-P11-006` | review: diffusiongemma package starts P6.5; current exports closest to P11 after FrontierService/SelfPlayEpisode additions | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/frontier_service.py` | 2 | 0 | 4 | 0 | review: `SA-P11-001` | review: FrontierService facade introduced P11; byte-identical to current | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/live.py` | 10 | 5 | 28 | 0 | review: `SA-P10-007` | review: live DiffusionGemma/NIM client first row-level sighting in ambiguous updated2; current frontier-generation body closest to P10 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/policy.py` | 1 | 2 | 13 | 0 | review: `SA-P6.5-006`, `SA-P10-007` | review: deterministic DiffusionGemma policy core introduced P6.5; current tuning/temporal controller body closest to P10 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/reward.py` | 2 | 1 | 6 | 0 | review: `SA-P6.5-003` | review: reward anatomy introduced P6.5 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/right_moment.py` | 2 | 0 | 5 | 0 | review: `SA-P6.5-004` | review: right-moment timing model introduced P6.5 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/self_play.py` | 11 | 0 | 17 | 0 | review: `SA-P6.5-005`, `SA-P11-002` | review: self-play adversary substrate introduced P6.5; sim_v2/UserSimulator and current episode runner body closest to P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/signals.py` | 2 | 7 | 1 | 0 | review: `SA-P6.5-001` | review: raw context signal extraction introduced P6.5 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/temporal_controller.py` | 2 | 0 | 6 | 0 | review: `SA-P10-004` | review: right-moment temporal controller introduced P10 and remains exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/diffusiongemma/world_model.py` | 2 | 1 | 2 | 0 | review: `SA-P6.5-002` | review: candidate future sketch introduced P6.5 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/env.py` | 0 | 3 | 0 | 0 | review: `SA-P7-005` | review: local .env loader first row-level sighting in ambiguous updated2 and remains exact through P11/current | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/__init__.py` | 0 | 0 | 0 | 0 | review: `SA-P9-001` | review: environment package first appears P9; current exports exact by P10/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/action_lifecycle.py` | 2 | 0 | 18 | 0 | review: `SA-P10-001`, `SA-P11-004` | review: ActionLifecycle extraction introduced P10; provider transaction/rate-cap/autonomy-adjacent current body closest to P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/envelope.py` | 1 | 2 | 4 | 0 | review: `SA-P9-001` | review: ActionEnvelope/rollback-state helper introduced P9 and remains exact through current body | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/fsio.py` | 0 | 3 | 0 | 0 | review: `SA-P9-001` | review: atomic JSON/text writes and append_jsonl introduced P9 and remain exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/invariants.py` | 1 | 18 | 1 | 0 | review: `SA-P9-003`, `SA-P11-005`, `SA-P12-NF-002` | review: initial executable invariant checker introduced P9; P11 adds I2a/I3/I5/I7 replay/provider hardening; P12 adds B-series signal-stream checks | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/label_registry.py` | 1 | 0 | 8 | 0 | review: `SA-P12-NF-002` | review: P12 signal label registry not found in archive; current docs specify governed label activation and B2 barrier | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/objects.py` | 6 | 0 | 14 | 0 | review: `SA-P9-002` | review: environment object protocol substrate introduced P9 and remains exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/plan_graph.py` | 2 | 3 | 4 | 0 | review: `SA-P10-003` | review: Tier-6 plan graph and rollback-order helpers introduced P10 and remain exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/router.py` | 3 | 0 | 4 | 0 | review: `SA-P9-002` | review: RoutedTurn/KeywordRouter/ModelIntentRouter introduced P9 and remain exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/selfplay_backends.py` | 2 | 0 | 0 | 0 | review: `SA-P9-004` | review: self-play backend enum and sandbox policy introduced P9 and remain exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/session_store.py` | 1 | 0 | 7 | 0 | review: `SA-P10-002` | review: SessionStore extraction introduced P10 and remains exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/signal_estimators.py` | 2 | 4 | 4 | 0 | review: `SA-P12-NF-002` | review: P12 interruption-tolerance estimator not found in archive; current docs specify derived signal estimator layer | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/signal_streams.py` | 1 | 3 | 0 | 0 | review: `SA-P12-NF-002` | review: P12 signal-stream classifier not found in archive; current docs specify action/world/biography/derived/system streams | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/taxonomy.py` | 1 | 2 | 0 | 0 | review: `SA-P9-002` | review: CanonicalIntent/normalize_intent/taxonomy health introduced P9; current near-exact with P11 formatting delta | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/environment/trace.py` | 3 | 0 | 8 | 0 | review: `SA-P9-001` | review: TraceEvent/TraceBus/SSE frame stream introduced P9 and remain exact | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/__init__.py` | 0 | 0 | 0 | 0 | review: `SA-P8-002` | review: frontend package starts in P8-era snapshots, exact by P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/launch.py` | 1 | 2 | 4 | 0 | review: `SA-P8-002` | review: launch surface starts P8-era, current body exact by P9/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/projector.py` | 1 | 5 | 2 | 0 | review: `SA-P8-002`, `SA-P10-006`, `SA-P12-NF-002` | review: FrontendProjector first appears P9; P10 adds Glass Cockpit/lab view payload lineage; current body has P12 evidence/signal payload additions | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/runtime.py` | 2 | 13 | 2 | 0 | review: `SA-P8-002`, `SA-P10-006` | review: runtime first sighted in P8-era duplicate, current body exact by P10/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/server.py` | 0 | 7 | 0 | 11 | review: `SA-P8-002`, `SA-P10-006` | review: server first sighted P8-era, current serve/api surface closest to P10/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/session.py` | 1 | 3 | 93 | 3 | review: `SA-P8-002`, `SA-P8.5-001`, `SA-P10-002` | review: dogfood session state documented P8.5; P10 routes persist/restore through SessionStore and current body is closest to P10/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/session_manager.py` | 1 | 0 | 21 | 0 | review: `SA-P8-002`, `SA-P8.5-001` | review: session manager first sighted P8-era, exact by P9/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/frontend/surface.py` | 3 | 14 | 1 | 0 | review: `SA-P8-002` | review: surface/snapshot control surface first sighted P8-era, exact by P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/providers/__init__.py` | 0 | 0 | 0 | 0 | review: `SA-P7-003`, `SA-P11-003` | review: provider package export lineage starts P7; current transaction-boundary exports exact to P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/providers/apple_eventkit.py` | 3 | 8 | 20 | 0 | review: `SA-P7-004`, `SA-P10-005`, `SA-P11-003` | review: EventKit provider first found in P7 updated2; P10 adds sandbox/bridge shape; current provider transaction body closest to P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/providers/base.py` | 4 | 0 | 10 | 0 | review: `SA-P7-003`, `SA-P11-003` | review: provider adapter interface introduced P7; five-method transaction protocol and receipt/verification types introduced P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/providers/deterministic.py` | 2 | 0 | 17 | 0 | review: `SA-P7-004`, `SA-P11-003` | review: deterministic provider first found in P7 updated2; current transaction methods/body exact to P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/providers/stubs.py` | 4 | 0 | 11 | 0 | review: `SA-P7-003`, `SA-P11-003` | review: Google/Apple/Microsoft provider stubs introduced P7; current transaction-stub shape exact to P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/replay.py` | 3 | 2 | 37 | 0 | review: `SA-P7.5-002`, `SA-P11-005` | review: tool-call/tool-receipt replay rows introduced P7.5; P11 adds frontier/provider/tuning/artifact replay rows; P12 adds signal rows | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/swift_bridge/__init__.py` | 0 | 0 | 0 | 0 | review: `SA-P8-003` | review: Swift bridge exports refined in P8/P8 frontend2, exact by P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/swift_bridge/client.py` | 1 | 0 | 18 | 0 | review: `SA-P8-003` | review: Swift kernel client starts earlier, IPC/current body later P10/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/swift_bridge/ipc.py` | 2 | 1 | 19 | 0 | review: `SA-P8-003` | review: Swift IPC first sighted in P8-era duplicate, exact by P10/P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/swift_bridge/protocol.py` | 1 | 0 | 8 | 0 | review: `SA-P8-003` | review: JSONL protocol first sighted in P8-era duplicate, exact by P11 | Codex Stage A |
+| `calendar-pilot-p12/src/calendar_pilot/types.py` | 29 | 4 | 30 | 0 | review: `SA-P7-002`, `SA-P8.5-002`, `SA-P12-NF-002` | review: core contracts and biography types introduced P7; AuthorityGrant hardening documented P8.5/P8; P12 signal dataclasses not found in archive | Codex Stage A |
+
+## Stage A lineage discovery log
+
+Run reviewed: `20260704T015059Z-p12-next-stage-a`
+Repair run: `20260704T024144Z-p12-next-stage-a-ledger-repair`
+Evidence root: `calendar-pilot-p12/runs/p12_next_evidence/20260704T015059Z-p12-next-stage-a/lineage/`
+Repair root: `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/`
+
+Scope rule: Stage A answers only "where did this come from?" Stage B answers only whether the discovery claim is defensible. No KEEP, CONSOLIDATE, DELETE, ARCHIVE, reachability, root, tombstone, deletion, or consolidation judgment is part of this log.
+
+Detailed findings live in run-scoped JSONL, not in this control ledger.
+
+| artifact | path |
+|---|---|
+| Stage A findings JSONL | `calendar-pilot-p12/runs/p12_next_evidence/20260704T015059Z-p12-next-stage-a/lineage/stage_a_findings.jsonl` |
+| P7 duplicate delta | `calendar-pilot-p12/runs/p12_next_evidence/20260704T015059Z-p12-next-stage-a/lineage/updated_dup_delta_filtered.md` |
+| P7.5 duplicate delta | `calendar-pilot-p12/runs/p12_next_evidence/20260704T015059Z-p12-next-stage-a/lineage/executive_dup_delta_filtered.md` |
+| P8 duplicate delta | `calendar-pilot-p12/runs/p12_next_evidence/20260704T015059Z-p12-next-stage-a/lineage/frontend_dup_delta_filtered.md` |
+| Stage A/B review summary | `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/stage_a_review_summary.md` |
+| Stage A/B review summary JSON | `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/stage_a_review_summary.json` |
+| Duplicate delta summary | `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/duplicate_delta_summary.md` |
+| Loose document intake review | `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/loose_doc_intake_review.md` |
+| Symbol expansion queue | `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/symbol_expansion_queue.jsonl` |
+| Ignored retention artifacts | `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/ignored_retention_artifacts.md` |
+| P12-next update note | `calendar-pilot-p12/runs/p12_next_evidence/20260704T024144Z-p12-next-stage-a-ledger-repair/lineage/p12_next_updates.md` |
+
+Finding count: 44.
+
+Phase summary: P6.5 6; P7 6; P7.5 3; P6.5/P7 overlap 1; P8 4; P8.5 doc/runway 5; P9 4; P10 7; P11 6; P12 current 2.
+
+Blocker summary:
+
+| id | status | affected discovery | unblock needed |
+|---|---|---|---|
+| B-SA-001 | resolved | P7 `calendar-pilot-updated 2` | Resolved `20260704T041118Z`: updated2 proven P8-era (P8 files present, P9 `environment/` absent); 0 symbols depend on it alone. |
+| B-SA-002 | resolved | P8 frontend duplicate pair | Resolved `20260704T041118Z`: frontend2 proven P8-era (same test); 0 symbols depend on it alone. |
+| B-SA-003 | resolved | P8.5 dogfood/session/live/release lineage | Resolved `20260704T041118Z`: 0 current symbols first-seen in the P8.5 folder; those files originate P8, P8.5 is doc/runway. |
+
+Grouped finding rule: any Stage A row covering multiple files, classes, functions, contracts, scripts, or a named flow is a flow-level discovery row. It has `symbol_expansion_required: true` in `symbol_expansion_queue.jsonl`. Flow-level discovery is not enough for Stage C retention judgment; Stage C must expand to symbol/file rows before assigning any retention verdict.
+
+Quarantine note: prior verdict/tombstone/deletion-candidate artifacts from `20260704T013457Z-p12-next-lineage` are ignored for this Stage A/B pass and are listed in `ignored_retention_artifacts.md`. They are not lineage evidence.
+
+## Stage B acceptance ledger (historical; superseded for readiness)
+
+Run reviewed: `20260704T032235Z-p12-next-stage-b-acceptance` (Git SHA `906cc68`).
+Scope: accept/correct/block Stage A/B lineage and decide symbol/file expansion sufficiency. No retention verdicts, roots, tombstones, deletions, or consolidations. Detailed rows live in run-scoped JSONL, not inline here.
+
+| artifact | path |
+|---|---|
+| Acceptance matrix (44 rows) | `calendar-pilot-p12/runs/p12_next_evidence/20260704T032235Z-p12-next-stage-b-acceptance/review/stage_b_acceptance_matrix.jsonl` |
+| Acceptance summary | `calendar-pilot-p12/runs/p12_next_evidence/20260704T032235Z-p12-next-stage-b-acceptance/review/stage_b_acceptance_summary.md` |
+| Symbol expansion manifest (54 files) | `calendar-pilot-p12/runs/p12_next_evidence/20260704T032235Z-p12-next-stage-b-acceptance/lineage/symbol_expansion_manifest.jsonl` |
+| File expansion status | `calendar-pilot-p12/runs/p12_next_evidence/20260704T032235Z-p12-next-stage-b-acceptance/lineage/file_expansion_status.md` |
+| Blockers remaining | `calendar-pilot-p12/runs/p12_next_evidence/20260704T032235Z-p12-next-stage-b-acceptance/lineage/blockers_remaining.md` |
+| AST coverage evidence | `calendar-pilot-p12/runs/p12_next_evidence/20260704T032235Z-p12-next-stage-b-acceptance/lineage/ast_coverage_raw.json` |
+| P12-next update note | `calendar-pilot-p12/runs/p12_next_evidence/20260704T032235Z-p12-next-stage-b-acceptance/docs/p12_next_updates.md` |
+
+This section records the Stage B exit state from `20260704T032235Z-p12-next-stage-b-acceptance`. Its blocker and sufficiency state is historical: Stage C readiness was later achieved by `20260704T041118Z-p12-next-stage-c-readiness`, which resolved `B-SA-001`, `B-SA-002`, and `B-SA-003`.
+
+Lineage acceptance at Stage B exit (44 findings): **39 accepted, 2 corrected, 3 blocked.**
+
+- Blocked at Stage B exit (whole-folder duplicate collapse / archive-repo intake, reduced to row-level evidence): `SA-P7-DUP-001` (B-SA-001), `SA-P8-DUP-001` (B-SA-002), `SA-P8.5-000` (B-SA-003). These blockers were resolved by the later Stage C readiness run.
+- Corrected (`source_archive_repo` normalized to explicit `P12 current / not found`; confirmed current-phase, not archive lineage): `SA-P12-NF-001`, `SA-P12-NF-002`.
+- Accepted: all other source flow-rows plus phase-adjacent duplicate delta `SA-P7.5-DUP-001`. Row-level rows under then-open blockers were accepted with the blocker attached: `SA-P7-004` (B-SA-001); `SA-P8-001/002/003` (B-SA-002); `SA-P8.5-001/002/003/004` (B-SA-003).
+
+Symbol/file expansion sufficiency at Stage B exit: **INSUFFICIENT.** All 40 source flow-rows remained `symbol_expansion_required: true`. Independently measured core-symbol coverage was **20.8% (169/813 AST symbols named)**; 0 of 62 module constants and 0 of 667 class-level/dataclass fields were represented or waived. Every file in the file-level source assignment queue was expansion-insufficient; per-file gaps and unnamed-symbol lists are in `symbol_expansion_manifest.jsonl`. This was superseded by the Stage C readiness run.
+
+Blocker carry-forward at Stage B exit: B-SA-001, B-SA-002, B-SA-003 remained open; no blocker was resolved and none was newly opened in that pass. All three are now resolved in `20260704T041118Z-p12-next-stage-c-readiness`.
+
+## Stage C readiness (symbol/file expansion)
+
+Run: `20260704T034739Z-p12-next-symbol-expansion` (Git SHA `906cc68`).
+Scope: expand flow-level lineage into symbol/file-level rows + waivers. No retention verdicts, roots, tombstones, deletions, or consolidations. Detail rows live in run-scoped JSONL, not inline here.
+
+| artifact | path |
+|---|---|
+| Expanded symbol lineage (1493 rows) | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/lineage/expanded_symbol_lineage.jsonl` |
+| Waivers (127) | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/lineage/waivers.jsonl` |
+| Coverage report | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/lineage/coverage_report.json` |
+| Expanded file status | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/lineage/expanded_file_status.md` |
+| Stage C readiness summary | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/review/stage_c_readiness_summary.md` |
+| P12-next update note | `calendar-pilot-p12/runs/p12_next_evidence/20260704T034739Z-p12-next-symbol-expansion/docs/p12_next_updates.md` |
+
+Coverage: **100% of current `src/calendar_pilot`** — 814 AST symbols + 69 module constants + 549 dataclass fields rowed; 119 non-dataclass class attributes waived. Non-src carriers: 21 contract schemas + 10 frontend carriers + 30 scripts rowed, 8 scripts waived. Every row carries `retention_verdict: null`; no root/reachability claim.
+
+AST reconciliation: prior 813 vs ledger 814 = the nested class `frontend/server.py::Handler` (defined in `serve()`). Counting all ClassDefs → 137 classes / 541 methods / 4 nested = **814**; every definition is rowed, so the boundary no longer affects coverage.
+
+Initial expansion-run status: **partial.** 27 of 54 files were **expansion-ready** (all symbols settled, no blocker). 27 were **expansion-blocked**: 16 by then-open blockers (`B-SA-001`: `providers/deterministic.py`, `apple_eventkit.py`; `B-SA-002`: `frontend/*`, `swift_bridge/*`; `B-SA-003`: `codex/live.py`, `types.py`, `frontend/session.py`, `session_manager.py`), and 11 mixed-phase files (`replay.py`, `self_play.py`, `codex/tools.py`, `action_lifecycle.py`, `providers/base.py`, `invariants.py`, `policy.py`, `providers/stubs.py`, `biography.py`, `signals.py`, `providers/__init__.py`) whose file-inherited symbols needed an archive-level per-symbol diff. This was superseded by the readiness-achieved update below.
+
+### Update — Stage C readiness ACHIEVED (`20260704T041118Z-p12-next-stage-c-readiness`)
+
+Both blocking causes were cleared by an archive-level per-symbol diff (`archive_index.py`) across all 11 snapshots. Result: **54/54 files expansion-ready**, 1506 rows all `stage_c_ready: true`, 0 open blockers, 100% src coverage.
+
+| artifact | path |
+|---|---|
+| Resolved symbol lineage (1506 rows) | `calendar-pilot-p12/runs/p12_next_evidence/20260704T041118Z-p12-next-stage-c-readiness/lineage/expanded_symbol_lineage.jsonl` |
+| Waivers (119) | `…/20260704T041118Z-p12-next-stage-c-readiness/lineage/waivers.jsonl` |
+| Blocker resolution evidence | `…/20260704T041118Z-p12-next-stage-c-readiness/lineage/blocker_resolution.md` |
+| Coverage report | `…/20260704T041118Z-p12-next-stage-c-readiness/lineage/coverage_report.json` |
+| Expanded file status (54/54 ready) | `…/20260704T041118Z-p12-next-stage-c-readiness/lineage/expanded_file_status.md` |
+| Stage C readiness summary | `…/20260704T041118Z-p12-next-stage-c-readiness/review/stage_c_readiness_summary.md` |
+| P12-next update note | `…/20260704T041118Z-p12-next-stage-c-readiness/docs/p12_next_updates.md` |
+
+Method: cross-snapshot AST first-sighting; ambiguous duplicates positioned P8-era by content (P8 files present, P9 `environment/` absent). Each symbol's `introduced_phase` = earliest name-matching snapshot; body stabilization tracked separately. Blockers resolved: `updated 2`/`frontend 2` proven P8-era accumulated snapshots; **0 symbols depend on an ambiguous folder alone**, **0 first-seen in the P8.5 folder**. Refinements over the coarse flow rows include `BiographyStore`/`RawCalendarObservation` at P6.5 (not P7). Retention verdicts remain deferred — Stage C is now unblocked, not executed.
+
+## Hygiene rules for delegated work
+
+```text
+H1. One owner per row. A row with no owner is not delegated.
+H2. One durable artifact per claim. "Looked at it" does not count.
+H3. Every PR touches one workstream unless release gates require a paired fix.
+H4. Every deletion records a tombstone before merge.
+H5. Every KEEP verdict names a root and evidence. No "still useful" keeps.
+H6. Blocked rows name the blocking command, missing permission, or unresolved decision.
+H7. Engineers update tables in the same PR as the work, not in a later cleanup PR.
+H8. Reference archive paths are pointers, not runtime dependencies.
+```
+
+## Handoff note template
+
+Use this template in PR descriptions and in the working notes appended to the evidence bundle:
+
+```text
+Owner:
+Rows touched:
+Archive repos consulted:
+Current files/symbols mapped:
+Verdicts changed:
+Evidence written:
+Gates run:
+Tombstones added:
+Open blockers:
+Next owner/action:
+```
+
 # Verdict (revised)
+
+Stage A/B repair note: the cleanup posture below is retained as future Stage C/D
+context only. The `20260704T024144Z-p12-next-stage-a-ledger-repair` pass did not
+assign or update retention verdicts.
 
 The previous version of this document said: *do not do broad cleanup yet; do minimal reconsolidation only.* That posture is now wrong, for one decisive reason:
 
@@ -83,7 +420,7 @@ Dated by folder/document mtimes, **anchored by the pass documents now in `docs/h
 | P11 (Jul 3) | `calendar-pilot-p11` | `thickening-the-lab.md`, `P11-test.md` | FrontierService provenance, sim_v2, autonomy matrix, marginal promotion, provider transactions, B-precursors |
 | P12 (current) | `calendar-pilot-p12` | `P12-direction.md`, `P12-test.md` | three streams, estimators, semantic labels/registry, calibration, measurement, curricula, capability reports |
 
-Duplicate snapshots (`calendar-pilot-updated 2`, second `calendar-pilot-executive`, second `calendar-pilot-frontend`) are near-copies from the same phase: diff them against their siblings once, record the delta in the lineage manifest, and treat the pair as one phase thereafter.
+Duplicate folders (`calendar-pilot-updated 2`, second `calendar-pilot-executive`, second `calendar-pilot-frontend`) are phase-adjacent snapshots with row-level deltas. Treat a duplicate pair as one phase only for rows whose evidence supports that. The former duplicate/source-mismatch blockers `B-SA-001`, `B-SA-002`, and `B-SA-003` are resolved by `20260704T041118Z-p12-next-stage-c-readiness`; continue to use row-level evidence rather than whole-folder phase collapse.
 
 ## Rules that make the method safe
 
@@ -92,9 +429,10 @@ L1. Snapshot diffing is scripted, not eyeballed (Step 5).
 L2. Inline LINEAGE tags are scaffolding, not documentation: the phase ends with
     ZERO tags remaining in the tree. Every tag resolves to either a deletion
     or an entry in docs/LINEAGE.md. A lint counts tags; nonzero fails.
-L3. Backwards tracing is mark-and-sweep with an explicit root set (Step 7),
-    not judgment calls. Default verdict for unreached code is DELETE; the
-    burden of proof is on KEEP.
+L3. Stage C backwards tracing is mark-and-sweep with an explicit root set
+    (Step 7), not judgment calls. Stage A/B discovery assigns no verdicts.
+    Stage C retention defaults are not active until lineage review and root-set
+    definition are complete.
 L4. Coverage runs must include the env-gated live paths (live NIM schema gate,
     EventKit opt-in, browser E2E, Swift IPC) or those paths must be protected
     by explicit root listing. A deterministic-only coverage run WILL mark live
@@ -105,9 +443,49 @@ L5. Every deletion PR records a tombstone: what died, which phase built it,
 L6. Tests die only with their feature. A test deletion never counts toward the
     LOC quota unless it rides a feature-deletion PR. Deleting tests to hit
     numbers is gaming, and the anti-gaming rules (§6) make it visible.
+L7. Lineage discovery and retention judgment are separate phases. Discovery
+    may record first_seen_phase, source_archive_repo, modified phases, path
+    matches, symbol matches, and uncertainty. It may NOT emit KEEP,
+    CONSOLIDATE, DELETE, or ARCHIVE verdicts. Retention verdicts are assigned
+    only after the discovery ledger is reviewed and the frozen root set is
+    explicitly named.
+L8. Static references are not roots. Tests, docs/history, examples, deleted
+    frontend scaffolding, and parent-module imports may support investigation,
+    but they never prove KEEP by themselves. KEEP requires a current frozen
+    product root or protected runway root.
 ```
 
 ---
+
+## Discovery-to-judgment review loop
+
+Every finding updates this document or a run-scoped ledger before the next file
+is reviewed. The team does not batch discoveries into an opaque final summary.
+
+```text
+Stage A — lineage discovery:
+  question: where did this file/symbol/flow come from?
+  outputs: phase, archive repo, evidence path, match type, confidence,
+           uncertainty, and notes.
+  forbidden output: KEEP/CONSOLIDATE/DELETE/ARCHIVE.
+
+Stage B — discovery review:
+  question: is the lineage claim defensible?
+  outputs: accepted lineage, corrected lineage, or blocker.
+  required update: mark the repo annex row and source-purpose row immediately.
+
+Stage C — retention judgment:
+  question: does this current behavior still belong in calendar-pilot-p12?
+  outputs: KEEP/CONSOLIDATE/DELETE/ARCHIVE, root evidence, tombstone pointer.
+  required order: trace ML roots → backend producers → frontend consumers.
+
+Stage D — deletion/consolidation:
+  question: can this verdict land while keeping the freeze green?
+  outputs: PR-sized wave, tombstone, loc delta, p12-release evidence.
+```
+
+If a tool produces retention verdicts during Stage A, discard that artifact and
+rerun discovery without verdict assignment.
 
 # 0. Prime directive
 
@@ -115,7 +493,8 @@ L6. Tests die only with their feature. A test deletion never counts toward the
 1. Keep make p12-release green after every wave. The gate is the freeze.
 2. Keep the cold-start runway collecting; never touch its pipeline.
 3. Reconstruct lineage before deleting: every cut names the phase it unwinds.
-4. Default-DELETE for unreachable code; KEEP requires a manifest entry.
+4. Stage A/B assigns no retention verdicts; Stage C may do that only after
+   reviewed lineage and an explicit root set.
 5. Hit ≤ 50% LOC or itemize every shortfall with a named reason.
 6. End with zero LINEAGE tags, a current-truth LINEAGE.md, and the same
    product behavior the P12 evidence bundle proved.
@@ -125,7 +504,12 @@ L6. Tests die only with their feature. A test deletion never counts toward the
 
 # 1. Evidence bundle setup + frozen baseline
 
+All operational command blocks below assume the repo root:
+`/Users/temp/Desktop/Destination/calendar-pilot-p12`. This avoids accidentally
+using the workspace-level `Makefile`, which targets an older archive repo.
+
 ```bash
+cd /Users/temp/Desktop/Destination/calendar-pilot-p12
 export RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-p12-next"
 
 mkdir -p runs/p12_next_evidence/$RUN_ID/{\
@@ -234,6 +618,12 @@ No autonomy matrix diff ships. create_prep_block stays recommend/stage/confirm.
 
 The prior draft's grep-audit and quarantine tests ran and passed. Now finish the job — these are the first, easiest LOC:
 
+Prerequisite: none of D1-D6 may land until its accepted Stage A/B lineage row is
+named, its symbol/file expansion is complete enough for the affected code, and a
+Stage C retention verdict exists with root evidence or an explicit unreachable
+finding. This section lists intended deletion candidates; it is not permission
+to delete during Stage A/B.
+
 ```text
 D1. UserBiography.notification_fatigue: delete field, parsers, and the
     update_from_reward nudge. Bump the observation/biography contract per
@@ -269,6 +659,8 @@ app.js gone; browser E2E green. Contract vectors green after migration.
 
 # 4. Lineage archaeology — inventory and timeline
 
+This section feeds the "Repo annex progress ledger" above. An archive repo is not annexed until its row has an owner, intake artifact, duplicate classification, current-path map, and tombstone pointer policy.
+
 ## Commands
 
 ```bash
@@ -288,7 +680,10 @@ diff -rq "/Users/temp/Desktop/Destination/Do-not-reference/calendar-pilot-update
 
 ```text
 phase_timeline.md lists every snapshot repo and anchor doc with a phase id.
-Duplicates resolved to one phase each. No phase has zero anchor documents.
+Duplicate deltas recorded; duplicate folders are treated as one phase only for
+rows whose evidence supports that. No phase has zero anchor documents.
+Every repo row in the annex ledger is assigned or explicitly blocked.
+Every loose archive document group has an owner and phase-timeline disposition.
 ```
 
 ---
@@ -309,7 +704,19 @@ scripts/build_lineage.py
              first_seen_phase by matching name+body fuzz across snapshots
   output:  lineage.json rows:
            {path, symbol|null, first_seen_phase, modified_in_phases,
-            loc, verdict: null, verdict_reason: null, tombstone: null}
+            source_archive_repo, loc, purpose: null, owner: null,
+            discovery_status: "not started", match_type, match_confidence,
+            discovery_evidence, uncertainty: null}
+
+scripts/build_src_purpose_manifest.py
+  inputs:  current calendar-pilot-p12/src tree
+  method:  parse Python with ast; list module rows, classes, methods,
+           functions, nested definitions; add manual slots for constants,
+           dataclass fields, provider surfaces, and behavior-carrying module
+           globals that AST symbol counts miss
+  output:  src_symbol_manifest.json rows matching the schema in the working
+           delegation layer. During Stage A, retention fields stay null; this
+           manifest is the assignment sheet for file-level lineage discovery.
 ```
 
 ```bash
@@ -317,6 +724,10 @@ PYTHONPATH=src python3 scripts/build_lineage.py \
   --archive /Users/temp/Desktop/Destination/Do-not-reference \
   --timeline runs/p12_next_evidence/$RUN_ID/lineage/phase_timeline.md \
   --out runs/p12_next_evidence/$RUN_ID/lineage/lineage.json
+
+PYTHONPATH=src python3 scripts/build_src_purpose_manifest.py \
+  --src src/calendar_pilot \
+  --out runs/p12_next_evidence/$RUN_ID/lineage/src_symbol_manifest.json
 ```
 
 `build_lineage.py` is itself scaffolding: it moves to the evidence bundle at phase end, not into the permanent tree (record in LINEAGE.md where it lives).
@@ -327,6 +738,11 @@ PYTHONPATH=src python3 scripts/build_lineage.py \
 Every tracked file has a first_seen_phase (unknowns explicitly "pre-P6.5").
 Per-symbol rows exist for the ten largest Python files.
 LOC by phase sums to the loc-report total (± generated files, listed).
+src_symbol_manifest.json exists and covers all 54 current Python source files.
+Every file in the source assignment queue has an owner or a blocking reason.
+No KEEP/CONSOLIDATE/DELETE/ARCHIVE verdicts appear in lineage discovery output.
+Every discovered row has phase, archive evidence, match type, confidence, and
+an uncertainty note when evidence is weak or conflicting.
 ```
 
 ---
@@ -403,12 +819,21 @@ ARCHIVE     docs/history and scaffolding → /Do-not-reference
 DEFAULT is DELETE. KEEP without a named root is not a verdict, it is a feeling.
 ```
 
+Retention verdicts are appended only after Stage A discovery and Stage B
+discovery review are complete for the relevant repo/file slice. A verifier must
+be able to point to the accepted lineage row and the frozen root before a KEEP
+or CONSOLIDATE verdict is accepted.
+
 ## Acceptance
 
 ```text
 100% of lineage.json rows have verdicts. Coverage union includes at least the
 deterministic, release, live-NIM, and browser legs (EventKit noted if env-held).
 Every env-gated live path is either covered or explicitly root-listed.
+100% of src_symbol_manifest.json rows have purpose, owner, reachability, verdict,
+and evidence fields filled before final wave acceptance.
+Every verdict references an accepted Stage A lineage row; no verdict is based
+only on docs/history, examples, tests, parent-module import, or archive presence.
 ```
 
 ---
@@ -490,6 +915,9 @@ make py-test swift-test check-invariants contract-vectors
 
 ## Program B — debt erasure
 - [ ] phase_timeline.md + lineage.json complete; every row has a verdict.
+- [ ] Repo annex ledger has every `/Do-not-reference` repo marked annexed, verified, or blocked with user sign-off.
+- [ ] src_symbol_manifest.json covers every class/function/method/nested def and every waived non-AST behavior carrier.
+- [ ] Every source-purpose row has purpose, owner, phase, reachability, verdict, and evidence.
 - [ ] Coverage union included live legs or explicit root-listing (L4).
 - [ ] Zero LINEAGE tags remain (lint enforced).
 - [ ] loc_report_after ≤ 15,700 tracked LOC, OR every shortfall itemized
@@ -511,14 +939,16 @@ make py-test swift-test check-invariants contract-vectors
 ```text
 PR 1  p12-next-baseline        loc_report.py + make target, baseline freeze, evidence bundle
 PR 2  p12-next-runway-ops      evidence-target file, daily-procedure doc, protected-path lint
-PR 3  p12-next-legacy-delete   §3 D1–D6 (one PR per item is fine), inverted quarantine tests
-PR 4  p12-next-lineage         phase_timeline.md, build_lineage.py, lineage.json
-PR 5  p12-next-tagging         LINEAGE tag lint + tagging sweep + reachability/coverage union
-PR 6  p12-next-wave-1          dead-by-reachability deletions + tombstones
-PR 7  p12-next-wave-2          lineage-dead flow deletions (ML → backend → frontend order)
-PR 8  p12-next-wave-3          lab.py CLI consolidation, shared report writer, session decomposition
-PR 9  p12-next-docs            LINEAGE.md, history archive, README refresh, tag-lint removal
-PR 10 p12-next-final           final release run, loc gate, acceptance ledger
+PR 3  p12-next-annex           repo annex ledger assignments, phase_timeline.md, duplicate deltas
+PR 4  p12-next-source-purpose  build_src_purpose_manifest.py, source owners, initial purpose rows
+PR 5  p12-next-lineage         build_lineage.py, lineage.json, source_archive_repo mapping
+PR 6  p12-next-root-verdicts   LINEAGE tag lint + tagging sweep + reachability/coverage union + Stage C verdict gate
+PR 7  p12-next-legacy-delete   §3 D1–D6 after accepted lineage/Stage C verdicts, inverted quarantine tests
+PR 8  p12-next-wave-1          remaining dead-by-reachability deletions + tombstones
+PR 9  p12-next-wave-2          lineage-dead flow deletions (ML → backend → frontend order)
+PR 10 p12-next-wave-3          lab.py CLI consolidation, shared report writer, session decomposition
+PR 11 p12-next-docs            LINEAGE.md, history archive, README refresh, tag-lint removal
+PR 12 p12-next-final           final release run, loc gate, acceptance ledger
 ```
 
 ---
