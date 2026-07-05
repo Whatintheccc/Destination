@@ -38,6 +38,10 @@ def _payload(rec: dict[str, Any]) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
 def _stream(rec: dict[str, Any]) -> str:
     return str(rec.get("signal_stream") or infer_signal_stream(str(rec.get("record_type") or ""), _payload(rec)))
 
@@ -139,8 +143,8 @@ def check_i2_rollback_state_never_absent(records: list[dict[str, Any]]) -> list[
     for rec in _records(records):
         if rec.get("record_type") != "envelope_transition":
             continue
-        env = _payload(rec).get("envelope", {})
-        state = env.get("provider", {}).get("rollback_state")
+        env = _dict(_payload(rec).get("envelope"))
+        state = _dict(env.get("provider")).get("rollback_state")
         if env.get("current_state") in {"commit", "verify", "undo"} and state not in allowed:
             out.append(Violation("I2", _rid(rec), f"rollback_state={state!r}"))
     return out
@@ -152,16 +156,19 @@ def check_i2a_committed_writes_have_meaningful_rollback(records: list[dict[str, 
     for rec in _records(records):
         if rec.get("record_type") != "envelope_transition":
             continue
-        env = _payload(rec).get("envelope", {})
+        env = _dict(_payload(rec).get("envelope"))
         if env.get("current_state") != "commit":
             continue
-        provider = env.get("provider", {}) if isinstance(env.get("provider", {}), dict) else {}
+        provider = _dict(env.get("provider"))
+        swift_receipt = _dict(env.get("swift_receipt"))
+        lifecycle = env.get("lifecycle") if isinstance(env.get("lifecycle"), list) else []
+        latest_transition = _dict(lifecycle[-1]) if lifecycle else {}
         rollback_state = provider.get("rollback_state") or env.get("rollback_state")
-        sync_status = env.get("sync_status") or env.get("swift_receipt", {}).get("sync_status")
-        actuation_mode = env.get("actuation_mode") or env.get("swift_receipt", {}).get("actuation_mode")
-        candidate = env.get("candidate") if isinstance(env.get("candidate"), dict) else {}
+        sync_status = env.get("sync_status") or swift_receipt.get("sync_status")
+        actuation_mode = env.get("actuation_mode") or swift_receipt.get("actuation_mode")
+        candidate = _dict(env.get("candidate"))
         reversibility = candidate.get("reversibility") or env.get("reversibility")
-        committed_write = sync_status in {"materialized", "committed"} or actuation_mode == "materialized_write" or env.get("tool_status") == "committed"
+        committed_write = sync_status in {"materialized", "committed"} or actuation_mode == "materialized_write" or latest_transition.get("status") == "committed"
         if committed_write and rollback_state == "unsupported":
             out.append(Violation("I2′", _rid(rec), "committed materialized write has rollback_state=unsupported"))
         if committed_write and rollback_state == "impossible" and reversibility not in {"none", None}:
@@ -228,14 +235,14 @@ def check_i7_rate_cap_denials_visible(records: list[dict[str, Any]]) -> list[Vio
     for rec in rows:
         if rec.get("record_type") != "envelope_transition":
             continue
-        env = _payload(rec).get("envelope", {})
+        env = _dict(_payload(rec).get("envelope"))
         detail = (env.get("lifecycle") or [{}])[-1].get("detail", {}) if isinstance(env.get("lifecycle"), list) else {}
         reason = str(detail.get("denied_reason") or env.get("denied_reason") or "")
         if "rate_cap_exceeded" not in reason:
             continue
         trace = rec.get("trace_id")
         has_receipt = any(
-            row.get("record_type") == "receipt" and row.get("trace_id") == trace and "rate_cap_exceeded" in str(_payload(row).get("receipt", {}).get("denied_reason") or "")
+            row.get("record_type") == "receipt" and row.get("trace_id") == trace and "rate_cap_exceeded" in str(_dict(_payload(row).get("receipt")).get("denied_reason") or "")
             for row in rows
         )
         if not has_receipt:

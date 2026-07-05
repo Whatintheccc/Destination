@@ -5,12 +5,17 @@ import unittest
 from pathlib import Path
 
 from calendar_pilot.diffusiongemma import SelfPlayRunner
+from calendar_pilot.diffusiongemma.self_play import UserSimulator
 from calendar_pilot.types import RawCalendarObservation, UserBiography
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class SelfPlayTests(unittest.TestCase):
+    def test_default_simulator_is_sim_v2_1(self):
+        self.assertEqual(UserSimulator().simulator_version, "sim_v2.1")
+        self.assertEqual(SelfPlayRunner().user_simulator.simulator_version, "sim_v2.1")
+
     def test_self_play_runs(self):
         observation = RawCalendarObservation.from_dict(json.loads((ROOT / "data/sample_calendar.json").read_text()))
         biography = UserBiography.from_dict(json.loads((ROOT / "data/sample_profile.json").read_text()))

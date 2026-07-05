@@ -56,9 +56,9 @@ class RightMomentModel:
         authority_gap = max(0, candidate.required_authority_tier - 3)
         urgency = self._urgency(candidate, now)
         response_bonus = 0.24 if hour in biography.best_response_hours else -0.08
-        fatigue_penalty = fatigue * 0.34
+        interruption_penalty = fatigue * 0.34
         focus_penalty = 0.25 if observation.device_context.is_focus_mode else 0.0
-        value_now = candidate.expected_reward + urgency + response_bonus - fatigue_penalty - focus_penalty - 0.15 * authority_gap
+        value_now = candidate.expected_reward + urgency + response_bonus - interruption_penalty - focus_penalty - 0.15 * authority_gap
 
         if candidate.intent == "do_nothing":
             return MomentScore(RightMomentDecision.DO_NOTHING, now, 0.0, "baseline counterfactual")

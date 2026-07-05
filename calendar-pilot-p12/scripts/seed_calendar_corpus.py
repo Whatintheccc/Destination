@@ -25,14 +25,14 @@ WEEK_START = datetime.fromisoformat("2026-07-06T00:00:00-07:00")
 WEEK_END = datetime.fromisoformat("2026-07-13T00:00:00-07:00")
 DEFAULT_PERTURBATIONS = [
     "remove_prep_slot",
-    "increase_notification_fatigue",
+    "lower_interruption_tolerance",
     "expire_authority_grant",
     "compress_between_meetings",
     "inject_flexible_hold",
 ]
 PERTURBATION_CATALOG = {
     "remove_prep_slot",
-    "increase_notification_fatigue",
+    "lower_interruption_tolerance",
     "expire_authority_grant",
     "compress_between_meetings",
     "inject_flexible_hold",
@@ -90,7 +90,7 @@ def _task(task_id: str, title: str, due: datetime, minutes: int, category: str) 
     return {"task_id": task_id, "title": title, "due": due.isoformat(), "estimated_minutes": minutes, "category": category}
 
 
-def _notification_history(fatigue: float) -> list[dict[str, str]]:
+def _notification_history(interruption_pressure: float) -> list[dict[str, str]]:
     start = datetime.fromisoformat("2026-06-22T08:30:00-07:00")
     rows = []
     for idx in range(14):
@@ -98,7 +98,7 @@ def _notification_history(fatigue: float) -> list[dict[str, str]]:
         rows.append({
             "sent_at": (start + timedelta(days=idx, hours=hour - 8)).isoformat(),
             "kind": "suggestion",
-            "outcome": "dismissed" if fatigue >= 0.5 or idx % 2 else "accepted",
+            "outcome": "dismissed" if interruption_pressure >= 0.5 or idx % 2 else "accepted",
         })
     return rows
 
@@ -137,10 +137,10 @@ def _base_events(seed_id: str, persona: str, density: str, pressure: bool) -> li
 
 
 def build_base_seed(seed_id: str, persona: str, variant: str, *, density: str, pressure: bool, flagged: bool = False) -> dict[str, Any]:
-    fatigue = 0.72 if ("burnout" in seed_id or "fatigue" in seed_id or pressure) else 0.35
+    interruption_pressure = 0.72 if ("burnout" in seed_id or "fatigue" in seed_id or pressure) else 0.35
     expected_good = ["create_prep_block", "move_meeting", "add_buffer"]
     expected_bad = [
-        {"intent": "notify_summary", "why": "notification fatigue makes notification-only suggestions risky"},
+        {"intent": "notify_summary", "why": "low interruption tolerance makes notification-only suggestions risky"},
         {"intent": "decline_or_trim", "why": "the high-stakes external meeting should not be touched"},
     ]
     if flagged:
@@ -159,7 +159,7 @@ def build_base_seed(seed_id: str, persona: str, variant: str, *, density: str, p
         "observation": {
             "device_context": {"active_surface": "calendar_week_view", "is_focus_mode": False, "local_hour": 8},
             "events": _base_events(seed_id, persona, density, pressure),
-            "notification_history": _notification_history(fatigue),
+            "notification_history": _notification_history(interruption_pressure),
             "observation_id": f"obs_{seed_id}",
             "observed_at": OBSERVED_AT,
             "prior_actions": [],
@@ -180,10 +180,9 @@ def build_base_seed(seed_id: str, persona: str, variant: str, *, density: str, p
             "bad_response_hours": [20, 21, 22, 23],
             "best_response_hours": [8, 13],
             "deep_work_windows": ["09:00-11:00"],
-            "notification_fatigue": fatigue,
             "preference_claims": [
                 {"claim": "accepts prep blocks near external calls", "confidence": 0.82},
-                {"claim": "dismisses evening suggestions", "confidence": 0.77 if fatigue >= 0.5 else 0.55},
+                {"claim": "dismisses evening suggestions", "confidence": 0.77 if interruption_pressure >= 0.5 else 0.55},
             ],
             "user_scope_id": seed_id,
         },
@@ -219,6 +218,10 @@ def seed_paths(seed: str | None = None, seed_dir: Path = SEEDS_DIR) -> list[Path
 
 def _canonical_intent(value: str) -> str:
     return normalize_intent(value)["intent"]
+
+
+def _has_low_interruption_tolerance_history(history: list[dict[str, Any]]) -> bool:
+    return sum(1 for row in history if str(row.get("outcome", "")).lower() == "dismissed") >= 5
 
 
 def _fixture_frontier(seed: dict[str, Any]) -> list[Any]:
@@ -267,11 +270,11 @@ def lint_seed(path: Path) -> list[str]:
     history = obs.notification_history
     if len(history) < 1:
         errors.append("L6 notification_history must have at least one row")
-    if bio.notification_fatigue >= 0.5:
+    if _has_low_interruption_tolerance_history(history):
         try:
             sent = [datetime.fromisoformat(str(row["sent_at"])) for row in history]
-            if len(history) < 5 or max(sent) - min(sent) < timedelta(days=7):
-                errors.append("L6 high fatigue seeds need at least 5 notifications spanning 7 days")
+            if max(sent) - min(sent) < timedelta(days=7):
+                errors.append("L6 low-tolerance histories need notifications spanning 7 days")
         except Exception as exc:
             errors.append(f"L6 invalid notification history: {exc}")
     frontier = _fixture_frontier(seed)
@@ -330,8 +333,7 @@ def apply_perturbation(seed: dict[str, Any], perturbation: str) -> dict[str, Any
         if len(out["observation"]["events"]) == before:
             raise ValueError("remove_prep_slot found no flexible hold before the pressure meeting")
         out.setdefault("expectations", {}).setdefault("perturbation_checks", []).append({"check": "intent_in_top_k", "intent": "create_prep_block", "k": 3})
-    elif perturbation == "increase_notification_fatigue":
-        out["profile"]["notification_fatigue"] = max(float(out["profile"].get("notification_fatigue", 0)), 0.8)
+    elif perturbation == "lower_interruption_tolerance":
         base = datetime.fromisoformat("2026-06-29T20:00:00-07:00")
         out["observation"].setdefault("notification_history", []).extend({"sent_at": (base + timedelta(days=i)).isoformat(), "kind": "suggestion", "outcome": "dismissed"} for i in range(5))
         out.setdefault("expectations", {}).setdefault("perturbation_checks", []).append({"check": "intent_not_top1", "intent": "notify_summary"})

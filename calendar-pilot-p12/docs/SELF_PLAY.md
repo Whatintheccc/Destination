@@ -17,9 +17,9 @@ RawCalendarObservation
 
 ## Simulator versions
 
-`sim_v1` is the historical stochastic simulator and can use candidate predicted heads. It remains available for regression continuity.
+`sim_v2.1` is the default for new lab batches. It estimates outcomes from seed/profile truth: response windows, interruption-tolerance evidence, user profile claims, action family, reversibility, social scope, and authority friction. It does **not** read `predicted_acceptance`, `predicted_utility`, `predicted_regret`, `predicted_interruption_cost`, or `predicted_social_risk`.
 
-`sim_v2` is the default for new lab batches. It estimates outcomes from seed/profile truth: response windows, notification fatigue, user profile claims, action family, reversibility, social scope, and authority friction. It does **not** read `predicted_acceptance`, `predicted_utility`, `predicted_regret`, `predicted_interruption_cost`, or `predicted_social_risk`.
+`sim_v2` remains available for continuity. The old `sim_v1` executable path was removed because it graded candidates using the candidate's own predicted heads; historical continuity now comes from pinned replay artifacts rather than a live simulator branch.
 
 Every `SelfPlayEpisode` records `simulator_version` and `simulator_seed`.
 
@@ -28,7 +28,7 @@ Every `SelfPlayEpisode` records `simulator_version` and `simulator_seed`.
 | Finding | Meaning |
 |---|---|
 | `social_conflict` | Candidate leans on other people's calendar reality. |
-| `notification_fatigue` | Right action, bad moment or bad dose. |
+| `interruption_tolerance_low` | Right action, bad moment or bad dose. |
 | `undo_regret` | Auto-write deserves rollback stress. |
 | `engagement_over_utility` | Attention is beating schedule quality. |
 | `denied_actuation` | Policy asked for authority Swift did not grant. |

@@ -56,4 +56,4 @@ A tuning candidate is promotable only if it improves against `experiments/promot
 
 ## Simulator versions
 
-`sim_v1` is the historical simulator and may use candidate predicted heads. `sim_v2` is the default for new lab batches and is grounded in seed/profile truth, response windows, fatigue, reversibility, and social friction. `sim_v2` must not consume candidate `predicted_*` heads as simulator truth.
+`sim_v2.1` is the default for new lab batches and is grounded in seed/profile truth, response windows, interruption-tolerance evidence, reversibility, and social friction. `sim_v2` remains available for continuity. Neither simulator may consume candidate `predicted_*` heads as simulator truth.

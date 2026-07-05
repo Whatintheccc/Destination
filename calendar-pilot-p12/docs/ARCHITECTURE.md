@@ -36,7 +36,7 @@ RawCalendarObservation
 
 `ActionEnvelope` is the actuation trace for one candidate/action packet. It carries `envelope_version`, trace id, candidate id, observation fingerprint, authority, provider transaction state, lifecycle transitions, reward references, and replay record ids.
 
-`ReplayRecord` is the durable row format. New rows append with `record_schema_version: "r1"`; absent versions are legacy `r0`. The replay journal accepts older rows, reports unknown skipped versions to reducers, and keeps denial, reward, adversary finding, model rejection, and envelope transition rows through compaction.
+`ReplayRecord` is the durable row format. Runtime rows append with `record_schema_version: "r1"`. Rows with missing or unsupported versions are not lifted into candidate receipts; reducers report skipped versions instead of silently treating legacy evidence as current evidence. Compaction keeps denial, reward, adversary finding, model rejection, and envelope transition rows.
 
 `Scorecard` is not embedded in replay. Large derived artifacts are referenced with `artifact_ref` rows carrying type, path, and SHA-256.
 
@@ -59,7 +59,7 @@ avoid engagement gaming / social creep / regret regression,
 and include replay-backed bias evidence.
 ```
 
-The simulator is explicitly versioned. `sim_v1` is retained for continuity; `sim_v2` must not grade a candidate using that candidate's own predicted heads.
+The simulator is explicitly versioned. `sim_v2.1` is the default; `sim_v2` remains available for continuity. No live simulator branch may grade a candidate using that candidate's own predicted heads.
 
 ## P12 signal layer
 

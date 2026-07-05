@@ -21,8 +21,12 @@ export async function loadView(sessionId = '') {
   catch (err) {
     try { return normalizeView(await api('/api/state', {}, sessionId)); }
     catch (_) {
-      const response = await fetch('frontend_state.sample.json', {cache: 'no-cache'});
-      return normalizeView(await response.json());
+      return normalizeView({
+        state_version: 0,
+        session: {label: 'Local static preview', authority_tier: 3, authority_scopes: []},
+        chat: {messages: []},
+        sidebar: {sessions: [{label: 'Static preview', active: true}], recent_runs: []},
+      });
     }
   }
 }
@@ -34,6 +38,10 @@ export function normalizeView(payload) {
     view_version: 'view_state.v2/legacy-adapter',
     state_version: state.state_version || 0,
     session: state.session || {},
+    sidebar: state.sidebar || {
+      sessions: [{label: state.session?.label || 'Current fixture run', active: true, session_id: state.session?.session_id}],
+      recent_runs: [{label: 'No dogfood runs yet'}],
+    },
     runtime: state.runtime || state.chat?.runtime || {},
     conversation: state.chat || {messages: []},
     frontier: {candidates: state.chat?.candidate_cards || [], rejections: state.learning?.frontier_rejections || {count: 0, reasons: {}}},
@@ -43,6 +51,5 @@ export function normalizeView(payload) {
     lab: state.inspector?.self_play || {},
     pipeline: state.pipeline || {turns: state.trace ? [{trace_id: state.summary?.plan_id || 'sample', stages: state.trace}] : []},
     invariants: state.invariants || {violations: []},
-    legacy_state: state,
   };
 }

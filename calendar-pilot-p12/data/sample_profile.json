@@ -9,7 +9,6 @@
   "auto_create_travel_buffers": true,
   "auto_move_flexible_holds": true,
   "ask_before_people_meetings": true,
-  "notification_fatigue": 0.25,
   "preference_claims": [
     {"claim": "accepts prep blocks near external calls", "confidence": 0.82},
     {"claim": "dismisses evening suggestions", "confidence": 0.77}

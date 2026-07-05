@@ -36,9 +36,9 @@ class ActionLifecycleAndStoreTests(unittest.TestCase):
         result = lifecycle.commit(candidate, obs, grant.grant_id, requested_authority_tier=3, trace_id='test_trace', require_live_observation=False)
         payload = result.output_payload()
         env = payload['action_envelope']
-        self.assertEqual(env['schema_version'], 'calendar_action_envelope.v1')
         self.assertEqual(env['envelope_version'], 'calendar_action_envelope.v2')
-        self.assertEqual(env['tool_status'], 'committed')
+        self.assertEqual(env['current_state'], 'commit')
+        self.assertEqual(env['lifecycle'][-1]['status'], 'committed')
         self.assertIn(env['provider']['rollback_state'], {'pending', 'verified', 'unsupported', 'impossible'})
         self.assertTrue(any(r.record_type == 'envelope_transition' for r in replay.records))
 

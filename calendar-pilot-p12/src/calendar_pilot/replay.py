@@ -11,7 +11,7 @@ from calendar_pilot.environment.signal_streams import infer_signal_stream, norma
 from calendar_pilot.types import CalendarActionReceipt, CandidateCalendarAction, RawCalendarObservation, RewardEvent, CodexToolCall, CodexToolReceipt, to_jsonable
 
 REPLAY_SCHEMA_VERSION = "r1"
-SUPPORTED_REPLAY_SCHEMA_VERSIONS = {"r0", REPLAY_SCHEMA_VERSION}
+SUPPORTED_REPLAY_SCHEMA_VERSIONS = {REPLAY_SCHEMA_VERSION}
 REPLAY_KEEP_RECORD_TYPES = {
     "envelope_transition",
     "receipt",
@@ -380,10 +380,9 @@ class ReplayBuffer:
                     continue
                 data = json.loads(line)
                 if "record_type" not in data:
-                    payload = {k: v for k, v in data.items() if k in {"candidate", "receipt", "reward"}}
-                    buffer.records.append(ReplayRecord(record_type="candidate_receipt", payload=payload, record_id="legacy", trace_id=payload.get("candidate", {}).get("candidate_id", "legacy"), record_schema_version="r0"))
+                    buffer.skipped_unknown_versions += 1
                     continue
-                version = data.get("record_schema_version") or "r0"
+                version = data.get("record_schema_version")
                 if version not in SUPPORTED_REPLAY_SCHEMA_VERSIONS:
                     buffer.skipped_unknown_versions += 1
                     continue

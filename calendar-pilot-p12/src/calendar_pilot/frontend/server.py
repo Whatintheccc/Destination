@@ -72,7 +72,7 @@ def build_demo_snapshot(observation_path: str | Path = "data/sample_calendar.jso
     return session.snapshot()
 
 
-def write_demo_snapshot(out: str | Path = "frontend/static/frontend_state.sample.json", *, commit: bool = True) -> Path:
+def write_demo_snapshot(out: str | Path = "runs/dogfood/frontend_snapshot.json", *, commit: bool = True) -> Path:
     path = Path(out)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(build_demo_snapshot(commit=commit), indent=2, sort_keys=True), encoding="utf-8")

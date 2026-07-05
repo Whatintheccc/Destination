@@ -21,6 +21,6 @@ P12 separates human evidence into governed streams so the learner does not treat
 - **B5** declared-vs-derived conflicts emit `BiographyDriftFinding`; they are never silently overwritten.
 - **B6** estimator outputs carry `estimator_version`, and the same version runs on synthetic and real streams.
 
-## Legacy fatigue policy
+## Interruption-Tolerance Policy
 
-`UserBiography.notification_fatigue` remains parseable for old seeds and fixtures, but P12 code does not update it from rewards or use it as simulator truth. The replacement is `interruption_tolerance_v1`, a derived signal over observable behavior such as dismissal streaks, hourly dismissal rates, response-latency trends, and undo-after-accept events.
+The old `UserBiography.notification_fatigue` scalar is no longer part of the runtime biography. Stale inputs carrying that key are tolerated at parse time but ignored. The replacement is `interruption_tolerance_v1`, a derived signal over observable behavior such as dismissal streaks, hourly dismissal rates, response-latency trends, and undo-after-accept events.

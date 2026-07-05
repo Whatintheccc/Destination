@@ -11,7 +11,7 @@ CalendarPilot uses checked contracts, not generated contracts. JSON Schema files
 3. new golden vectors under `contracts/testdata/`;
 4. parity updates for Python and Swift when the object crosses the runtime boundary.
 
-Replay rows append `record_schema_version`. Missing means legacy `r0`; new writes use `r1`. Loaders tolerate unknown versions, reducers report skipped counts, and no reducer may silently discard unsupported evidence.
+Replay rows append `record_schema_version`; current runtime rows use `r1`. Missing or unsupported versions are counted as skipped by reducers and must not be silently lifted into current training evidence.
 
 ## Cross-runtime contracts
 

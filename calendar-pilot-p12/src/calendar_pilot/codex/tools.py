@@ -18,12 +18,11 @@ from calendar_pilot.diffusiongemma.self_play import SelfPlayRunner
 from calendar_pilot.diffusiongemma.signals import extract_signals
 from calendar_pilot.environment.envelope import rollback_state_from_receipt
 from calendar_pilot.environment.action_lifecycle import ActionLifecycle
-from calendar_pilot.providers import CalendarProviderError
+from calendar_pilot.codex.plan_ordering import validate_tool_plan_order
 from calendar_pilot.replay import ReplayBuffer, observation_fingerprint
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
 from calendar_pilot.types import (
-    CalendarActionReceipt,
     AuthorityGrant,
     CandidateCalendarAction,
     CodexAutonomyScopeProposal,
@@ -262,26 +261,7 @@ class CodexToolRuntime:
             if not isinstance(calls, list) or not calls:
                 errors.append("calls must be a non-empty list when supplied")
             else:
-                seen_frontier = False
-                seen_compare = False
-                terminal: str | None = None
-                for idx, row in enumerate(calls):
-                    if not isinstance(row, dict):
-                        errors.append(f"calls[{idx}] is not an object")
-                        continue
-                    tool = str(row.get("tool_name") or row.get("tool") or "")
-                    if terminal is not None:
-                        errors.append(f"{tool} appears after terminal tool {terminal}")
-                    if tool == CodexToolName.GENERATE_CANDIDATE_FRONTIER.value:
-                        seen_frontier = True
-                    if tool == CodexToolName.COMPARE_CANDIDATES.value:
-                        if not seen_frontier:
-                            errors.append("compare_candidates appeared before generate_candidate_frontier")
-                        seen_compare = True
-                    if tool in {CodexToolName.SIMULATE_ACTION_PROGRAM.value, CodexToolName.STAGE_ACTION_PACKET.value, CodexToolName.REQUEST_COMMIT.value} and not seen_compare:
-                        errors.append(f"{tool} appeared before compare_candidates")
-                    if tool in {CodexToolName.STAGE_ACTION_PACKET.value, CodexToolName.REQUEST_COMMIT.value, CodexToolName.REQUEST_UNDO.value}:
-                        terminal = tool
+                errors.extend(validate_tool_plan_order(calls))
         if candidates is not None:
             if not isinstance(candidates, list) or not candidates:
                 errors.append("candidates must be a non-empty list when supplied")
@@ -387,60 +367,8 @@ class CodexToolRuntime:
         rows.sort(key=lambda r: r["robust_score"], reverse=True)
         return self._receipt(call, CodexToolStatus.SUCCEEDED, {"ranking": rows, "winner": rows[0] if rows else None})
 
-    def _provider_conflict_truth(self, candidate: CandidateCalendarAction) -> list[dict[str, Any]]:
-        conflict_truth = getattr(self.provider, "conflict_truth", None)
-        if not callable(conflict_truth):
-            return []
-        return list(conflict_truth(candidate))
-
-    def _provider_write_blocker(self, observation: RawCalendarObservation | None, *, require_live_observation: bool) -> dict[str, Any] | None:
-        is_real_provider = bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False))
-        if self.provider is None or not is_real_provider:
-            return None
-        if type(self.kernel).__name__ != "SwiftKernelIPCClient":
-            return {
-                "provider": getattr(self.provider, "provider_id", "unknown_provider"),
-                "configured": False,
-                "status": "swift_ipc_required_for_live_provider",
-                "kernel": type(self.kernel).__name__,
-            }
-        expected_observation_id = getattr(self.provider, "observation_id", None)
-        if require_live_observation and expected_observation_id and observation is not None and observation.observation_id != expected_observation_id:
-            return {
-                "provider": getattr(self.provider, "provider_id", "unknown_provider"),
-                "configured": False,
-                "status": "provider_observation_not_loaded",
-                "expected_observation_id": expected_observation_id,
-                "actual_observation_id": observation.observation_id,
-            }
-        health_status = getattr(self.provider, "health_status", None)
-        if not callable(health_status):
-            return {"provider": getattr(self.provider, "provider_id", "unknown_provider"), "configured": False, "status": "health_unavailable"}
-        health = dict(health_status())
-        if health.get("configured"):
-            return None
-        return health
-
     def _real_provider_active(self) -> bool:
         return bool(getattr(self.provider, "real_provider", False) or getattr(self.provider, "real_oauth", False))
-
-    def _commit_to_provider(self, candidate: CandidateCalendarAction, receipt: CalendarActionReceipt, observation: RawCalendarObservation):
-        commit_candidate = getattr(self.provider, "commit_candidate", None)
-        if not callable(commit_candidate):
-            return None
-        try:
-            return commit_candidate(candidate, receipt, observation)
-        except CalendarProviderError as exc:
-            raise RuntimeError(f"provider write failed: {exc}") from exc
-
-    def _rollback_provider(self, rollback_handle_id: str):
-        rollback = getattr(self.provider, "rollback", None)
-        if not callable(rollback):
-            return None
-        try:
-            return rollback(rollback_handle_id)
-        except CalendarProviderError as exc:
-            raise RuntimeError(f"provider rollback failed: {exc}") from exc
 
     def _candidate_from_input(self, call: CodexToolCall) -> CandidateCalendarAction:
         candidate_id = call.input.get("candidate_id")
@@ -699,26 +627,19 @@ class CodexToolRuntime:
         }.get(call.tool_name, call.tool_name.value)
         rollback_state = rollback_state_from_receipt(swift_receipt, provider_rollback)
         return {
-            "schema_version": "calendar_action_envelope.v1",
             "envelope_version": "calendar_action_envelope.v2",
             "envelope_id": "env_" + hashlib.sha1(f"{trace_id}|{candidate_id}|{call.tool_call_id}".encode("utf-8")).hexdigest()[:12],
             "trace_id": trace_id,
             "candidate_id": candidate_id,
-            "tool_call_id": call.tool_call_id,
-            "tool_name": call.tool_name.value,
-            "tool_status": status.value,
             "current_state": transition,
+            "runtime_mode": "codex_tool_runtime",
+            "backends": {},
             "authority": {
                 "grant_id": (authority_grant.grant_id if authority_grant else None) or call.authority_grant_id,
                 "tier": call.requested_authority_tier,
                 "scopes": authority_grant.scopes if authority_grant else [],
                 "confirmation_provenance": authority_grant.confirmation_provenance if authority_grant else None,
             },
-            "authority_grant_id": (authority_grant.grant_id if authority_grant else None) or call.authority_grant_id,
-            "action_program_digest": CodexToolRuntime._action_program_digest(candidate),
-            "stage_state": (swift_receipt or {}).get("stage_state", stage_state.value),
-            "sync_status": (swift_receipt or {}).get("sync_status"),
-            "swift_receipt_id": swift_receipt_id or (swift_receipt or {}).get("receipt_id"),
             "provider": {
                 "provider_id": (provider_payload or {}).get("provider_id") or (swift_receipt or {}).get("provider_id"),
                 "provider_status": (provider_payload or {}).get("status"),
@@ -735,25 +656,6 @@ class CodexToolRuntime:
                 "swift_receipt_id": swift_receipt_id or (swift_receipt or {}).get("receipt_id"),
                 "detail": {"denied_reason": denied, "stage_state": (swift_receipt or {}).get("stage_state", stage_state.value)},
             }],
-            "provider_id": (provider_payload or {}).get("provider_id") or (swift_receipt or {}).get("provider_id"),
-            "provider_status": (provider_payload or {}).get("status"),
-            "provider_transaction_id": (provider_payload or {}).get("idempotency_key"),
-            "external_event_ids": (provider_payload or {}).get("external_ids") or (swift_receipt or {}).get("generated_event_ids") or [],
-            "rollback_handle_id": rollback_handle,
-            "rollback_verified": (provider_rollback or {}).get("rollback_verified") if provider_rollback else output.get("rollback_verified"),
-            "rollback_state": rollback_state,
-            "denied_reason": denied,
-            "swift_receipt": swift_receipt,
-            "provider_receipt": provider_receipt,
-            "provider_rollback": provider_rollback,
             "replay_record_ids": [],
-            "reward_events": [],
+            "reward": {},
         }
-
-    @staticmethod
-    def _action_program_digest(candidate: dict[str, Any] | None) -> str | None:
-        if not candidate:
-            return None
-        actions = candidate.get("actions", [])
-        raw = json.dumps(actions, sort_keys=True, separators=(",", ":"))
-        return "ap_" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]

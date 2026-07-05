@@ -11,7 +11,7 @@ let pending = false;
 let polling = false;
 const $ = (sel) => document.querySelector(sel);
 
-function sessionId() { return store.view?.session?.session_id || store.view?.legacy_state?.session?.session_id || ''; }
+function sessionId() { return store.view?.session?.session_id || ''; }
 async function refresh() { store.checkpoint(await loadView(sessionId())); }
 function setPending(value) { pending = value; document.querySelectorAll('button, textarea, input').forEach(el => { if (!['inspector-toggle','close-inspector'].includes(el.id)) el.disabled = value; }); }
 function showToast(text) { const toast = h('div', {class: 'toast'}, text); document.body.append(toast); setTimeout(() => toast.remove(), 2400); }
@@ -26,9 +26,9 @@ function render() {
 
 function renderSidebar(view) {
   const list = $('#session-list');
-  const sessions = view.legacy_state?.sidebar?.sessions || [{label: view.session?.label || 'Current fixture run', active: true, session_id: view.session?.session_id}];
+  const sessions = view.sidebar?.sessions || [{label: view.session?.label || 'Current fixture run', active: true, session_id: view.session?.session_id}];
   clear(list).append(...sessions.map(s => h('div', {class: `nav-item ${s.active ? 'active' : ''}`}, s.label || s.session_id || 'Session')));
-  const runs = view.legacy_state?.sidebar?.recent_runs || [{label: 'No dogfood runs yet'}];
+  const runs = view.sidebar?.recent_runs || [{label: 'No dogfood runs yet'}];
   clear($('#recent-runs')).append(...runs.map(r => h('div', {class: 'nav-item'}, r.label || r.plan_id || 'Run')));
 }
 
@@ -37,7 +37,7 @@ function renderHeader(view) {
   const chip = $('#runtime-chip');
   chip.textContent = runtime.mode_label || runtime.label || runtime.runtime_mode || runtime.mode || 'Fixture mode';
   chip.classList.toggle('danger', Boolean(runtime.live_blockers?.length));
-  const authority = view.legacy_state?.session || view.session || {};
+  const authority = view.session || {};
   const scopes = (authority.authority_scopes || []).join(', ') || 'no scopes';
   $('#authority-chip').textContent = `Tier ${authority.authority_tier ?? '—'}: ${scopes}`;
   const version = $('#state-version');
@@ -57,13 +57,13 @@ function renderSurface(view) {
 }
 
 function renderOperate(root, view) {
-  const messages = view.conversation?.messages || view.legacy_state?.chat?.messages || [];
+  const messages = view.conversation?.messages || [];
   root.append(h('section', {class: 'pipeline-strip'}, ...(view.pipeline?.turns || []).slice(-1).flatMap(turn => (turn.stages || []).map(stage => h('span', {class: `stage-pill ${stage.status || ''}`}, stage.stage || stage.tool || stage.object)))));
   messages.forEach(message => root.append(messageNode(message)));
   const hasCandidate = root.querySelector('[data-testid="candidate-card"]');
   if (!hasCandidate) (view.frontier?.candidates || []).slice(0, 4).forEach(card => root.append(candidateCard(card)));
   const hasReceipt = root.querySelector('[data-testid="receipt-card"]');
-  if (!hasReceipt) (view.conversation?.receipt_cards || view.legacy_state?.chat?.receipt_cards || []).forEach(card => root.append(receiptCard(card)));
+  if (!hasReceipt) (view.conversation?.receipt_cards || []).forEach(card => root.append(receiptCard(card)));
 }
 
 function messageNode(message) {
@@ -134,7 +134,7 @@ function renderSignals(root, view) {
 
 function renderAuthoritySurface(root, view) {
   root.append(h('h2', {}, 'Authority'));
-  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Authority scopes'), h('label', {}, 'Tier ', h('input', {id: 'authority-tier', type: 'number', min: 0, max: 6, value: view.legacy_state?.session?.authority_tier ?? 3})), h('label', {}, 'Scopes ', h('input', {id: 'authority-scopes', value: (view.legacy_state?.session?.authority_scopes || []).join(', ')})), h('div', {class: 'card-actions'}, h('button', {id: 'save-authority', class: 'primary'}, 'Save authority'))));
+  root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Authority scopes'), h('label', {}, 'Tier ', h('input', {id: 'authority-tier', type: 'number', min: 0, max: 6, value: view.session?.authority_tier ?? 3})), h('label', {}, 'Scopes ', h('input', {id: 'authority-scopes', value: (view.session?.authority_scopes || []).join(', ')})), h('div', {class: 'card-actions'}, h('button', {id: 'save-authority', class: 'primary'}, 'Save authority'))));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Family-level autonomy matrix'), h('pre', {}, JSON.stringify(view.authority?.family_matrix || view.authority?.autonomy_matrix || {}, null, 2))));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Promotion history'), h('pre', {}, JSON.stringify(view.authority?.promotion_history || view.authority?.history || [], null, 2))));
   root.append(h('div', {class: 'inspector-card'}, h('h3', {}, 'Rollback command'), h('pre', {}, JSON.stringify(view.authority?.rollback || {command: 'promote_autonomy_family --rollback <family>'}, null, 2))));
@@ -154,7 +154,7 @@ async function postAndRefresh(path, body = {}) {
   setPending(true);
   try {
     const response = normalizeView(await api(path, {method: 'POST', body}, sessionId()));
-    const nextSession = response.session?.session_id || response.legacy_state?.session?.session_id || sessionId();
+    const nextSession = response.session?.session_id || sessionId();
     store.checkpoint(await loadView(nextSession));
   } catch (err) {
     showToast(err.message);

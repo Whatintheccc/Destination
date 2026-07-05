@@ -133,7 +133,7 @@ def _occupied_minutes(events: list[RawCalendarEvent], start: datetime, end: date
 def _fatigue(observation: RawCalendarObservation, biography: UserBiography) -> float:
     # Legacy name retained for compatibility with policy/right-moment code.
     # P12 source of truth is the interruption_tolerance_v1 estimator over
-    # ActionStream/WorldStream behavior, not UserBiography.notification_fatigue.
+    # ActionStream/WorldStream behavior, not the removed notification-fatigue scalar.
     estimated = estimate_interruption_tolerance(observation)
     return round(1.0 - estimated.overall_tolerance, 3)
 

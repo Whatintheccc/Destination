@@ -108,9 +108,6 @@
     "runtime_mode": {
       "type": "string"
     },
-    "schema_version": {
-      "type": "string"
-    },
     "trace_id": {
       "type": "string"
     }

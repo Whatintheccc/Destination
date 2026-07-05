@@ -99,12 +99,11 @@ class FrontendServerApiTests(unittest.TestCase):
         self.assertTrue(exported["active_plan"]["trace"])
         envelopes = exported["active_plan"]["action_envelopes"]
         self.assertTrue(envelopes)
-        committed_envelopes = [row for row in envelopes if row["tool_status"] == "committed"]
+        committed_envelopes = [row for row in envelopes if row.get("lifecycle", [{}])[-1].get("status") == "committed"]
         self.assertTrue(committed_envelopes)
-        self.assertEqual(committed_envelopes[-1]["schema_version"], "calendar_action_envelope.v1")
-        self.assertEqual(committed_envelopes[-1]["provider_id"], "deterministic_fixture_provider")
-        self.assertTrue(committed_envelopes[-1]["rollback_handle_id"])
-        self.assertTrue(committed_envelopes[-1]["action_program_digest"].startswith("ap_"))
+        self.assertEqual(committed_envelopes[-1]["envelope_version"], "calendar_action_envelope.v2")
+        self.assertEqual(committed_envelopes[-1]["provider"]["provider_id"], "deterministic_fixture_provider")
+        self.assertTrue(committed_envelopes[-1]["provider"]["rollback_handle_id"])
         self.assertTrue(exported["records"])
 
         created = self.post("/api/sessions", {})

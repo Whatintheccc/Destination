@@ -133,7 +133,7 @@ class BehavioralControlTests(unittest.TestCase):
             total_reward=-1.0,
         )
         updated = store.update_from_reward(self.biography, reward)
-        self.assertEqual(updated.notification_fatigue, self.biography.notification_fatigue)
+        self.assertFalse(hasattr(updated, "notification_fatigue"))
         self.assertTrue(updated.profile_update_events)
         self.assertEqual(updated.profile_update_events[-1]["claim"], "action_stream_feedback")
         repaired = store.apply_user_correction(updated, "dismisses evening suggestions", "evenings are fine during travel weeks")

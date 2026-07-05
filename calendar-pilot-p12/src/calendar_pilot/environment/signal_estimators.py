@@ -58,7 +58,7 @@ def _input_hash(payload: dict[str, Any]) -> str:
 class InterruptionToleranceEstimator:
     """Estimate interruption tolerance from ActionStream/WorldStream behavior.
 
-    The estimator intentionally does not read `UserBiography.notification_fatigue`.
+    The estimator intentionally does not read the removed notification-fatigue scalar.
     It consumes observable notification outcomes, undo-after-accept rows, and
     response timing if available. Higher tolerance means a proactive suggestion is
     more likely to be welcome; lower tolerance means bundling/drafting is safer.

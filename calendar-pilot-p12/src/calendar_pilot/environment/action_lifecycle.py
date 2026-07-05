@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any
 import hashlib
-import json
 
 from calendar_pilot.environment.envelope import ActionEnvelope, rollback_state_from_receipt
 from calendar_pilot.providers import CalendarProviderError
@@ -18,7 +17,6 @@ from calendar_pilot.types import (
     RawCalendarObservation,
     RewardEvent,
     StageState,
-    to_jsonable,
 )
 
 
@@ -51,25 +49,7 @@ class ActionLifecycleResult:
             payload.setdefault("provider_rollback", self.provider_rollback.to_dict())
             payload.setdefault("rollback_verified", getattr(self.provider_rollback, "rollback_verified", None))
         payload.setdefault("stage_state", self.stage_state.value)
-        envelope = self.envelope.to_dict()
-        # Back-compat: replay_export and existing browser/e2e checks still read
-        # calendar_action_envelope.v1 root fields while the extracted lifecycle
-        # uses the richer v2 shape internally.
-        swift = self.swift_receipt.to_dict() if self.swift_receipt is not None else {}
-        candidate_payload = self.candidate.to_dict() if self.candidate is not None else {}
-        action_program_digest = "ap_" + hashlib.sha1(json.dumps(candidate_payload.get("actions", []), sort_keys=True, default=str).encode("utf-8")).hexdigest()[:12]
-        provider = envelope.setdefault("provider", {})
-        envelope.setdefault("schema_version", "calendar_action_envelope.v1")
-        envelope.setdefault("tool_status", self.status)
-        envelope.setdefault("tool_name", envelope.get("current_state"))
-        envelope.setdefault("action_program_digest", action_program_digest)
-        envelope.setdefault("provider_id", provider.get("provider_id") or swift.get("provider_id") or (self.provider_receipt.to_dict().get("provider_id") if self.provider_receipt is not None else None))
-        envelope.setdefault("rollback_handle_id", provider.get("rollback_handle_id") or swift.get("rollback_handle_id"))
-        envelope.setdefault("authority_grant_id", envelope.get("authority", {}).get("grant_id"))
-        envelope.setdefault("stage_state", swift.get("stage_state") or self.stage_state.value)
-        envelope.setdefault("sync_status", swift.get("sync_status"))
-        envelope.setdefault("swift_receipt_id", swift.get("receipt_id"))
-        payload["action_envelope"] = envelope
+        payload["action_envelope"] = self.envelope.to_dict()
         return payload
 
 

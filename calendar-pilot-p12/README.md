@@ -128,7 +128,7 @@ Privacy is not the primary product doctrine here. The repo treats data access as
 - authority tiers bound blast radius;
 - write receipts and undo handles make action recoverable;
 - reward is decomposed into utility, acceptance, engagement, regret, interruption, and social risk;
-- self-play adversaries search for high-regret and notification-fatigue policies;
+- self-play adversaries search for high-regret and low-interruption-tolerance policies;
 - social actuation is gated separately from reversible user-owned writes;
 - staged-vs-materialized receipts make non-write actions explicit;
 - contract tests keep Python dataclasses, JSON schemas, and Swift Codable mirrors aligned.

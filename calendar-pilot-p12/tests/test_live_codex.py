@@ -17,6 +17,7 @@ from calendar_pilot.codex.live import (
     LiveCodexNetworkError,
     LiveCodexPlanResult,
     LiveCodexRuntimeError,
+    LiveCodexSchemaError,
     LiveCodexToolPlanner,
     ModelPlannedCall,
     _conversation_runtime_context,
@@ -367,6 +368,17 @@ class LiveCodexTests(unittest.TestCase):
             if record.record_type == "codex_tool_call"
         ]
         self.assertEqual(replayed_calls, [CodexToolName.VALIDATE_MODEL_PLAN.value])
+
+    def test_live_plan_validation_treats_request_undo_as_terminal(self) -> None:
+        LiveCodexToolPlanner._validate_model_plan_before_execution([
+            ModelPlannedCall(CodexToolName.REQUEST_UNDO, {"rollback_handle_id": "undo_1"}, 3, "Undo.", "trace_undo")
+        ])
+
+        with self.assertRaisesRegex(LiveCodexSchemaError, "inspect_week appears after terminal tool request_undo"):
+            LiveCodexToolPlanner._validate_model_plan_before_execution([
+                ModelPlannedCall(CodexToolName.REQUEST_UNDO, {"rollback_handle_id": "undo_1"}, 3, "Undo.", "trace_undo"),
+                ModelPlannedCall(CodexToolName.INSPECT_WEEK, {}, 3, "Inspect.", "trace_late"),
+            ])
 
     def test_missing_codex_subscription_degrades_live_codex_plan_without_secret_output(self) -> None:
         planner = LiveCodexToolPlanner(runtime=CodexToolRuntime(), client=MissingSubscriptionClient())

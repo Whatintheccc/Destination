@@ -33,9 +33,10 @@ class P12SignalStreamTests(unittest.TestCase):
         ]
         return RawCalendarObservation.from_dict(data)
 
-    def biography(self, fatigue=0.0):
+    def biography(self, legacy_fatigue=None):
         data = json.loads((ROOT / "data/sample_profile.json").read_text())
-        data["notification_fatigue"] = fatigue
+        if legacy_fatigue is not None:
+            data["notification_fatigue"] = legacy_fatigue
         return UserBiography.from_dict(data)
 
     def test_replay_rows_gain_signal_stream_and_reward_rows_are_action(self):
@@ -84,9 +85,9 @@ class P12SignalStreamTests(unittest.TestCase):
             required_authority_tier=3,
         )
         sim_a = UserSimulator(seed=3, simulator_version="sim_v2.1")
-        response_low = sim_a.respond(cand, obs_low, self.biography(fatigue=1.0))
+        response_low = sim_a.respond(cand, obs_low, self.biography(legacy_fatigue=1.0))
         sim_b = UserSimulator(seed=3, simulator_version="sim_v2.1")
-        response_low_again = sim_b.respond(cand, obs_low, self.biography(fatigue=0.0))
+        response_low_again = sim_b.respond(cand, obs_low, self.biography(legacy_fatigue=0.0))
         self.assertEqual(response_low, response_low_again)
         # Behavioral history affects the underlying estimator, even when legacy scalar is held fixed.
         self.assertLess(

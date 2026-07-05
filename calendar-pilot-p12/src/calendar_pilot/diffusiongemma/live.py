@@ -17,6 +17,7 @@ from calendar_pilot.env import load_local_env
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy, apply_policy_tuning
 from calendar_pilot.diffusiongemma.temporal_controller import RightMomentTemporalController
 from calendar_pilot.environment.taxonomy import CanonicalIntent, normalize_intent
+from calendar_pilot.redaction import redact_env_secret_values
 from calendar_pilot.types import AtomicActionType, CandidateCalendarAction, PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
 
 
@@ -938,9 +939,4 @@ def _nim_tls_ca_bundle_source() -> str:
 
 
 def _redact_secret_text(text: str) -> str:
-    redacted = text
-    for key in ["CALENDAR_PILOT_NIM_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"]:
-        value = os.environ.get(key)
-        if value:
-            redacted = redacted.replace(value, f"<redacted:{key}>")
-    return redacted
+    return redact_env_secret_values(text, ["CALENDAR_PILOT_NIM_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"])

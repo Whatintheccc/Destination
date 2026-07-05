@@ -41,6 +41,7 @@ class FrontendProjector:
             "view_version": "view_state.v2",
             "state_version": snapshot.get("state_version", 0),
             "session": snapshot.get("session", {}),
+            "sidebar": snapshot.get("sidebar", {"sessions": [], "recent_runs": []}),
             "runtime": runtime,
             "conversation": snapshot.get("chat", {}),
             "frontier": {
@@ -57,7 +58,6 @@ class FrontendProjector:
             "signals": signals,
             "pipeline": snapshot.get("pipeline", {"turns": []}),
             "invariants": snapshot.get("invariants", {"violations": []}),
-            "legacy_state": snapshot,
         }
 
 

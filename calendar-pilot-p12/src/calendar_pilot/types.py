@@ -345,7 +345,6 @@ class UserBiography:
     auto_create_travel_buffers: bool = False
     auto_move_flexible_holds: bool = False
     ask_before_people_meetings: bool = True
-    notification_fatigue: float = 0.0
     preference_claims: list[dict[str, Any]] = field(default_factory=list)
     biography_claims: list[dict[str, Any]] = field(default_factory=list)
     profile_update_events: list[dict[str, Any]] = field(default_factory=list)
@@ -362,7 +361,6 @@ class UserBiography:
             auto_create_travel_buffers=bool(data.get("auto_create_travel_buffers", False)),
             auto_move_flexible_holds=bool(data.get("auto_move_flexible_holds", False)),
             ask_before_people_meetings=bool(data.get("ask_before_people_meetings", True)),
-            notification_fatigue=float(data.get("notification_fatigue", 0.0)),
             preference_claims=[{**dict(c), "kind": str(dict(c).get("kind", "declared"))} for c in data.get("preference_claims", [])],
             biography_claims=[{**dict(c), "kind": str(dict(c).get("kind", "declared"))} for c in data.get("biography_claims", data.get("preference_claims", []))],
             profile_update_events=list(data.get("profile_update_events", [])),

@@ -59,7 +59,7 @@ class SelfPlayMetrics:
     undone: int = 0
     ignored: int = 0
     total_reward: float = 0.0
-    fatigue_penalty: float = 0.0
+    interruption_penalty: float = 0.0
     high_regret_actions: int = 0
     adversarial_delta: float = 0.0
     failure_modes: dict[str, int] = field(default_factory=dict)
@@ -102,8 +102,8 @@ class ConflictAdversary:
         return None
 
 
-class FatigueAdversary:
-    name = "fatigue_adversary"
+class InterruptionToleranceAdversary:
+    name = "interruption_tolerance_adversary"
 
     def inspect(self, candidate: CandidateCalendarAction, reward: float) -> AdversaryFinding | None:
         if candidate.right_moment_decision.value in {"notify_now", "auto_write_then_notify"} and candidate.predicted_interruption_cost > 0.15:
@@ -147,12 +147,12 @@ class EngagementAdversary:
 class UserSimulator:
     """Versioned user simulator.
 
-    `sim_v1` preserves the historical behavior. `sim_v2` is the P11
-    anti-circular simulator. `sim_v2.1` keeps the predicted-head ban and uses
-    P12 signal estimators over behavioral history instead of psychological scalars.
+    `sim_v2` is the P11 anti-circular simulator. `sim_v2.1` keeps the
+    predicted-head ban and uses P12 signal estimators over behavioral history
+    instead of psychological scalars.
     """
 
-    def __init__(self, seed: int = 7, simulator_version: str = "sim_v1") -> None:
+    def __init__(self, seed: int = 7, simulator_version: str = "sim_v2.1") -> None:
         self.seed = int(seed)
         self.simulator_version = simulator_version
         self.random = random.Random(seed)
@@ -160,31 +160,7 @@ class UserSimulator:
     def respond(self, candidate: CandidateCalendarAction, observation: RawCalendarObservation | None = None, biography: UserBiography | None = None) -> SimulatedResponse:
         if self.simulator_version in {"sim_v2", "sim_v2.1"}:
             return self._respond_v2(candidate, observation, biography)
-        return self._respond_v1(candidate)
-
-    def _respond_v1(self, candidate: CandidateCalendarAction) -> SimulatedResponse:
-        p_accept = max(
-            0.0,
-            min(
-                0.95,
-                candidate.predicted_acceptance
-                + 0.18 * candidate.predicted_utility
-                - candidate.predicted_regret
-                - candidate.predicted_interruption_cost * 0.25
-                - candidate.predicted_social_risk * 0.25,
-            ),
-        )
-        roll = self.random.random()
-        if candidate.intent == "do_nothing":
-            return SimulatedResponse("ignored", 0.0, "baseline no-op")
-        if roll < p_accept:
-            regret_roll = self.random.random()
-            if regret_roll < candidate.predicted_regret:
-                return SimulatedResponse("undone", -2.0, "accepted first, then regretted after calendar reality changed")
-            return SimulatedResponse("accepted", 1.0 + candidate.expected_reward, "accepted because expected utility cleared friction")
-        if roll < p_accept + 0.12:
-            return SimulatedResponse("ignored", -0.35, "user neither accepted nor corrected; treat as weak negative")
-        return SimulatedResponse("rejected", -0.85, "rejected by simulated preference boundary")
+        raise ValueError(f"unsupported simulator_version: {self.simulator_version}")
 
     def _respond_v2(self, candidate: CandidateCalendarAction, observation: RawCalendarObservation | None, biography: UserBiography | None) -> SimulatedResponse:
         if candidate.intent == "do_nothing":
@@ -239,7 +215,7 @@ class SelfPlayRunner:
     user_simulator: UserSimulator = field(default_factory=UserSimulator)
     adversaries: list[SelfPlayAdversary] = field(default_factory=lambda: [
         ConflictAdversary(),
-        FatigueAdversary(),
+        InterruptionToleranceAdversary(),
         RegretAdversary(),
         EngagementAdversary(),
     ])
@@ -373,7 +349,7 @@ class SelfPlayRunner:
             undone=(response.outcome == "undone"),
             ignored=(response.outcome == "ignored"),
             explicit_wrong=any(f.label == "social_conflict" for f in findings) or None,
-            notification_dismissed=any(f.label in {"interruption_tolerance_low", "notification_fatigue"} for f in findings) or None,
+            notification_dismissed=any(f.label == "interruption_tolerance_low" for f in findings) or None,
             total_reward=reward_after,
             provenance="self_play_simulator",
         )
@@ -430,6 +406,6 @@ class SelfPlayRunner:
             metrics.rejected += 1
         for finding in episode.findings:
             metrics.failure_modes[finding.label] = metrics.failure_modes.get(finding.label, 0) + 1
-            if finding.label in {"interruption_tolerance_low", "notification_fatigue"}:
-                metrics.fatigue_penalty += abs(finding.reward_delta)
+            if finding.label == "interruption_tolerance_low":
+                metrics.interruption_penalty += abs(finding.reward_delta)
         metrics.episode_log.append(episode)

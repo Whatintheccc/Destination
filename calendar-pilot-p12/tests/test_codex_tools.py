@@ -27,6 +27,16 @@ def load_bio() -> UserBiography:
 
 
 class CodexToolRuntimeTests(unittest.TestCase):
+    def test_dead_provider_quartet_is_not_on_codex_runtime(self):
+        for name in [
+            "_provider_conflict_truth",
+            "_provider_write_blocker",
+            "_commit_to_provider",
+            "_rollback_provider",
+        ]:
+            self.assertFalse(hasattr(CodexToolRuntime, name), name)
+        self.assertTrue(hasattr(CodexToolRuntime, "_real_provider_active"))
+
     def test_codex_can_inspect_generate_compare_stage_and_log_tools(self):
         replay = ReplayBuffer()
         runtime = CodexToolRuntime(replay=replay)
@@ -80,6 +90,40 @@ class CodexToolRuntimeTests(unittest.TestCase):
         receipt = runtime.execute(CodexToolCall("commit_social", CodexToolName.REQUEST_COMMIT, {"candidate": candidate.to_dict()}, 6, "commit", authority_grant_id=grant.grant_id), obs, bio)
         self.assertEqual(receipt.status, CodexToolStatus.DENIED)
         self.assertIn("social actuation", receipt.denied_reason or "")
+
+    def test_model_plan_validation_treats_request_undo_as_terminal(self):
+        runtime = CodexToolRuntime()
+        valid = runtime.execute(
+            CodexToolCall(
+                "validate_undo_only",
+                CodexToolName.VALIDATE_MODEL_PLAN,
+                {"calls": [{"tool_name": CodexToolName.REQUEST_UNDO.value}]},
+                3,
+                "validate undo-only plan",
+            ),
+            load_obs(),
+            load_bio(),
+        )
+        self.assertEqual(valid.status, CodexToolStatus.SUCCEEDED)
+
+        invalid = runtime.execute(
+            CodexToolCall(
+                "validate_undo_then_inspect",
+                CodexToolName.VALIDATE_MODEL_PLAN,
+                {
+                    "calls": [
+                        {"tool_name": CodexToolName.REQUEST_UNDO.value},
+                        {"tool_name": CodexToolName.INSPECT_WEEK.value},
+                    ]
+                },
+                3,
+                "validate bad undo plan",
+            ),
+            load_obs(),
+            load_bio(),
+        )
+        self.assertEqual(invalid.status, CodexToolStatus.FAILED)
+        self.assertIn("appears after terminal tool request_undo", invalid.output["errors"][0])
 
     def test_codex_planner_operates_goal_with_tools(self):
         planner = CodexToolPlanner(runtime=CodexToolRuntime())

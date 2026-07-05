@@ -182,8 +182,8 @@ def run_app_bundle_sanity(
             if launch_state.get("base_url") != base_url:
                 raise AssertionError(f"launch state base_url {launch_state.get('base_url')} did not match expected {base_url}")
             page = http_get_text(base_url, "/")
-            app_js = http_get_text(base_url, "/app.js")
-            if 'data-testid="chat-transcript"' not in page or 'data-testid="runtime-chip"' not in page or "/api/plans" not in app_js:
+            main_js = http_get_text(base_url, "/js/main.js")
+            if 'data-testid="chat-transcript"' not in page or 'data-testid="runtime-chip"' not in page or "/api/plans" not in main_js:
                 raise AssertionError("bundled app did not serve expected frontend assets")
             if health.get("runtime_mode") != runtime_mode:
                 raise AssertionError(f"bundled app health returned wrong runtime mode: {health.get('runtime_mode')}")
@@ -367,9 +367,11 @@ def run_occupied_port_launch_gate() -> dict[str, Any]:
             chosen_port = int(launch_state.get("port"))
             if chosen_port == 8787:
                 raise AssertionError("app used occupied default port 8787")
-            health = api_get(str(launch_state.get("base_url")), "/api/health")
+            base_url = str(launch_state.get("base_url"))
+            wait_for_state(base_url, app_proc, log_path)
+            health = api_get(base_url, "/api/health")
             assert_owned_health(health, launch_id=launch_id, expected_port=chosen_port, expected_server_pid=int(launch_state.get("server_pid")))
-            page = http_get_text(str(launch_state.get("base_url")), "/")
+            page = http_get_text(base_url, "/")
             if 'data-testid="chat-transcript"' not in page:
                 raise AssertionError("alternate-port app did not serve frontend")
         ok = True

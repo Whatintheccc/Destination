@@ -180,10 +180,10 @@ def _nim_credential_source() -> tuple[bool, str]:
     return False, "missing"
 
 
-def codex_subscription_auth_state() -> dict[str, bool | str]:
+def codex_subscription_auth_state(auth_file: str | Path | None = None) -> dict[str, bool | str]:
     if os.environ.get("CODEX_ACCESS_TOKEN"):
         return {"configured": True, "source": "environment", "status": "configured", "auth_method": "CODEX_ACCESS_TOKEN"}
-    path = _codex_auth_file()
+    path = Path(auth_file) if auth_file is not None else codex_auth_file()
     if path.exists():
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -198,10 +198,14 @@ def codex_subscription_auth_state() -> dict[str, bool | str]:
     return {"configured": False, "source": "missing", "status": "missing_credential", "auth_method": "missing"}
 
 
-def _codex_auth_file() -> Path:
+def codex_auth_file() -> Path:
     if os.environ.get("CALENDAR_PILOT_CODEX_AUTH_FILE"):
         return Path(os.environ["CALENDAR_PILOT_CODEX_AUTH_FILE"])
     return Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "auth.json"
+
+
+def _codex_auth_file() -> Path:
+    return codex_auth_file()
 
 
 def runtime_report(

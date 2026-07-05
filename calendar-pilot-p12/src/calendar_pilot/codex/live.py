@@ -15,7 +15,15 @@ import time
 from typing import Any
 
 from calendar_pilot.codex.planner import CodexExecutivePlan, CodexToolPlanner
+from calendar_pilot.codex.plan_ordering import TERMINAL_TOOLS, validate_tool_plan_order
 from calendar_pilot.codex.tools import CodexToolRuntime
+from calendar_pilot.frontend.runtime import (
+    API_KEY_AUTH_MODES,
+    SUBSCRIPTION_AUTH_MODES,
+    codex_auth_file,
+    codex_subscription_auth_state,
+)
+from calendar_pilot.redaction import redact_env_secret_values
 from calendar_pilot.types import (
     CodexToolCall,
     CodexToolName,
@@ -32,8 +40,6 @@ LIVE_CODEX_BACKEND = "live_codex_app_server"
 LIVE_CODEX_PROMPT_VERSION = "calendar_pilot_codex_app_server_v1"
 LIVE_CODEX_CHAT_PROMPT_VERSION = "calendar_pilot_codex_conversation_v1"
 CODEX_AUTH_DOC_URL = "https://developers.openai.com/codex/auth"
-SUBSCRIPTION_AUTH_MODES = {"chatgpt", "chatgptAuthTokens", "agentIdentity", "personalAccessToken"}
-API_KEY_AUTH_MODES = {"apikey", "apiKey", "api_key"}
 ALLOWED_LIVE_TOOLS = {
     CodexToolName.INSPECT_WEEK,
     CodexToolName.GENERATE_CANDIDATE_FRONTIER,
@@ -122,7 +128,7 @@ class CodexAppServerClient:
         self.codex_bin = str(codex_bin or os.environ.get("CALENDAR_PILOT_CODEX_BIN") or _default_codex_binary() or "codex")
         self.model = model if model is not None else os.environ.get("CALENDAR_PILOT_CODEX_MODEL", "")
         self.timeout_seconds = float(timeout_seconds or os.environ.get("CALENDAR_PILOT_CODEX_TIMEOUT", "120"))
-        self.auth_file = Path(auth_file) if auth_file is not None else _codex_auth_file()
+        self.auth_file = Path(auth_file) if auth_file is not None else codex_auth_file()
 
     def health_status(self, *, validate_remote: bool = False) -> dict[str, Any]:
         # Report subscription/auth state before binary availability so clean dogfood
@@ -764,7 +770,10 @@ class LiveCodexToolPlanner:
         winner: str | None = None
         saw_frontier = False
         saw_compare = False
+        terminal_tool: CodexToolName | None = None
         for idx, planned in enumerate(calls):
+            if terminal_tool is not None:
+                raise LiveCodexSchemaError(f"{planned.tool_name.value} appeared after terminal tool {terminal_tool.value}")
             payload = dict(planned.input)
             if planned.tool_name == CodexToolName.GENERATE_CANDIDATE_FRONTIER:
                 saw_frontier = True
@@ -800,6 +809,8 @@ class LiveCodexToolPlanner:
                 frontier_ids = [str(item) for item in receipt.output.get("frontier_ids", [])]
             if planned.tool_name == CodexToolName.COMPARE_CANDIDATES:
                 winner = str((receipt.output.get("winner") or {}).get("candidate_id") or "")
+            if planned.tool_name.value in TERMINAL_TOOLS:
+                terminal_tool = planned.tool_name
 
     def _failed_chat_response(self, message: str, exc: LiveCodexError) -> LiveCodexChatResult:
         return LiveCodexChatResult(
@@ -870,24 +881,10 @@ class LiveCodexToolPlanner:
 
     @staticmethod
     def _validate_model_plan_before_execution(calls: list[ModelPlannedCall]) -> None:
-        if not calls:
-            raise LiveCodexSchemaError("live Codex returned no tool calls")
-        saw_frontier = False
-        saw_compare = False
-        terminal_tool: CodexToolName | None = None
-        for idx, planned in enumerate(calls):
-            if terminal_tool is not None:
-                raise LiveCodexSchemaError(f"{planned.tool_name.value} appeared after terminal tool {terminal_tool.value}")
-            if planned.tool_name == CodexToolName.GENERATE_CANDIDATE_FRONTIER:
-                saw_frontier = True
-            if planned.tool_name == CodexToolName.COMPARE_CANDIDATES:
-                if not saw_frontier:
-                    raise LiveCodexSchemaError("compare_candidates appeared before generate_candidate_frontier")
-                saw_compare = True
-            if planned.tool_name in {CodexToolName.SIMULATE_ACTION_PROGRAM, CodexToolName.STAGE_ACTION_PACKET, CodexToolName.REQUEST_COMMIT} and not saw_compare:
-                raise LiveCodexSchemaError(f"{planned.tool_name.value} appeared before compare_candidates")
-            if planned.tool_name in {CodexToolName.STAGE_ACTION_PACKET, CodexToolName.REQUEST_COMMIT}:
-                terminal_tool = planned.tool_name
+        errors = validate_tool_plan_order(calls)
+        if errors:
+            message = "live Codex returned no tool calls" if errors == ["calls must be a non-empty list when supplied"] else errors[0]
+            raise LiveCodexSchemaError(message)
 
     @staticmethod
     def _recommended_action(plan: CodexExecutivePlan) -> str:
@@ -997,28 +994,11 @@ def _remote_account_health(account_result: dict[str, Any], *, model: str) -> dic
 
 
 def _local_subscription_auth_state(auth_file: Path | None = None) -> dict[str, Any]:
-    if os.environ.get("CODEX_ACCESS_TOKEN"):
-        return {"status": "configured", "configured": True, "source": "environment", "auth_method": "CODEX_ACCESS_TOKEN"}
-    path = auth_file or _codex_auth_file()
-    if path and path.exists():
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            return {"status": "invalid_credential", "configured": False, "source": "auth_cache", "auth_method": "unreadable"}
-        mode = str(data.get("auth_mode") or data.get("authMode") or "")
-        if mode in SUBSCRIPTION_AUTH_MODES:
-            return {"status": "configured", "configured": True, "source": "auth_cache", "auth_method": mode}
-        if mode in API_KEY_AUTH_MODES or data.get("OPENAI_API_KEY"):
-            return {"status": "wrong_auth_method", "configured": False, "source": "auth_cache", "auth_method": mode or "apiKey"}
-        return {"status": "missing_credential", "configured": False, "source": "auth_cache", "auth_method": mode or "missing"}
-    return {"status": "missing_credential", "configured": False, "source": "missing", "auth_method": "missing"}
+    return dict(codex_subscription_auth_state(auth_file))
 
 
 def _codex_auth_file() -> Path:
-    if os.environ.get("CALENDAR_PILOT_CODEX_AUTH_FILE"):
-        return Path(os.environ["CALENDAR_PILOT_CODEX_AUTH_FILE"])
-    home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
-    return home / "auth.json"
+    return codex_auth_file()
 
 
 _BINARY_PROBE_CACHE: dict[str, dict[str, Any]] = {}
@@ -1075,12 +1055,7 @@ def _turn_failure(turn: dict[str, Any]) -> LiveCodexError:
 
 
 def _redact_secret_text(text: str) -> str:
-    redacted = text
-    for key in ["CODEX_ACCESS_TOKEN", "CODEX_API_KEY", "OPENAI_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"]:
-        value = os.environ.get(key)
-        if value:
-            redacted = redacted.replace(value, f"<redacted:{key}>")
-    return redacted
+    return redact_env_secret_values(text, ["CODEX_ACCESS_TOKEN", "CODEX_API_KEY", "OPENAI_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"])
 
 
 def _redacted_observation(observation: RawCalendarObservation) -> dict[str, Any]:

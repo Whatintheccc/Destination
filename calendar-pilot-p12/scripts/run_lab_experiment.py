@@ -15,8 +15,8 @@ import sys
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT / "scripts"))
 
 from calendar_pilot.codex import CodexToolPlanner, CodexToolRuntime
 from calendar_pilot.diffusiongemma.live import DEFAULT_NIM_MODEL, LIVE_DIFFUSIONGEMMA_BACKEND, PROMPT_VERSION, LiveDiffusionGemmaSchemaError, LiveDiffusionGemmaPolicy
@@ -33,10 +33,7 @@ from calendar_pilot.replay import ReplayBuffer, observation_fingerprint
 from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.swift_bridge.ipc import SwiftKernelIPCClient
 from calendar_pilot.types import CandidateCalendarAction, PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
-from make_scorecard import build_scorecard
-from run_frontier_diff import build_diff
-from seed_calendar_corpus import lint_seed
-from train_offline_policy import build_policy_report
+from scripts.lab_modules import build_diff, build_policy_report, build_scorecard, lint_seed
 
 
 LAB_SCHEMA_VERSION = "lab_v0.1"
@@ -707,7 +704,7 @@ def main() -> None:
     parser.add_argument("--runtime", default="fixture", choices=["fixture", "live_diffusiongemma"])
     parser.add_argument("--self-play-backend", default="stub_fast", choices=[item.value for item in SelfPlayActionBackend])
     parser.add_argument("--episodes", type=int, default=10)
-    parser.add_argument("--simulator-version", default="sim_v2", choices=["sim_v1", "sim_v2"])
+    parser.add_argument("--simulator-version", default="sim_v2.1", choices=["sim_v2", "sim_v2.1"])
     parser.add_argument("--simulator-seed", type=int, default=7)
     parser.add_argument("--batch", default="adhoc")
     parser.add_argument("--tuning", default="")

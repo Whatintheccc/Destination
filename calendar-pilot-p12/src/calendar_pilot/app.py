@@ -117,7 +117,7 @@ def main() -> None:
     demo.set_defaults(func=run_demo)
 
     frontend = sub.add_parser("frontend")
-    frontend.add_argument("--out", default="frontend/static/frontend_state.sample.json")
+    frontend.add_argument("--out", default="runs/dogfood/frontend_snapshot.json")
     frontend.add_argument("--write-snapshot", action="store_true", help="write a demo frontend snapshot JSON")
     frontend.add_argument("--serve", action="store_true", help="serve frontend/static with Python's built-in HTTP server")
     frontend.add_argument("--host", default="127.0.0.1")

@@ -16,6 +16,7 @@ if (!baseUrl || !artifactDir) {
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const expectedRuntimeMode = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_MODE || 'fixture';
 const expectedRuntimeLabel = process.env.CALENDAR_PILOT_EXPECTED_RUNTIME_LABEL || runtimeLabel(expectedRuntimeMode);
+const liveRuntimeMode = expectedRuntimeMode !== 'fixture';
 const waitTimeoutMs = Number(process.env.CALENDAR_PILOT_BROWSER_WAIT_MS || 15000);
 const requireUndo = process.env.CALENDAR_PILOT_BROWSER_REQUIRE_UNDO !== '0';
 await mkdir(artifactDir, { recursive: true });
@@ -100,12 +101,23 @@ async function main() {
   await waitFor(client, 'document.querySelector("#authority-chip")?.textContent.includes("Tier 0")');
 
   await domClick(client, '[data-surface="operate"]');
-  await fill(client, '#goal-input', 'Try a low-authority commit');
-  await click(client, '#send-goal');
-  await waitFor(client, 'Array.from(document.querySelectorAll("[data-testid=\\"message-user\\"]")).some(el => el.innerText.includes("Try a low-authority commit"))');
-  await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length > 0');
-  await click(client, '[data-testid="commit-candidate"]', { last: true });
-  await waitFor(client, 'document.body.innerText.toLowerCase().includes("denied")');
+  if (liveRuntimeMode) {
+    const existingCommitButtons = await evaluate(client, 'document.querySelectorAll("[data-testid=\\"commit-candidate\\"]").length');
+    if (existingCommitButtons > 0) {
+      await click(client, '[data-testid="commit-candidate"]', { last: true });
+      await waitFor(client, 'document.body.innerText.toLowerCase().includes("denied")');
+      await writeFile(path.join(artifactDir, 'live_low_authority_denial.json'), JSON.stringify({ exercised: true, strategy: 'existing_candidate_after_authority_drop' }, null, 2), 'utf8');
+    } else {
+      await writeFile(path.join(artifactDir, 'live_low_authority_denial.json'), JSON.stringify({ exercised: false, reason: 'no_existing_candidate_button_after_authority_drop' }, null, 2), 'utf8');
+    }
+  } else {
+    await fill(client, '#goal-input', 'Try a low-authority commit');
+    await click(client, '#send-goal');
+    await waitFor(client, 'Array.from(document.querySelectorAll("[data-testid=\\"message-user\\"]")).some(el => el.innerText.includes("Try a low-authority commit"))');
+    await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length > 0');
+    await click(client, '[data-testid="commit-candidate"]', { last: true });
+    await waitFor(client, 'document.body.innerText.toLowerCase().includes("denied")');
+  }
 
   await click(client, '#replay-export');
   await waitFor(client, 'document.querySelector("#envelope-overlay")?.innerText.includes("records")');

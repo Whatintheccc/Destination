@@ -44,7 +44,7 @@ export function normalizeReceipt(receipt) {
     receipt_id: swift.receipt_id || receipt.swift_receipt_id || receipt.receipt_id || receipt.tool_call_id,
     title: receipt.denied_reason ? 'Swift denied the action' : (receipt.status === 'committed' ? 'Committed calendar change' : (receipt.status === 'reverted' ? 'Undo completed' : 'Swift receipt')),
     status: receipt.status || swift.stage_state || swift.sync_status,
-    rollback_handle_id: swift.rollback_handle_id || receipt.rollback_handle_id,
+    rollback_handle_id: swift.rollback_handle_id || provider.rollback_handle_id || receipt.rollback_handle_id,
     rollback_state: rollbackState,
     grant_id: receipt.authority_grant_id || swift.authority_grant_id || env.authority?.grant_id,
     body: receipt.denied_reason || swift.denied_reason || `Stage state: ${receipt.stage_state || swift.stage_state || 'no_op'}`,

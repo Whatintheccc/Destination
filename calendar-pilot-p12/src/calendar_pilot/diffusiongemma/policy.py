@@ -52,7 +52,7 @@ def apply_policy_tuning(candidate: CandidateCalendarAction, tuning: PolicyTuning
     if candidate.predicted_social_risk > 0.18 or len(candidate.affected_people_ids) >= 3:
         penalty += tuning.failure_penalties.get("social_conflict", 0.0)
     if candidate.predicted_interruption_cost > 0.15 and intent_key not in {"do_nothing"}:
-        penalty += tuning.failure_penalties.get("interruption_tolerance_low", tuning.failure_penalties.get("notification_fatigue", 0.0))
+        penalty += tuning.failure_penalties.get("interruption_tolerance_low", 0.0)
     if candidate.required_authority_tier >= 3 and candidate.predicted_regret > 0.10:
         penalty += tuning.failure_penalties.get("undo_regret", 0.0)
     if candidate.predicted_engagement > candidate.predicted_utility and candidate.predicted_engagement > 0.25:
