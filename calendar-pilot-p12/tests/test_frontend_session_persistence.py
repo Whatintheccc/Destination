@@ -82,7 +82,7 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
                 "receipt": {"status": "denied", "denied_reason": "required authority tier exceeds Swift-issued grant"},
             })
 
-            receipts = session._execute_live_conversation_tools([{
+            receipts = session.conversation.execute_tools([{
                 "tool_name": CodexToolName.EXPLAIN_SWIFT_DENIAL,
                 "input": {"denied_reason": "latest denial in current session"},
                 "requested_authority_tier": 3,

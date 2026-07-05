@@ -233,7 +233,7 @@ class AppleEventKitProvider:
         found: set[str] = set()
         local_time_echo_ok = None
         try:
-            obs = observation if observation is not None and observation.observation_id == self.observation_id else self.read_observation("apple_eventkit_user")
+            obs = self.read_observation("apple_eventkit_user")
             observed_ids = {event.event_id for event in obs.events}
             found = {external_id for external_id in external_ids if external_id in observed_ids}
             local_time_echo_ok = all(external_id in observed_ids for external_id in payload.get("created_external_ids", []) + payload.get("moved_external_ids", []))

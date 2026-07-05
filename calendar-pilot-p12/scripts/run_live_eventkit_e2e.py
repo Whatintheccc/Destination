@@ -124,9 +124,10 @@ def run_materialization_probe(provider: AppleEventKitProvider) -> dict[str, Any]
 
 
 def eventkit_probe_candidate() -> CandidateCalendarAction:
-    start = datetime.now(timezone.utc) + timedelta(days=21)
+    start = datetime.now(timezone.utc) + timedelta(days=7)
     start = start.replace(hour=16, minute=0, second=0, microsecond=0)
     end = start + timedelta(minutes=20)
+    calendar_id = os.environ.get("CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX_CALENDAR_ID") or os.environ.get("CALENDAR_PILOT_EVENTKIT_SANDBOX_CALENDAR_ID") or "default"
     return CandidateCalendarAction(
         candidate_id="cand_eventkit_live_probe",
         intent="create_focus_block",
@@ -136,11 +137,11 @@ def eventkit_probe_candidate() -> CandidateCalendarAction:
                 title="CalendarPilot Dogfood Probe",
                 start=start,
                 end=end,
-                calendar_id="default",
+                calendar_id=calendar_id,
                 metadata={"notes": "CalendarPilot live EventKit write/rollback probe"},
             )
         ],
-        target_calendars=["default"],
+        target_calendars=[calendar_id],
         affected_event_ids=[],
         affected_people_ids=[],
         reversibility=Reversibility.HIGH,

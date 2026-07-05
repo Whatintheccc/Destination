@@ -1,5 +1,7 @@
 According to a document from **July 3, 2026**, P11 is complete: the final report marks the overall decision as **pass**, with deterministic P11 promotion evidence passing required gates, trajectory/replay/contract/provider/self-play/frontend/release checks complete, and remaining live NIM/EventKit issues resolved through unblock reruns.
 
+Post-D2 correction from **July 5, 2026**: the P12-next EventKit/provider-backed self-play path is now proven on this machine. The recent sandbox setup is `CalendarPilot SelfPlay` with `CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX=1` and `CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX_CALENDAR_ID="CalendarPilot SelfPlay"`; P11's older unblock used the same shape with `CalendarPilot Sandbox`. The current bridge now refuses unavailable explicit calendar ids/titles instead of falling back to `default`, exposes an explicit `ensure_calendar` setup command, verifies EventKit writes through fresh provider readback with stable created IDs, and passed a five-episode `swift_ipc_eventkit_sandbox` `create_prep_block` run with verified rollback cleanup. This dogfood Mac had no local EventKit source exposed, so `CalendarPilot SelfPlay` was created with explicit `source_policy: default_if_no_local`; all writes still targeted only that sandbox title. The remaining hold is evidence volume for `create_prep_block` promotion, not EventKit plumbing.
+
 # What's next
 
 P11 proved that CalendarPilot has a trustworthy **trajectory substrate**. P12 should prove that the substrate produces a compounding learning system.
@@ -1173,14 +1175,21 @@ verify; rollback; provider_transaction replay rows; rate caps; denial receipts.
 ### Commands
 
 ```bash
-PYTHONPATH=src python scripts/run_self_play_curriculum.py \
-  --curriculum experiments/curricula/p12_provider_failures.json \
-  --provider apple_eventkit \
-  --sandbox-calendar "CalendarPilot Sandbox" \
-  --families create_prep_block,add_buffer \
-  --episodes 20 \
-  --out runs/p12_evidence/$RUN_ID/self_play_curriculum/provider_backed_curriculum.json
+export CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX=1
+export CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX_CALENDAR_ID="CalendarPilot SelfPlay"
+
+PYTHONPATH=src python scripts/run_lab_experiment.py \
+  --seed <CalendarPilot SelfPlay seed> \
+  --runtime fixture \
+  --self-play-backend swift_ipc_eventkit_sandbox \
+  --episodes 5 \
+  --batch <BATCH_ID>
 ```
+
+Setup note: create or return the sandbox calendar through the EventKit bridge
+`ensure_calendar` command. It is local-only by default. If a dogfood Mac exposes
+no local EventKit source, `source_policy: default_if_no_local` is an explicit
+setup override and the run report must record the non-local sandbox source.
 
 ### Acceptance
 
@@ -1189,6 +1198,13 @@ No outside-sandbox mutation; every provider-backed episode verifies rollback;
 provider errors become replay rows; cap exceeded becomes denial receipt;
 provider-backed and stub-backed results separately reported.
 ```
+
+Current D2 evidence satisfies this for `create_prep_block`: five
+`swift_ipc_eventkit_sandbox` episodes targeted only `CalendarPilot SelfPlay`,
+first commit materialized, provider verify was `verified` with
+`local_time_echo_ok: true`, later write was idempotent, replay invariants passed,
+and rollback cleanup left zero unverified rollback records. Promotion remains
+held on matched examples/explicit feedback volume.
 
 ### Progress template
 

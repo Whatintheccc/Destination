@@ -108,6 +108,8 @@ private final class EventKitCommandHandler {
             return try await requestAccess()
         case "read_events":
             return try readEvents(payload)
+        case "ensure_calendar":
+            return try ensureCalendar(payload)
         case "commit":
             return try commit(payload)
         case "rollback":
@@ -140,6 +142,32 @@ private final class EventKitCommandHandler {
         var payload = statusPayload()
         payload["request_granted"] = JSONValue(granted)
         return payload
+    }
+
+    private func ensureCalendar(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
+        try requireAuthorized()
+        let title = (payload["title"]?.stringValue ?? envSandboxCalendarID ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else {
+            throw BridgeFailure.missingField("title")
+        }
+        if let existing = store.calendars(for: .event).first(where: { $0.calendarIdentifier == title || $0.title == title }) {
+            guard existing.allowsContentModifications else {
+                throw BridgeFailure.sandboxViolation("sandbox calendar '\(title)' is not writable")
+            }
+            return calendarSetupPayload(existing, created: false)
+        }
+        let sourcePolicy = payload["source_policy"]?.stringValue ?? "local_only"
+        let localSource = store.sources.first(where: { $0.sourceType == .local })
+        let fallbackSource = store.defaultCalendarForNewEvents?.source ?? store.sources.first
+        let source = sourcePolicy == "default_if_no_local" ? (localSource ?? fallbackSource) : localSource
+        guard let source else {
+            throw BridgeFailure.sandboxViolation("local EventKit source is not available for sandbox calendar '\(title)'")
+        }
+        let calendar = EKCalendar(for: .event, eventStore: store)
+        calendar.title = title
+        calendar.source = source
+        try store.saveCalendar(calendar, commit: true)
+        return calendarSetupPayload(calendar, created: true)
     }
 
     private func readEvents(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
@@ -205,7 +233,12 @@ private final class EventKitCommandHandler {
             }
         }
         try store.commit()
-        created = pendingCreatedEvents.map { currentIdentifier(for: $0) }
+        if !idempotencyKey.isEmpty && !pendingCreatedEvents.isEmpty {
+            let stableCreated = existingEventIDs(for: idempotencyKey)
+            created = stableCreated.count >= pendingCreatedEvents.count ? stableCreated : pendingCreatedEvents.map { currentIdentifier(for: $0) }
+        } else {
+            created = pendingCreatedEvents.map { currentIdentifier(for: $0) }
+        }
 
         let external = created + moved + deleted
         return [
@@ -313,6 +346,29 @@ private final class EventKitCommandHandler {
         ]
     }
 
+    private func calendarSetupPayload(_ calendar: EKCalendar, created: Bool) -> [String: JSONValue] {
+        [
+            "provider": JSONValue("apple_eventkit"),
+            "calendar_id": JSONValue(calendar.calendarIdentifier),
+            "title": JSONValue(calendar.title),
+            "created": JSONValue(created),
+            "writable": JSONValue(calendar.allowsContentModifications),
+            "source_type": JSONValue(sourceTypeName(calendar.source.sourceType)),
+        ]
+    }
+
+    private func sourceTypeName(_ sourceType: EKSourceType) -> String {
+        switch sourceType {
+        case .local: return "local"
+        case .exchange: return "exchange"
+        case .calDAV: return "caldav"
+        case .mobileMe: return "mobileme"
+        case .subscribed: return "subscribed"
+        case .birthdays: return "birthdays"
+        @unknown default: return "unknown"
+        }
+    }
+
     private func statusName(_ status: EKAuthorizationStatus) -> String {
         if #available(macOS 14.0, *) {
             switch status {
@@ -370,8 +426,12 @@ private final class EventKitCommandHandler {
 
     private func calendar(id: String) throws -> EKCalendar {
         let calendars = store.calendars(for: .event)
-        if id != "default", let match = calendars.first(where: { $0.calendarIdentifier == id || $0.title == id }) {
-            return match
+        let requested = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !requested.isEmpty && requested != "default" {
+            if let match = calendars.first(where: { $0.calendarIdentifier == requested || $0.title == requested }) {
+                return match
+            }
+            throw BridgeFailure.sandboxViolation("explicit calendar '\(requested)' is not available")
         }
         if let defaultCalendar = store.defaultCalendarForNewEvents, defaultCalendar.allowsContentModifications {
             return defaultCalendar

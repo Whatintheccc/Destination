@@ -591,7 +591,11 @@ def live_eventkit_release_gate() -> dict[str, Any]:
         log_path = LOG_DIR / "live_eventkit_release_gate.log"
         log_path.write_text("skipped; set CALENDAR_PILOT_RUN_LIVE_EVENTKIT_RELEASE=1 to run the mutating Apple Calendar read/write/undo probe\n", encoding="utf-8")
         return {"name": "live_eventkit_release_gate", "ok": True, "skipped": True, "log": str(log_path), "reason": "mutating live provider probe is opt-in"}
-    return run_command("live_eventkit_release_gate", ["make", "live-eventkit-e2e"], timeout=120)
+    env_overrides = {"CALENDAR_PILOT_REQUIRE_EVENTKIT": "1", "CALENDAR_PILOT_REQUEST_EVENTKIT_ACCESS": "1"}
+    bridge = os.environ.get("CALENDAR_PILOT_EVENTKIT_RELEASE_BRIDGE", "").strip()
+    if bridge:
+        env_overrides["CALENDAR_PILOT_EVENTKIT_BRIDGE"] = bridge
+    return run_command("live_eventkit_release_gate", ["make", "live-eventkit-e2e"], timeout=120, env_overrides=env_overrides)
 
 
 def credential_gate() -> dict[str, Any]:

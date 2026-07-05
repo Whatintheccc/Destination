@@ -11,6 +11,25 @@ The lab is the operating system for CalendarPilot experiments. It makes model ge
 | C | live Codex E2E | Tool-planning and explanation health outside the lab matrix. |
 | D | provider sandbox | EventKit/deterministic provider transaction and rollback verification. |
 
+## EventKit sandbox setup
+
+Cell D EventKit runs use a dedicated sandbox calendar title, normally:
+
+```text
+CalendarPilot SelfPlay
+```
+
+Set `CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX=1` and
+`CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX_CALENDAR_ID="CalendarPilot SelfPlay"`.
+The EventKit bridge matches the configured value by calendar identifier or title
+and rejects explicit unavailable calendar targets instead of falling back to the
+default calendar.
+
+For setup, the bridge command `ensure_calendar` creates or returns the named
+calendar. It is local-only by default. If a dogfood Mac exposes no local
+EventKit source, `source_policy: default_if_no_local` is an explicit test setup
+override; reports must record that the sandbox calendar was not local-only.
+
 ## Required artifacts per run
 
 Every run directory should contain:
