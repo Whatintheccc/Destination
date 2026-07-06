@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import hashlib
-from typing import Iterable
+from typing import Callable, Iterable
 
 from calendar_pilot.diffusiongemma.reward import RewardModel
 from calendar_pilot.diffusiongemma.right_moment import RightMomentModel
@@ -25,7 +25,7 @@ from calendar_pilot.types import (
 )
 
 
-def apply_policy_tuning(candidate: CandidateCalendarAction, tuning: PolicyTuning) -> None:
+def apply_policy_tuning(candidate: CandidateCalendarAction, tuning: PolicyTuning, *, normalize_intents: bool = True) -> None:
     """Apply offline replay/self-play feedback as a lightweight policy update.
 
     This is not a neural update. It is the contract shape a learned
@@ -35,8 +35,8 @@ def apply_policy_tuning(candidate: CandidateCalendarAction, tuning: PolicyTuning
     Shared by the deterministic and live NIM policies so offline tuning
     changes both the same way.
     """
-    intent_key = normalize_intent(candidate.intent).get("intent", candidate.intent)
-    if candidate.intent != intent_key:
+    intent_key = normalize_intent(candidate.intent).get("intent", candidate.intent) if normalize_intents else candidate.intent
+    if normalize_intents and candidate.intent != intent_key:
         candidate.intent_raw = candidate.intent_raw or candidate.intent
         candidate.intent = intent_key
         candidate.intent_matched_by = candidate.intent_matched_by or "policy_normalized"
@@ -85,12 +85,16 @@ class DiffusionGemmaPolicy:
         world_model: CalendarWorldModel | None = None,
         policy_tuning: PolicyTuning | None = None,
         temporal_controller: RightMomentTemporalController | None = None,
+        normalize_intents: bool = True,
+        signal_extractor: Callable[[RawCalendarObservation, UserBiography], CalendarSignals] = extract_signals,
     ) -> None:
         self.reward_model = reward_model or RewardModel()
         self.right_moment = right_moment or RightMomentModel()
         self.temporal_controller = temporal_controller or RightMomentTemporalController()
         self.world_model = world_model or CalendarWorldModel()
         self.policy_tuning = policy_tuning or PolicyTuning()
+        self.normalize_intents = normalize_intents
+        self.signal_extractor = signal_extractor
 
     def generate_candidates(
         self,
@@ -99,7 +103,7 @@ class DiffusionGemmaPolicy:
         *,
         goal: str | None = None,
     ) -> list[CandidateCalendarAction]:
-        signals = extract_signals(observation, biography)
+        signals = self.signal_extractor(observation, biography)
         candidates: list[CandidateCalendarAction] = []
         candidates.extend(self._prep_blocks(observation, biography, signals))
         candidates.extend(self._travel_or_setup_buffers(observation, biography, signals))
@@ -113,7 +117,7 @@ class DiffusionGemmaPolicy:
             self._attach_initial_scores(candidate, observation, biography, signals)
             self.world_model.annotate(candidate, observation, biography, signals)
             self.reward_model.score(candidate)
-            apply_policy_tuning(candidate, self.policy_tuning)
+            apply_policy_tuning(candidate, self.policy_tuning, normalize_intents=self.normalize_intents)
             self.right_moment.decide(candidate, observation, biography, signals)
             self.temporal_controller.apply(candidate, observation, biography, signals)
         return sorted(candidates, key=lambda c: (c.expected_reward, c.right_moment_score), reverse=True)

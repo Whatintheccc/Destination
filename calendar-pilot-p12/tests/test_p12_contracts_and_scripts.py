@@ -16,6 +16,8 @@ class P12ContractsAndScriptsTests(unittest.TestCase):
         versions = json.loads((ROOT / "contracts/VERSIONS.json").read_text())
         for name in [
             "semantic_signal.schema.json",
+            "belief.schema.json",
+            "explanation_answer.schema.json",
             "signal_estimator_report.schema.json",
             "label_activation.schema.json",
             "biography_drift_finding.schema.json",

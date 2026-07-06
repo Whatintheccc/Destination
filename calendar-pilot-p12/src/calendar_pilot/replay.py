@@ -18,6 +18,7 @@ REPLAY_KEEP_RECORD_TYPES = {
     "model_generation_rejection",
     "adversary_finding",
     "reward",
+    "human_feedback_event",
     "semantic_signal",
     "signal_estimator_report",
     "label_activation",
@@ -308,6 +309,45 @@ class ReplayBuffer:
             payload["receipt"] = receipt.to_dict()
         self.append_record(ReplayRecord(record_type="reward", record_id=f"reward:{reward.reward_event_id}", trace_id=trace, causal_parent_id=causal_parent_id, payload=payload, signal_stream=SignalStream.ACTION.value))
 
+    def append_human_feedback_event(
+        self,
+        *,
+        receipt_id: str,
+        feedback: str,
+        reward: RewardEvent,
+        candidate: CandidateCalendarAction | None = None,
+        receipt: dict[str, Any] | None = None,
+        reason: str = "",
+        trace_id: str | None = None,
+        causal_parent_id: str | None = None,
+    ) -> str:
+        trace = trace_id or (candidate.candidate_id if candidate is not None else receipt_id)
+        feedback_event_id = f"feedback:{reward.reward_event_id}"
+        payload: dict[str, Any] = {
+            "feedback_event": {
+                "feedback_event_id": feedback_event_id,
+                "receipt_id": receipt_id,
+                "feedback": feedback,
+                "reason": reason,
+                "reward_event_id": reward.reward_event_id,
+                "observed_at": reward.observed_at.isoformat(),
+                "provenance": reward.provenance,
+            },
+            "trace_id": trace,
+        }
+        if candidate is not None:
+            payload["candidate"] = candidate.to_dict()
+        if receipt is not None:
+            payload["receipt"] = dict(receipt)
+        return self.append_generic(
+            "human_feedback_event",
+            payload,
+            record_id=feedback_event_id,
+            trace_id=trace,
+            causal_parent_id=causal_parent_id,
+            signal_stream=SignalStream.ACTION.value,
+        )
+
     def append_episode(self, episode: Any, *, trace_id: str | None = None, causal_parent_id: str | None = None) -> None:
         payload = to_jsonable(episode)
         trace = trace_id or payload.get("chosen_candidate_id", "self_play")
@@ -337,9 +377,12 @@ class ReplayBuffer:
     def attach_reward(self, receipt_id: str, reward: RewardEvent) -> bool:
         reward_dict = reward.to_dict()
         for record in reversed(self.records):
+            if record.record_type != "candidate_receipt":
+                continue
             receipt = record.payload.get("receipt", {})
             if receipt.get("receipt_id") == receipt_id:
                 record.payload["reward"] = reward_dict
+                record.signal_stream = SignalStream.ACTION.value
                 return True
         return False
 

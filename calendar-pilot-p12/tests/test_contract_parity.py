@@ -6,7 +6,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
-from calendar_pilot.types import AuthorityGrant, CalendarActionReceipt, CandidateCalendarAction, CodexToolCall, CodexToolReceipt, RawCalendarObservation, RewardEvent, UserBiography
+from calendar_pilot.types import AuthorityGrant, Belief, CalendarActionReceipt, CandidateCalendarAction, CodexToolCall, CodexToolReceipt, ExplanationAnswer, RawCalendarObservation, RewardEvent, UserBiography
 from calendar_pilot.swift_bridge import SwiftKernelStub
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +32,12 @@ class ContractParityTests(unittest.TestCase):
         schema = json.loads((ROOT / "contracts/authority_grant.schema.json").read_text())
         props = set(schema["properties"].keys())
         self.assertTrue({f.name for f in fields(AuthorityGrant)} <= props)
+
+    def test_belief_and_explanation_schemas_cover_python_dataclasses(self):
+        belief_schema = json.loads((ROOT / "contracts/belief.schema.json").read_text())
+        answer_schema = json.loads((ROOT / "contracts/explanation_answer.schema.json").read_text())
+        self.assertTrue({f.name for f in fields(Belief)} <= set(belief_schema["properties"].keys()))
+        self.assertTrue({f.name for f in fields(ExplanationAnswer)} <= set(answer_schema["properties"].keys()))
 
     def test_swift_observation_and_reward_contracts_have_python_parity_fields(self):
         source = (ROOT / "packages/CalendarPilotKernel/Sources/CalendarPilotKernel/CalendarContracts.swift").read_text()

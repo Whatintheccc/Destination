@@ -1,0 +1,64 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/belief.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "belief_id": {
+      "type": "string"
+    },
+    "claim": {
+      "type": "string"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "controls": {
+      "type": "object"
+    },
+    "evidence_row_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "history": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "source_object_id": {
+      "type": "string"
+    },
+    "source_object_type": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "user_scope_id": {
+      "type": "string"
+    },
+    "version": {
+      "const": "belief.v1"
+    }
+  },
+  "required": [
+    "belief_id",
+    "user_scope_id",
+    "claim",
+    "evidence_row_ids",
+    "confidence",
+    "controls",
+    "version",
+    "status",
+    "source_object_type",
+    "source_object_id",
+    "history"
+  ],
+  "title": "BeliefV1",
+  "type": "object"
+}

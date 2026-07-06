@@ -161,6 +161,128 @@ class SemanticSignal:
 
 
 @dataclass(frozen=True)
+class ExplanationAnswer:
+    answer_id: str
+    object_type: str
+    object_id: str
+    question: str
+    claim: str
+    evidence_row_ids: list[str]
+    confidence: float
+    controls: dict[str, Any]
+    version: str
+    answer: str
+    status: str = "answered"
+
+    def __post_init__(self) -> None:
+        if not self.answer_id:
+            raise ValueError("ExplanationAnswer requires answer_id")
+        if not self.object_type or not self.object_id:
+            raise ValueError("ExplanationAnswer requires object_type and object_id")
+        if not self.claim:
+            raise ValueError("ExplanationAnswer requires claim")
+        if not self.evidence_row_ids:
+            raise ValueError("ExplanationAnswer requires replay-visible evidence_row_ids")
+        if not 0.0 <= float(self.confidence) <= 1.0:
+            raise ValueError("ExplanationAnswer confidence must be between 0 and 1")
+        if not self.version:
+            raise ValueError("ExplanationAnswer requires version")
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ExplanationAnswer":
+        return cls(
+            answer_id=str(data.get("answer_id", "")),
+            object_type=str(data.get("object_type", "")),
+            object_id=str(data.get("object_id", "")),
+            question=str(data.get("question", "")),
+            claim=str(data.get("claim", "")),
+            evidence_row_ids=[str(x) for x in data.get("evidence_row_ids", [])],
+            confidence=float(data.get("confidence", 0.0)),
+            controls=dict(data.get("controls", {})),
+            version=str(data.get("version", "")),
+            answer=str(data.get("answer", "")),
+            status=str(data.get("status", "answered")),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
+
+
+@dataclass(frozen=True)
+class Belief:
+    belief_id: str
+    user_scope_id: str
+    claim: str
+    evidence_row_ids: list[str]
+    confidence: float
+    controls: dict[str, Any]
+    version: str
+    status: str = "active"
+    source_object_type: str = "semantic_signal"
+    source_object_id: str = ""
+    history: list[dict[str, Any]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.belief_id:
+            raise ValueError("Belief requires belief_id")
+        if not self.claim:
+            raise ValueError("Belief requires claim")
+        if not self.evidence_row_ids:
+            raise ValueError("Belief requires replay-visible evidence_row_ids")
+        if not 0.0 <= float(self.confidence) <= 1.0:
+            raise ValueError("Belief confidence must be between 0 and 1")
+        if not self.version:
+            raise ValueError("Belief requires version")
+        if "authority_effect" not in self.controls:
+            raise ValueError("Belief controls must state authority_effect")
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Belief":
+        return cls(
+            belief_id=str(data.get("belief_id", "")),
+            user_scope_id=str(data.get("user_scope_id", "default_user")),
+            claim=str(data.get("claim", "")),
+            evidence_row_ids=[str(x) for x in data.get("evidence_row_ids", [])],
+            confidence=float(data.get("confidence", 0.0)),
+            controls=dict(data.get("controls", {})),
+            version=str(data.get("version", "")),
+            status=str(data.get("status", "active")),
+            source_object_type=str(data.get("source_object_type", "semantic_signal")),
+            source_object_id=str(data.get("source_object_id", "")),
+            history=list(data.get("history", [])),
+        )
+
+    @classmethod
+    def from_semantic_signal(cls, signal: SemanticSignal, *, activation_row_ids: list[str] | None = None) -> "Belief":
+        evidence = list(dict.fromkeys([*signal.evidence, *(activation_row_ids or [])]))
+        return cls(
+            belief_id=f"belief:{signal.signal_id}",
+            user_scope_id=signal.user_scope_id,
+            claim=signal.statement,
+            evidence_row_ids=evidence,
+            confidence=signal.confidence,
+            controls={
+                "authority_effect": "none_without_explicit_grant",
+                "source_status": signal.status,
+                "half_life_days": signal.half_life_days,
+            },
+            version="belief.v1",
+            status="active" if signal.status in {"active", "proposed"} else signal.status,
+            source_object_type="semantic_signal",
+            source_object_id=signal.signal_id,
+            history=[{"kind": "semantic_signal", "signal_id": signal.signal_id, "status": signal.status}],
+        )
+
+    def explain(self, question: str) -> ExplanationAnswer:
+        from calendar_pilot.environment.explain import explain_belief
+
+        return explain_belief(self, question)
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_jsonable(self)
+
+
+@dataclass(frozen=True)
 class SignalEstimatorReport:
     report_id: str
     estimator_version: str

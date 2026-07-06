@@ -3,14 +3,17 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 from statistics import mean
 from typing import Any
 
 from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy
+from calendar_pilot.diffusiongemma.reward import RewardModel, RewardWeights
+from calendar_pilot.diffusiongemma.signals import CalendarSignals
 from calendar_pilot.environment.fsio import atomic_write_json
 from calendar_pilot.environment.taxonomy import taxonomy_health
-from calendar_pilot.types import PolicyTuning, RawCalendarObservation, UserBiography
+from calendar_pilot.types import PolicyTuning, RawCalendarObservation, RightMomentDecision, UserBiography
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,6 +44,75 @@ def _frontier(policy: DiffusionGemmaPolicy, observation: RawCalendarObservation,
     return [candidate.to_dict() for candidate in policy.generate_candidates(observation, biography, goal=goal)]
 
 
+class NeutralRightMomentModel:
+    def decide(self, candidate, observation, biography, signals=None):
+        candidate.right_moment_decision = RightMomentDecision.WAIT if candidate.intent != "do_nothing" else RightMomentDecision.DO_NOTHING
+        candidate.recommended_execution_time = observation.observed_at
+        candidate.right_moment_score = 0.0
+        candidate.control_notes.append("right_moment_ablation=neutral_timing")
+        return candidate
+
+
+def _neutral_signals(observation: RawCalendarObservation, biography: UserBiography) -> CalendarSignals:
+    return CalendarSignals(
+        external_meeting_count=0,
+        internal_meeting_count=0,
+        flexible_hold_count=0,
+        admin_task_minutes=0,
+        prep_task_minutes=0,
+        occupied_minutes_workday=0,
+        open_slots=[],
+        pressure_score=0.0,
+        fatigue_score=0.0,
+        best_response_is_now=False,
+        active_surface=observation.device_context.active_surface,
+        risk_cliffs=[],
+        narrative=["derived signal ablation: signal extractor returned a neutral signal set"],
+    )
+
+
+def _ablate_tuning(tuning: PolicyTuning, ablation: str) -> PolicyTuning:
+    if ablation == "no_intent_reward_bias":
+        return replace(tuning, intent_reward_bias={})
+    if ablation == "no_failure_penalties":
+        return replace(tuning, failure_penalties={})
+    if ablation == "no_denied_intents":
+        return replace(tuning, denied_intents=[])
+    return tuning
+
+
+def _ablate_biography(biography: UserBiography, ablation: str) -> UserBiography:
+    if ablation == "no_semantic_labels":
+        return replace(biography, preference_claims=[], biography_claims=[])
+    return biography
+
+
+def _policy_for(tuning: PolicyTuning, ablation: str = "") -> DiffusionGemmaPolicy:
+    reward_model = None
+    right_moment = None
+    normalize_intents = True
+    signal_extractor = None
+    if ablation == "no_provider_penalties":
+        reward_model = RewardModel(RewardWeights(authority_cost=0.0, social_risk=0.0))
+    if ablation == "no_right_moment_tuning":
+        right_moment = NeutralRightMomentModel()
+    if ablation == "no_taxonomy_normalization":
+        normalize_intents = False
+    if ablation == "no_derived_signals":
+        signal_extractor = _neutral_signals
+    kwargs = {
+        "policy_tuning": _ablate_tuning(tuning, ablation),
+        "normalize_intents": normalize_intents,
+    }
+    if reward_model is not None:
+        kwargs["reward_model"] = reward_model
+    if right_moment is not None:
+        kwargs["right_moment"] = right_moment
+    if signal_extractor is not None:
+        kwargs["signal_extractor"] = signal_extractor
+    return DiffusionGemmaPolicy(**kwargs)
+
+
 def _deltas(before: list[dict[str, Any]], after: list[dict[str, Any]]) -> dict[str, Any]:
     before_by_id = {c["candidate_id"]: c for c in before}
     after_by_id = {c["candidate_id"]: c for c in after}
@@ -60,21 +132,32 @@ def _deltas(before: list[dict[str, Any]], after: list[dict[str, Any]]) -> dict[s
     return deltas
 
 
-def build_diff(*, observation_path: Path, profile_path: Path, tuning_path: Path | None, goal: str, baseline_tuning_path: Path | None = None) -> dict:
+def build_diff(*, observation_path: Path, profile_path: Path, tuning_path: Path | None, goal: str, baseline_tuning_path: Path | None = None, ablation: str = "") -> dict:
     observation = RawCalendarObservation.from_dict(_load_json(observation_path))
     biography = UserBiography.from_dict(_load_json(profile_path))
     empty = _frontier(DiffusionGemmaPolicy(), observation, biography, goal)
     baseline_tuning = _load_tuning(baseline_tuning_path, empty_id="empty")
-    baseline = _frontier(DiffusionGemmaPolicy(policy_tuning=baseline_tuning), observation, biography, goal)
     tuning = _load_tuning(tuning_path, empty_id="empty")
-    tuned = _frontier(DiffusionGemmaPolicy(policy_tuning=tuning), observation, biography, goal)
+    if ablation:
+        baseline = _frontier(_policy_for(tuning), observation, biography, goal)
+        ablated_biography = _ablate_biography(biography, ablation)
+        tuned = _frontier(_policy_for(tuning, ablation), observation, ablated_biography, goal)
+        baseline_tuning_id = tuning.tuning_id
+        tuning_id = f"{tuning.tuning_id}:{ablation}"
+    else:
+        baseline = _frontier(_policy_for(baseline_tuning), observation, biography, goal)
+        tuned = _frontier(_policy_for(tuning), observation, biography, goal)
+        baseline_tuning_id = baseline_tuning.tuning_id
+        tuning_id = tuning.tuning_id
     vs_empty = _deltas(empty, tuned)
     marginal = _deltas(baseline, tuned)
     return {
         "goal": goal,
         "observation_id": observation.observation_id,
-        "baseline_tuning_id": baseline_tuning.tuning_id,
-        "tuning_id": tuning.tuning_id,
+        "baseline_tuning_id": baseline_tuning_id,
+        "tuning_id": tuning_id,
+        "ablation": ablation or None,
+        "ablation_applied": bool(ablation),
         "untuned_leader": empty[0]["candidate_id"] if empty else None,
         "baseline_leader": baseline[0]["candidate_id"] if baseline else None,
         "tuned_leader": tuned[0]["candidate_id"] if tuned else None,
@@ -101,6 +184,7 @@ def main() -> None:
     parser.add_argument("--tuning", default="", help="candidate policy_tuning JSON. Empty means compare against empty tuning.")
     parser.add_argument("--baseline-tuning", default="", help="baseline policy_tuning JSON. Default: experiments/promoted/CURRENT.json target if present, else empty.")
     parser.add_argument("--goal", default="Make next week less chaotic")
+    parser.add_argument("--ablation", default="", help="optional policy component to disable for an ablation frontier diff")
     parser.add_argument("--out", default="runs/frontier_diff.json")
     args = parser.parse_args()
     baseline = Path(args.baseline_tuning) if args.baseline_tuning else _resolve_current_tuning()
@@ -110,6 +194,7 @@ def main() -> None:
         tuning_path=Path(args.tuning) if args.tuning else None,
         baseline_tuning_path=baseline,
         goal=args.goal,
+        ablation=args.ablation,
     )
     atomic_write_json(Path(args.out), diff)
     print(json.dumps(diff, indent=2, sort_keys=True))

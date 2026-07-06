@@ -383,7 +383,10 @@ class FrontendSessionPersistenceTests(unittest.TestCase):
             self.assertEqual(metadata["response_source"], "ui_feedback")
             self.assertEqual(metadata["receipt_id"], receipt_id)
             self.assertEqual(metadata["feedback"], "useful")
-            self.assertTrue(metadata["reward_attached_to_existing_receipt"])
+            self.assertFalse(metadata["reward_attached_to_existing_receipt"])
+            self.assertTrue(metadata["reward_written_as_action_stream"])
+            self.assertTrue(metadata["feedback_record_id"].startswith("feedback:"))
+            self.assertTrue(metadata["reward_record_id"].startswith("reward:"))
 
     def test_calendar_plan_message_exposes_deterministic_planner_metadata(self):
         with tempfile.TemporaryDirectory() as td:

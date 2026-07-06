@@ -707,11 +707,24 @@ class DogfoodSessionState:
 
     def feedback(self, receipt_id: str, feedback: str, *, reason: str = "") -> dict[str, Any]:
         reward = self._reward_for_feedback(receipt_id, feedback)
+        candidate = self._candidate_for_receipt(receipt_id)
+        receipt = self._receipt_payload_for_receipt(receipt_id)
+        trace_id = candidate.candidate_id if candidate else receipt_id
+        feedback_record_id = self.replay.append_human_feedback_event(
+            receipt_id=receipt_id,
+            feedback=feedback,
+            reason=reason,
+            reward=reward,
+            candidate=candidate,
+            receipt=receipt,
+            trace_id=trace_id,
+        )
         attached = self.replay.attach_reward(receipt_id, reward)
+        reward_record_id = ""
         if not attached:
-            candidate = self._candidate_for_receipt(receipt_id)
-            self.replay.append_reward(reward, candidate=candidate, trace_id=candidate.candidate_id if candidate else receipt_id)
-        entry = {"receipt_id": receipt_id, "feedback": feedback, "reason": reason, "reward": reward.to_dict(), "created_at": _now().isoformat()}
+            reward_record_id = f"reward:{reward.reward_event_id}"
+            self.replay.append_reward(reward, candidate=candidate, trace_id=trace_id, causal_parent_id=feedback_record_id)
+        entry = {"receipt_id": receipt_id, "feedback": feedback, "reason": reason, "reward": reward.to_dict(), "feedback_record_id": feedback_record_id, "reward_record_id": reward_record_id, "created_at": _now().isoformat()}
         self.feedback_history.append(entry)
         self.transcript_events.append({
             "kind": "assistant",
@@ -727,6 +740,9 @@ class DogfoodSessionState:
                     "feedback": feedback,
                     "reward": reward.to_dict(),
                     "reward_attached_to_existing_receipt": attached,
+                    "feedback_record_id": feedback_record_id,
+                    "reward_record_id": reward_record_id,
+                    "reward_written_as_action_stream": True,
                 },
             ),
             "created_at": _now().isoformat(),
@@ -1247,6 +1263,13 @@ class DogfoodSessionState:
             candidate = record.payload.get("candidate", {})
             if receipt.get("receipt_id") == receipt_id and candidate:
                 return CandidateCalendarAction.from_dict(candidate)
+        return None
+
+    def _receipt_payload_for_receipt(self, receipt_id: str) -> dict[str, Any] | None:
+        for record in reversed(self.replay.records):
+            receipt = record.payload.get("receipt", {})
+            if receipt.get("receipt_id") == receipt_id:
+                return dict(receipt)
         return None
 
     def _candidate_id_for_receipt(self, receipt_id: str) -> str | None:

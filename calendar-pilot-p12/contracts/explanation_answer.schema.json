@@ -1,0 +1,67 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/explanation_answer.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "answer": {
+      "type": "string"
+    },
+    "answer_id": {
+      "type": "string"
+    },
+    "claim": {
+      "type": "string"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "controls": {
+      "type": "object"
+    },
+    "evidence_row_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "object_id": {
+      "type": "string"
+    },
+    "object_type": {
+      "enum": [
+        "Authority",
+        "Belief",
+        "Candidate",
+        "Provider",
+        "Trajectory"
+      ]
+    },
+    "question": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "version": {
+      "const": "explain.v1"
+    }
+  },
+  "required": [
+    "answer_id",
+    "object_type",
+    "object_id",
+    "question",
+    "claim",
+    "evidence_row_ids",
+    "confidence",
+    "controls",
+    "version",
+    "answer",
+    "status"
+  ],
+  "title": "ExplanationAnswerV1",
+  "type": "object"
+}

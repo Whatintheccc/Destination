@@ -48,22 +48,26 @@ def main() -> None:
         "mutation_enabled": _mutation_enabled(),
     }
     if not health.get("configured"):
-        report["materialization"] = {
+        materialization = {
             "status": "blocked",
             "reason": f"EventKit permission is {health.get('status')}",
             "next_step": "Grant Calendar full access to CalendarPilotEventKitBridge, then rerun with CALENDAR_PILOT_EVENTKIT_MUTATION=1.",
         }
+        report["materialization"] = materialization
         write_artifact(ARTIFACT, report)
+        write_artifact(MATERIALIZATION_ARTIFACT, materialization)
         if _require_live():
             raise SystemExit(f"EventKit live provider is not configured: {health}")
         print(json.dumps(report, indent=2, sort_keys=True))
         return
     if not _mutation_enabled():
-        report["materialization"] = {
+        materialization = {
             "status": "skipped",
             "reason": "set CALENDAR_PILOT_EVENTKIT_MUTATION=1 or CALENDAR_PILOT_REQUIRE_EVENTKIT=1 to run the write/rollback probe",
         }
+        report["materialization"] = materialization
         write_artifact(ARTIFACT, report)
+        write_artifact(MATERIALIZATION_ARTIFACT, materialization)
         print(json.dumps(report, indent=2, sort_keys=True))
         return
     materialization = run_materialization_probe(provider)

@@ -33,6 +33,24 @@
       },
       "type": "array"
     },
+    "malformed_rows": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "matched_examples_detail": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "matched_record_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "matched_examples": {
       "minimum": 0,
       "type": "integer"
@@ -63,8 +81,20 @@
     "run_id": {
       "type": "string"
     },
+    "skipped_rows": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
     "simulator_version": {
       "type": "string"
+    },
+    "source_replays": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     }
   },
   "required": [
