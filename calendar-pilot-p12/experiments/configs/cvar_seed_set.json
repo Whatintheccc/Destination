@@ -1,0 +1,13 @@
+{
+  "seed_set_schema_version": "cvar_seed_set.v1",
+  "seed_set_id": "p12_step_e_cvar_v1",
+  "description": "Frozen seed set for behavior-changing wave variance checks.",
+  "seed_paths": [
+    "experiments/seeds/seed_founder_baseline.json",
+    "experiments/seeds/seed_ae_renewal_week_high_pressure.json",
+    "experiments/seeds/seed_burnout_notification_saturation.json",
+    "experiments/seeds/seed_parent_school_pickup_conflicts.json",
+    "experiments/seeds/seed_travel_timezone_hop.json",
+    "experiments/seeds/seed_ea_dense_double_bookings.json"
+  ]
+}

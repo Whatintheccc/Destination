@@ -1,0 +1,47 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/experiment_record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "after_artifacts": {
+      "type": "object"
+    },
+    "before_artifacts": {
+      "type": "object"
+    },
+    "change_scope": {
+      "type": "object"
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "hold",
+        "fail"
+      ]
+    },
+    "experiment_id": {
+      "type": "string"
+    },
+    "hypothesis": {
+      "type": "string"
+    },
+    "phase": {
+      "const": "Step E"
+    },
+    "promotion_harness": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "phase",
+    "hypothesis",
+    "change_scope",
+    "before_artifacts",
+    "after_artifacts",
+    "promotion_harness",
+    "decision"
+  ],
+  "title": "ExperimentRecordV1",
+  "type": "object"
+}

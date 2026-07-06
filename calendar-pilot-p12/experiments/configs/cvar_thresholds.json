@@ -1,0 +1,9 @@
+{
+  "cvar_thresholds_schema_version": "cvar_thresholds.v1",
+  "bootstrap_iterations": 200,
+  "bootstrap_seed": 1729,
+  "borderline_margin": 0.05,
+  "max_delta_variance": 0.0025,
+  "max_borderline_flip_rate": 0.1,
+  "allow_promotion_decision_flip": false
+}

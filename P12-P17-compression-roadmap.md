@@ -2,7 +2,7 @@
 
 Status: architecture working specification
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
-Scope: CalendarPilot after the P12 stage-1 audit; target architecture and migration discipline for P12.5 through P17
+Scope: CalendarPilot after the P12 stage-1 audit; target architecture and migration discipline for Step E through P17
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
 
@@ -44,7 +44,7 @@ The prior audit found **KEEP-B 36, CONSOLIDATE 12, DEFER 4, KEEP-I 2, DELETE 1, 
 
 ## 2. How To Use This Document
 
-Use this as the architecture control document for any P12.5-P17 change.
+Use this as the architecture control document for any Step E-P17 change.
 
 Before proposing a change, answer four questions:
 
@@ -161,7 +161,7 @@ swift-ipc-test
 browser-e2e
 ```
 
-Therefore, a green `p12-release` cannot be the safety spine for deleting or contracting live-reachable behavior. P12.5 must either run each live leg or root-list it as an explicit signed exception.
+Therefore, a green `p12-release` cannot be the safety spine for deleting or contracting live-reachable behavior. Step E must either run each live leg or root-list it as an explicit signed exception.
 
 ### 4.3 Placeholder Gate Gap
 
@@ -441,12 +441,12 @@ P14 and P15 are intentionally not standalone phases in this architecture. Their 
 
 | Phase | Purpose | Irreversible step | Exit evidence |
 |---|---|---|---|
-| P12.5 | fix the instrument, install monitors, ship `Belief` and `explain` | none; this phase may add LOC | release gate can fail truthfully; live legs run or are root-listed; no destructive verdict lands |
+| Step E | fix the instrument, install monitors, ship `Belief` and `explain` | none; this phase may add LOC | release gate can fail truthfully; live legs run or are root-listed; no destructive verdict lands |
 | P13 | build kernel behind freeze and migrate organs | authority handoff per organ | `B_migrate` held through overlap; frontend hidden truth made unrepresentable |
 | P16 | verified contractions | duplicated implementation replaced by object protocol | `B_frontier`, `B_schema`, `B_runtime`, `C-VAR` pass |
 | P17 | emergent-floor harvest | behavior/support structure retired | next removal fails a certificate; floor reported with binding constraint |
 
-### 9.2 P12.5: Instrument And Missing Object
+### 9.2 Step E: Instrument And Missing Object
 
 Required work:
 
@@ -537,7 +537,7 @@ Safe migration is a sawtooth because old and new coexist before retirement.
 | Point | Expected `/src` LOC | Binding constraint |
 |---|---:|---|
 | start | ~13,950 | current post-P12 source |
-| after P12.5 | ~14,300-14,700 | instrument, monitors, `Belief`, `explain` |
+| after Step E | ~14,300-14,700 | instrument, monitors, `Belief`, `explain` |
 | P13 peak | ~15,500-16,500 | kernel plus organ overlap under `B_migrate` |
 | after P13 retire | ~8,500-11,000 | hidden frontend/session truth made unrepresentable |
 | after P16 contractions | ~5,000-7,500 | `Frontier`, runtime, schema contractions discharged |
@@ -561,7 +561,7 @@ Any claim of "3,000-line architecture" that does not name the detectability, cal
 | ID | Decision | Architectural resolution |
 |---|---|---|
 | D-00 | Target of the program | conceptual mass; LOC is reported output |
-| D-01 | Release gate reach | P12.5 must extend `p12-release` to run-or-root-list live legs |
+| D-01 | Release gate reach | Step E must extend `p12-release` to run-or-root-list live legs |
 | D-02 | Frontend replacement | hidden truth made unrepresentable before shell replacement |
 | D-03 | Humane controls | mandatory as object messages and `explain` controls |
 | D-04 | Live Codex | kept as `Frontier` respondent |
@@ -664,7 +664,7 @@ Use this checklist for every proposed wave.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
-| `p12-release` remains deterministic-only | live behavior can be deleted behind green fixtures | run-or-root-list live legs in P12.5 |
+| `p12-release` remains deterministic-only | live behavior can be deleted behind green fixtures | run-or-root-list live legs in Step E |
 | placeholder gates remain pass-by-construction | regressions can be laundered as green | make reward, ablation, and calibration gates compute |
 | `Belief` is under-specified in code | derived signals can return as uncited scalars | implement constructor and explain protocol |
 | frontend projection is incomplete | hidden UI/session truth can survive replacement | make `view_state = project(trajectory)` complete |
@@ -678,7 +678,7 @@ Use this checklist for every proposed wave.
 ## 15. Build Sequence
 
 ```text
-1. P12.5 first.
+1. Step E first.
    Fix the instrument, close live-leg reachability, install monitors,
    ship Belief and explain. LOC rises.
 

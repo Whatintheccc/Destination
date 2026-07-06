@@ -156,6 +156,8 @@ def main():
     checks.append(run('curriculum',[sys.executable,'scripts/run_self_play_curriculum.py','--curriculum','experiments/curricula/p12_base.json','--out',str(outdir/'curriculum_run.json')], artifact=outdir/'curriculum_run.json'))
     checks.append(run('policy_ablation',[sys.executable,'scripts/run_policy_ablation.py','--frontier-diff',str(outdir/'frontier_diff.json'),'--scorecard',str(outdir/'ml_scorecard.json'),'--reward-heads',str(outdir/'reward_head_report.json'),'--evidence-dir',str(outdir/'policy_ablation_evidence'),'--out',str(outdir/'policy_ablation_report.json')], artifact=outdir/'policy_ablation_report.json'))
     checks.append(run('belief_explain',[sys.executable,'scripts/make_belief_explain_report.py','--out',str(outdir/'belief_explain_report.json')], artifact=outdir/'belief_explain_report.json'))
+    checks.append(run('cvar',[sys.executable,'scripts/run_cvar_report.py','--out',str(outdir/'cvar_report.json')], artifact=outdir/'cvar_report.json'))
+    checks.append(run('b_migrate',[sys.executable,'scripts/run_b_migrate_dual_run.py','--artifacts-dir',str(outdir/'b_migrate_artifacts'),'--out',str(outdir/'b_migrate_report.json')], artifact=outdir/'b_migrate_report.json'))
     checks.append(run('secret_scan',[sys.executable,'scripts/run_secret_scan.py','--path',str(outdir)]))
     reach=release_reach()
     decision=release_decision(checks, reach)

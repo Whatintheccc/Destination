@@ -253,7 +253,7 @@ P12.1 — Add missing measurement (latency, cost, reward-head deltas, calibratio
 P12.2 — Separate the three streams; ship signal estimators; retire declared fatigue
 P12.3 — Dogfood shadow import + sim-vs-real and estimator calibration
 P12.4 — Codex semantic annotator + Swift label registry + user control surface
-P12.5 — Autonomy family promotion (create_prep_block first), reward-head gates enforced
+Step E — Autonomy family promotion (create_prep_block first), reward-head gates enforced
 P12.6 — Self-play curriculum (behavior-authored) + provider-backed self-play
 P12.7 — Provider capability reports; provider truth beyond EventKit sandbox
 ```

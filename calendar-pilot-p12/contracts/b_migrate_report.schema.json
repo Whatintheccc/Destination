@@ -1,0 +1,45 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/b_migrate_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assertion_set": {
+      "type": "object"
+    },
+    "assertions": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "after_artifact": {
+      "type": "string"
+    },
+    "b_migrate_report_schema_version": {
+      "const": "b_migrate_report.v1"
+    },
+    "before_artifact": {
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "hold"
+      ]
+    },
+    "git_sha": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "b_migrate_report_schema_version",
+    "git_sha",
+    "assertion_set",
+    "before_artifact",
+    "after_artifact",
+    "assertions",
+    "decision"
+  ],
+  "title": "BMigrateReportV1",
+  "type": "object"
+}

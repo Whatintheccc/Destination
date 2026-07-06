@@ -1,0 +1,9 @@
+{
+  "tuning_id": "empty_baseline",
+  "intent_reward_bias": {},
+  "failure_penalties": {},
+  "denied_intents": [],
+  "source_report": "step_e_cvar_baseline",
+  "bias_evidence": {},
+  "frontier_effect": {}
+}

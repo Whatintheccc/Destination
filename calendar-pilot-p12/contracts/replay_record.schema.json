@@ -38,6 +38,7 @@
         "artifact_ref",
         "semantic_signal",
         "signal_estimator_report",
+        "belief",
         "label_activation",
         "biography_drift_finding",
         "dogfood_observation",

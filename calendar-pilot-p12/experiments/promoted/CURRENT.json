@@ -1,0 +1,7 @@
+{
+  "policy_tuning_id": "empty_baseline",
+  "path": "experiments/promoted/policy_tuning_empty_baseline.json",
+  "source_batch": "step_e_cvar_baseline",
+  "promoted_at": "2026-07-06T00:00:00Z",
+  "note": "No-op pinned baseline for C-VAR; this does not promote learned behavior."
+}

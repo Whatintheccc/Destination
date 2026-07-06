@@ -39,6 +39,7 @@ RECORD_TYPE_TO_STREAM: dict[str, str] = {
     # Derived layer: estimated semantic/user signals.
     "semantic_signal": SignalStream.DERIVED.value,
     "signal_estimator_report": SignalStream.DERIVED.value,
+    "belief": SignalStream.DERIVED.value,
     # Everything else is system/meta unless payload content says otherwise.
     "decision": SignalStream.SYSTEM.value,
     "receipt": SignalStream.SYSTEM.value,

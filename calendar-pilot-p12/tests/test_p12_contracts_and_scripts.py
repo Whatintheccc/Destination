@@ -27,6 +27,9 @@ class P12ContractsAndScriptsTests(unittest.TestCase):
             "autonomy_family_promotion.schema.json",
             "curriculum_run.schema.json",
             "policy_ablation_report.schema.json",
+            "experiment_record.schema.json",
+            "cvar_report.schema.json",
+            "b_migrate_report.schema.json",
         ]:
             self.assertIn(name, versions)
             self.assertTrue((ROOT / "contracts" / name).exists())
@@ -41,6 +44,8 @@ class P12ContractsAndScriptsTests(unittest.TestCase):
             payload = json.loads(out.read_text())
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["report"]["estimator_version"], "interruption_tolerance_v1")
+            self.assertEqual(payload["beliefs"][0]["version"], "belief.v1")
+            self.assertEqual(payload["beliefs"][0]["source_object_id"], payload["signals"][0]["signal_id"])
 
     def test_measurement_and_calibration_scripts_write_contract_shapes(self):
         with tempfile.TemporaryDirectory() as td:

@@ -19,6 +19,7 @@ from calendar_pilot.types import (
     RewardEvent,
     SemanticSignal,
     UserBiography,
+    Belief,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,8 +68,12 @@ class P12SignalStreamTests(unittest.TestCase):
         self.assertEqual(first.report.estimator_version, "interruption_tolerance_v1")
         self.assertTrue(first.signal.evidence)
         replay = ReplayBuffer()
-        replay.append_semantic_signal(first.signal.to_dict(), trace_id=first.signal.signal_id)
-        replay.append_signal_estimator_report(first.report.to_dict(), trace_id=first.report.report_id)
+        signal_row_id = replay.append_semantic_signal(first.signal.to_dict(), trace_id=first.signal.signal_id)
+        belief = Belief.from_semantic_signal(first.signal, activation_row_ids=[signal_row_id])
+        belief_row_id = replay.append_belief(belief, trace_id=belief.belief_id, causal_parent_id=signal_row_id)
+        replay.append_signal_estimator_report(first.report.to_dict(), trace_id=first.report.report_id, causal_parent_id=belief_row_id)
+        self.assertEqual(replay.records[-2].record_type, "belief")
+        self.assertEqual(replay.records[-2].signal_stream, "derived")
         self.assertFalse(check_replay([r.envelope() for r in replay.records]))
 
     def test_sim_v2_1_uses_behavior_not_legacy_scalar(self):

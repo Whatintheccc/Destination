@@ -1,0 +1,28 @@
+{
+  "experiment_id": "wave_id_or_pr_id",
+  "phase": "Step E",
+  "hypothesis": "The behavior-changing wave preserves promotion/hold behavior while reducing implementation debt.",
+  "change_scope": {
+    "organs": [],
+    "files": [],
+    "migration_contract": "B_migrate"
+  },
+  "before_artifacts": {
+    "instrument_sha": "",
+    "p12_release": "",
+    "cvar_report": "",
+    "b_migrate_report": ""
+  },
+  "after_artifacts": {
+    "instrument_sha": "",
+    "p12_release": "",
+    "cvar_report": "",
+    "b_migrate_report": ""
+  },
+  "promotion_harness": {
+    "cvar_required": true,
+    "b_migrate_required": true,
+    "release_required": true
+  },
+  "decision": "hold"
+}

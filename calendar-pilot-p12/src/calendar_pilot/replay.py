@@ -21,6 +21,7 @@ REPLAY_KEEP_RECORD_TYPES = {
     "human_feedback_event",
     "semantic_signal",
     "signal_estimator_report",
+    "belief",
     "label_activation",
     "biography_drift_finding",
 }
@@ -108,6 +109,7 @@ class ReplaySummary:
     artifact_refs: int = 0
     semantic_signals: int = 0
     signal_estimator_reports: int = 0
+    beliefs: int = 0
     label_activations: int = 0
     biography_drift_findings: int = 0
     skipped_unknown_versions: int = 0
@@ -229,6 +231,12 @@ class ReplayBuffer:
         report_id = str(payload.get("report_id") or payload.get("estimator_run_id") or f"estimator:{hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode('utf-8')).hexdigest()[:12]}")
         payload.setdefault("report_id", report_id)
         return self.append_generic("signal_estimator_report", payload, record_id=f"signal_estimator_report:{report_id}", trace_id=trace_id or report_id, causal_parent_id=causal_parent_id, signal_stream=SignalStream.DERIVED.value)
+
+    def append_belief(self, belief: Any, *, trace_id: str | None = None, causal_parent_id: str | None = None) -> str:
+        payload = belief.to_dict() if hasattr(belief, "to_dict") else dict(belief)
+        belief_id = str(payload.get("belief_id") or f"belief:{hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode('utf-8')).hexdigest()[:12]}")
+        payload.setdefault("belief_id", belief_id)
+        return self.append_generic("belief", payload, record_id=belief_id, trace_id=trace_id or belief_id, causal_parent_id=causal_parent_id, signal_stream=SignalStream.DERIVED.value)
 
     def append_label_activation(self, activation: dict[str, Any], *, trace_id: str | None = None, causal_parent_id: str | None = None) -> str:
         payload = dict(activation)
@@ -491,6 +499,7 @@ class ReplayBuffer:
             artifact_refs=sum(1 for r in self.records if r.record_type == "artifact_ref"),
             semantic_signals=sum(1 for r in self.records if r.record_type == "semantic_signal"),
             signal_estimator_reports=sum(1 for r in self.records if r.record_type == "signal_estimator_report"),
+            beliefs=sum(1 for r in self.records if r.record_type == "belief"),
             label_activations=sum(1 for r in self.records if r.record_type == "label_activation"),
             biography_drift_findings=sum(1 for r in self.records if r.record_type == "biography_drift_finding"),
             skipped_unknown_versions=self.skipped_unknown_versions,
