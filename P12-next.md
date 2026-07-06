@@ -46,6 +46,7 @@ blocked            blocked with a named reason, owner, and next unblock action
 | Source purpose census | TBD | not started | `lineage/src_symbol_manifest.json` and file-level ledger | AST parse succeeds for all Python files | seed manifest from current `calendar-pilot-p12/src` |
 | Line-level provenance | Codex | review | `runs/p12_next_evidence/20260704T060917Z-p12-next-line-provenance/lineage/line_span_manifest.jsonl`, coverage, gap report | every current line is assigned, waived, or blocked; blockers are isolated to scopes absent from accepted structural lineage | review `examples`/`tests`/`packages` blockers before Stage D |
 | Reachability + root set | TBD | not started | `reachability/coverage.json`, root list, verdict coverage | deterministic + release + live-NIM + browser legs recorded; line spans available for verdicts | write root-set file after line-level pass |
+| Step E instrument gate | TBD | not started | `instrument/INSTRUMENT.sha`, live-leg/root-list ledger, de-placebo gate reports, `known_red_flags.json`, `belief_explain_report.md` | release gate can fail truthfully before more destructive compression | make `reward_heads`, `policy_ablation`, and `calibration` compute real truth; run or root-list live legs |
 | Legacy deletion wave | TBD | not started | tombstones for D1-D6, inverted quarantine tests | accepted Stage A/B lineage, line-level provenance for removed spans, plus Stage C verdicts for each item; `make p12-release` green after each deletion | wait for annex/source-purpose/lineage/root-set work, then start with `notification_fatigue` and `sim_v1` |
 | Consolidation waves | TBD | not started | per-wave LOC delta, tombstones, survivor map | protected-path diff clean | plan ML -> backend -> frontend order |
 | Current-truth docs | TBD | not started | `docs/LINEAGE.md`, README refresh, history archive pointer | `grep` finds no deleted-flow docs | draft docs index after Wave 1 |
@@ -60,6 +61,7 @@ blocked            blocked with a named reason, owner, and next unblock action
 | B-SA-001 | lineage | Codex Stage A | **resolved** (`20260704T041118Z`) | P7 `calendar-pilot-updated 2` | Resolved: `updated 2` proven a **P8-era accumulated snapshot** (has P8 files, lacks P9 `environment/`); archive-diff shows 0 current symbols depend on it alone. Affected providers attributed P8-era first-sighting. Evidence: `blocker_resolution.md`. | none — resolved |
 | B-SA-002 | lineage | Codex Stage A | **resolved** (`20260704T041118Z`) | P8 frontend duplicate pair | Resolved: `frontend 2` proven P8-era (same content test); 0 current symbols depend on it alone. `frontend/*`, `swift_bridge/*` attributed P8-era first-sighting. | none — resolved |
 | B-SA-003 | lineage | Codex Stage A | **resolved** (`20260704T041118Z`) | P8.5 `calendar-pilot` dogfood/safety row | Resolved: **0 current symbols/carriers first-seen in the P8.5 folder** (no P8.5 in the first-sighting distribution); session/live/release originate P8. P8.5 confirmed doc/runway only. | none — resolved |
+| B-004 | instrument | TBD | open | Step E final gate | `make p12-release` still certifies the deterministic reachable set only; `reward_heads`, `policy_ablation`, and `calibration` need non-placeholder truth semantics before they can justify further compression | run §8 Step E instrument gate before any new destructive wave |
 
 ## Repo annex progress ledger
 
@@ -463,6 +465,10 @@ Run: `calendar-pilot-p12/runs/p12_next_evidence/20260705T055514Z-p12-next-eventk
 
 Run: `calendar-pilot-p12/runs/p12_next_evidence/20260705T174108Z-p12-next-stage-d2-official-pipelines/`. Reviewed current and historical docs for the official seed/EventKit/test pipelines. Found `scripts/seed_calendar_corpus.py`, generated and validated the locked 120-file seed corpus, ran `make lab-validate-seeds`, and completed `make lab-run SEED=experiments/seeds/seed_founder_baseline.json RUNTIME=fixture`. The documented Program A command line was ahead of the scripts (`--family create_prep_block` was documented but unparsed), so `run_shadow_frontier.py` and `make_calibration_report.py` now accept additive `--family` and record family-scoped shadow/calibration output without changing authority or write behavior. The Program A shadow path now runs end-to-end: imported fixture/local observation tagged `apple_eventkit`, 1 `create_prep_block` shadow candidate, 1 provider preview, 0 commits, calibration still `hold` with 0 matched examples. Root `/Do-not-reference` docs identify the recent sandbox setup: a calendar titled `CalendarPilot SelfPlay` plus `CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX=1` and `CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX_CALENDAR_ID="CalendarPilot SelfPlay"`; P11 used a similar `CalendarPilot Sandbox` unblock. Current `run_live_eventkit_e2e.py` had regressed to targeting `default`; restored P11 env-targeting behavior, made the Swift bridge fail closed for unavailable explicit calendar ids/titles, added an explicit `ensure_calendar` setup command, and fixed EventKit verification to use fresh provider readback with stable created IDs. This machine exposed no local EventKit source, so `CalendarPilot SelfPlay` was created with explicit `source_policy: default_if_no_local`; all writes still targeted only that sandbox title. Provider-backed EventKit self-play completed: 5 `swift_ipc_eventkit_sandbox` episodes on a run-local `CalendarPilot SelfPlay` seed, all `create_prep_block`, 0 denials, first commit `materialized`, verify `verified` with `local_time_echo_ok: true`, later write idempotent, replay invariants `ok: true`, rollback cleanup `rollback_verified: true` and 0 unverified rollback records. Final gates passed: focused script/provider tests, `make py-test`, `make check-invariants`, `make p12-release`, `make browser-e2e`, `make dogfood-release`, `make swift-test`, `make swift-ipc-test`, `make mac-app-build`, sandboxed mutating EventKit probe, and sandboxed live-EventKit-enabled `make dogfood-release`. Stage D2 is complete. Remaining holds are evidence-only: `create_prep_block` promotion still lacks matched examples/explicit feedback volume, and the broader placebo/thin gate follow-ups remain tracked. Report: `stage_d2_official_pipelines_report.md`.
 
+## Step E instrument gap — pending before further destructive compression
+
+Review after the P12-P17 architecture pass: Stage D2 proves the EventKit/provider-backed runway on this machine, but it does not make `make p12-release` a sufficient ruler for compression. The release target still exercises the deterministic spine while live Codex, live DiffusionGemma/NIM, live EventKit, Swift IPC, browser E2E, and dogfood release evidence live beside it. Three release legs also remain too thin to certify behavioral deletion: `reward_heads` reports constant zero purity violations, `policy_ablation` returns pass-shaped ablations without re-grading candidate behavior, and `calibration` correctly emits insufficient-data `hold` but is counted by the release wrapper as green. Section 8 is now the binding Step E instrument gate: make the ruler truthful, pin it, record known-red flags, and only then continue destructive waves.
+
 ## Hygiene rules for delegated work
 
 ```text
@@ -541,7 +547,7 @@ The prior draft quarantined legacy paths (fatigue scalar, sim_v1, envelope v1 ma
 
 ## 3. The two data-quality flags are pre-existing, not cleanup regressions
 
-`OTHER_intent_rate 0.1429` and `expected_intent_hit_rate 0.0` in the fixture measurement report predate any deletion. Step 1 freezes these as baseline numbers so deletion waves are judged against the true "before," and a follow-up owns them separately (§12).
+`OTHER_intent_rate 0.1429` and `expected_intent_hit_rate 0.0` in the fixture measurement report predate any deletion. Step 1 freezes these as baseline numbers so deletion waves are judged against the true "before," and a follow-up owns them separately (§13).
 
 ---
 
@@ -648,7 +654,9 @@ rerun discovery without verdict assignment.
 # 0. Prime directive
 
 ```text
-1. Keep make p12-release green after every wave. The gate is the freeze.
+1. Keep make p12-release green after every wave, but do not treat it as a
+   complete safety claim until the Step E instrument gate passes or root-lists
+   every live exception.
 2. Keep the cold-start runway collecting; never touch its pipeline.
 3. Reconstruct lineage before deleting: every cut names the phase it unwinds.
 4. Stage A/B assigns no retention verdicts; Stage C may do that only after
@@ -672,7 +680,7 @@ export RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-p12-next"
 
 mkdir -p runs/p12_next_evidence/$RUN_ID/{\
 regression,baseline,cold_start,feedback,calibration,legacy_deletion,\
-lineage,reachability,waves,docs,release}
+lineage,reachability,instrument,waves,docs,release}
 
 git rev-parse HEAD > runs/p12_next_evidence/$RUN_ID/git_sha.txt
 git status --short > runs/p12_next_evidence/$RUN_ID/git_status.txt
@@ -1028,7 +1036,149 @@ Stage C blocker. Mixed files name both the survivor spans and the removed spans.
 
 ---
 
-# 8. Deletion waves (reverse-lineage order, gate-green after each)
+# 8. Step E instrument gate — make the ruler truthful before more cuts
+
+Step E is the lettered continuation after Stage D, before destructive
+compression resumes. It is not a deletion wave. It is the gate that proves the
+release instrument can detect the failures a deletion wave might introduce. It
+may add code. That is acceptable: Step E lowers false confidence before P12-next
+lowers LOC.
+
+## Pin the instrument
+
+```bash
+git rev-parse HEAD > runs/p12_next_evidence/$RUN_ID/instrument/INSTRUMENT.sha
+git status --short > runs/p12_next_evidence/$RUN_ID/instrument/instrument_git_status.txt
+
+make p12-release \
+  | tee runs/p12_next_evidence/$RUN_ID/instrument/p12-release-instrument.log
+
+make swift-ipc-test \
+  | tee runs/p12_next_evidence/$RUN_ID/instrument/swift-ipc-test.log
+
+make browser-e2e \
+  | tee runs/p12_next_evidence/$RUN_ID/instrument/browser-e2e.log
+
+make dogfood-release \
+  | tee runs/p12_next_evidence/$RUN_ID/instrument/dogfood-release.log
+```
+
+Live legs are run when credentials and OS permission are intentionally present.
+If a leg cannot run, root-list it in the same bundle with a named owner and the
+next unblock action. A skipped live leg with no root-list entry is a failed
+instrument gate.
+
+```bash
+make live-codex-e2e \
+  | tee runs/p12_next_evidence/$RUN_ID/instrument/live-codex-e2e.log
+
+make live-diffusiongemma-e2e \
+  | tee runs/p12_next_evidence/$RUN_ID/instrument/live-diffusiongemma-e2e.log
+
+CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX=1 \
+CALENDAR_PILOT_SELFPLAY_EVENTKIT_SANDBOX_CALENDAR_ID="CalendarPilot SelfPlay" \
+make live-eventkit-e2e \
+  | tee runs/p12_next_evidence/$RUN_ID/instrument/live-eventkit-e2e.log
+```
+
+Root-list schema:
+
+```text
+leg:
+status: ran | root-listed
+reason:
+last_passing_artifact:
+owner:
+next_unblock_action:
+accepted_until:
+```
+
+## De-placebo release legs
+
+`reward_heads`, `policy_ablation`, and `calibration` are protected instrument
+surfaces. They can be thin only if they say they are thin, and they must fail or
+hold for real reasons.
+
+Required outputs:
+
+```text
+reward_heads:
+  consumed_action_rows > 0, or explicit no-data hold
+  non_action_stream_rows counted
+  reward_purity_violations list carries row ids
+  synthetic non-ActionStream reward fixture fails
+
+policy_ablation:
+  every ablation re-runs or reuses a named frontier_diff + scorecard input
+  promotion_decision comes from re-graded deltas, not constants
+  no_semantic_labels and no_derived_signals state whether signals are load-bearing
+  empty ablation inputs hold, not pass
+
+calibration:
+  matched_examples, family metrics, gaps, and known_biases are always emitted
+  insufficient-data is a release-level hold with `decision: hold`
+  hold exits are represented separately from pass in the release report
+  `--family create_prep_block` output is carried into Program A
+```
+
+Acceptance is adversarial: each leg gets one negative fixture proving the gate
+turns red or hold-shaped when the protected condition is violated. A green report
+with no consumed evidence is not a pass.
+
+## Known-red baseline flags
+
+Write the known-red flags at the same `INSTRUMENT@sha` so future waves can be
+judged against the real before-state, not against a cleaned-up memory.
+
+```json
+{
+  "OTHER_intent_rate": 0.1429,
+  "expected_intent_hit_rate": 0.0,
+  "matched_examples": 0,
+  "create_prep_block_promotion": "hold",
+  "calibration_decision": "hold"
+}
+```
+
+These flags are not owned by deletion waves unless a wave worsens them. They are
+owned by frontier quality, Program A evidence collection, and the Step E
+instrument report.
+
+## Belief and explain gate
+
+Step E must make derived human state an object, not a scalar convention.
+
+```text
+Belief:
+  constructible only with evidence row ids, confidence, version, and controls
+  SemanticSignal may back a Belief, but uncited labels cannot
+  active/correct/disable history is replay-visible
+
+explain():
+  answers include claim, evidence row ids, confidence, controls, and version
+  at minimum covers Belief, Authority denial/revocation, Candidate, Provider,
+  and Trajectory trace answers
+```
+
+If `Belief` or `explain()` is not implemented, P12-next final acceptance is
+`hold`, not `pass`. A hold may be accepted only with `belief_explain_report.md`
+listing the missing object messages, owner, target phase, and the compression
+work that is blocked until the gap closes.
+
+## Acceptance
+
+```text
+INSTRUMENT@sha pinned with clean or intentionally dirty status recorded.
+Every live leg ran or has a signed root-list entry.
+reward_heads, policy_ablation, and calibration can fail or hold for real inputs.
+Known-red flags are recorded at pin time and not worsened by later waves.
+Belief and explain are implemented, or final acceptance is explicitly hold.
+No destructive wave lands after the pin without rerunning affected instrument legs.
+```
+
+---
+
+# 9. Deletion waves (reverse-lineage order, gate-green after each)
 
 Each wave: one PR series → `make p12-release` + `make loc-report` → tombstones appended to LINEAGE.md (`what died, phase that built it, snapshot repo that still has it`).
 
@@ -1056,14 +1206,15 @@ Ordering rule within every wave, exactly as proposed: **trace ML → backend →
 ## Acceptance per wave
 
 ```text
-p12-release green. loc-report delta recorded. Zero new invariant violations.
+p12-release green. Step E affected instrument legs rerun or explicitly unchanged.
+loc-report delta recorded. Zero new invariant violations.
 Baseline data-quality flags (§1) unchanged or improved — never worsened.
 Tombstones written. Protected paths untouched (diff-checked).
 ```
 
 ---
 
-# 9. Docs current-truth pass
+# 10. Docs current-truth pass
 
 ```text
 docs/LINEAGE.md (new, permanent): phase timeline, verdict summary, tombstone
@@ -1080,12 +1231,13 @@ Acceptance: a new engineer finds current truth in ≤ 60 seconds; no doc referen
 
 ---
 
-# 10. Final release + phase acceptance
+# 11. Final release + phase acceptance
 
 ```bash
 make p12-release  | tee runs/p12_next_evidence/$RUN_ID/release/p12-release-final.log
 make loc-report   | tee runs/p12_next_evidence/$RUN_ID/release/loc_report_after.json
-make py-test swift-test check-invariants contract-vectors
+make py-test swift-test swift-ipc-test check-invariants contract-vectors
+make browser-e2e dogfood-release
 ```
 
 ```md
@@ -1093,9 +1245,21 @@ make py-test swift-test check-invariants contract-vectors
 
 ## Freeze held
 - [ ] p12-release green at baseline, after every wave, and at final.
+- [ ] Step E instrument gate passed, or final decision is explicitly hold.
 - [ ] No P11/P12 invariant relaxed; B1–B6 intact; reward purity intact.
 - [ ] Baseline data-quality flags not worsened by any wave.
 - [ ] Protected runway paths byte-identical or additively extended.
+
+## Step E — instrument truth
+- [ ] `INSTRUMENT@sha` is pinned and final release names the pinned instrument.
+- [ ] Live Codex, live DiffusionGemma/NIM, live EventKit, Swift IPC, browser E2E,
+      and dogfood release legs ran or are root-listed with owner/sign-off.
+- [ ] `reward_heads` scans consumed rows and has a negative fixture that fails.
+- [ ] `policy_ablation` re-grades real frontier/scorecard inputs; no constant pass.
+- [ ] `calibration` distinguishes pass from insufficient-data hold in release output.
+- [ ] Known-red flags are recorded at pin time and remain unchanged or improved.
+- [ ] Belief/explain object contract shipped, or final acceptance is hold with
+      `belief_explain_report.md`.
 
 ## Program A — cold-start runway
 - [ ] Evidence target file exists; counts increasing week over week.
@@ -1126,7 +1290,7 @@ make py-test swift-test check-invariants contract-vectors
 
 ---
 
-# 11. Recommended PR sequence
+# 12. Recommended PR sequence
 
 ```text
 PR 1  p12-next-baseline        loc_report.py + make target, baseline freeze, evidence bundle
@@ -1136,22 +1300,24 @@ PR 4  p12-next-source-purpose  build_src_purpose_manifest.py, source owners, ini
 PR 5  p12-next-lineage         build_lineage.py, lineage.json, source_archive_repo mapping
 PR 6  p12-next-line-spans      build_line_provenance.py, line_span_manifest.jsonl, line-span gap review
 PR 7  p12-next-root-verdicts   LINEAGE tag lint + tagging sweep + reachability/coverage union + Stage C verdict gate
-PR 8  p12-next-legacy-delete   §3 D1–D6 after accepted lineage/line spans/Stage C verdicts, inverted quarantine tests
-PR 9  p12-next-wave-1          remaining dead-by-reachability deletions + tombstones
-PR 10 p12-next-wave-2          lineage-dead flow deletions (ML -> backend -> frontend order)
-PR 11 p12-next-wave-3          lab.py CLI consolidation, shared report writer, session decomposition
-PR 12 p12-next-docs            LINEAGE.md, history archive, README refresh, tag-lint removal
-PR 13 p12-next-final           final release run, loc gate, acceptance ledger
+PR 8  p12-next-step-e          Step E instrument pin, live-leg/root-list ledger, de-placebo gates, Belief/explain decision
+PR 9  p12-next-legacy-delete   §3 D1–D6 after accepted lineage/line spans/Stage C verdicts, inverted quarantine tests
+PR 10 p12-next-wave-1          remaining dead-by-reachability deletions + tombstones
+PR 11 p12-next-wave-2          lineage-dead flow deletions (ML -> backend -> frontend order)
+PR 12 p12-next-wave-3          lab.py CLI consolidation, shared report writer, session decomposition
+PR 13 p12-next-docs            LINEAGE.md, history archive, README refresh, tag-lint removal
+PR 14 p12-next-final           final release run, loc gate, Step E acceptance ledger
 ```
 
 ---
 
-# 12. Follow-ups this phase deliberately does not own
+# 13. Follow-ups this phase deliberately does not own
 
 ```text
-OTHER_intent_rate 0.1429 and expected_intent_hit_rate 0.0 at fixture scale —
-  owned by a frontier-quality follow-up after the deletion waves settle
-  (baseline is frozen so regressions vs. flags are distinguishable).
+Frontier-quality remediation for OTHER_intent_rate 0.1429 and
+  expected_intent_hit_rate 0.0 at fixture scale — owned by a frontier-quality
+  follow-up after the deletion waves settle. Step E owns pinning these flags and
+  proving waves did not worsen them.
 Live EventKit permission/environment hold — resolved in Stage D2 for this machine; keep the `CalendarPilot SelfPlay` sandbox setup documented, including the `default_if_no_local` caveat when no local EventKit source exists.
 create_prep_block promotion — Program A decides it with data, not this phase.
 Google/Microsoft sandbox providers — P13, against a half-sized repo.
@@ -1159,7 +1325,7 @@ Google/Microsoft sandbox providers — P13, against a half-sized repo.
 
 ---
 
-# 13. Judgment standard
+# 14. Judgment standard
 
 P12-next succeeds when:
 
@@ -1170,6 +1336,7 @@ every deleted line is attributable to the phase that added it and the
 the cold-start runway accumulated real ActionStream evidence the whole time,
 create_prep_block remains held for a quantified, shrinking reason,
 no invariant, contract, or gate was weakened to get green,
+the Step E instrument can fail truthfully and names every live exception,
 and the next engineer reads docs/LINEAGE.md and understands in one sitting
   both what this system is and what it used to be.
 ```

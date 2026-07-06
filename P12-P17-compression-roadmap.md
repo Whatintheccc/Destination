@@ -437,6 +437,8 @@ exactly one of {K, O} holds authority at every coexistence state
 
 ### 9.1 Phase Summary
 
+P14 and P15 are intentionally not standalone phases in this architecture. Their old responsibilities are folded into P13 as kernel/organ migration work: first make each surface's hidden truth projectable from `Trajectory`, then replace or retire the old organ under `B_migrate`. P16 starts only after that migration foundation exists; it is the contraction phase, not the continuation of frontend/session peel-apart work.
+
 | Phase | Purpose | Irreversible step | Exit evidence |
 |---|---|---|---|
 | P12.5 | fix the instrument, install monitors, ship `Belief` and `explain` | none; this phase may add LOC | release gate can fail truthfully; live legs run or are root-listed; no destructive verdict lands |
