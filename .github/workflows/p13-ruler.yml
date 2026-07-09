@@ -27,6 +27,7 @@ jobs:
           make py-test
           make check-invariants
           make architecture-eval-test
+          make architecture-eval-v2-test
           make p13-ruler-test
           make p13-loc-report
           make architecture-evals
@@ -38,11 +39,15 @@ jobs:
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/p13-signing-private.pem"
           openssl pkey -in "$RUNNER_TEMP/p13-signing-private.pem" -pubout -out "$RUNNER_TEMP/p13-signing-public.pem"
           make p13-instrument P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make wave-bind WAVE=p13-scenario-v2 CHANGE_CLASS=ruler P13_SIGNING_KEY="$RUNNER_TEMP/p13-signing-private.pem" P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make binding-manifest-verify WAVE=p13-scenario-v2 P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make architecture-evals-v2 WAVE=p13-scenario-v2 P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
       - name: Assert report decisions
         run: |
           jq -e '.decision == "pass" and .file_count > 0 and .total_lines > 0' calendar-pilot-p12/runs/p13_loc_report.json
           jq -e '.p13_instrument_bundle_schema_version == "p13_instrument_bundle.v1" and (.artifacts | length) > 0' calendar-pilot-p12/runs/p13_instrument_bundle.json
           jq -e '.decision == "pass" and .rails.preservation.decision == "pass" and .rails.preservation.scenario_count == 11' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json
+          jq -e '.architecture_eval_report_schema_version == "architecture_eval_report.v2" and .decision == "pass" and .rails.preservation.decision == "pass" and ([.scenarios[] | select(.rail == "target_conformance" and .gate_mode == "required" and .status != "pass")] | length) == 0' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json
           jq -e '.decision == "pass"' calendar-pilot-p12/runs/cvar_report.json
           jq -e '.decision == "pass"' calendar-pilot-p12/runs/b_migrate_report.json
           jq -e '.decision == "pass" and .ok == true' calendar-pilot-p12/runs/p12_release/p12_release_report.json

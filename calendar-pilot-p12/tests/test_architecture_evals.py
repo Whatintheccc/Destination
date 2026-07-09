@@ -538,9 +538,29 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                     }
                 },
             ),
+            "binding_signature_accepts_tamper": (
+                "binding_manifest_signature",
+                {"ruler": {"valid_manifest_decision": "pass", "tampered_manifest_decision": "pass", "tampered_failure_codes": []}},
+            ),
+            "binding_affectedness_accepts_undeclared": (
+                "binding_manifest_affectedness",
+                {"ruler": {"declared_diff_decision": "pass", "undeclared_diff_decision": "pass", "undeclared_failure_codes": []}},
+            ),
+            "instrument_mutation_accepted": (
+                "instrument_mutation_rejection",
+                {"ruler": {"baseline_valid": True, "tampered_rejected": False, "tampered_reason": ""}},
+            ),
+            "optimizer_tcb_write_accepted": (
+                "optimizer_write_boundary",
+                {"ruler": {"protected_path_decision": "pass", "protected_failure_codes": []}},
+            ),
+            "p13_target_claim_without_evidence": (
+                "p13_target_not_implemented",
+                {"target_capability": {"reached": True}},
+            ),
         }
 
-        self.assertEqual(len(planted), 20)
+        self.assertEqual(len(planted), 25)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():

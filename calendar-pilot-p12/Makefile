@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test p13-ruler-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report b-migrate wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report b-migrate wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
 .NOTPARALLEL: wave-harness
 
 py-test:
@@ -65,6 +65,14 @@ architecture-evals:
 
 architecture-eval-test:
 	PYTHONPATH=src:tests python3 -m unittest test_architecture_evals
+
+architecture-eval-v2-test:
+	PYTHONPATH=src:tests python3 -m unittest test_architecture_evals_v2
+
+architecture-evals-v2:
+	@test -n "$(P13_VERIFY_KEY)" || (echo "P13_VERIFY_KEY is required" >&2; exit 2)
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	CALENDAR_PILOT_ARCH_EVAL_ACCESS_POINT='make architecture-evals-v2' PYTHONPATH=src python3 evals/architecture/run_architecture_evals.py --scenario-set evals/architecture/scenarios/p13_v2.json --binding-manifest "$(P13_MANIFEST)" --verification-key "$(P13_VERIFY_KEY)" --out runs/architecture_evals/architecture_eval_report_v2.json
 
 p13-ruler-test:
 	PYTHONPATH=src:tests python3 -m unittest test_p13_ruler

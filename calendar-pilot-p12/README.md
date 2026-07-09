@@ -101,6 +101,19 @@ jq -e '
 ' runs/architecture_evals/architecture_eval_report.json
 ```
 
+Scenario-set v2 has no fixed scenario-count ceiling and binds target requirements only
+from a verified pre-wave manifest:
+
+```bash
+make architecture-eval-v2-test
+make architecture-evals-v2 WAVE=<wave> \
+  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+```
+
+The v2 command fails before evidence collection if the signature, expiry,
+InstrumentBundle, scope source, or evaluator-derived affectedness is invalid. Required
+target IDs become `gate_mode=required` in the report; a required `not_reached` is hold.
+
 The report separates binding preservation evals from target-conformance evals.
 `pass`, `fail`, `hold`, and `not_reached` are distinct: `not_reached` never counts as
 pass and preservation non-pass results block. The v1 target `binding_trigger` fields are

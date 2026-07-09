@@ -269,6 +269,13 @@ The command name alone is never the claim. Use the scope and report below.
 | `make wave-harness` | invokes architecture preservation evals, C-VAR bootstrap, `B_migrate` bootstrap, and P12 release | a promotable compression certificate until §8.5 is complete |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and immutable per-run evidence | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
+| `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
+| `make p13-loc-report` | versioned tracked-`/src` Python file list, hashes, exclusions, total, repository/subtree identity, and optional before/after delta | conceptual mass or untracked source; untracked Python produces hold |
+| `make p13-instrument P13_VERIFY_KEY=…` | clean-tree, content-addressed evaluator/config/schema/test/toolchain identity and signer verification root | a signed wave scope or candidate pass |
+| `make wave-bind WAVE=… CHANGE_CLASS=…` | clean pre-wave scope, base commit, InstrumentBundle, ownership map, expiry, required scenarios, and external RSA signature | the post-change diff or scenario results |
+| `make binding-manifest-verify WAVE=…` | signature/expiry plus full committed, staged, unstaged, and untracked diff affectedness; undeclared paths/categories fail | architecture predicates by itself |
+| `make architecture-eval-v2-test` | scenario-set v2 additive coverage, manifest-only binding, required-debt hold, and four ruler counterexamples | the current wave's signed scope |
+| `make architecture-evals-v2 WAVE=… P13_VERIFY_KEY=…` | v1 preservation plus 25 four-role target families; only manifest-selected target IDs bind | live backends or any of the 21 currently `not_reached` operational/learning contracts |
 
 Architecture evals use two explicit rails. The **preservation** rail is binding now:
 every scenario must report `pass`. `architecture_scenario_set.v1` remains historical
@@ -278,7 +285,7 @@ executable switches; all remain `gate_mode: observe`. They must not certify a P1
 migration. Their `not_reached` results remain visible debt and never contribute to a
 pass count.
 
-P13.0 introduces `architecture_scenario_set.v2` and an evaluator-owned, immutable
+P13.0 now provides `architecture_scenario_set.v2` and an evaluator-owned, immutable
 pre-wave `BindingManifest`. The manifest—not candidate code and not prose—selects the
 required target predicates before a wave begins. It records touched action families,
 backends, surfaces, old/new invocation identities, scenario/instrument hashes, live
@@ -296,9 +303,14 @@ make wave-bind WAVE="$WAVE" CHANGE_CLASS="$CHANGE_CLASS"
 make wave-harness MANIFEST="runs/p13_manifests/$WAVE.json"
 ```
 
-`wave-bind` is run and externally signed before candidate edits. `wave-harness` verifies
-the signature, expiry, hashes, declared scope, evaluator-derived affectedness, and
-required predicates before it invokes any candidate-controlled code.
+`wave-bind` is run and externally signed before candidate edits.
+`binding-manifest-verify` checks signature, expiry, hashes, and evaluator-derived
+affectedness; `architecture-evals-v2` applies the selected required predicates. The
+legacy `wave-harness` does not become promotable until it composes both checks.
+
+The first bound v2 ruler wave records 11/11 preservation passes, four binding ruler
+target passes, and 21 nonbinding `not_reached` target debts. Adding target scenarios has
+no fixed v2 count ceiling. A manifest-selected `not_reached` becomes a blocking hold.
 
 The four scenario statuses have fixed meanings: `pass` means observed evidence
 satisfies the predicate; `fail` means the evidence contradicts it; `hold` means the
@@ -1049,17 +1061,17 @@ No authority handoff, vertical retirement, behavior-bearing consolidation, or de
 starts until all of these are true:
 
 ```text
-[ ] The workspace Makefile delegates to calendar-pilot-p12, or is removed as an access point.
-[ ] CI exists at the actual git root and runs the deterministic baseline plus report-decision assertions.
+[x] The workspace Makefile delegates to calendar-pilot-p12, or is removed as an access point.
+[x] CI exists at the actual git root and runs the deterministic baseline plus report-decision assertions.
 [ ] A new P13 InstrumentBundle@sha and active-app subtree hash are pinned after the documentation/access-point pass.
-[ ] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
+[x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
 [ ] pass is required for promotion; hold returns a blocking status from the wave gate.
 [ ] root-list entries are versioned artifacts with owner/sign-off, hashes, affected_by_wave, and enforced expiry.
-[ ] architecture_scenario_set.v1 is frozen as history; v2 describes the four-role topology without a fixed scenario-count ceiling.
-[ ] `make wave-bind` and `make wave-harness MANIFEST=...` create/verify an externally signed BindingManifest and fail undeclared affectedness.
+[x] architecture_scenario_set.v1 is frozen as history; v2 describes the four-role topology without a fixed scenario-count ceiling.
+[x] `make wave-bind` and manifest verification create/verify an externally signed BindingManifest and fail undeclared affectedness.
 [ ] Learning/meta optimizer write scope is allowlisted; TCB, evaluator, manifest, promoter, sealed archive history are read-only or unavailable.
 [ ] An engineering wave that changes TCB code declares exact TCB paths, runs isolated, and requires external evaluation plus independent human review.
-[ ] Evaluator mutation, manifest downgrade, and candidate write-boundary attacks are planted failures.
+[x] Evaluator mutation, manifest downgrade, and candidate write-boundary attacks are planted failures.
 [ ] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
 [ ] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
 [ ] ExperimentRecord phase is P13 (then P16/P17 as applicable), not the Step E constant.

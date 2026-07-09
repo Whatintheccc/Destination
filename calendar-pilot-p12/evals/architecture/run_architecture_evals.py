@@ -22,14 +22,17 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
 from calendar_pilot.environment.fsio import atomic_write_json
-from evals.architecture.adapters import P12CurrentAdapter
+from evals.architecture.adapters import P12CurrentAdapter, P13CurrentAdapter
 from evals.architecture.evaluation import derive_gate_decision, evaluate_scenario, summarize_rail
+from evals.p13_ruler.core import verify_binding_manifest
 
 
 DEFAULT_SCENARIOS = ROOT / "evals/architecture/scenarios/canonical.json"
+P13_SCENARIOS = ROOT / "evals/architecture/scenarios/p13_v2.json"
 DEFAULT_OUT = ROOT / "runs/architecture_evals/architecture_eval_report.json"
 DEFAULT_RUNS_ROOT = ROOT / "runs/architecture_evals"
-REPORT_SCHEMA = ROOT / "contracts/architecture_eval_report.schema.json"
+REPORT_SCHEMA_V1 = ROOT / "contracts/architecture_eval_report.schema.json"
+REPORT_SCHEMA_V2 = ROOT / "contracts/architecture_eval_report_v2.schema.json"
 FORBIDDEN_SCENARIO_VERDICT_KEYS = {"decision", "expected_status", "ok", "pass", "passed"}
 REQUIRED_PRESERVATION_SCENARIO_IDS = {
     "preservation.frontier_normal",
@@ -54,6 +57,33 @@ REQUIRED_TARGET_SCENARIO_IDS = {
     "target.provider_verify_failure",
     "target.executable_explanation_controls",
     "target.rollback_audit_history",
+}
+REQUIRED_V2_TARGET_SCENARIO_IDS = {
+    "target.reducer_determinism",
+    "target.cited_required_projection",
+    "target.trusted_ingress_forgery",
+    "target.effect_ticket_binding",
+    "target.compensation_ticket_binding",
+    "target.ticket_single_claim",
+    "target.duplicate_delivery",
+    "target.crash_before_claim",
+    "target.crash_after_claim",
+    "target.crash_after_dispatch",
+    "target.verify_ambiguity_reconcile",
+    "target.revoke_claim_race",
+    "target.restart_reconciliation",
+    "target.compensation_conflict_hold",
+    "target.no_learning_effect_path",
+    "target.frontier_safety_vector_v2",
+    "target.binding_manifest_signature",
+    "target.binding_manifest_affectedness",
+    "target.instrument_mutation_rejection",
+    "target.optimizer_write_boundary",
+    "target.holdout_non_exposure",
+    "target.promotion_override_rejection",
+    "target.reward_identity_provenance",
+    "target.monitor_counterexample_detectability",
+    "target.executable_explanation_controls_v2",
 }
 
 
@@ -137,13 +167,17 @@ def repository_identity(root: Path = ROOT) -> dict[str, Any]:
 
 def load_scenario_set(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("architecture_scenario_set_schema_version") != "architecture_scenario_set.v1":
+    version = payload.get("architecture_scenario_set_schema_version")
+    if version not in {"architecture_scenario_set.v1", "architecture_scenario_set.v2"}:
         raise ValueError("unsupported architecture scenario-set version")
-    if payload.get("adapter") != "p12_current":
-        raise ValueError("the deterministic baseline requires the p12_current adapter")
+    expected_adapter = "p12_current" if version == "architecture_scenario_set.v1" else "p13_current"
+    if payload.get("adapter") != expected_adapter:
+        raise ValueError(f"{version} requires the {expected_adapter} adapter")
     scenarios = payload.get("scenarios")
-    if not isinstance(scenarios, list) or not 10 <= len(scenarios) <= 20:
-        raise ValueError("architecture baseline must contain 10-20 canonical scenarios")
+    if not isinstance(scenarios, list) or len(scenarios) < 10:
+        raise ValueError("architecture scenario set must contain at least 10 scenarios")
+    if version == "architecture_scenario_set.v1" and len(scenarios) > 20:
+        raise ValueError("architecture_scenario_set.v1 must contain 10-20 canonical scenarios")
     ids: set[str] = set()
     required = {"scenario_id", "rail", "gate_mode", "category", "adapter_case", "predicate_id", "binding_trigger"}
     for row in scenarios:
@@ -165,19 +199,26 @@ def load_scenario_set(path: Path) -> dict[str, Any]:
             raise ValueError(f"invalid gate mode for {scenario_id}")
         if row["rail"] == "preservation" and row["gate_mode"] != "required":
             raise ValueError(f"preservation scenario must be required: {scenario_id}")
+        if version == "architecture_scenario_set.v2" and row["rail"] == "target_conformance" and row["gate_mode"] != "observe":
+            raise ValueError(f"v2 target binding belongs to BindingManifest, not the scenario file: {scenario_id}")
     preservation_ids = {str(row["scenario_id"]) for row in scenarios if row["rail"] == "preservation"}
     target_ids = {str(row["scenario_id"]) for row in scenarios if row["rail"] == "target_conformance"}
     if preservation_ids != REQUIRED_PRESERVATION_SCENARIO_IDS:
         raise ValueError(
-            "architecture_scenario_set.v1 preservation coverage changed without a version bump: "
+            f"{version} preservation coverage changed without a version bump: "
             f"missing={sorted(REQUIRED_PRESERVATION_SCENARIO_IDS - preservation_ids)}, "
             f"unexpected={sorted(preservation_ids - REQUIRED_PRESERVATION_SCENARIO_IDS)}"
         )
-    if target_ids != REQUIRED_TARGET_SCENARIO_IDS:
+    if version == "architecture_scenario_set.v1" and target_ids != REQUIRED_TARGET_SCENARIO_IDS:
         raise ValueError(
             "architecture_scenario_set.v1 target coverage changed without a version bump: "
             f"missing={sorted(REQUIRED_TARGET_SCENARIO_IDS - target_ids)}, "
             f"unexpected={sorted(target_ids - REQUIRED_TARGET_SCENARIO_IDS)}"
+        )
+    if version == "architecture_scenario_set.v2" and not REQUIRED_V2_TARGET_SCENARIO_IDS.issubset(target_ids):
+        raise ValueError(
+            "architecture_scenario_set.v2 is missing required target families: "
+            f"{sorted(REQUIRED_V2_TARGET_SCENARIO_IDS - target_ids)}"
         )
     return payload
 
@@ -192,14 +233,15 @@ def _artifact(kind: str, path: Path) -> dict[str, Any]:
     }
 
 
-def _instrument_artifacts() -> list[dict[str, Any]]:
+def _instrument_artifacts(*, scenario_set_path: Path, report_schema: Path, adapter_path: Path) -> list[dict[str, Any]]:
     paths = [
         Path(__file__),
         ROOT / "evals/architecture/evaluation.py",
-        ROOT / "evals/architecture/adapters/p12_current.py",
+        adapter_path,
         ROOT / "evals/architecture/predicates/core.py",
-        DEFAULT_SCENARIOS,
-        REPORT_SCHEMA,
+        ROOT / "evals/architecture/predicates/p13.py",
+        scenario_set_path,
+        report_schema,
     ]
     return [_artifact("eval_instrument", path) for path in paths]
 
@@ -220,7 +262,14 @@ def _prepare_artifact_root(path: Path) -> Path:
 
 
 def validate_report(report: dict[str, Any]) -> None:
-    schema = json.loads(REPORT_SCHEMA.read_text(encoding="utf-8"))
+    version = report.get("architecture_eval_report_schema_version")
+    if version == "architecture_eval_report.v1":
+        schema_path = REPORT_SCHEMA_V1
+    elif version == "architecture_eval_report.v2":
+        schema_path = REPORT_SCHEMA_V2
+    else:
+        raise ValueError(f"unsupported architecture-eval report version: {version}")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     errors = sorted(validator.iter_errors(report), key=lambda error: list(error.absolute_path))
@@ -245,7 +294,29 @@ def validate_report(report: dict[str, Any]) -> None:
         raise ValueError("architecture-eval report decision is not derived from scenario results")
     if report["execution"]["exit_code"] != (0 if decision == "pass" else 1):
         raise ValueError("architecture-eval recorded exit code disagrees with its decision")
-    for artifact in [*report["instrument_artifacts"], *(item for row in scenarios for item in row["artifacts"])]:
+    binding_artifacts: list[dict[str, Any]] = []
+    if version == "architecture_eval_report.v2":
+        binding = report["binding"]
+        required_ids = set(str(value) for value in binding["required_scenario_ids"])
+        by_id = {str(row["scenario_id"]): row for row in scenarios}
+        if not required_ids.issubset(by_id):
+            raise ValueError(f"BindingManifest requires unknown scenarios: {sorted(required_ids - set(by_id))}")
+        if any(by_id[scenario_id]["gate_mode"] != "required" for scenario_id in required_ids):
+            raise ValueError("BindingManifest required scenarios were not made binding")
+        manifest_target_ids = {scenario_id for scenario_id in required_ids if by_id[scenario_id]["rail"] == "target_conformance"}
+        effective_required_target_ids = {
+            str(row["scenario_id"])
+            for row in scenarios
+            if row["rail"] == "target_conformance" and row["gate_mode"] == "required"
+        }
+        if manifest_target_ids != effective_required_target_ids:
+            raise ValueError("effective target binding does not equal BindingManifest selection")
+        binding_artifacts = [binding["manifest"], binding["verification"]]
+    for artifact in [
+        *report["instrument_artifacts"],
+        *binding_artifacts,
+        *(item for row in scenarios for item in row["artifacts"]),
+    ]:
         path = Path(str(artifact["path"]))
         if not path.is_file() or _sha256(path) != artifact["sha256"]:
             raise ValueError(f"architecture-eval artifact hash mismatch: {path}")
@@ -254,6 +325,9 @@ def validate_report(report: dict[str, Any]) -> None:
 def build_report(
     *,
     scenario_set_path: Path = DEFAULT_SCENARIOS,
+    binding_manifest_path: Path | None = None,
+    verification_key: Path | None = None,
+    binding_changed_paths: list[str] | None = None,
     artifact_root: Path | None = None,
     out: Path = DEFAULT_OUT,
     command: str = "PYTHONPATH=src python3 evals/architecture/run_architecture_evals.py",
@@ -265,11 +339,51 @@ def build_report(
     artifact_root = _resolve(artifact_root) if artifact_root is not None else DEFAULT_RUNS_ROOT / run_id / "artifacts"
     out = _resolve(out)
     scenario_set = load_scenario_set(scenario_set_path)
+    scenario_version = str(scenario_set["architecture_scenario_set_schema_version"])
     artifact_root = _prepare_artifact_root(artifact_root)
     immutable_out = artifact_root.parent / "architecture_eval_report.json"
-    adapter = P12CurrentAdapter(ROOT)
+    report_schema = REPORT_SCHEMA_V1
+    adapter: P12CurrentAdapter | P13CurrentAdapter
+    binding: dict[str, Any] | None = None
+    effective_specs = [dict(row) for row in scenario_set["scenarios"]]
+    if scenario_version == "architecture_scenario_set.v2":
+        if binding_manifest_path is None or verification_key is None:
+            raise ValueError("architecture_scenario_set.v2 requires BindingManifest and verification key")
+        binding_manifest_path = _resolve(binding_manifest_path)
+        if not binding_manifest_path.is_file():
+            raise FileNotFoundError(f"BindingManifest not found: {binding_manifest_path}")
+        manifest = json.loads(binding_manifest_path.read_text(encoding="utf-8"))
+        verification = verify_binding_manifest(
+            manifest,
+            verification_key=Path(verification_key),
+            changed_paths=binding_changed_paths,
+        )
+        verification_path = artifact_root.parent / "binding_manifest_verification.json"
+        atomic_write_json(verification_path, verification)
+        if verification["decision"] != "pass":
+            raise ValueError(f"BindingManifest verification failed: {verification['failures']}")
+        required_ids = set(str(value) for value in manifest.get("required_scenarios", []))
+        scenario_ids = {str(row["scenario_id"]) for row in effective_specs}
+        if not required_ids.issubset(scenario_ids):
+            raise ValueError(f"BindingManifest requires unknown scenarios: {sorted(required_ids - scenario_ids)}")
+        for spec in effective_specs:
+            if spec["rail"] == "target_conformance" and spec["scenario_id"] in required_ids:
+                spec["gate_mode"] = "required"
+        binding = {
+            "manifest": _artifact("binding_manifest", binding_manifest_path),
+            "verification": _artifact("binding_manifest_verification", verification_path),
+            "required_scenario_ids": sorted(required_ids),
+        }
+        report_schema = REPORT_SCHEMA_V2
+        adapter = P13CurrentAdapter(ROOT)
+        adapter_path = ROOT / "evals/architecture/adapters/p13_current.py"
+    else:
+        if binding_manifest_path is not None or verification_key is not None:
+            raise ValueError("architecture_scenario_set.v1 does not accept BindingManifest inputs")
+        adapter = P12CurrentAdapter(ROOT)
+        adapter_path = ROOT / "evals/architecture/adapters/p12_current.py"
     results: list[dict[str, Any]] = []
-    for spec in scenario_set["scenarios"]:
+    for spec in effective_specs:
         scenario_id = str(spec["scenario_id"])
         scenario_dir = artifact_root / scenario_id
         scenario_dir.mkdir(parents=True, exist_ok=True)
@@ -325,12 +439,18 @@ def build_report(
     decision = derive_gate_decision(results)
     finished_at = datetime.now(timezone.utc)
     report = {
-        "architecture_eval_report_schema_version": "architecture_eval_report.v1",
+        "architecture_eval_report_schema_version": (
+            "architecture_eval_report.v2" if scenario_version == "architecture_scenario_set.v2" else "architecture_eval_report.v1"
+        ),
         "run_id": run_id,
         "generated_at": finished_at.isoformat(),
         "decision": decision,
         "repository": repository_identity(ROOT),
-        "instrument_artifacts": _instrument_artifacts(),
+        "instrument_artifacts": _instrument_artifacts(
+            scenario_set_path=scenario_set_path,
+            report_schema=report_schema,
+            adapter_path=adapter_path,
+        ),
         "report_paths": {
             "latest": str(out),
             "immutable": str(immutable_out),
@@ -366,6 +486,8 @@ def build_report(
         "rails": rails,
         "scenarios": results,
     }
+    if binding is not None:
+        report["binding"] = binding
     validate_report(report)
     atomic_write_json(immutable_out, report)
     if out.resolve() != immutable_out.resolve():
@@ -376,6 +498,8 @@ def build_report(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the deterministic two-rail architecture eval baseline.")
     parser.add_argument("--scenario-set", default=str(DEFAULT_SCENARIOS))
+    parser.add_argument("--binding-manifest", default="")
+    parser.add_argument("--verification-key", default="")
     parser.add_argument("--artifact-root", default="")
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     args = parser.parse_args()
@@ -384,6 +508,8 @@ def main() -> None:
     command = " ".join([sys.executable, *sys.argv])
     report = build_report(
         scenario_set_path=_resolve(args.scenario_set),
+        binding_manifest_path=_resolve(args.binding_manifest) if args.binding_manifest else None,
+        verification_key=Path(args.verification_key) if args.verification_key else None,
         artifact_root=_resolve(args.artifact_root) if args.artifact_root else None,
         out=_resolve(args.out),
         command=command,
