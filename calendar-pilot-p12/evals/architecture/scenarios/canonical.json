@@ -1,0 +1,187 @@
+{
+  "architecture_scenario_set_schema_version": "architecture_scenario_set.v1",
+  "scenario_set_id": "ideal_six_object_baseline.p12.v1",
+  "adapter": "p12_current",
+  "scenarios": [
+    {
+      "scenario_id": "preservation.frontier_normal",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "normal",
+      "adapter_case": "frontier_normal",
+      "predicate_id": "frontier_provenance",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.authority_belief_denial",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "denial",
+      "adapter_case": "authority_belief_denial",
+      "predicate_id": "belief_cannot_authorize",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.expired_authority",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "stale_state",
+      "adapter_case": "expired_authority",
+      "predicate_id": "expired_authority_denied",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.missing_belief_evidence",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "missing_evidence",
+      "adapter_case": "missing_belief_evidence",
+      "predicate_id": "missing_evidence_rejected",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.action_reward",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "normal",
+      "adapter_case": "action_reward",
+      "predicate_id": "reward_actionstream_only",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.provider_commit",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "commit",
+      "adapter_case": "provider_commit",
+      "predicate_id": "provider_transaction",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.provider_conflict",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "conflict",
+      "adapter_case": "provider_conflict",
+      "predicate_id": "provider_conflict_denial",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.provider_rollback",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "rollback",
+      "adapter_case": "provider_rollback",
+      "predicate_id": "rollback_effective",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.explanation_trace",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "normal",
+      "adapter_case": "explanation_trace",
+      "predicate_id": "explanations_cited_controls",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.frontier_timeout",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "timeout_failure",
+      "adapter_case": "frontier_timeout",
+      "predicate_id": "frontier_failure_visible",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "preservation.restart_restore",
+      "rail": "preservation",
+      "gate_mode": "required",
+      "category": "stale_state",
+      "adapter_case": "restart_restore",
+      "predicate_id": "restart_restore",
+      "binding_trigger": "now"
+    },
+    {
+      "scenario_id": "target.trajectory_projection",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "stale_state",
+      "adapter_case": "trajectory_projection",
+      "predicate_id": "trajectory_reconstruction",
+      "binding_trigger": "when frontend hidden truth is migrated to a Trajectory-derived projection under compression-roadmap.md §9.3"
+    },
+    {
+      "scenario_id": "target.authority_coexistence",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "denial",
+      "adapter_case": "authority_coexistence",
+      "predicate_id": "single_authority_owner",
+      "binding_trigger": "when an incumbent organ and kernel Authority path first coexist or an authority handoff begins under compression-roadmap.md §8.3"
+    },
+    {
+      "scenario_id": "target.frontier_safety_vector",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "timeout_failure",
+      "adapter_case": "frontier_safety_vector",
+      "predicate_id": "frontier_safety_observables",
+      "binding_trigger": "when the Frontier respondent protocol lands or Codex, NIM, and fixture frontier consolidation begins under compression-roadmap.md §8.4"
+    },
+    {
+      "scenario_id": "target.migration_comparison",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "normal",
+      "adapter_case": "migration_comparison",
+      "predicate_id": "migration_equivalence",
+      "binding_trigger": "when any organ gains an independently executed kernel path under B_migrate in compression-roadmap.md §8.3–§8.5"
+    },
+    {
+      "scenario_id": "target.monitor_removal",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "monitor_preservation",
+      "adapter_case": "monitor_removal",
+      "predicate_id": "monitor_preservation",
+      "binding_trigger": "when an organ retirement, monitor-affecting removal, or behavior-bearing contraction is proposed under compression-roadmap.md §7.2 and §9.5"
+    },
+    {
+      "scenario_id": "target.authority_revoke",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "rollback",
+      "adapter_case": "authority_revoke",
+      "predicate_id": "revoke_effective",
+      "binding_trigger": "when effective Authority revoke behavior lands or an authority handoff begins under compression-roadmap.md §6.2 and §9.3"
+    },
+    {
+      "scenario_id": "target.provider_verify_failure",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "commit",
+      "adapter_case": "provider_verify_failure",
+      "predicate_id": "provider_verify_failure_state",
+      "binding_trigger": "before any Provider authority handoff or provider transaction contraction under compression-roadmap.md §5.1 and §8.3"
+    },
+    {
+      "scenario_id": "target.executable_explanation_controls",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "normal",
+      "adapter_case": "executable_explanation_controls",
+      "predicate_id": "executable_explanation_controls",
+      "binding_trigger": "when an explanation exposes an actionable user control through a target-object path under compression-roadmap.md §3 and §5.1"
+    },
+    {
+      "scenario_id": "target.rollback_audit_history",
+      "rail": "target_conformance",
+      "gate_mode": "observe",
+      "category": "rollback",
+      "adapter_case": "rollback_audit_history",
+      "predicate_id": "rollback_audit_retained",
+      "binding_trigger": "at the first Provider or Authority migration comparison and before any rollback-path retirement under compression-roadmap.md §8.3"
+    }
+  ]
+}

@@ -88,6 +88,35 @@ make b-migrate
 make wave-harness
 ```
 
+Deterministic architecture-eval baseline:
+
+```bash
+python3 -m pip install -e '.[evals]'  # once per development environment
+make architecture-eval-test
+make architecture-evals
+jq -e '
+  .decision == "pass" and
+  .rails.preservation.decision == "pass" and
+  .rails.preservation.scenario_count == 11
+' runs/architecture_evals/architecture_eval_report.json
+```
+
+The report separates binding preservation evals from target-conformance evals.
+`pass`, `fail`, `hold`, and `not_reached` are distinct: `not_reached` never counts as
+pass, preservation non-pass results block, and target non-pass results block once their
+phase/object trigger is binding. Nonbinding targets remain reported as architectural
+debt. This baseline is deterministic and does not invoke live Codex, live NIM, or
+mutating EventKit; it neither completes P13.0 nor begins an organ migration or earns
+compression credit. See
+[`../compression-roadmap.md`](../compression-roadmap.md), §4.6 and §8.5.
+
+Each run writes an immutable report/artifact directory under
+`runs/architecture_evals/<run-id>/` and refreshes
+`runs/architecture_evals/architecture_eval_report.json` as the latest pointer. Reports
+record committed and dirty-worktree identity plus hashes for the runner, adapter,
+predicates, scenario set, and schema. The gate validates both the Draft 2020-12 schema
+and derived decisions/artifact hashes before it can return success.
+
 `make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
 only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live
 backend legs. The C-VAR/`B_migrate`/wave targets are bootstrap checks until the

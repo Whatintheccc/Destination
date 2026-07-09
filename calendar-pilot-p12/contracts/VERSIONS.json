@@ -1,5 +1,6 @@
 {
   "action_envelope.schema.json": "v1",
+  "architecture_eval_report.schema.json": "v1",
   "authority_grant.schema.json": "v1",
   "autonomy_family_promotion.schema.json": "v1",
   "b_migrate_report.schema.json": "v1",

@@ -1,6 +1,7 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote cvar-report b-migrate wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test cvar-report b-migrate wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.NOTPARALLEL: wave-harness
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -59,13 +60,19 @@ lab-compare:
 lab-promote:
 	PYTHONPATH=src python3 scripts/promote_policy.py --batch $(BATCH)
 
+architecture-evals:
+	CALENDAR_PILOT_ARCH_EVAL_ACCESS_POINT='make architecture-evals' PYTHONPATH=src python3 evals/architecture/run_architecture_evals.py
+
+architecture-eval-test:
+	PYTHONPATH=src:tests python3 -m unittest test_architecture_evals
+
 cvar-report:
 	PYTHONPATH=src python3 scripts/run_cvar_report.py --out runs/cvar_report.json
 
 b-migrate:
 	PYTHONPATH=src python3 scripts/run_b_migrate_dual_run.py --out runs/b_migrate_report.json
 
-wave-harness: cvar-report b-migrate p12-release
+wave-harness: architecture-evals cvar-report b-migrate p12-release
 
 mac-app-build:
 	scripts/build_macos_app.sh

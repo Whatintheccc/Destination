@@ -240,7 +240,32 @@ The command name alone is never the claim. Use the scope and report below.
 | `make p12-release` | deterministic P12 instruments: invariants, streams, frontier/scorecard, measurement, calibration, provider capabilities, reward heads, curriculum, ablations, Belief/explain, C-VAR bootstrap, `B_migrate` bootstrap, secret scan | browser, app bundle, Swift IPC, live Codex/NIM/EventKit; those are separate run-or-root-list legs |
 | `make cvar-report` | frozen-seed deterministic self-consistency with the current default invocation | pre-wave versus post-wave code equivalence until P13.0 |
 | `make b-migrate` | current session snapshot ↔ current projector mapping | independent old-organ versus new-kernel equivalence until P13.0 |
-| `make wave-harness` | invokes C-VAR bootstrap, `B_migrate` bootstrap, and P12 release | a promotable compression certificate until §8.5 is complete |
+| `make wave-harness` | invokes architecture preservation evals, C-VAR bootstrap, `B_migrate` bootstrap, and P12 release | a promotable compression certificate until §8.5 is complete |
+| `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
+| `make architecture-evals` | 20 deterministic, implementation-neutral scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 target-conformance predicates, with schema/semantic validation and immutable per-run evidence | live Codex, live NIM, mutating EventKit, completed target objects, organ migrations, or P13.0 completion |
+
+Architecture evals use two explicit rails. The **preservation** rail is binding now:
+every scenario must report `pass`. The **target-conformance** rail records desired
+six-object properties and becomes binding on the phase/object triggers in §8.5. Its
+nonbinding `not_reached` results remain visible architectural debt; they are never
+passes and never contribute to a pass count.
+
+The four scenario statuses have fixed meanings: `pass` means observed evidence
+satisfies the predicate; `fail` means the evidence contradicts it; `hold` means the
+predicate applies but evidence is missing or inconclusive; and `not_reached` means a
+nonbinding target prerequisite has not landed. Any non-`pass` preservation result or
+binding target result blocks the architecture-eval decision. The top-level decision
+may pass with nonbinding target debt only because that debt remains explicitly
+reported, not because `not_reached` was treated as success.
+
+`architecture_scenario_set.v1` pins the exact preservation and target scenario ids;
+dropping a rail or scenario without a version bump is a gate error. Every invocation
+uses a fresh run directory, retains an immutable report, and refreshes a latest-report
+pointer. The report records the committed tree, dirty-worktree digest, and hashes for
+the runner, adapter, predicates, scenario set, and schema. The gate validates Draft
+2020-12 shape, derived decisions/counts, and every artifact hash before returning
+success. An arbitrary or pre-existing artifact directory is rejected rather than
+recursively deleted.
 
 The interim canonical source-LOC access point counts tracked Python lines under
 `calendar-pilot-p12/src/`, matching the `/src` trajectory in §10:
@@ -275,6 +300,13 @@ jq -e '.decision == "pass"' runs/cvar_report.json
 
 make b-migrate
 jq -e '.decision == "pass"' runs/b_migrate_report.json
+
+make architecture-evals
+jq -e '
+  .decision == "pass" and
+  .rails.preservation.decision == "pass" and
+  .rails.preservation.scenario_count == 11
+' runs/architecture_evals/architecture_eval_report.json
 ```
 
 ### 4.7 Change-To-Gate Matrix
@@ -289,6 +321,12 @@ make py-test
 make check-invariants
 make p12-release
 jq -e '.decision == "pass" and .ok == true' runs/p12_release/p12_release_report.json
+make architecture-evals
+jq -e '
+  .decision == "pass" and
+  .rails.preservation.decision == "pass" and
+  .rails.preservation.scenario_count == 11
+' runs/architecture_evals/architecture_eval_report.json
 ```
 
 Focused suites shorten iteration but never replace the common baseline or a final
@@ -315,7 +353,7 @@ PYTHONPATH=src:tests python3 -m unittest \
 
 # release instrument and wave certificates
 PYTHONPATH=src:tests python3 -m unittest \
-  test_step_e_instrument_reports test_wave_harness
+  test_step_e_instrument_reports test_wave_harness test_architecture_evals
 ```
 
 | Touched surface | Additional required gates | Required evidence focus |
@@ -770,6 +808,37 @@ starts until all of these are true:
 [ ] Reward evidence reports unique row identity and human-versus-simulator provenance; synthetic rows cannot count as Program A feedback.
 [ ] Every certificate has a planted counterexample that produces fail or hold.
 ```
+
+The bounded architecture-eval baseline is P13.0 ruler work only. Preservation
+predicates and counterexample sensitivity bind immediately. Target-conformance
+predicates bind as follows: complete Trajectory projection at the first P13 frontend
+shadow path and before session-state retirement; single-owner authority and the full
+old/new comparison vector at the first old/kernel coexistence for each organ;
+object-specific contracts when their first target-facing path lands; Provider
+transaction conformance before provider authority handoff; Frontier safety observables
+when Frontier respondent/contraction work begins (no later than P16); and monitor
+preservation for every retirement, contraction, or removal from P13 onward. Provider
+verify-failure state and rollback audit retention bind before the first Provider or
+Authority handoff. Executable explanation controls bind when any target-object
+explanation first exposes an actionable control.
+
+Architecture-eval semantics are fixed before those triggers:
+
+```text
+visible-field set       a versioned required-field manifest; every reconstructed field cites Trajectory rows
+authority owner         the sole issuer of the effect-authorizing receipt; grant issuer and exerciser remain provenance
+revoke                  blocks future exercise and cancels staged/uncommitted work; committed effects require explicit undo
+Frontier measurement    latency=ms, cost=usd, variance names metric/unit/sample count; unknown is typed with a reason, never null
+provenance containment  semantic source/content fingerprints survive regenerated ids; redaction leaves a cited tombstone/hash
+explanation controls    actionable controls carry executable route, authority requirement, artifact, and receipt; context stays separate
+rollback equality       external state is restored while audit history remains append-only and gains the rollback receipt
+verify failure          never labeled committed; enters rollback-pending/unverified and resolves to verified revert or explicit hold
+monitor identity        defined by planted-counterexample detectability, never by implementation/module name
+```
+
+This baseline does not complete P13.0, begin an organ migration, authorize an authority
+handoff, or earn compression credit. Its deterministic adapter does not invoke live
+Codex, live NIM, or mutating EventKit.
 
 P13.0 may change only the ruler, access-point plumbing, and their tests. It produces no
 product behavior change and no compression credit. Its exit bundle follows §4.8 and
