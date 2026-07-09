@@ -18,29 +18,50 @@ CalendarPilot is a small, legible, human-governed learning loop that:
 believes only what it can cite,
 hands the user control of every belief,
 acts only under revocable authority,
-always undoes,
+verifies every effect or enters a visible hold,
+compensates only when fresh state says compensation is safe,
 and earns autonomy only by beating its own incumbent on real behavior.
 ```
 
-The architecture is six objects:
+The operational architecture has four roles:
 
 ```text
-Trajectory  Stream  Frontier  Authority  Belief  Provider
+Evidence Journal  Pure Reducer  Authority Gate  Effect Gateway
 ```
 
-Everything else is one of three things:
+They are deliberately not four equally trusted services. The effect-safety trusted
+computing base is smaller: authenticated user/provider ingress, the Authority Gate,
+revocation/nonce state, fresh provider preconditions, and the durable claim/outbox plus
+ticket verifier inside the Effect Gateway. A Journal or Reducer defect must
+still be unable to create an accepted effect.
+
+The other named concepts are different kinds of things and are not promoted into peers:
 
 ```text
-projection   a view over the six objects
-adapter      an external respondent behind one object
-method       behavior that belongs on one object but currently lives elsewhere
+Frontier                            untrusted proposal port with replaceable respondents
+Provider                            remote protocol; credential adapter confined inside Gateway
+blob store                          evidence port with replaceable adapter
+Stream                              an event classification tag
+Belief, UI state, explain           cited projections plus commands/events
+Evaluator/Promoter                  an external control plane
+Optimizer/Search Archive            a mutually non-writable external control plane
 ```
 
-If a line cannot be explained as one of those three, it is exception management. It does not survive compression.
+There are three loops, separated by artifact and write boundaries:
+
+```text
+operational   may propose, authorize, apply, verify/reconcile, and record effects
+learning      may emit an immutable PolicyPayload; it cannot mint tickets or self-promote
+meta          may emit isolated candidate code; it is deferred beyond P17 readiness
+```
+
+Only the operational loop can reach the Effect Gateway. If code cannot be classified as a
+role, port/adapter, event, projection, command, or external control-plane function, it is
+exception management and does not survive compression.
 
 The controlled variable is **conceptual mass**: the number of things a designer or engineer must hold in their head to predict the system's next behavior. LOC is an output. It is measured, bounded, and reported with the constraint that prevents it from going lower. It is never the target.
 
-The stage-1 audit verdicted the whole tree in flow-clusters and found almost nothing dead — the verdict distribution, its coverage legs, and its load-bearing outcomes live in the [P12 Record §4.8](P12-RECORD.md). The mass is mostly tax paid for missing objects, duplicated respondents, weakly named boundaries, and — before Step E — instruments that did not compute enough truth.
+The stage-1 audit verdicted the whole tree in flow-clusters and found almost nothing dead — the verdict distribution, its coverage legs, and its load-bearing outcomes live in the [P12 Record §4.8](P12-RECORD.md). The mass is mostly tax paid for missing roles, duplicated respondents, weakly named boundaries, and — before Step E — instruments that did not compute enough truth.
 
 ---
 
@@ -51,10 +72,10 @@ Use this as the architecture control document for any change from here through P
 Before proposing a change, answer four questions:
 
 ```text
-1. Which of the six objects owns this behavior after compression?
-2. Which current organ, script, or surface is being shadowed, migrated, contracted, or retired?
-3. Which certificate proves safety, evidence quality, and reversibility?
-4. Which humane wall is type-enforced, runtime-monitored, or process-gated after the change?
+1. Which role, port, event, projection, or control plane owns this behavior?
+2. Which complete action/backend vertical is being shadowed, cut over, or retired?
+3. Which binding manifest and certificate prove safety, evidence quality, and reversibility?
+4. Which wall is type-enforced, runtime-monitored, or externally process-gated afterward?
 ```
 
 A change that cannot answer those questions is not ready for implementation.
@@ -63,9 +84,10 @@ A designer should be able to use this document to:
 
 - draw the target component map,
 - assign ownership to current code,
-- define the contracts between objects,
+- define contracts between roles, ports, projections, and control planes,
 - decide whether a behavior can be retired,
 - identify which evidence must exist before a migration lands,
+- distinguish compression equivalence from learning improvement,
 - reject a LOC-driven shortcut.
 
 ---
@@ -76,14 +98,15 @@ The compression architecture optimizes for these quality attributes, in this ord
 
 | Attribute | Scenario | Architectural tactic | Evidence required |
 |---|---|---|---|
-| Safety | A model proposes an action that affects calendar state | Swift-issued `Authority` must gate the write; provider commit must verify or roll back | authority receipt, provider receipt, rollback handle, replay trace |
-| Reversibility | A user revokes authority or undoes a write | `Trajectory.undo()` and `Provider.rollback()` must produce verified receipts | undo/revoke monitor, rollback verification, causal replay rows |
-| Legibility | A user asks why the system believes or acted | `explain()` must cite trajectory rows and expose controls | answer contains claim, evidence row ids, confidence, controls, version |
-| Evidence quality | A promotion or compression wave changes behavior | wave is graded against frozen instrument, baseline vector, ablation, variance | eight-field experiment record, `INSTRUMENT@sha`, `C-VAR` report |
-| Observability | A live backend fails, times out, or rejects schema | respondent failure remains observable through `Frontier` or `Provider` failure modes | replay rows include respondent, failure mode, validation errors, health state |
+| Safety | A model proposes an action that affects calendar state | the Authority Gate independently validates trusted ingress and issues one exact, expiring, one-use `EffectTicket`; the sole Gateway durably claims it before dispatch | standing grant, ticket, authenticated pre-state, claim/outbox, gateway and provider receipts |
+| Reversibility | A user revokes authority or requests undo | revoke invalidates unclaimed work; claimed work reconciles; a verified present effect requires a fresh, one-use `CompensationTicket` or enters visible hold | revoke/claim linearization, reconciliation, compensation ticket/receipt or explicit hold, causal Journal rows |
+| Legibility | A user asks why the system believes or acted | `explain` is a cited projection with executable controls | claim, event/evidence ids, Reducer version, confidence, controls, version |
+| Evidence quality | a compression or learning candidate changes behavior | an external evaluator grades a frozen candidate against a pre-wave `BindingManifest`, fixed instrument, uncertainty rule, and change-class-appropriate frozen evidence | experiment record, `InstrumentBundle@sha`, evidence hashes, evaluator attestation |
+| Observability | a model or provider adapter fails, times out, or rejects schema | the port boundary preserves respondent-specific failure/resource states; remote responses are untrusted and provider credentials remain Gateway-confined | Journal rows include respondent, failure mode, validation errors, health, latency, cost |
 | Evolvability | A duplicated stack is collapsed | shared protocol preserves all safety-relevant states of source stacks | contraction certificate and tombstone for dropped fields/behaviors |
 | Privacy | Live payloads or secrets leave the process | typed redaction chokepoint is the only egress path | redaction tests, secret scans, replay/export inspection |
-| Human control | A derived belief changes ranking or autonomy eligibility | `Belief` is cited, versioned, user-controllable, and non-authorizing | belief evidence, activation/correction history, no Authority input path |
+| Human control | a derived belief changes ranking or autonomy eligibility | Belief is a cited projection with activation/correction commands and no authority path | belief evidence, control history, Gate recomputation from trusted consent/preconditions |
+| Evaluator integrity | an optimizer proposes a better harness or policy | optimizer write scope, holdout, evaluator, promoter, thresholds, and binding rules are outside candidate control | rejected mutation/downgrade attacks, sealed holdout attestation, immutable archive |
 
 Non-goals:
 
@@ -93,6 +116,9 @@ not a UI rewrite spec
 not a permission to delete monitors
 not a promise that 3,000 LOC is reachable
 not a replacement for per-wave evidence artifacts
+not permission for learning/meta candidates to edit the evaluator, Gate, or Gateway
+not a ban on explicitly manifested, human-reviewed engineering migrations of the TCB
+not a claim that DiffusionGemma is a control primitive
 ```
 
 ---
@@ -103,7 +129,7 @@ not a replacement for per-wave evidence artifacts
 
 The architecture starts from the post-P12 tree. What P12 and its Stage D waves landed — the legacy-state weaning, the static/schema/simulator retirements, the session decomposition, the proven EventKit runway — is recorded with per-wave run evidence in the [P12 Record §5](P12-RECORD.md).
 
-Source mass by organ, measured at the C₁ audit (pre-Step E; Step E deliberately added instrument and object-contract code — [Record §6](P12-RECORD.md)). Re-measure at the P13 baseline freeze:
+Source mass by organ, measured at the C₁ audit (pre-Step E; Step E deliberately added instrument and compatibility-contract code — [Record §6](P12-RECORD.md)). Re-measure at the P13 baseline freeze:
 
 ```text
 frontend       3,923
@@ -124,7 +150,7 @@ frontend session organism  local dogfood state and projection
 40 scripts                 lab, release, measurement, and promotion operations
 ```
 
-Each maps to a missing or incomplete object in the target architecture.
+Each maps to a missing or incomplete role, port, projection, or control-plane boundary.
 
 ### 4.2 Release Instrument (Step E outcome — now a standing rule)
 
@@ -227,13 +253,13 @@ The command name alone is never the claim. Use the scope and report below.
 | `make lab-validate-seeds` | seed-corpus schema/content validation | a completed experiment |
 | `make lab-run SEED=… RUNTIME=…` | one explicitly selected lab cell | comparison or promotion |
 | `make lab-compare` | reindexes completed lab runs and writes the latest comparison | a release decision |
-| `make lab-promote BATCH=…` | evaluates promotion gates and, on pass, updates promoted policy state | a test; this is a state-changing promotion action and runs only after wave/release proof |
+| `make lab-promote BATCH=…` | **frozen for promotion**; the current script can force `--decide promote` after failed gates and evaluates tuning on source-run seeds | a valid promotion until the P13.6 learning prerequisites remove the override and separate search/holdout/live evidence |
 | `make browser-e2e` | owned fixture server, API loop, restart/restore, rendered browser controls, screenshot, replay export | app-bundle identity or live backends |
 | `make mac-app-build` | app and bundled Swift executables build | launch ownership or functional dogfood |
 | `make dogfood-release` | Python, Swift, Swift IPC, fixture browser, app build/sanity, LaunchServices, occupied-port behavior, artifact checks, secret scans; optional EventKit sub-gate | live Codex or live NIM inference unless run separately |
 | `make live-codex-e2e` | Codex subscription-auth preflight, live planner reach, runtime provenance, replay, secret safety | NIM or EventKit |
 | `make live-diffusiongemma-e2e` | live NIM health, frontier generation, provenance, replay, secret safety | Codex or provider mutation |
-| `make replay-offline-tuning-loop` | healthy live NIM self-play → replay → reduction → a second tuned live frontier with measurable effect | human-feedback calibration or policy promotion |
+| `make replay-offline-tuning-loop` | plumbing only: live NIM self-play → replay → reduction → a second frontier whose output changes | improved behavior, human utility, calibration, or policy promotion |
 | `PYTHONPATH=src python3 scripts/run_live_nim_schema_gate.py` | records the declared NIM schema-drift, normalization, and unsafe-rejection contract; strict mode also requires credential presence | remote health, an actual model call, or parser execution; there is currently no Make target |
 | `make live-eventkit-e2e` | EventKit health; mutation only when explicitly required | app access merely because a CLI binary ran; use §4.9 |
 | `make p12-signals`, `p12-measurement`, `p12-calibration`, `p12-provider-capabilities` | one named deterministic P12 instrument leg for focused iteration | the complete P12 or wave decision |
@@ -242,13 +268,37 @@ The command name alone is never the claim. Use the scope and report below.
 | `make b-migrate` | current session snapshot ↔ current projector mapping | independent old-organ versus new-kernel equivalence until P13.0 |
 | `make wave-harness` | invokes architecture preservation evals, C-VAR bootstrap, `B_migrate` bootstrap, and P12 release | a promotable compression certificate until §8.5 is complete |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
-| `make architecture-evals` | 20 deterministic, implementation-neutral scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 target-conformance predicates, with schema/semantic validation and immutable per-run evidence | live Codex, live NIM, mutating EventKit, completed target objects, organ migrations, or P13.0 completion |
+| `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and immutable per-run evidence | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 
 Architecture evals use two explicit rails. The **preservation** rail is binding now:
-every scenario must report `pass`. The **target-conformance** rail records desired
-six-object properties and becomes binding on the phase/object triggers in §8.5. Its
-nonbinding `not_reached` results remain visible architectural debt; they are never
-passes and never contribute to a pass count.
+every scenario must report `pass`. `architecture_scenario_set.v1` remains historical
+P12 compatibility evidence. Its nine **target-conformance** rows encode the superseded
+six-peer topology and their `binding_trigger` strings are descriptive prose, not
+executable switches; all remain `gate_mode: observe`. They must not certify a P13
+migration. Their `not_reached` results remain visible debt and never contribute to a
+pass count.
+
+P13.0 introduces `architecture_scenario_set.v2` and an evaluator-owned, immutable
+pre-wave `BindingManifest`. The manifest—not candidate code and not prose—selects the
+required target predicates before a wave begins. It records touched action families,
+backends, surfaces, old/new invocation identities, scenario/instrument hashes, live
+legs, signer, and expiry. Its signer and verification root live outside candidate
+control. The evaluator independently derives actual affectedness from the complete diff
+(including new/untracked paths) plus a versioned ownership map and fails on every
+touched-but-undeclared action, backend, surface, instrument, TCB, or control-plane file.
+A candidate cannot edit, repin, downgrade, or select `observe`; any attempted mutation
+or scope under-declaration is a gate failure.
+
+P13.0 installs one creation and one verification access point:
+
+```bash
+make wave-bind WAVE="$WAVE" CHANGE_CLASS="$CHANGE_CLASS"
+make wave-harness MANIFEST="runs/p13_manifests/$WAVE.json"
+```
+
+`wave-bind` is run and externally signed before candidate edits. `wave-harness` verifies
+the signature, expiry, hashes, declared scope, evaluator-derived affectedness, and
+required predicates before it invokes any candidate-controlled code.
 
 The four scenario statuses have fixed meanings: `pass` means observed evidence
 satisfies the predicate; `fail` means the evidence contradicts it; `hold` means the
@@ -258,8 +308,8 @@ binding target result blocks the architecture-eval decision. The top-level decis
 may pass with nonbinding target debt only because that debt remains explicitly
 reported, not because `not_reached` was treated as success.
 
-`architecture_scenario_set.v1` pins the exact preservation and target scenario ids;
-dropping a rail or scenario without a version bump is a gate error. Every invocation
+`architecture_scenario_set.v1` pins the exact historical preservation and target ids;
+dropping a rail or scenario without a version bump remains a gate error. Every invocation
 uses a fresh run directory, retains an immutable report, and refreshes a latest-report
 pointer. The report records the committed tree, dirty-worktree digest, and hashes for
 the runner, adapter, predicates, scenario set, and schema. The gate validates Draft
@@ -308,6 +358,13 @@ jq -e '
   .rails.preservation.scenario_count == 11
 ' runs/architecture_evals/architecture_eval_report.json
 ```
+
+Until the P13 learning migration, no command may use simulator evidence as positive
+user-utility promotion credit. This prohibition is transitive: a simulator-derived
+reward model, expected-reward field, calibration estimate, or mixed aggregate is still
+simulator evidence. Simulator/adversarial rows may expand search, train a separately
+reported failure detector, or veto a candidate; they do not enter the human-outcome
+estimator.
 
 ### 4.7 Change-To-Gate Matrix
 
@@ -360,9 +417,9 @@ PYTHONPATH=src:tests python3 -m unittest \
 |---|---|---|
 | contracts, `types.py`, replay, stream tagging | `make contract-vectors`; focused contract/replay/stream tests | schema versions, migration, row ids, B1–B4 negatives |
 | frontend session/projector/persistence/server/static assets | focused frontend tests; `make b-migrate`; `make browser-e2e`; `make dogfood-release` for bundle/runtime reach | full view projection, restart/restore, replay equality, process/port ownership |
-| Swift authority/kernel/IPC | `make swift-test`; `make swift-ipc-test`; `make contract-vectors`; `make dogfood-release` if bundled | grant/deny/revoke, exactly-one authority owner, undo ledger, receipt parity |
-| deterministic provider or provider transaction code | provider tests; P12 provider-capability leg; `make dogfood-release` if app reachable | preview/commit/verify/rollback, idempotency, denial on unsupported operations |
-| EventKit/provider bridge | `make swift-test`; app build; strict app-bundled EventKit procedure in §4.9; affected dogfood-release EventKit sub-gate | `full_access`, sandbox target, commit, verify, undo, rollback verified |
+| Swift authority/Gateway/IPC | `make swift-test`; `make swift-ipc-test`; `make contract-vectors`; `make dogfood-release` if bundled; required v2 ticket cases after P13.0 | grant/deny/revoke, exact one-use ticket, epoch/nonce, one effect-capable path, receipt parity |
+| deterministic Provider/Gateway code | provider tests; P12 provider-capability leg; `make dogfood-release` if app reachable; required v2 lifecycle cases after P13.0 | observe/preview/apply/verify/reconcile/compensate, idempotency, unsupported-operation denial |
+| EventKit/provider bridge | `make swift-test`; app build; strict app-bundled EventKit procedure in §4.9; affected dogfood-release EventKit sub-gate; required v2 lifecycle cases after P13.0 | `full_access`, sandbox target, exact ticket, verified effect, restart/reconcile, conflict-aware compensation |
 | Codex planner/live respondent | focused Codex tests; `make live-codex-e2e` or signed root-list; `make cvar-report` after P13.0 | model reached, response provenance, failure mode, no secret leakage |
 | DiffusionGemma policy/live respondent/frontier | focused policy tests; live NIM schema gate; `make live-diffusiongemma-e2e` or signed root-list; C-VAR after P13.0 | schema rejection, candidate provenance, variance, cost/latency/failure state |
 | reward, estimators, calibration, labels, policy ablation | P12 release plus the affected planted negative test; C-B6 for estimator changes | consumed row ids, ActionStream purity, estimator version/parity, pass versus hold |
@@ -374,10 +431,10 @@ Compression-specific test classes inherited from the Plan 6–9 matrices remain
 mandatory even when ordinary regression tests pass:
 
 ```text
-equivalence       old and new decisions/authority/reward/provenance match
+equivalence       verified normal outcomes match; new authority refines/narrows legacy; reward/provenance preserve
 wall              forbidden authority/reward/privacy paths remain unconstructible
 monitor/sensor    a removed organ does not remove a failure detector
-failure injection missing data, stale state, denial, conflict, timeout, rollback
+failure injection missing data, stale/forged state, denial, conflict, timeout, crash, duplicate, unknown outcome, compensation hold
 process           experiment record, root-list, regression, ablation, rollback complete
 ```
 
@@ -524,220 +581,346 @@ make live-diffusiongemma-e2e
 
 ## 5. Target Architecture
 
-### 5.1 Object Map
+### 5.1 Four Roles, Not Four Peers
 
-| Object | Owns | Load-bearing messages | Structural wall |
+| Role | Owns | May do | Must never do |
 |---|---|---|---|
-| `Trajectory` | durable substrate: observations, candidate futures, action envelopes, replay records, scorecards, rollback evidence | `observe`, `propose`, `stage`, `commit`, `verify`, `undo`, `reward`, `project`, `reduce` | every truth is a cited row; undo is a method, not an add-on |
-| `Stream` | `Action`, `World`, `Biography`, `Derived` as typed streams with behavior | `Action.reward_reduce()` exists; `Biography.reward_reduce()` does not | reward can only reduce from ActionStream |
-| `Frontier` | typed candidate futures from model or fixture respondents | `generate(observation) -> list[Candidate]` with provenance, variance, failure mode, cost, latency | Codex, NIM, and fixture are respondents to one protocol |
-| `Authority` | Swift-issued, revocable capability | `grant`, `exercise`, `revoke`, `receipt`, `explain` | signals and beliefs cannot gate authority because no message accepts them |
-| `Belief` | evidence-owned derived signal | `value`, `evidence`, `confidence`, `half_life`, `activate`, `disable`, `correct`, `explain`, `version` | uncited scalar beliefs are unconstructible |
-| `Provider` | transaction truth at the calendar boundary | `read_observation`, `preview`, `commit`, `verify`, `rollback` | a provider that cannot honor the transaction contract is absent, not stubbed |
+| `EvidenceJournal` | append-only event envelopes and typed `EvidenceRef`s | append, query, snapshot, export authorized views | infer, rank, authorize, mutate a provider, delete audit history |
+| `Reducer` | deterministic interpretation of a Journal prefix | `reduce(events, version) -> State`; `decide(state, command) -> Intent[]`; produce cited projections | perform I/O, mint authority, hide uncited state, learn while replaying |
+| `AuthorityGate` | consent scope, standing grants, revocation epochs, exact admission | independently validate authenticated ingress and fresh provider preconditions; issue denial or one-use effect/compensation ticket | trust a model score/Belief as consent, reuse a ticket, accept stale pre-state |
+| `EffectGateway` | the sole external-effect lifecycle and durable claim/outbox state | claim a ticket once, dispatch idempotently, verify, reconcile ambiguity, require separately authorized compensation, append receipts | accept unticketed effects, retry an unknown effect as new work, call unverified work committed |
 
-### 5.2 Runtime Shape
+The Journal and Reducer are safety-relevant but not sufficient to authorize an effect.
+The effect-safety TCB is the trusted ingress/precondition path, Gate, revocation/nonce
+state, and the Gateway's verifier, durable claim/outbox state, and capability-confined
+credential adapter. The Gate recomputes admissibility; it does not trust a Reducer
+conclusion or the untrusted Journal.
+
+### 5.2 Ports, Events, And Projections
+
+| Kind | Named concepts | Rule |
+|---|---|---|
+| proposal port | `Frontier` with Codex, DiffusionGemma/NIM, and fixture respondents | untrusted; returns candidate sets and complete respondent observables; never tickets or effects |
+| effect port | `Provider` remote protocol with deterministic and EventKit adapters | remote responses are untrusted; credential-bearing mutating adapter is capability-confined inside Gateway and unreachable except through ticket-checked calls |
+| evidence port | content-addressed blob store | Journal owns reference semantics; adapter owns bytes; missing bytes produce explicit hold |
+| event tags | `Action`, `World`, `Biography`, `Derived`, `System` | classify Journal events; only authenticated human Action outcomes contribute positive promotion utility |
+| governed projections | `Belief`, UI state, `explain` | cite Journal event/evidence ids and Reducer version; changes are commands followed by events |
+
+DiffusionGemma is an experimental, latency-oriented text-diffusion respondent. Its
+blockwise revisions, quality, variance, latency, and cost are observable proposal
+evidence. Its faster local generation and different decoding topology do not change
+the control topology, reward truth, authority, evaluator, or promotion rule.
+
+### 5.3 Runtime And Control Planes
 
 ```mermaid
 flowchart LR
-    User["User / dogfood operator"] --> Surface["Surface: Mac app, web shell, CLI, tests"]
-    Surface --> Explain["explain() answers"]
-    Surface --> Trajectory["Trajectory"]
-    Trajectory --> Stream["Typed Streams"]
-    Trajectory --> Frontier["Frontier"]
-    Trajectory --> Authority["Authority"]
-    Trajectory --> Provider["Provider"]
-    Stream --> Belief["Belief"]
-    Frontier --> Codex["Codex respondent"]
-    Frontier --> NIM["NIM respondent"]
-    Frontier --> Fixture["Fixture respondent"]
-    Provider --> EventKit["EventKit respondent"]
-    Provider --> Deterministic["Deterministic fixture respondent"]
-    Authority --> Swift["Swift capability kernel"]
-    Belief --> Explain
-    Trajectory --> Explain
+    User["User / operator"] --> Surface["Surface"]
+    Surface --> Ingress["Authenticated command ingress"]
+    Ingress --> Journal["Evidence Journal"]
+    Journal --> Reducer["Pure Reducer"]
+    Reducer --> Views["Belief / UI / explain projections"]
+    Views --> Surface
+    Reducer -->|ProposalRequest value| FPort["Frontier port"]
+    FPort --> Respondents["Codex / DiffusionGemma / fixture"]
+    Respondents --> FPort
+    FPort --> Journal
+    Reducer -->|EffectIntent value| Gate["Authority Gate"]
+    Ingress --> Gate
+    Gate -->|one-use EffectTicket| Gateway["Effect Gateway"]
+    Gate -. fresh precondition request .-> Gateway
+    Gateway -. authenticated pre-state .-> Gate
+    Gateway --> PPort["Capability-confined Provider adapter"]
+    PPort --> Providers["EventKit / deterministic backend"]
+    Providers --> PPort
+    PPort --> Gateway
+    Gateway --> Journal
+
+    Journal -. authorized frozen export .-> Optimizer["Optimizer / search archive"]
+    Optimizer -. PolicyPayload .-> Evaluator["Evaluator / Promoter"]
+    Evaluator -. signed PromotionRecord / CURRENT .-> FPort
 ```
 
-The surface is intentionally outside the honesty boundary. It renders `explain()` answers; it does not own truth.
+Arrows leaving Reducer are returned values passed by a stateless caller; Reducer itself
+performs no I/O. The dotted planes cannot write each other. The optimizer sees sanitized search traces,
+not sealed holdout cases or unrestricted personal calendar blobs. The Evaluator/Promoter
+cannot mint effects. Candidate code can write only its isolated workspace.
 
-### 5.3 Organ-To-Object Migration Map
+### 5.4 Current-Code Migration Map
 
-| Current organ | Target home | Migration action |
+| Current organ | Target classification | Migration action |
 |---|---|---|
-| `frontend/session.py` and session controllers | `Trajectory.project()` plus surface adapters | make hidden session truth unrepresentable; replace with projections |
-| `codex/live.py` | `Frontier` respondent | keep model, delete duplicated stack semantics |
-| `diffusiongemma/live.py` | `Frontier` respondent and policy reducer | keep live policy path, normalize provenance/failure modes |
-| `environment/action_lifecycle.py` | `Trajectory` + `Provider` + `Authority` | collapse action lifecycle into durable trajectory methods and provider truth |
-| `types.py` / `replay.py` | `Trajectory`, `Stream`, `Belief` schemas | split concepts into object-owned contracts |
-| `providers/*` | `Provider` respondents | remove non-executable stubs; retain deterministic and EventKit respondents |
-| `swift_bridge/*` | `Authority` and `Provider` adapters | keep as capability boundary, not product state |
-| release/lab scripts | methods on objects plus thin CLI | freeze instrument first; refactor scripts as a graded wave |
+| `replay.py`, trace and persistence code | `EvidenceJournal` plus blob adapter | define authenticated envelopes, global ids, append-only receipts, evidence refs |
+| `frontend/session.py` and controllers | Reducer projections plus surface adapter | shadow every required field; cut over read-side before retiring hidden truth |
+| `environment/action_lifecycle.py` | Reducer intent transitions + Gate + Gateway | replace reusable-grant mutation with exact ticket lifecycle and reconciliation |
+| `swift_bridge/*` | Gate and Gateway TCB adapters | keep trusted consent/precondition/effect boundary small and independently tested |
+| `providers/*` | Provider remote protocol and capability-confined adapters inside Gateway domain | retain deterministic and EventKit; absent rather than stubbed if contract is incomplete |
+| `codex/live.py` | Frontier respondent | preserve model-specific failures and provenance; no authority path |
+| `diffusiongemma/*` | Frontier respondent plus frozen learning implementation | preserve inference/evidence capture first; later package learning output as immutable `PolicyPayload` |
+| `types.py`, signals, stream helpers | event/projection contracts | Stream remains a tag; Belief remains a cited value/projection |
+| release/lab scripts | external evaluator, optimizer, and thin access points | freeze the ruler before refactoring; never move evaluator logic into product roles |
 
 ---
 
 ## 6. Boundary Contracts
 
-### 6.1 Explanation Contract
-
-Every belief-bearing or decision-bearing object answers:
+### 6.1 Journal And Evidence Contract
 
 ```text
+JournalEvent{
+  event_id, event_type, stream_tag, occurred_at, ingested_at,
+  source_identity, source_signature, schema_version,
+  content_hash, sequence, causal_parent_ids,
+  subject_scope, payload_or_evidence_refs
+}
+
+EvidenceRef{
+  digest, media_type, schema, size, creation_provenance,
+  retention_class, redaction_class, availability_status
+}
+```
+
+The Journal validates shape/integrity and appends; it does not certify world truth.
+Safety-critical ingress is source-authenticated and revalidated by the Gate. Raw bytes
+live behind an immutable content-addressed adapter. Missing or unauthorized evidence
+is `evidence_unavailable` and produces hold when required, never an empty substitute.
+
+### 6.2 Pure Reducer Contract
+
+```text
+reduce(journal_prefix, reducer_version) -> ProjectedState
+decide(projected_state, Command) -> Intent[]
+project(projected_state, required_field_manifest) -> CitedView
+```
+
+Identical prefix, version, and command produce identical state/intents. The Reducer has
+no clock, network, secret, model, provider, authority, or mutable global access. Every
+durable semantic, safety-, explanation-, or decision-bearing required field cites input
+event/evidence ids and the Reducer version. Ephemeral cursor, tab, animation, and loading
+state may remain local but cannot become product truth. A model proposal becomes
+evidence/intent; it does not become truth by entering the Journal.
+
+### 6.3 Standing Grant And One-Use Ticket
+
+Separate durable consent from effect admission:
+
+```text
+StandingGrant{
+  grant_id, user_scope, allowed_action_families, provider_scope,
+  maximum_tier, issued_at, expires_at, consent_provenance, epoch
+}
+
+EffectTicket{
+  ticket_id, grant_id, grant_epoch, exact_intent_hash,
+  user_scope, provider, action_family, pre_state_hash,
+  issued_at, expires_at, nonce, signature
+}
+
+CompensationTicket{
+  ticket_id, grant_id, grant_epoch, exact_compensation_intent_hash,
+  target_effect_receipt_hash, user_scope, provider, fresh_state_hash,
+  issued_at, expires_at, nonce, signature
+}
+```
+
+The Gate independently checks authenticated user consent, source identity, schema,
+freshness, scope, caps, conflict/ODD rules, and a fresh provider pre-state. Derived
+Beliefs, scores, labels, and expected rewards may support an explanation but cannot
+supply consent. Revoke increments the grant epoch and linearizes with ticket claim:
+unclaimed tickets and staged work become invalid. A claimed/in-flight ticket is not
+proof of an effect and must reconcile. If reconciliation finds no effect, it terminates
+`not_applied`; any retry requires fresh preconditions and a new ticket. A verified
+present effect can change only through a separately admitted `CompensationTicket`.
+
+### 6.4 Effect Gateway State Machine
+
+```text
+staged -> denied | cancelled | authorized
+authorized -> cancelled | claimed(ticket_nonce, idempotency_key, durable_outbox)
+claimed -> dispatching | reconciling
+dispatching -> rejected_not_applied | applied_unverified | applying_unknown
+applied_unverified -> verified | applying_unknown
+applying_unknown -> reconciling
+reconciling -> not_applied | applied_unverified | verified | hold
+
+verified -> compensation_requested
+compensation_requested -> compensation_denied | compensation_authorized(CompensationTicket)
+compensation_authorized -> compensation_claimed(ticket_nonce, idempotency_key, durable_outbox)
+compensation_claimed -> compensating
+compensating -> compensated | compensation_unknown | hold
+compensation_unknown -> reconcile -> compensated | effect_still_present | hold
+```
+
+The durable `claimed` record is the ticket/revoke/duplicate linearization point and is
+written before provider dispatch. It carries the exact intent, pre-state, provider,
+nonce, and idempotency key needed for crash recovery without trusting the Journal.
+Expiry or revoke before claim cancels; after claim, recovery reconciles. A reconciled
+`Absent` result becomes `not_applied` and never silently dispatches old work. A provider
+rejection is likewise `rejected_not_applied`.
+
+`verified` is the only successful applied-effect state; `committed` may be displayed
+only as an alias for verified provider state. A crash after dispatch and before receipt
+enters `applying_unknown`. The same idempotency key may be reconciled; a fresh write is
+forbidden until outcome is known. Duplicate ticket or delivery cannot double-apply.
+Compensation is a new authorized external effect: the Gate compares fresh state, issues
+an exact one-use ticket or denial, and the Gateway claims it before dispatch. It never
+overwrites later human/provider edits. Conflict or unavailable proof is a visible hold
+with an executable resolution route; `effect_still_present` is such a hold, not success
+and not authority to mint a replacement ticket. Journal history remains append-only.
+
+### 6.5 Frontier And Provider Ports
+
+```text
+Frontier.propose(projected_state, context_refs) -> ProposalSet{
+  candidates, provenance, revision_trace, failure_mode,
+  variance{metric, unit, samples}, cost{value, unit},
+  latency_ms, validation_errors, respondent
+}
+
+Provider.observe() -> AuthenticatedObservation
+Provider.preview(intent, pre_state_hash) -> Preview
+Provider.apply(intent, effect_ticket, idempotency_key) -> ProviderReceipt | Rejected | Unknown
+Provider.verify(receipt_or_key) -> VerifiedState | Unknown
+Provider.reconcile(idempotency_key) -> VerifiedState | AppliedUnverified | Absent | Unknown
+Provider.compensate(verified_effect, compensation_ticket, fresh_state, idempotency_key) -> CompensationReceipt | Rejected | Conflict | Unknown
+```
+
+Unknown numeric observables are typed with a reason, never `null`. Codex,
+DiffusionGemma/NIM, and fixtures retain respondent identity and failure differences.
+Google/Microsoft placeholders are absent until they implement the Provider contract.
+
+### 6.6 Belief, UI, And Explanation Projections
+
+```text
+CitedProjection{
+  projection_type, subject_id, value_or_claim,
+  event_ids, evidence_refs, confidence,
+  reducer_version, projection_version, controls
+}
+
 explain(question) -> Answer{
-  claim,
-  evidence: [trajectory row ids],
-  confidence,
-  controls: [activate, disable, correct, revoke, undo],
-  version
+  claim, event_ids, evidence_refs, confidence,
+  reducer_version, controls, version
 }
 ```
 
-Required respondents:
-
-```text
-Belief.explain       why this derived signal exists and how to correct it
-Authority.explain    why a grant, denial, or revocation occurred
-Candidate.explain    why this future was generated and ranked
-Provider.explain     what external state was read, written, verified, or rolled back
-Trajectory.explain   causal chain for a trace, receipt, reward, or rollback
-```
-
-Architecture rule: `explain` ships before frontend replacement. The renderer can be replaced only after honesty lives in the objects.
-
-### 6.2 Authority Contract
-
-Authority is a revocable capability. It accepts no signal and no belief input.
-
-```text
-grant(scope, tier, expiry, provenance) -> AuthorityGrant
-exercise(grant, operation) -> Receipt | DenialReceipt
-revoke(grant) -> RevocationReceipt
-receipt(id) -> Receipt
-explain(denial_or_grant) -> Answer
-```
-
-Architecture rule: no derived signal, profile label, model score, or UI field may directly grant authority. They may explain a recommendation; they may not authorize a write.
-
-### 6.3 Provider Contract
-
-A provider is truthful only if it can execute the five-method transaction:
-
-```text
-read_observation() -> RawCalendarObservation
-preview(candidate) -> ProviderPreview
-commit(candidate, authority_receipt) -> ProviderReceipt
-verify(provider_receipt) -> VerificationReceipt
-rollback(rollback_handle) -> RollbackReceipt
-```
-
-Architecture rule: Google/Microsoft placeholders are absent respondents until they can execute this contract. A stub that looks like a provider is worse than no provider because it creates false architectural reachability.
-
-### 6.4 Frontier Contract
-
-`Frontier` hides implementation duplication but preserves observable model differences.
-
-```text
-generate(observation) -> Candidate{
-  action_program,
-  provenance,
-  failure_mode,
-  variance,
-  cost,
-  latency,
-  validation_errors,
-  respondent
-}
-```
-
-Architecture rule: collapsing Codex, NIM, and fixture paths is valid only if the merged frontier preserves distinct safety observables, including schema rejection, health failure, timeout, fallback, and validation error states.
-
-### 6.5 Belief Contract
-
-A belief is a governed derived signal:
-
-```text
-Belief{
-  name,
-  value,
-  evidence_row_ids,
-  confidence,
-  half_life,
-  estimator_version,
-  active_state,
-  user_control_history
-}
-```
-
-Architecture rule: uncited scalar state is illegal. `notification_fatigue` cannot return as a naked profile field. `interruption_tolerance_v1` survives only as a cited, versioned, user-controllable belief.
+Controls (`activate`, `disable`, `correct`, `revoke`, `compensate`) carry an executable
+route, required authority, expected artifact, and resulting receipt. Invoking one emits
+a command and then a Journal event; a projection never mutates itself. Uncited scalar
+state is illegal. `notification_fatigue` cannot return as a naked field. `explain` and
+the versioned required-field manifest ship before read-side/frontend cutover.
 
 ---
 
 ## 7. Invariant Model
 
-The humane walls are enforced three ways.
+The humane walls are enforced at four distinct trust layers.
 
-### 7.1 Type-Enforced Walls
-
-These should become unconstructible to violate:
+### 7.1 Effect-Safety TCB
 
 ```text
-B1  Belief requires at least one evidence row
-B2  Authority accepts no Signal or Belief input
-B3  label activation requires user attribution
-B4  reward_reduce exists only on Action stream
-R1  egress accepts only redacted outbound types
+E1  every external mutation passes the sole Effect Gateway
+E2  every apply or compensation effect has its own exact, fresh, precondition-bound ticket
+E3  durable ticket claim/outbox is atomic, one-use, idempotent, and revocation-epoch aware
+E4  old and new paths may both compute; exactly one path is effect-capable
+E5  unknown provider outcome blocks another effect until reconciliation
+E6  no successful terminal label exists before provider verification
+E7  compensation is separately authorized and cannot overwrite later external edits; conflict becomes hold
+E8  Gate admissibility is recomputed from authenticated consent and fresh pre-state
+E9  claim is not evidence of application; claimed/in-flight work reconciles after crash or revoke
 ```
 
-### 7.2 Runtime Monitors
-
-These remain runtime monitors because they are liveness or statistical properties:
+### 7.2 Epistemic And Evaluation Integrity
 
 ```text
-reward-leakage monitor       scans consumed rows for non-ActionStream provenance
-biography-drift monitor      emits conflicts instead of silently overwriting biography
-undo/revoke-effectiveness    verifies revoke and rollback effects over time
-calibration monitor          tracks estimator calibration and sim-vs-real gaps
+K1  Journal integrity/order is not mistaken for source truth
+K2  every protected projection cites event/evidence ids and Reducer version
+K3  global reward-row identity and human/simulator provenance are unforgeable at ingress
+K4  simulator evidence can veto but contributes zero positive human-utility credit
+K5  learning/meta optimizer cannot write evaluator, holdout, manifest, thresholds, promoter, TCB, or archive history
+K6  holdout cases/traces/per-case scores are unavailable to optimizer and candidate
+K7  learning/meta artifacts cannot mint tickets or call the Gateway
+K8  no off-policy value claim without behavior arm, candidate set, selected action, exposure, selected-action propensity, censoring, and overlap
+R1  egress accepts only typed redacted outbound payloads
 ```
 
-Architecture rule: these monitors are root-listed and exempt from harvest. Removing one is a behavior-changing promotion that must beat CURRENT on detectability.
-
-### 7.3 Process-Gated Discipline
-
-These are enforced by release and promotion discipline:
+### 7.3 Runtime Monitors
 
 ```text
-stream separation stays visible
-replay rows and causal chains stay legible
-promotion beats CURRENT beyond noise
+reward-leakage                 detects non-human or non-Action positive promotion credit
+biography-drift                emits conflicts instead of overwriting biography
+ticket-reuse/revoke-race       detects duplicate claim and invalid epoch outcomes
+unknown-effect/reconciliation  detects stuck ambiguity and retry-before-reconcile
+compensation-effectiveness     verifies restored state or explicit conflict hold
+calibration/shift              tracks estimator calibration, slice drift, and sim-vs-real gaps
+monitor-detectability          records planted-counterexample detection latency and hold action
+```
+
+These monitors are root-listed and exempt from harvest. Identity is defined by
+counterexample detectability, latency, and resulting hold—not module name. Removing or
+weakening one is a binding target-eval change.
+
+### 7.4 Process-Gated Discipline
+
+```text
+stream/provenance separation stays visible
+Journal rows and causal chains stay legible
+compression proves equivalence; learning proves positive improvement
+hard safety is lexicographically prior and cannot be overridden
 promotion survives no_semantic_labels ablation
 cold-start holds require real matched examples and explicit feedback
+human operator may veto or hold; no operator may force a failed candidate through
 ```
 
 ---
 
 ## 8. Change Discipline
 
-### 8.1 Compression Is A Promotion
+### 8.1 Two Promotion Classes, One Artifact State Machine
 
-Granting autonomy and removing behavior are the same architectural act: both change what the system can do.
+Compression and learning both move an immutable candidate through
+`proposed -> evaluated -> shadowed -> current | hold | rejected -> rolled_back`, and
+both use manifests, archives, attestations, and atomic pointer changes. They do not
+share an objective or statistical acceptance rule.
+
+| Class | Hard constraints | Product evidence | Required improvement |
+|---|---|---|---|
+| compression | v2 ticket/Gateway conformance; no broader effects; reward provenance, causal evidence, privacy, and monitor detectability preserved | verified normal cases satisfy equivalence bounds; legacy-unsafe cases may narrow to denial/unknown/hold | every statistical interval lies inside preregistered equivalence bounds and the versioned concept inventory strictly contracts |
+| learning | the same hard safety constraints, unchanged | forward human outcomes with protected slice bounds | lower confidence bound of the preregistered primary human outcome exceeds the required improvement |
+
+Ruler-only changes and old/new overlap migrations use the same artifact state machine but
+are not compression wins. A ruler change proves planted sensitivity and no product
+behavior change. A migration proves equivalence and may temporarily increase mass; it
+earns no compression credit until a later retirement/contraction strictly reduces
+conceptual mass.
+
+The executable conceptual-mass measure is a versioned inventory of runtime roles,
+independently mutable state owners, public protocol surfaces, and control-plane
+components. A credited compression deletes or merges at least one named inventory entry,
+adds no compensating peer at the same or higher layer, and records the code/contract
+tombstone. LOC remains a secondary measured output.
+
+“Not statistically significant” is not equivalence. Sparse, shifted, censored, or
+non-identifiable evidence is hold. Safety is lexicographically first; only feasible
+candidates enter a Pareto frontier over:
 
 ```text
-                     autonomy promotion            compression wave
-incumbent            CURRENT policy                CURRENT behavior set
-write                grant action family           delete / merge / migrate behavior
-evidence             replay-backed calibrated      dual-run equivalence + variance + rows
-reversibility        revocable grant               tombstone + rollback commit
-failure mode         social creep                  placebo gate / deterministic illusion
-exogenous wait       real feedback volume          equivalence window
+human usefulness up
+human burden down (wrong, not-needed, dismissed, ignored, undone, conflicted reported separately)
+p95 latency and cost down
+conceptual mass down for compression only
 ```
 
-A behavior-touching compression wave is a promotion of a smaller system. It either beats or ties the incumbent under the certificates below, or it does not land.
+Engagement is diagnostic, never a positive autonomy objective. A human may veto or
+hold; neither a flag nor a CLI argument may force promotion after a failed hard gate.
 
-### 8.2 Eight-Field Experiment Record
+### 8.2 Experiment Record And Immutable Candidate
 
 Every wave must produce:
 
 ```text
 delta        exact LOC spans and cluster ids removed, merged, or migrated
-fixed        INSTRUMENT@sha proving the ruler did not move
+fixed        InstrumentBundle@sha proving the ruler did not move
 rows         replay line ids trained, graded, or compared before and after
 baseline     pre-wave metric vector
 effect       delta metric / seed-resample stddev
@@ -746,7 +929,64 @@ ablation     removed code stubbed or disabled; decision remains stable
 rollback     revert SHA and proof baseline vector is restored
 ```
 
-No prose-only promotion is accepted.
+Here `rollback` means reverting a code/payload promotion. External calendar effects use
+the reconciliation/compensation contract in §6.4; they are never promised to undo.
+
+The core eight fields remain required. The record envelope also contains:
+
+```text
+change_class           ruler | migration | compression | learning
+binding_manifest       id and hash
+candidate              code/payload id, parent, full content hash, compatibility versions
+outcomes               reward vector, source identity, human/simulator provenance, outcome window
+statistics             estimand, uncertainty method, equivalence/improvement margins, protected slices
+identifiability        identified | not_identifiable with reason
+attestations           change-class-required evaluator/promoter artifacts and hashes
+```
+
+Fields are conditional and typed by `change_class`; inapplicable fields are explicit,
+never fabricated. Ruler records carry planted sensitivity and no-product-change
+evidence. Migration/compression records carry frozen, independently generated old/new
+artifacts and equivalence/refinement statistics. Only learning records require:
+
+```text
+partitions   training/search/holdout/live ids and hashes
+behavior     decision/event id, actual behavior payload/arm, eligible candidate set,
+             selected candidate/action id, selected-action propensity or deterministic marker,
+             exposure/notification state, outcome window, censoring, linked outcome row ids
+attestations search, holdout, forward-shadow, and promoter artifacts
+```
+
+The learning candidate and its later attestations are separate to avoid a hash cycle:
+
+```text
+PolicyPayload{
+  payload_id, parent_payload_id, policy/context parameters,
+  model/respondent and prompt versions, Reducer/schema compatibility,
+  training row-set hash, resource/seed budget, content_hash
+}
+
+PromotionRecord{
+  payload_hash, InstrumentBundle hash, BindingManifest hash,
+  search/holdout/forward-shadow attestations, decision, signer, signature
+}
+```
+
+`PolicyPayload` is frozen before evaluation. `CURRENT` atomically points to a signed
+`PromotionRecord`; runtime verifies it and loads exactly the referenced payload hash.
+Rollback restores the prior record pointer. A deliberately bad payload must be rejected
+without changing `CURRENT`; a valid payload performs the atomic promotion/rollback drill.
+Only after both behave correctly may the mutable aperture expand from declarative data
+to one sandboxed, side-effect-free
+`propose(projected_state, context_refs) -> ProposalSet` implementation.
+
+The optimizer-readable search archive retains candidate lineage, code/spec, prompts,
+selected context references, tool calls, state updates, raw sanitized **search** outputs,
+search scores, resource use, and failures. A separate sealed promoter archive retains
+holdout/live cases, traces, per-case results, attestations, and every `CURRENT` pointer
+transition; none of those case-level artifacts enter the search archive. Summaries are
+indexes, never replacements for retrievable diagnostic traces. No prose-only promotion
+is accepted.
 
 The Step E **bootstrap** harness is implemented and invoked by release:
 `contracts/experiment_record.schema.json` (+ template),
@@ -759,86 +999,124 @@ and the schema's eight top-level keys are not the eight evidence fields named ab
 P13.0 (§8.5) closes those gaps before the first behavior-changing wave. Landing
 provenance remains in [P12 Record §6](P12-RECORD.md), wave-harness follow-up.
 
-### 8.3 Migration Barrier
+### 8.3 Vertical Migration Barrier
 
-For every organ migration, old (`O`) and kernel (`K`) coexist under:
+Old (`O`) and new (`N`) receive frozen equivalent inputs and execute independently.
+Both may compute proposals and projections; only one is user-visible at a time and only
+one may reach the effect-capable gateway selector.
 
-```text
-pi_auth(K(o)) = pi_auth(O(o))
-pi_reward(K(o)) = pi_reward(O(o))
-provenance(K(o)) contains at least provenance(O(o))
-```
-
-Presentation, latency, and phrasing may differ. Authority, reward source, and cited evidence may not.
-
-Intermediate invariant:
+The comparison is a safety-refinement preorder, not raw equality with legacy defects:
 
 ```text
-exactly one of {K, O} holds authority at every coexistence state
+verified_normal_outcome(N, x) equivalent_to verified_normal_outcome(O, x)
+protected_projection(N, x)    equivalent_to protected_projection(O, x)
+authorized_effects(N, x)      subset_of authorized_effects(O, x)
+provenance(N, x)               contains provenance(O, x)
+reward_source(N, x)            = reward_source(O, x)
+legacy committed-without-proof may narrow to unknown | denial | hold, never broaden
+effect_capable(O, N) has cardinality exactly 1
 ```
+
+V2 ticket identities and mechanics conform the new contract; they are not expected to
+equal P12 grants/receipts. A normal verified case preserves its protected outcome. A
+legacy-unsafe case may become stricter, but every narrowing is named in the manifest and
+must preserve explanation, resolution, and causal evidence.
+
+Dual-run never means dual mutation. Read-side cutover occurs and is observed before
+effect ownership changes. Handoff is one selector change at the Gateway, not scattered
+flags. Retirement is scoped to one action family/backend and occurs only after its own
+deterministic and live/sandbox certificates pass.
 
 ### 8.4 Contraction Certificates
 
 | Certificate | Applies to | Pass condition |
 |---|---|---|
 | `B_frontier` | Codex, NIM, fixture frontier collapse | merged frontier preserves safety observable set: provenance, failure mode, variance, cost, latency, validation errors |
-| `B_schema` | r0/r1/v1/v2 collapse | total migration on authority, reward-source, provenance, rollback state; loss annotated; impossible rows become denial receipts |
+| `B_schema` | r0/r1/v1/v2 collapse | total migration on tickets, reward-source, provenance, compensation/reconciliation state; loss annotated; impossible rows become denial receipts |
 | `B_runtime` | runtime mode collapse | one runtime with injected live backends that are exercised or root-listed |
-| `C-VAR` | reducer/promotion-sensitive changes | promotion variance and borderline flip rate do not increase beyond preregistered epsilon |
-| `C-B6` | estimator changes | synthetic and real calibration reports emitted at same estimator version; gaps do not widen |
+| `C-VAR` | reducer/promotion-sensitive changes | independent pre/post outputs; compression equivalence intervals and borderline flip rate stay inside preregistered bounds |
+| `C-B6` | estimator changes | simulator and human calibration remain separate at one estimator version; protected human slices do not regress |
 
 ### 8.5 P13.0 — Make The Wave Harness Binding
 
-No authority handoff, organ retirement, behavior-bearing consolidation, or deletion
+The versioned `InstrumentBundle` pins evaluator and reward-reducer code, scenario
+generators, change-class evidence partitions, thresholds/equivalence margins, resource
+and time budgets, runtime/compiler/fixture/model identities, report schemas, planted
+counterexamples, the ownership/affectedness map, and the manifest signer verification
+root. Changing any member starts a new instrument epoch before candidate work.
+
+No authority handoff, vertical retirement, behavior-bearing consolidation, or deletion
 starts until all of these are true:
 
 ```text
 [ ] The workspace Makefile delegates to calendar-pilot-p12, or is removed as an access point.
 [ ] CI exists at the actual git root and runs the deterministic baseline plus report-decision assertions.
-[ ] A new P13 INSTRUMENT@sha and active-app subtree hash are pinned after the documentation/access-point pass.
+[ ] A new P13 InstrumentBundle@sha and active-app subtree hash are pinned after the documentation/access-point pass.
 [ ] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
 [ ] pass is required for promotion; hold returns a blocking status from the wave gate.
 [ ] root-list entries are versioned artifacts with owner/sign-off, hashes, affected_by_wave, and enforced expiry.
+[ ] architecture_scenario_set.v1 is frozen as history; v2 describes the four-role topology without a fixed scenario-count ceiling.
+[ ] `make wave-bind` and `make wave-harness MANIFEST=...` create/verify an externally signed BindingManifest and fail undeclared affectedness.
+[ ] Learning/meta optimizer write scope is allowlisted; TCB, evaluator, manifest, promoter, sealed archive history are read-only or unavailable.
+[ ] An engineering wave that changes TCB code declares exact TCB paths, runs isolated, and requires external evaluation plus independent human review.
+[ ] Evaluator mutation, manifest downgrade, and candidate write-boundary attacks are planted failures.
 [ ] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
+[ ] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
 [ ] ExperimentRecord phase is P13 (then P16/P17 as applicable), not the Step E constant.
 [ ] C-VAR consumes frozen pre-wave outputs and independently generated post-wave outputs.
 [ ] C-VAR fails when before and after artifacts are the same for a behavior-changing wave.
-[ ] B_migrate executes old organ and new kernel independently from identical inputs.
-[ ] B_migrate compares authority, reward source, evidence/provenance, rollback, denial, and required projection fields.
-[ ] Reward evidence reports unique row identity and human-versus-simulator provenance; synthetic rows cannot count as Program A feedback.
+[ ] B_migrate can invoke independently named producer commands and rejects identical/self-derived artifacts using planted old/new producers.
+[ ] Each P13.2+ manifest binds the actual old/new commands and comparison vector for intents, projections, admission/refinement, reward, evidence, reconciliation, and compensation.
+[ ] Reward evidence reports global row identity and source-authenticated human-versus-simulator provenance.
 [ ] Every certificate has a planted counterexample that produces fail or hold.
 ```
 
-The bounded architecture-eval baseline is P13.0 ruler work only. Preservation
-predicates and counterexample sensitivity bind immediately. Target-conformance
-predicates bind as follows: complete Trajectory projection at the first P13 frontend
-shadow path and before session-state retirement; single-owner authority and the full
-old/new comparison vector at the first old/kernel coexistence for each organ;
-object-specific contracts when their first target-facing path lands; Provider
-transaction conformance before provider authority handoff; Frontier safety observables
-when Frontier respondent/contraction work begins (no later than P16); and monitor
-preservation for every retirement, contraction, or removal from P13 onward. Provider
-verify-failure state and rollback audit retention bind before the first Provider or
-Authority handoff. Executable explanation controls bind when any target-object
-explanation first exposes an actionable control.
-
-Architecture-eval semantics are fixed before those triggers:
+The following are P13.6 learning-promotion prerequisites, not blockers for the first
+operational shadow. `lab-promote` remains frozen until every item passes:
 
 ```text
-visible-field set       a versioned required-field manifest; every reconstructed field cites Trajectory rows
-authority owner         the sole issuer of the effect-authorizing receipt; grant issuer and exerciser remain provenance
-revoke                  blocks future exercise and cancels staged/uncommitted work; committed effects require explicit undo
-Frontier measurement    latency=ms, cost=usd, variance names metric/unit/sample count; unknown is typed with a reason, never null
-provenance containment  semantic source/content fingerprints survive regenerated ids; redaction leaves a cited tombstone/hash
-explanation controls    actionable controls carry executable route, authority requirement, artifact, and receipt; context stays separate
-rollback equality       external state is restored while audit history remains append-only and gains the rollback receipt
-verify failure          never labeled committed; enters rollback-pending/unverified and resolves to verified revert or explicit hold
-monitor identity        defined by planted-counterexample detectability, never by implementation/module name
+[ ] Search, family-disjoint sealed holdout, and forward-time no-effect live-shadow partitions are distinct and hashed in InstrumentBundle.
+[ ] Holdout access, promotion override, evaluator mutation, and optimizer write-boundary attacks are planted failures.
+[ ] Simulator evidence has zero direct or transitive positive human-utility promotion credit; synthetic rows cannot count as Program A feedback.
+[ ] `lab-promote` cannot force promotion after a failed gate; changing thresholds requires a new pre-search instrument epoch.
+[ ] Training/search rows are disjoint from sealed holdout; the tuning-loop control-note check is labeled plumbing, not improvement.
+[ ] Decision logs capture decision/event id, actual behavior payload/arm, eligible set, selected candidate/action id, selected-action propensity/determinism, exposure, context/pre-state hash, outcome window, censoring, and linked outcome row ids.
+[ ] Missing overlap/propensity reports `not_identifiable` and blocks an off-policy improvement claim.
+[ ] A deliberately bad PolicyPayload is rejected without changing CURRENT; a valid payload completes signed promotion and atomic rollback.
 ```
 
-This baseline does not complete P13.0, begin an organ migration, authorize an authority
-handoff, or earn compression credit. Its deterministic adapter does not invoke live
-Codex, live NIM, or mutating EventKit.
+An invisible no-effect live shadow proves distribution coverage, conformance, latency,
+and cost—not downstream human effect outcomes. With explicit consent, blinded exposure
+to recommendation-only candidate proposals may estimate preference/usefulness and must
+log exposure/censoring; any randomized exploration is limited to equally safe,
+recommendation-only alternatives and records its propensity. Calendar effects are never
+randomized. Undo, conflict, and downstream-effect claims require a later,
+separately authorized limited canary through the normal Gate/Gateway; they cannot be
+inferred from invisible shadow or simulator rows.
+
+The v2 target rail is executable only through the frozen `BindingManifest`. Its initial
+scenario families include, without a hard count ceiling:
+
+```text
+Reducer determinism and cited required fields
+trusted-ingress forgery and stale-precondition rejection
+effect and compensation ticket exact intent/pre-state binding, single claim, and duplicate delivery
+crash before claim, after durable claim-before-dispatch, and after dispatch-before-receipt
+verify ambiguity, reconcile-before-retry, and restart reconciliation
+revoke/claim race linearization, reconciled-absent `not_applied`, and invalid grant epoch
+external edit before compensation and visible compensation hold
+no learning/meta effect path
+Frontier respondent provenance/failure/variance/cost/latency preservation
+optimizer write-boundary and evaluator/instrument mutation rejection
+BindingManifest downgrade/scope-under-declaration and holdout-exposure rejection
+promotion-override rejection
+global reward identity and transitive human/simulator separation
+monitor counterexample detectability, detection latency, and resulting hold
+```
+
+V1 preservation plus a v2 report does not complete P13.0, begin migration, authorize a
+handoff, or earn compression credit. Deterministic adapters do not substitute for the
+app-bundled EventKit identity or live model access points.
 
 P13.0 may change only the ruler, access-point plumbing, and their tests. It produces no
 product behavior change and no compression credit. Its exit bundle follows §4.8 and
@@ -850,16 +1128,19 @@ contains one demonstrated failing fixture for each protected decision surface.
 
 ### 9.1 Phase Summary
 
-P14 and P15 are intentionally not standalone phases in this architecture. Their old responsibilities are folded into P13 as kernel/organ migration work: first make each surface's hidden truth projectable from `Trajectory`, then replace or retire the old organ under `B_migrate`. P16 starts only after that migration foundation exists; it is the contraction phase, not the continuation of frontend/session peel-apart work.
+P14 and P15 remain folded into P13. P13 is no longer horizontal kernel/organ work: it
+proves one complete action/backend vertical, then repeats that certificate. P16 contracts
+duplication only after operational cutover. P17 finds the evidence-bound floor. Recursive
+meta-optimization is explicitly outside P13–P17 and must earn a later phase.
 
 | Phase | Purpose | Irreversible step | Exit evidence |
 |---|---|---|---|
 | Step E — **complete** | fix the instrument, install monitors, ship `Belief` and `explain` | none; this phase added LOC as designed | done — exit evidence in [P12 Record §6](P12-RECORD.md): gate fails truthfully, live legs ran or were root-listed, no destructive verdict landed |
-| P13 | bind the P13 wave harness, build kernel behind freeze, migrate organs | authority handoff per organ | P13.0 complete; independent `B_migrate` held through overlap; frontend hidden truth made unrepresentable |
-| P16 | verified contractions | duplicated implementation replaced by object protocol | `B_frontier`, `B_schema`, `B_runtime`, `C-VAR` pass |
+| P13 | bind evaluator; migrate complete action/backend verticals; package existing learning as proposals | read-side then sole-Gateway handoff per vertical | P13.0 complete; v2 BindingManifest pass; deterministic and app-bundled EventKit certificates; old truth retired only for proven verticals |
+| P16 | verified contractions | duplicated implementation replaced by a port/adapter or thin access point | `B_frontier`, `B_schema`, `B_runtime`, `C-VAR` pass after operational cutover |
 | P17 | emergent-floor harvest | behavior/support structure retired | next removal fails a certificate; floor reported with binding constraint |
 
-### 9.2 Step E: Instrument And Missing Object — COMPLETE
+### 9.2 Step E: Instrument And Missing Compatibility Contract — COMPLETE
 
 Step E is done and closed P12. The run-by-run chronology, the pinned `INSTRUMENT@sha`, and the known-red data-quality flags recorded at pin time live in the [P12 Record §6 and §8.3](P12-RECORD.md).
 
@@ -870,44 +1151,78 @@ the gate can fail for real reasons
 calibration hold is explicit, never silently passing
 reward purity scans consumed rows
 policy ablation re-grades instead of returning constants
-explain answers cite trajectory rows
-Belief and explain() remain shipped object contracts
+explain answers cite evidence rows
+the existing Belief type and explain behavior remain shipped compatibility contracts
 the known-red flags pinned in the Record are never silently worsened by a wave
 ```
 
-### 9.3 P13: Kernel Behind Freeze
+### 9.3 P13: One Complete Vertical At A Time
 
-P13 begins with P13.0 (§8.5), not object implementation. The canonical access point,
+P13 begins with P13.0 (§8.5), not role implementation. The canonical access point,
 root CI, report-decision semantics, independent before/after certificates, root-list
-expiry, and the actual eight-field record must be binding before any organ migration.
+expiry, and the actual experiment record must be binding before any behavior migration.
 The new P13 baseline then pins the post-documentation commit, active-app subtree, exact
 LOC vector, deterministic reports, and affected live/app evidence.
 
-Migration order follows observability:
+The first unit is `create_prep_block`, not a shared framework or an organ. Execute these
+barriers in order:
 
 ```text
-frontend -> codex -> diffusiongemma -> providers -> swift_bridge
+P13.0  isolate evaluator/promoter; add BindingManifest and scenario-set v2; freeze instrument
+P13.1  define Journal vocabulary, pure Reducer, required-field manifest, and effect state machine
+P13.2  shadow deterministic create_prep_block end to end; incumbent remains visible/effect-capable
+P13.3a cut over cited UI/explain read-side; observe while incumbent still owns effects
+P13.3b introduce effect/compensation tickets and switch deterministic effects at one Gateway selector
+P13.4  repeat crash/race/reconcile/compensation certificate through app-bundled sandbox EventKit
+P13.5  retire old truth only for create_prep_block + proven backend; repeat per action/backend
+P13.6  migrate the preserved learning path to immutable proposal-only PolicyPayloads
 ```
 
-Frontend rule:
+The P13.2 shadow includes the whole causal path:
 
 ```text
-view_state = project(trajectory)
+authenticated observation
+-> Frontier proposal
+-> Reducer intent/state
+-> Gate denial or domain-separated non-consumable ShadowAdmissionDecision
+-> Provider preview or cited projection of the incumbent receipt (no new dispatch)
+-> Journal comparison evidence
+-> required UI projection
+-> explanation and executable control route
 ```
 
-`DogfoodSessionState`, static snapshots, and hidden frontend truth retire only after their truth is projectable from trajectory. The shell is replaceable; the honesty is not.
+`ShadowAdmissionDecision` is cryptographically audience/domain separated and cannot be
+accepted by a production Gateway. P13.2 forces stale/forged input, denial, projection,
+and explanation cases while the incumbent alone mutates. P13.3b is the first valid
+ticket claim/dispatch; its isolated deterministic effect suite forces duplicate delivery,
+crash before/after claim and dispatch, verify ambiguity, revoke/claim race, restart
+reconciliation, reconciled absence, and an out-of-band edit before separately authorized
+compensation. Deterministic handoff does not authorize EventKit handoff.
+
+During P13.3a, only controls already proven on the incumbent may render as actionable;
+they route through one compatibility selector to the incumbent effect path and their
+receipts return to the Journal. New-only revoke/reconcile/compensation controls remain
+truthfully unavailable until their Gate/Gateway routes cut over atomically in P13.3b.
+No control can choose old versus new authority ad hoc.
+
+`DogfoodSessionState`, static snapshots, and hidden frontend truth retire only durable,
+semantic, safety-, explanation-, and decision-bearing field by field after the required
+view is reconstructible from Journal + Reducer. The shell is replaceable; cited honesty
+is not. Until P13.6 the existing learning path is frozen to inference and evidence
+capture: no new `CURRENT`/PolicyTuning promotion, authority broadening, self-promotion,
+or simulator-positive promotion credit is allowed.
 
 Preserved user-facing capabilities:
 
 ```text
-feedback capture as ActionStream rows
+feedback capture as authenticated human Action events
 label activate / disable / correct
 biography-drift visibility
 authority tier, scope, grant, denial explanations
 replay export and causal trace
 runtime blocker visibility
 dogfood and cold-start evidence capture
-undo and rollback visibility
+revoke, compensation, reconciliation, and hold visibility
 ```
 
 ### 9.4 P16: Verified Contractions
@@ -917,10 +1232,14 @@ Contractions are missing polymorphisms, not product amputations:
 ```text
 two live model paths -> one Frontier, both respondents kept
 seven runtime modes -> one runtime with injected, exercised backends
-old replay schemas -> one runtime schema after total migration
+old replay schemas -> one Journal schema after total migration
 provider stubs -> absent respondents until executable
-40 scripts -> object methods + thin CLI, after instrument pin
+40 scripts -> external evaluator/optimizer functions + thin access points, after instrument pin
 ```
+
+Frontier contraction happens after the operational vertical is stable. DiffusionGemma
+remains a replaceable experimental respondent; its latency/diversity benefit must be
+measured against quality and resource trade-offs, never assumed from model family.
 
 ### 9.5 P17: Emergent Floor
 
@@ -932,26 +1251,27 @@ Stop when the next removal would delete:
 a runtime monitor,
 a calibration harness,
 Belief evidence/control behavior,
-Authority revocation or denial truth,
-Provider rollback verification,
-Trajectory causal legibility,
+Gate revocation or denial truth,
+Gateway reconciliation/compensation verification,
+Journal/Reducer causal legibility,
 or a Program A evidence-capture path.
 ```
 
 ---
 
-## 10. LOC Trajectory
+## 10. LOC Inventory
 
-Safe migration is a sawtooth because old and new coexist before retirement.
+Safe migration is a sawtooth because old and new coexist before retirement. Projected
+endpoints were removed: after changing the topology, invented ranges would recreate the
+Goodhart pressure this document rejects.
 
-| Point | Expected `/src` LOC | Binding constraint |
+| Point | Tracked `/src` Python LOC | Status / binding constraint |
 |---|---:|---|
-| start (landed) | ~13,950 | post-P12 source at the C₁ audit ([Record §8.4](P12-RECORD.md)) |
-| after Step E (landed) | ~14,300-14,700 est. | instrument, monitors, `Belief`, `explain`; measure exactly at the P13 baseline freeze |
-| P13 peak | ~15,500-16,500 | kernel plus organ overlap under `B_migrate` |
-| after P13 retire | ~8,500-11,000 | hidden frontend/session truth made unrepresentable |
-| after P16 contractions | ~5,000-7,500 | `Frontier`, runtime, schema contractions discharged |
-| after P17 | > 3,000, reported | monitors, calibration, `Belief`, rollback, and traceability remain |
+| C₁ historical audit | ~13,950 | historical only; [Record §8.4](P12-RECORD.md) |
+| review inventory, commit `5c2bee3` | 14,357 | interim scalar from §4.6; not the versioned P13 baseline |
+| P13.0 freeze | report exactly | versioned reporter pins file list, exclusions, commit, subtree, per-file counts, total |
+| each vertical before/peak/after | report exactly | overlap is allowed; retirement requires the vertical certificate |
+| P16/P17 | report exactly | floor is discovered by the first failed protected subtraction |
 
 The 3,000-line question is answered only in this form:
 
@@ -962,7 +1282,7 @@ X is protected by certificate or monitor Y.
 Therefore the floor is N, bound by Y.
 ```
 
-Any claim of "3,000-line architecture" that does not name the detectability, calibration, or rollback capability it deletes is not an architecture claim. It is a budget.
+Any claim of "3,000-line architecture" that does not name the detectability, calibration, reconciliation, or compensation capability it deletes is not an architecture claim. It is a budget.
 
 ---
 
@@ -972,19 +1292,21 @@ Any claim of "3,000-line architecture" that does not name the detectability, cal
 |---|---|---|
 | D-00 | Target of the program | conceptual mass; LOC is reported output |
 | D-01 | Release gate reach | Step E landed the run-or-root-list discipline; P13.0 makes sign-off, artifact hash, affectedness, and expiry machine-binding (§4.8, §8.5) |
-| D-02 | Frontend replacement | hidden truth made unrepresentable before shell replacement |
-| D-03 | Humane controls | mandatory as object messages and `explain` controls |
-| D-04 | Live Codex | kept as `Frontier` respondent |
-| D-05 | Live NIM | kept as `Frontier` respondent |
-| D-06 | Runtime modes | collapse to one runtime plus injected, exercised backends |
-| D-07 | EventKit | kept as real `Provider` respondent |
-| D-08 | Replay schemas | total migration plus denial receipts before old runtime support is removed |
-| D-09 | Provider-backed self-play | statistical core stays; cosmetic lab surface may relocate |
-| D-10 | Google/Microsoft stubs | removed as absent respondents until transaction contract is real |
-| D-11 | Mac app packaging | packaging can relocate; EventKit provider path stays |
-| D-12 | Explanatory fields | fields survive only where `explain` or `Belief.evidence` needs them |
-| D-13 | Tests and packages | tests die only with their feature; they do not count toward LOC target |
-| D-14 | Product break from P12 | only proven change ships; every wave beats or ties CURRENT |
+| D-02 | Core topology | four roles: Journal, Reducer, Gate, Gateway; ports/tags/projections are not peer services |
+| D-03 | Trust boundary | effect TCB is authenticated ingress/preconditions + Gate + epoch/nonce + Gateway durable claim/outbox/verifier and confined credential adapter; evaluator integrity is a separate plane |
+| D-04 | Authority | standing consent Grant is separate from exact, expiring, one-use effect and compensation tickets |
+| D-05 | First migration unit | complete `create_prep_block` vertical; read-side cutover precedes deterministic and then EventKit effect handoff |
+| D-06 | Acceptance | compression proves equivalence; learning proves positive human improvement; hard safety is lexicographically first |
+| D-07 | Architecture evals | v1 is historical preservation; v2 + immutable BindingManifest governs P13 targets |
+| D-08 | Learning promotion | frozen PolicyPayload + signed PromotionRecord; failed hard gates cannot be overridden |
+| D-09 | Simulator evidence | may expand search, train separate failure detectors, or veto; zero direct/transitive positive promotion credit |
+| D-10 | Meta-optimization | post-P17 option, not a P13–P17 phase; joint model/evaluator evolution is out of scope |
+| D-11 | Model respondents | Codex and DiffusionGemma/NIM remain replaceable Frontier respondents |
+| D-12 | Provider boundary | EventKit stays real; incomplete Google/Microsoft adapters are absent, not stubs |
+| D-13 | Frontend/explain | hidden truth becomes a cited projection before shell/read-side retirement |
+| D-14 | Schema migration | total ticket/reward/provenance/reconciliation migration before old support removal |
+| D-15 | Tests and packages | tests die only with their feature; they do not count toward LOC target |
+| D-16 | Product break from P12 | only externally graded change ships; compression ties within equivalence, learning improves beyond uncertainty |
 
 ---
 
@@ -998,7 +1320,10 @@ The `create_prep_block` autonomy runway is resolved by real time and real behavi
 calibration gaps inside preregistered bands
 ```
 
-Compression may run during that wait, but it may not reset the runway.
+These counts are eligibility to evaluate, not statistical proof of improvement. A
+learning promotion still requires the preregistered forward human-outcome test and
+protected-slice bounds in §8.1. Compression may run during the wait but may not reset
+the runway.
 
 Every wave must count before and after:
 
@@ -1023,31 +1348,37 @@ Use this checklist for every proposed wave.
 ### Ownership
 
 ```text
-[ ] Behavior has a named target object.
-[ ] Current organ and target object are both identified.
-[ ] Adapter/projection/method classification is clear.
-[ ] No hidden state remains outside Trajectory without an owner.
+[ ] Behavior is classified as role, port/adapter, event, projection, command, or control-plane function.
+[ ] The exact action family/backend vertical and old/new invocation identities are named.
+[ ] The candidate write aperture is explicit and allowlisted.
+[ ] Any engineering TCB edit is manifest-declared, isolated, externally evaluated, and independently reviewed.
+[ ] Every durable semantic, safety-, explanation-, and decision-bearing field is in the Journal + Reducer manifest; ephemeral UI state owns no product truth.
 ```
 
 ### Safety
 
 ```text
-[ ] Authority projection is equivalent or narrower.
-[ ] Reward projection is equivalent and ActionStream-only.
+[ ] Old/new may both compute; exactly one path is user-visible and effect-capable.
+[ ] StandingGrant plus one-use effect/compensation ticket semantics conform v2 and refine legacy authority without broadening effects.
+[ ] Stale, duplicate, crash-before/after-claim, unknown, revoke-race, reconciled-absent, restart, and compensation-conflict cases pass.
+[ ] Reward provenance is source-authenticated; simulator contributes zero positive promotion credit.
 [ ] Provenance is preserved or expanded.
-[ ] Rollback or tombstone path exists.
+[ ] Reconciliation plus conflict-aware compensation/hold path exists.
 [ ] Live legs are run or root-listed.
 ```
 
 ### Evidence
 
 ```text
-[ ] INSTRUMENT@sha is pinned before the wave.
+[ ] InstrumentBundle@sha and immutable BindingManifest are pinned before the wave.
 [ ] Baseline vector is recorded before change.
-[ ] Effect is reported against variance, not sign alone.
+[ ] Change class selects equivalence or positive-improvement statistics.
+[ ] For learning only: search, sealed holdout, and forward-shadow partitions are disjoint and attested.
+[ ] Effect is reported with uncertainty, protected slices, and identifiability—not sign alone.
 [ ] Borderline promote/hold flip rate is measured.
 [ ] Any regressed metric is named.
 [ ] Ablation is real, not a constant report.
+[ ] Failed gates cannot be overridden; rollback restores the prior immutable pointer/artifact.
 ```
 
 ### Execution
@@ -1060,17 +1391,19 @@ Use this checklist for every proposed wave.
 [ ] Browser/app evidence proves PID, port, launch state, runtime mode, and backend ownership.
 [ ] OS-permission evidence comes from the user-visible app-bundled identity.
 [ ] Every affected live leg ran; any unaffected/unavailable exception is a current signed root-list artifact.
+[ ] For learning/meta: optimizer mutation, holdout access, manifest downgrade, and promotion-override attacks were rejected.
 ```
 
 ### Humane Walls
 
 ```text
 [ ] Beliefs remain cited and user-controllable.
-[ ] Authority remains independent of signals and labels.
-[ ] Undo/revoke effectiveness remains monitored.
+[ ] Gate recomputes admissibility from trusted consent/preconditions, independent of signals and labels.
+[ ] Revoke/reconcile/compensation effectiveness remains monitored.
 [ ] Biography drift remains visible.
 [ ] Calibration remains active.
 [ ] Redaction egress remains typed and centralized.
+[ ] Learning/meta paths have no Effect Gateway reachability.
 ```
 
 ### Documentation
@@ -1097,10 +1430,23 @@ compression-wave wrappers and access-point plumbing binding (§8.5).
 | C-VAR and `B_migrate` defaults are self-derived | a behavior-changing wave can compare the new implementation to itself | independent frozen before and generated after paths; planted counterexamples |
 | report hold can return shell success | Make/CI can continue after a non-promotable result | promotion wrapper requires JSON `decision: pass` and exits nonzero otherwise |
 | static signed root-list entries do not enforce expiry | old live evidence can silently certify a touched path | versioned ledger with hashes, affectedness, sign-off, and enforced expiry |
-| frontend projection is incomplete | hidden UI/session truth can survive replacement | make `view_state = project(trajectory)` complete |
+| v1 target `binding_trigger` is inert prose | all nine target debts can remain `observe/not_reached` while the top-level gate passes | v2 plus evaluator-owned immutable BindingManifest before migration |
+| BindingManifest can under-declare the diff | a signed but incomplete scope can omit binding cases | evaluator derives affectedness from full diff + ownership map and fails every undeclared touch |
+| `lab-promote --decide promote` can bypass failed gates | a human/agent can write `CURRENT` after a hard failure | remove force-promote path; allow only veto/hold; new threshold means new instrument epoch |
+| training and evaluation reuse lab runs/seeds | autonomous search can optimize its evaluator | disjoint search, family-disjoint sealed holdout, and frozen forward live shadow |
+| simulator reward has positive training weight | policy can learn to please its model of the user | separate ledgers; simulator can veto/train failure detector but has zero positive promotion credit |
+| tuning control-note counts as effect | plumbing change can masquerade as improvement | label current loop bootstrap-only; require human-outcome uncertainty rule |
+| off-policy value lacks exposure/propensity/overlap | counterfactual improvement is not identifiable | log eligible set, selection/exposure, propensity, window, censoring; otherwise hold |
+| Journal integrity is mistaken for truth | a signed/ordered false input can authorize harm | source-authenticated ingress and independent Gate precondition/admissibility check |
+| reusable grants or duplicate delivery | two paths can exercise one broad capability or double-apply | standing grant + exact one-use ticket + atomic nonce/epoch plus durable claim/outbox/idempotency state |
+| claimed ticket is mistaken for applied effect | revoke/crash before dispatch can trigger false compensation | reconcile claimed/in-flight work; absent becomes not_applied; verified presence alone permits compensation request |
+| provider outcome is unknown after dispatch | retry can duplicate an effect; committed label can lie | explicit unknown/reconcile state; block retry; verified is sole success state |
+| compensation bypasses authority or meets later edits | an automatic rollback can be an unauthorized destructive write | fresh-state compare + separate one-use CompensationTicket; conflict becomes visible manual hold |
+| Provider credentials escape Gateway | untrusted proposal/product code can bypass ticket checks | capability-confined adapter reachable only through Gateway ticket-checked RPC |
+| frontend projection is incomplete | hidden UI/session truth can survive replacement | complete cited `project(Journal, Reducer, required_fields)` before read cutover |
 | frontier collapse may erase model-specific failures | lab can measure a fiction | preserve failure_mode/cost/latency/variance |
 | schema collapse can thin evidence | old rows can disappear silently | total migration or denial receipts |
-| script-to-method refactor can move the ruler | lab reports can improve because instruments changed | freeze instrument and prove bit-identical reports |
+| script refactor can move the ruler | lab reports can improve because instruments changed | keep evaluator external; freeze instrument and prove bit-identical reports |
 | Program A evidence path can reset | autonomy runway loses calendar-time progress | count matched examples and feedback before/after every wave |
 
 ---
@@ -1113,35 +1459,76 @@ compression-wave wrappers and access-point plumbing binding (§8.5).
    Belief and explain are shipped. LOC rose as designed.
 
 2. Complete P13.0 before the first behavior-changing wave.
-   Canonical access point, root CI, binding hold semantics, real eight-field record,
+   Canonical access point, root CI, scenario-set v2, immutable BindingManifest,
+   evaluator/write isolation, manifest affectedness, real experiment record,
    independent C-VAR/B_migrate, validated live-leg ledger.
 
 3. Route every wave through the binding promotion harness.
-   Eight-field record, baseline vector, ablation, C-VAR, rollback,
-   plus the change-to-gate union in §4.7.
+   Correct change class, conditional evidence hashes, baseline, uncertainty, slices,
+   ablation, rollback, plus the change-to-gate union in §4.7.
 
-4. Build the six-object kernel behind the freeze.
-   Shadow, dual-run, prove B_migrate, hand off authority, retire with tombstones.
+4. Shadow the deterministic create_prep_block vertical end to end.
+   Journal, Reducer, UI/explain, non-consumable admission decision, provider preview;
+   incumbent remains the only visible and effect-capable path.
 
-5. Contract duplicated architecture under certificates.
+5. Cut over its read side, then deterministic effects at the sole Gateway selector.
+   Prove effect and compensation tickets, claim/outbox, stale/duplicate/crash,
+   unknown/revoke/restart/reconciled-absent cases.
+
+6. Repeat the same vertical through app-bundled sandbox EventKit.
+   Retire old truth only for the proven action/backend; repeat per vertical.
+
+7. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
+   Repair promotion override; separate search/holdout/live evidence; simulator never
+   supplies positive promotion credit; sign PromotionRecord before CURRENT changes.
+
+8. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.
 
-6. Harvest to the emergent floor.
-   Stop at the first protected monitor, calibration, rollback, evidence,
+9. Harvest to the emergent floor.
+   Stop at the first protected monitor, calibration, reconciliation, evidence,
    or traceability constraint. Report the binding constraint.
+
+10. Do not begin recursive meta-optimization in P13-P17.
+    A later phase may be proposed only after isolation attacks, rejected-bad/accepted-good payloads,
+    atomic rollback, and a forward no-effect shadow are proven with a fixed base model.
 ```
 
 ---
 
 ## 16. Summary
 
-CalendarPilot compresses by reifying six objects and making everything else project, adapt, or move home. The safety walls move into type signatures where possible; the statistical and liveness walls remain runtime monitors; the promotion discipline governs every behavior-changing write.
+CalendarPilot compresses around four causal roles: append-only evidence, pure
+interpretation, exact authority admission, and one truthful effect gateway. Ports remain
+replaceable; event tags remain tags; Belief/UI/explain remain cited projections. The
+small effect TCB is surrounded by increasingly capable but untrusted proposal machinery.
 
 The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
 `explain` contracts are shipped ([P12 Record](P12-RECORD.md)). The next correct action
-is P13.0: make access-point identity and the compression-wave certificates binding.
-Then build the six-object kernel behind the freeze and migrate organs through
-independent equivalence (P13), followed by contraction under certificates (P16). The
-line count falls as a consequence of architecture. The floor is wherever the next
-deletion would blind the system, weaken reversibility, thin evidence, or increase
-promotion noise.
+is P13.0: repair access-point identity, isolate evaluator/promoter from optimizer,
+replace inert v1 target prose with v2 + BindingManifest, and make the wave certificates
+binding. Then migrate one complete `create_prep_block` vertical through read-side,
+deterministic-effect, and app-bundled EventKit barriers before generalizing (P13).
+Learning becomes frozen proposal payloads plus signed promotion records only after that operational path is stable;
+meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
+line count falls as a consequence. The floor is where the next subtraction would blind
+the system, weaken compensation/control, thin evidence, or corrupt evaluation.
+
+---
+
+## 17. Research Basis And Transfer Limits
+
+This topology uses the cited work as constraints, not as permission to copy a research
+prototype into a calendar effect path.
+
+| Source | Principle retained | Transfer limit |
+|---|---|---|
+| [Meta-Harness](https://arxiv.org/abs/2603.28052) | preserve full search code/traces/scores; let the proposer retrieve adaptively; keep the base model fixed; use a search set, hidden final test, and Pareto frontier | its filesystem is a search interface, not authority or unrestricted access to personal calendar blobs |
+| [Harness Engineering for Self-Improvement](https://lilianweng.github.io/posts/2026-07-04-harness/) | separate evolving mechanism from evaluator/permissions; preserve negative results; guard against drift, diversity collapse, and reward hacking | recursive improvement remains unsafe until write, evaluator, permission, and holdout boundaries are machine-enforced |
+| [autoresearch](https://github.com/karpathy/autoresearch) | frozen preparation/evaluation, fixed resource budget, one narrow mutable aperture, comparable experiments | one scalar metric is insufficient for human-facing effects; safety constraints precede the product vector |
+| [DiffusionGemma](https://blog.google/innovation-and-ai/technology/developers-tools/diffusion-gemma-faster-text-generation/) | blockwise text refinement may improve local interactive latency/diversity and should expose revision traces | the model is experimental and trades quality for speed; it remains one untrusted Frontier respondent |
+| [I. J. Good, “Speculations Concerning the First Ultraintelligent Machine”](https://vtechworks.lib.vt.edu/bitstream/handle/10919/89424/TechReport05-3.pdf) | meaning is useful as economical, regenerable structure; learning depends on embodied input/output and experiment; recursive improvement magnifies control defects | cited projections may compress meaning but never replace retrievable raw evidence; control and evaluation stay outside the improving surface |
+
+The resulting rule is simple: retain raw causal experience, compress its meaning into
+cited projections, expose only a narrow proposal aperture to learning, and keep the
+ruler and effect capability outside that aperture.
