@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report b-migrate wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
 .NOTPARALLEL: wave-harness
 
 py-test:
@@ -105,10 +105,24 @@ binding-manifest-verify:
 cvar-report:
 	PYTHONPATH=src python3 scripts/run_cvar_report.py --out runs/cvar_report.json
 
+cvar-report-v2:
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	@test -n "$(CVAR_BEFORE)" || (echo "CVAR_BEFORE is required" >&2; exit 2)
+	@test -n "$(CVAR_AFTER)" || (echo "CVAR_AFTER is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_cvar_report_v2.py --manifest "$(P13_MANIFEST)" --before-artifact "$(CVAR_BEFORE)" --after-artifact "$(CVAR_AFTER)" --out runs/cvar_report_v2.json
+
 b-migrate:
 	PYTHONPATH=src python3 scripts/run_b_migrate_dual_run.py --out runs/b_migrate_report.json
 
-wave-harness: architecture-evals cvar-report b-migrate p12-release
+b-migrate-v2:
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_b_migrate_dual_run_v2.py --manifest "$(P13_MANIFEST)" --out runs/b_migrate_report_v2.json
+
+wave-harness:
+	@test -n "$(WAVE)" || (echo "WAVE is required" >&2; exit 2)
+	@test -n "$(P13_VERIFY_KEY)" || (echo "P13_VERIFY_KEY is required" >&2; exit 2)
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_p13_wave_gate.py --manifest "$(P13_MANIFEST)" --verification-key "$(P13_VERIFY_KEY)" $(if $(CVAR_BEFORE),--before-cvar-artifact "$(CVAR_BEFORE)",) --out runs/p13_wave_gate_report.json
 
 mac-app-build:
 	scripts/build_macos_app.sh

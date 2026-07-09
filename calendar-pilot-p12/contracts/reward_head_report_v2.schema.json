@@ -1,0 +1,35 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/reward_head_report_v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RewardHeadReportV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reward_head_report_schema_version", "reward_head_deltas", "reward_evidence", "gates", "hold_reasons", "decision"],
+  "properties": {
+    "reward_head_report_schema_version": {"const": "reward_head_report.v2"},
+    "reward_head_deltas": {"type": "object"},
+    "reward_evidence": {
+      "type": "object",
+      "required": ["consumed_reward_rows", "global_row_ids_unique", "provenance_separation", "authenticated_provenance_required"],
+      "properties": {
+        "consumed_reward_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["global_row_id", "record_id", "source_artifact_sha256", "source_line_no", "provenance", "source_class", "source_authenticated"]
+          }
+        },
+        "global_row_ids_unique": {"const": true},
+        "provenance_separation": {
+          "type": "object",
+          "required": ["human_global_row_ids", "simulator_global_row_ids", "unauthenticated_global_row_ids", "simulator_positive_human_utility_credit"]
+        },
+        "authenticated_provenance_required": {"const": true}
+      }
+    },
+    "gates": {"type": "object", "required": ["reward_purity", "global_row_identity", "source_authenticated_provenance", "simulator_no_positive_human_utility_credit"]},
+    "hold_reasons": {"type": "array"},
+    "decision": {"enum": ["pass", "hold", "fail"]}
+  }
+}

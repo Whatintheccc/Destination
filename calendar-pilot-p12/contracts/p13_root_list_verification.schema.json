@@ -1,0 +1,20 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_root_list_verification.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13RootListVerificationV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "p13_root_list_verification_schema_version", "decision", "manifest_id",
+    "signed_by_binding_manifest", "entries", "failures", "hold_reasons"
+  ],
+  "properties": {
+    "p13_root_list_verification_schema_version": {"const": "p13_root_list_verification.v1"},
+    "decision": {"enum": ["pass", "hold", "fail"]},
+    "manifest_id": {"type": "string"},
+    "signed_by_binding_manifest": {"const": true},
+    "entries": {"type": "array"},
+    "failures": {"type": "array"},
+    "hold_reasons": {"type": "array"}
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "b_migrate_assertion_schema_version": "b_migrate_assertions.v2",
+  "assertion_set_id": "frontend_view_state_v2",
+  "description": "Protected projection comparison produced by independently named old-session and new-projector commands.",
+  "protected_observables": [
+    "projection",
+    "admission",
+    "reward_source",
+    "evidence"
+  ],
+  "assertions": [
+    {
+      "name": "state_version",
+      "mode": "equal",
+      "before_path": "state_version",
+      "after_path": "state_version"
+    },
+    {
+      "name": "session_id",
+      "mode": "equal",
+      "before_path": "session.session_id",
+      "after_path": "session.session_id"
+    },
+    {
+      "name": "candidate_ids",
+      "mode": "equal_set",
+      "before_path": "chat.candidate_cards[].candidate_id",
+      "after_path": "frontier.candidates[].candidate_id"
+    },
+    {
+      "name": "action_receipt_ids",
+      "mode": "equal_set",
+      "before_path": "action_queue[].receipt_id",
+      "after_path": "actions.queue[].receipt_id"
+    },
+    {
+      "name": "runtime_mode",
+      "mode": "equal",
+      "before_path": "runtime.mode",
+      "after_path": "runtime.mode"
+    },
+    {
+      "name": "authority_profile",
+      "mode": "equal",
+      "before_path": "inspector.authority.profile",
+      "after_path": "authority.profile"
+    }
+  ]
+}

@@ -323,6 +323,35 @@ def _validate_scope(scope: dict[str, Any]) -> None:
     required = scope.get("required_scenarios")
     if not isinstance(required, list):
         raise ValueError("wave scope required_scenarios must be a list")
+    live_legs = scope.get("live_legs")
+    if not isinstance(live_legs, list):
+        raise ValueError("wave scope live_legs must be a list")
+    live_leg_keys = {
+        "leg", "status", "reason", "artifact", "owner", "sign_off",
+        "affected_by_wave", "expires_at", "next_unblock_action",
+    }
+    for entry in live_legs:
+        if not isinstance(entry, dict) or set(entry) != live_leg_keys:
+            raise ValueError("live-leg entry does not match the versioned contract")
+        status = entry.get("status")
+        reason = entry.get("reason")
+        artifact = entry.get("artifact")
+        if status not in {"ran", "root-listed"}:
+            raise ValueError("live-leg status must be ran or root-listed")
+        if not isinstance(reason, dict) or set(reason) != {"basis", "detail"}:
+            raise ValueError("live-leg reason requires exactly basis and detail")
+        allowed_basis = {"ran"} if status == "ran" else {"unaffected", "unavailable"}
+        if reason.get("basis") not in allowed_basis or not str(reason.get("detail", "")).strip():
+            raise ValueError("live-leg reason basis does not match its status")
+        if not isinstance(artifact, dict) or set(artifact) != {"path", "sha256"}:
+            raise ValueError("live-leg artifact requires exactly path and sha256")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(artifact.get("sha256", ""))):
+            raise ValueError("live-leg artifact sha256 is invalid")
+        if not isinstance(entry.get("affected_by_wave"), bool):
+            raise ValueError("live-leg affected_by_wave must be boolean")
+        for key in ["leg", "owner", "sign_off", "expires_at", "next_unblock_action"]:
+            if not str(entry.get(key, "")).strip():
+                raise ValueError(f"live-leg {key} is required")
 
 
 def build_binding_manifest(

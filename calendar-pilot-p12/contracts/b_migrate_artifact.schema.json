@@ -1,0 +1,23 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/b_migrate_artifact.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BMigrateArtifactV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "b_migrate_artifact_schema_version", "generated_at", "role", "producer",
+    "source_revision", "input", "lineage", "observable", "observable_sha256", "content_sha256"
+  ],
+  "properties": {
+    "b_migrate_artifact_schema_version": {"const": "b_migrate_artifact.v1"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "role": {"enum": ["old", "new"]},
+    "producer": {"type": "object", "required": ["producer_id", "bound_command"]},
+    "source_revision": {"type": "object", "required": ["git_sha", "clean", "source_sha256"]},
+    "input": {"type": "object", "required": ["scenario_id", "input_sha256"]},
+    "lineage": {"type": "object", "required": ["derived_from_artifact_sha256"]},
+    "observable": {"type": "object"},
+    "observable_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

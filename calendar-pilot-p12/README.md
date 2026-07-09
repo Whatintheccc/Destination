@@ -77,7 +77,7 @@ make frontier-diff
 make scorecard
 ```
 
-P12 instrument and compression bootstrap:
+P12 instrument and historical compression bootstrap:
 
 ```bash
 make p12-release
@@ -85,8 +85,10 @@ jq -e '.decision == "pass" and .ok == true' runs/p12_release/p12_release_report.
 
 make cvar-report
 make b-migrate
-make wave-harness
 ```
+
+The unversioned C-VAR and `B_migrate` targets remain P12 shape/replay checks. They are
+not accepted by the P13 promotion gate.
 
 Deterministic architecture-eval baseline:
 
@@ -118,7 +120,7 @@ The report separates binding preservation evals from target-conformance evals.
 `pass`, `fail`, `hold`, and `not_reached` are distinct: `not_reached` never counts as
 pass and preservation non-pass results block. The v1 target `binding_trigger` fields are
 historical prose, not executable switches; those targets cannot certify a P13 migration.
-Scenario-set v2 plus a signed BindingManifest will make target selection executable.
+Scenario-set v2 plus a signed BindingManifest makes target selection executable.
 This baseline is deterministic and does not invoke live Codex, live NIM, or mutating
 EventKit; it neither completes P13.0 nor begins a vertical migration or earns
 compression credit. See
@@ -160,16 +162,33 @@ make wave-bind WAVE=<wave> CHANGE_CLASS=<ruler|migration|compression|learning> \
 
 make binding-manifest-verify WAVE=<wave> \
   P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+
+make wave-harness WAVE=<wave> \
+  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+
+jq -e '
+  .decision == "pass" and .ok == true and
+  ([.gates[] | select(. != "pass")] | length) == 0
+' runs/p13_wave_gate_report.json
 ```
 
 Binding verifies signature, expiry, InstrumentBundle hashes, scope-source identity,
 and evaluator-derived affectedness from committed, staged, unstaged, and untracked paths.
 Any undeclared path/category or changed instrument artifact fails closed.
 
+The binding wave harness verifies the manifest, runs scenario-set v2, compares two
+independently materialized C-VAR frontier artifacts, invokes the manifest's separately
+named old/new `B_migrate` producer commands, runs P12 release, verifies global reward-row
+identity and human/simulator source provenance, validates signed live-leg/root-list
+entries and expiry, writes `experiment_record.v2`, and then reads every JSON decision.
+Both `hold` and `fail` return a nonzero shell status. Behavior-bearing waves must pass a
+clean pre-wave C-VAR artifact with `CVAR_BEFORE=<path>`; the harness will not regenerate
+their baseline after candidate work.
+
 `make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
 only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live
-backend legs. The C-VAR/`B_migrate`/wave targets are bootstrap checks until the
-P13.0 requirements in the compression roadmap are complete.
+backend legs. The legacy C-VAR and `B_migrate` targets are bootstrap checks; only the
+manifest-bound `wave-harness` is a P13 wave decision.
 
 The demo performs this loop and can write replay JSONL for offline policy reduction:
 

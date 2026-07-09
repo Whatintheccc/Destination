@@ -1,0 +1,26 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/cvar_report_v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CVarReportV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cvar_report_schema_version", "decision", "change_class", "manifest_id",
+    "before_artifact", "after_artifact", "thresholds", "compared_rows",
+    "bootstrap", "borderline", "promotion_decisions", "gates"
+  ],
+  "properties": {
+    "cvar_report_schema_version": {"const": "cvar_report.v2"},
+    "decision": {"enum": ["pass", "hold", "fail"]},
+    "change_class": {"enum": ["ruler", "migration", "compression", "learning"]},
+    "manifest_id": {"type": "string"},
+    "before_artifact": {"type": "object", "required": ["path", "sha256", "content_sha256"]},
+    "after_artifact": {"type": "object", "required": ["path", "sha256", "content_sha256"]},
+    "thresholds": {"type": "object"},
+    "compared_rows": {"type": "array", "minItems": 1},
+    "bootstrap": {"type": "object"},
+    "borderline": {"type": "object"},
+    "promotion_decisions": {"type": "object"},
+    "gates": {"type": "object", "minProperties": 1}
+  }
+}

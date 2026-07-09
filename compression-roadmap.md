@@ -264,9 +264,11 @@ The command name alone is never the claim. Use the scope and report below.
 | `make live-eventkit-e2e` | EventKit health; mutation only when explicitly required | app access merely because a CLI binary ran; use §4.9 |
 | `make p12-signals`, `p12-measurement`, `p12-calibration`, `p12-provider-capabilities` | one named deterministic P12 instrument leg for focused iteration | the complete P12 or wave decision |
 | `make p12-release` | deterministic P12 instruments: invariants, streams, frontier/scorecard, measurement, calibration, provider capabilities, reward heads, curriculum, ablations, Belief/explain, C-VAR bootstrap, `B_migrate` bootstrap, secret scan | browser, app bundle, Swift IPC, live Codex/NIM/EventKit; those are separate run-or-root-list legs |
-| `make cvar-report` | frozen-seed deterministic self-consistency with the current default invocation | pre-wave versus post-wave code equivalence until P13.0 |
-| `make b-migrate` | current session snapshot ↔ current projector mapping | independent old-organ versus new-kernel equivalence until P13.0 |
-| `make wave-harness` | invokes architecture preservation evals, C-VAR bootstrap, `B_migrate` bootstrap, and P12 release | a promotable compression certificate until §8.5 is complete |
+| `make cvar-report` | historical P12 frozen-seed self-consistency with the current default invocation | pre-wave versus post-wave code equivalence; it is not accepted by the P13 gate |
+| `make b-migrate` | historical P12 current-session snapshot ↔ current-projector shape check | independent old-organ versus new-kernel equivalence; it is not accepted by the P13 gate |
+| `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability | the rest of the wave decision |
+| `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's independently named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.2+ action/backend comparison vector until that wave declares it |
+| `make wave-harness WAVE=… P13_VERIFY_KEY=…` | one fail-closed decision over manifest affectedness, v2 architecture, independent C-VAR, independent `B_migrate`, P12 release, reward identity/provenance, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | live legs absent from the signed manifest or any nonbinding target debt not selected by that manifest |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and immutable per-run evidence | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 | `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
@@ -300,13 +302,16 @@ P13.0 installs one creation and one verification access point:
 
 ```bash
 make wave-bind WAVE="$WAVE" CHANGE_CLASS="$CHANGE_CLASS"
-make wave-harness MANIFEST="runs/p13_manifests/$WAVE.json"
+make wave-harness WAVE="$WAVE" P13_VERIFY_KEY="$P13_VERIFY_KEY"
 ```
 
 `wave-bind` is run and externally signed before candidate edits.
 `binding-manifest-verify` checks signature, expiry, hashes, and evaluator-derived
 affectedness; `architecture-evals-v2` applies the selected required predicates. The
-legacy `wave-harness` does not become promotable until it composes both checks.
+binding `wave-harness` composes those checks with the evidence certificates, validates
+their schemas and decisions, and returns nonzero for both hold and fail. A
+behavior-bearing wave must pass `CVAR_BEFORE=<frozen-clean-artifact>`; the harness
+refuses to regenerate that baseline after candidate work.
 
 The first bound v2 ruler wave records 11/11 preservation passes, four binding ruler
 target passes, and 21 nonbinding `not_reached` target debts. Adding target scenarios has
@@ -329,7 +334,7 @@ the runner, adapter, predicates, scenario set, and schema. The gate validates Dr
 success. An arbitrary or pre-existing artifact directory is rejected rather than
 recursively deleted.
 
-The interim canonical source-LOC access point counts tracked Python lines under
+The historical scalar source-LOC command counted tracked Python lines under
 `calendar-pilot-p12/src/`, matching the `/src` trajectory in §10:
 
 ```bash
@@ -337,9 +342,10 @@ git -C "$GIT_ROOT" ls-files -z 'calendar-pilot-p12/src/**/*.py' |
   xargs -0 wc -l
 ```
 
-It is a scalar inventory, not a conceptual-mass metric or per-wave delta report.
-P13.0 must replace it with a versioned JSON reporter that freezes the file list,
-per-file counts, total, exclusions, commit, app subtree, and before/after delta.
+It remains useful as a cross-check only. `make p13-loc-report` is now the canonical
+versioned reporter and freezes the tracked file list, hashes, per-file counts, total,
+exclusions, commit, app subtree, and optional before/after delta. Neither is a
+conceptual-mass metric.
 
 Two shortcuts are especially dangerous:
 
@@ -348,10 +354,9 @@ make test       = Python + Swift only
 make ml-ladder  = deterministic ML smoke only
 ```
 
-Neither is a release or compression-wave gate. Also, the current report-producing
-scripts distinguish `pass`/`hold` in JSON while some return shell success for `hold`.
-Until P13.0 changes that behavior, every invocation must assert the report decision,
-not merely `$?`:
+Neither is a release or compression-wave gate. Some historical P12 report producers
+still return shell success for hold, so focused use must assert their JSON decision.
+The P13 `wave-harness` reads every decision itself and returns nonzero for any non-pass:
 
 ```bash
 make p12-release
@@ -362,6 +367,10 @@ jq -e '.decision == "pass"' runs/cvar_report.json
 
 make b-migrate
 jq -e '.decision == "pass"' runs/b_migrate_report.json
+
+make wave-harness WAVE="$WAVE" P13_VERIFY_KEY="$P13_VERIFY_KEY"
+jq -e '.decision == "pass" and .ok == true and ([.gates[] | select(. != "pass")] | length) == 0' \
+  runs/p13_wave_gate_report.json
 
 make architecture-evals
 jq -e '
@@ -1011,6 +1020,13 @@ and the schema's eight top-level keys are not the eight evidence fields named ab
 P13.0 (§8.5) closes those gaps before the first behavior-changing wave. Landing
 provenance remains in [P12 Record §6](P12-RECORD.md), wave-harness follow-up.
 
+P13.0 leaves those v1 artifacts frozen as historical compatibility evidence and adds
+`cvar_frontier_set.v1` + `cvar_report.v2`, `b_migrate_artifact.v1` +
+`b_migrate_report.v2`, and `experiment_record.v2`. The binding wave harness accepts
+only the v2 certificates. It independently invokes manifest-bound producers, requires
+a clean frozen pre-wave C-VAR artifact for behavior-bearing changes, validates the
+eight evidence fields and conditional envelope, and blocks every non-pass decision.
+
 ### 8.3 Vertical Migration Barrier
 
 Old (`O`) and new (`N`) receive frozen equivalent inputs and execute independently.
@@ -1065,21 +1081,21 @@ starts until all of these are true:
 [x] CI exists at the actual git root and runs the deterministic baseline plus report-decision assertions.
 [ ] A new P13 InstrumentBundle@sha and active-app subtree hash are pinned after the documentation/access-point pass.
 [x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
-[ ] pass is required for promotion; hold returns a blocking status from the wave gate.
-[ ] root-list entries are versioned artifacts with owner/sign-off, hashes, affected_by_wave, and enforced expiry.
+[x] pass is required for promotion; hold returns a blocking status from the wave gate.
+[x] root-list entries are versioned, BindingManifest-signed artifacts with owner/sign-off, hashes, affected_by_wave, and enforced expiry.
 [x] architecture_scenario_set.v1 is frozen as history; v2 describes the four-role topology without a fixed scenario-count ceiling.
 [x] `make wave-bind` and manifest verification create/verify an externally signed BindingManifest and fail undeclared affectedness.
 [ ] Learning/meta optimizer write scope is allowlisted; TCB, evaluator, manifest, promoter, sealed archive history are read-only or unavailable.
 [ ] An engineering wave that changes TCB code declares exact TCB paths, runs isolated, and requires external evaluation plus independent human review.
 [x] Evaluator mutation, manifest downgrade, and candidate write-boundary attacks are planted failures.
-[ ] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
-[ ] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
-[ ] ExperimentRecord phase is P13 (then P16/P17 as applicable), not the Step E constant.
-[ ] C-VAR consumes frozen pre-wave outputs and independently generated post-wave outputs.
-[ ] C-VAR fails when before and after artifacts are the same for a behavior-changing wave.
-[ ] B_migrate can invoke independently named producer commands and rejects identical/self-derived artifacts using planted old/new producers.
+[x] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
+[x] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
+[x] ExperimentRecord phase is P13 (then P16/P17 as applicable), not the Step E constant.
+[x] C-VAR consumes frozen pre-wave outputs and independently generated post-wave outputs.
+[x] C-VAR fails when before and after artifacts are the same; behavior-changing waves additionally require a clean frozen base and changed post-wave source/tuning identity.
+[x] B_migrate invokes independently named producer commands and rejects identical, aliased, or self-derived artifacts using planted old/new producers.
 [ ] Each P13.2+ manifest binds the actual old/new commands and comparison vector for intents, projections, admission/refinement, reward, evidence, reconciliation, and compensation.
-[ ] Reward evidence reports global row identity and source-authenticated human-versus-simulator provenance.
+[x] Reward evidence reports content-addressed global row identity and enforces causal source authentication plus separate human-versus-simulator provenance classes.
 [ ] Every certificate has a planted counterexample that produces fail or hold.
 ```
 

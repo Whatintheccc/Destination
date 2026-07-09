@@ -1,0 +1,28 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_wave_gate_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13WaveGateReportV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "p13_wave_gate_report_schema_version", "wave", "manifest_id", "change_class",
+    "decision", "ok", "gates", "schema_checks", "producer_runs", "subprocesses", "artifacts"
+  ],
+  "properties": {
+    "p13_wave_gate_report_schema_version": {"const": "p13_wave_gate_report.v1"},
+    "wave": {"type": "string"},
+    "manifest_id": {"type": "string"},
+    "change_class": {"enum": ["ruler", "migration", "compression", "learning"]},
+    "decision": {"enum": ["pass", "hold", "fail"]},
+    "ok": {"type": "boolean"},
+    "gates": {
+      "type": "object",
+      "additionalProperties": {"enum": ["pass", "hold", "fail"]},
+      "required": ["binding_manifest", "architecture", "cvar", "b_migrate", "p12_release", "reward_identity", "root_list", "loc", "experiment_record", "schema_validation"]
+    },
+    "schema_checks": {"type": "array", "minItems": 5},
+    "producer_runs": {"type": "object"},
+    "subprocesses": {"type": "object"},
+    "artifacts": {"type": "object"}
+  }
+}
