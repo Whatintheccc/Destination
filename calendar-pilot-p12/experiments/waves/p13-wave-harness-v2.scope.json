@@ -42,6 +42,7 @@
     ],
     "instruments": [
       "access_point_docs",
+      "architecture_eval",
       "architecture_spec",
       "configuration",
       "contract_schemas",
