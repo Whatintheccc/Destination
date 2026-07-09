@@ -1079,7 +1079,7 @@ starts until all of these are true:
 ```text
 [x] The workspace Makefile delegates to calendar-pilot-p12, or is removed as an access point.
 [x] CI exists at the actual git root and runs the deterministic baseline plus report-decision assertions.
-[ ] A new P13 InstrumentBundle@sha and active-app subtree hash are pinned after the documentation/access-point pass.
+[x] A new P13 InstrumentBundle@sha and active-app subtree hash are pinned by an externally signed clean-tree manifest after the documentation/access-point pass.
 [x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
 [x] pass is required for promotion; hold returns a blocking status from the wave gate.
 [x] root-list entries are versioned, BindingManifest-signed artifacts with owner/sign-off, hashes, affected_by_wave, and enforced expiry.
