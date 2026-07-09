@@ -6,7 +6,8 @@ DELEGATED_TARGETS := \
 	replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder \
 	check-invariants evidence-bundle \
 	lab-validate-seeds lab-run lab-compare lab-promote \
-	architecture-evals architecture-eval-test cvar-report b-migrate wave-harness \
+	architecture-evals architecture-eval-test p13-ruler-test p13-loc-report \
+	p13-instrument wave-bind binding-manifest-verify cvar-report b-migrate wave-harness \
 	p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release \
 	mac-app-build desktop-shortcut dogfood-release demo swift-demo zip
 

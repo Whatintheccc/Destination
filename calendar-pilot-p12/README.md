@@ -38,9 +38,9 @@ swift run --package-path packages/CalendarPilotKernel CalendarPilotDemo
 
 ## Access Points
 
-Run these from this active app root (`Destination/calendar-pilot-p12`), not from
-the workspace-level `Destination/Makefile`. The workspace delegate is stale until
-the P13.0 access-point repair. The canonical P13-P17 gate selection, run order,
+Run these from this active app root (`Destination/calendar-pilot-p12`) or through
+the repaired workspace-level `Destination/Makefile`, which delegates to this subtree.
+The canonical P13-P17 gate selection, run order,
 evidence bundle, and live-app procedure are in
 [`../compression-roadmap.md`](../compression-roadmap.md), §4.4–§4.9.
 
@@ -103,10 +103,11 @@ jq -e '
 
 The report separates binding preservation evals from target-conformance evals.
 `pass`, `fail`, `hold`, and `not_reached` are distinct: `not_reached` never counts as
-pass, preservation non-pass results block, and target non-pass results block once their
-phase/object trigger is binding. Nonbinding targets remain reported as architectural
-debt. This baseline is deterministic and does not invoke live Codex, live NIM, or
-mutating EventKit; it neither completes P13.0 nor begins an organ migration or earns
+pass and preservation non-pass results block. The v1 target `binding_trigger` fields are
+historical prose, not executable switches; those targets cannot certify a P13 migration.
+Scenario-set v2 plus a signed BindingManifest will make target selection executable.
+This baseline is deterministic and does not invoke live Codex, live NIM, or mutating
+EventKit; it neither completes P13.0 nor begins a vertical migration or earns
 compression credit. See
 [`../compression-roadmap.md`](../compression-roadmap.md), §4.6 and §8.5.
 
@@ -116,6 +117,41 @@ Each run writes an immutable report/artifact directory under
 record committed and dirty-worktree identity plus hashes for the runner, adapter,
 predicates, scenario set, and schema. The gate validates both the Draft 2020-12 schema
 and derived decisions/artifact hashes before it can return success.
+
+P13 ruler identity and pre-wave binding:
+
+```bash
+make p13-ruler-test
+make p13-loc-report
+
+# Generate this operator-owned keypair outside the repository once.
+P13_KEY_DIR="$HOME/.config/calendar-pilot/p13-ruler"
+mkdir -p "$P13_KEY_DIR"
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 \
+  -out "$P13_KEY_DIR/signing-private.pem"
+openssl pkey -in "$P13_KEY_DIR/signing-private.pem" -pubout \
+  -out "$P13_KEY_DIR/signing-public.pem"
+chmod 600 "$P13_KEY_DIR/signing-private.pem"
+
+make p13-instrument \
+  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+```
+
+Before candidate edits, commit a scope file at
+`experiments/waves/<wave>.scope.json` using the versioned template, then bind it:
+
+```bash
+make wave-bind WAVE=<wave> CHANGE_CLASS=<ruler|migration|compression|learning> \
+  P13_SIGNING_KEY="$P13_KEY_DIR/signing-private.pem" \
+  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+
+make binding-manifest-verify WAVE=<wave> \
+  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+```
+
+Binding verifies signature, expiry, InstrumentBundle hashes, scope-source identity,
+and evaluator-derived affectedness from committed, staged, unstaged, and untracked paths.
+Any undeclared path/category or changed instrument artifact fails closed.
 
 `make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
 only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live

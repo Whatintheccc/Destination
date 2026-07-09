@@ -1,0 +1,31 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_wave_scope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13WaveScopeV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "wave_scope_schema_version", "declared_paths", "declared", "required_scenarios",
+    "old_producer", "new_producer", "live_legs"
+  ],
+  "properties": {
+    "wave_scope_schema_version": {"const": "p13_wave_scope.v1"},
+    "declared_paths": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "declared": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actions", "backends", "surfaces", "instruments", "control_planes"],
+      "properties": {
+        "actions": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "backends": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "surfaces": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "instruments": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "control_planes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "required_scenarios": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "old_producer": {"type": ["object", "null"]},
+    "new_producer": {"type": ["object", "null"]},
+    "live_legs": {"type": "array"}
+  }
+}

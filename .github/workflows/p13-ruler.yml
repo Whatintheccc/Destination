@@ -19,7 +19,7 @@ jobs:
           cache: pip
           cache-dependency-path: calendar-pilot-p12/pyproject.toml
       - name: Install active app
-        run: python -m pip install -e calendar-pilot-p12
+        run: python -m pip install -e 'calendar-pilot-p12[evals]'
       - name: Verify repository diff hygiene
         run: git diff --check
       - name: Run deterministic compatibility baseline
@@ -27,12 +27,21 @@ jobs:
           make py-test
           make check-invariants
           make architecture-eval-test
+          make p13-ruler-test
+          make p13-loc-report
           make architecture-evals
           make cvar-report
           make b-migrate
           make p12-release
+      - name: Freeze P13 instrument identity
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/p13-signing-private.pem"
+          openssl pkey -in "$RUNNER_TEMP/p13-signing-private.pem" -pubout -out "$RUNNER_TEMP/p13-signing-public.pem"
+          make p13-instrument P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
       - name: Assert report decisions
         run: |
+          jq -e '.decision == "pass" and .file_count > 0 and .total_lines > 0' calendar-pilot-p12/runs/p13_loc_report.json
+          jq -e '.p13_instrument_bundle_schema_version == "p13_instrument_bundle.v1" and (.artifacts | length) > 0' calendar-pilot-p12/runs/p13_instrument_bundle.json
           jq -e '.decision == "pass" and .rails.preservation.decision == "pass" and .rails.preservation.scenario_count == 11' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json
           jq -e '.decision == "pass"' calendar-pilot-p12/runs/cvar_report.json
           jq -e '.decision == "pass"' calendar-pilot-p12/runs/b_migrate_report.json

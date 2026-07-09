@@ -1,0 +1,39 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_loc_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13LocReportV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "p13_loc_report_schema_version", "decision", "repository", "scope", "exclusions",
+    "file_list_sha256", "file_count", "files", "total_lines", "untracked_source_files",
+    "hold_reasons", "delta"
+  ],
+  "properties": {
+    "p13_loc_report_schema_version": {"const": "p13_loc_report.v1"},
+    "decision": {"enum": ["pass", "hold"]},
+    "repository": {"type": "object"},
+    "scope": {"type": "object"},
+    "exclusions": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "file_list_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "file_count": {"type": "integer", "minimum": 0},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "status", "lines", "sha256"],
+        "properties": {
+          "path": {"type": "string"},
+          "status": {"enum": ["present", "deleted"]},
+          "lines": {"type": "integer", "minimum": 0},
+          "sha256": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "total_lines": {"type": "integer", "minimum": 0},
+    "untracked_source_files": {"type": "array", "items": {"type": "string"}},
+    "hold_reasons": {"type": "array", "items": {"type": "string"}},
+    "delta": {"type": ["object", "null"]}
+  }
+}
