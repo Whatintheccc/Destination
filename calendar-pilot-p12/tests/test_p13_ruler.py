@@ -119,6 +119,7 @@ class P13RulerTests(unittest.TestCase):
             tampered["bundle_sha256"] = sha256_bytes(canonical_json_bytes(tampered_without_hash))
             with self.assertRaisesRegex(ValueError, "artifact hash mismatch"):
                 validate_instrument_bundle(tampered, verification_key=public_key)
+            validate_instrument_bundle(tampered, verification_key=public_key, check_artifacts=False)
 
     def test_signed_manifest_passes_declared_diff_and_fails_scope_tamper(self):
         with tempfile.TemporaryDirectory(dir=APP_ROOT / "runs") as td:

@@ -258,6 +258,7 @@ def validate_instrument_bundle(
     *,
     verification_key: Path | None = None,
     git_root: Path = GIT_ROOT,
+    check_artifacts: bool = True,
 ) -> None:
     if bundle.get("p13_instrument_bundle_schema_version") != "p13_instrument_bundle.v1":
         raise ValueError("unsupported P13 instrument bundle version")
@@ -269,10 +270,11 @@ def validate_instrument_bundle(
         actual_key_hash = sha256_file(Path(verification_key))
         if actual_key_hash != bundle.get("verification_root", {}).get("public_key_sha256"):
             raise ValueError("instrument verification root mismatch")
-    for artifact in bundle.get("artifacts", []):
-        path = git_root / str(artifact.get("path", ""))
-        if not path.is_file() or sha256_file(path) != artifact.get("sha256"):
-            raise ValueError(f"instrument artifact hash mismatch: {path}")
+    if check_artifacts:
+        for artifact in bundle.get("artifacts", []):
+            path = git_root / str(artifact.get("path", ""))
+            if not path.is_file() or sha256_file(path) != artifact.get("sha256"):
+                raise ValueError(f"instrument artifact hash mismatch: {path}")
 
 
 def _unsigned_manifest_payload(manifest: dict[str, Any]) -> dict[str, Any]:
@@ -428,6 +430,7 @@ def verify_binding_manifest(
     git_root: Path = GIT_ROOT,
 ) -> dict[str, Any]:
     failures: list[dict[str, Any]] = []
+    instrument_changes: list[dict[str, Any]] = []
 
     def fail(code: str, detail: str) -> None:
         failures.append({"code": code, "detail": detail})
@@ -454,6 +457,11 @@ def verify_binding_manifest(
     except ValueError:
         fail("manifest_expiry", "binding manifest expiry is invalid")
 
+    actual_paths = changed_paths if changed_paths is not None else derive_changed_paths(
+        str(manifest.get("base_repository", {}).get("git_sha", "")), git_root=git_root
+    )
+    actual_path_set = set(actual_paths)
+    change_class = str(manifest.get("change_class", ""))
     bundle_ref = manifest.get("instrument_bundle", {})
     bundle_path = git_root / str(bundle_ref.get("path", ""))
     if not bundle_path.is_file() or sha256_file(bundle_path) != bundle_ref.get("file_sha256"):
@@ -462,9 +470,25 @@ def verify_binding_manifest(
     else:
         bundle = _load_json(bundle_path)
         try:
-            validate_instrument_bundle(bundle, verification_key=verification_key, git_root=git_root)
+            validate_instrument_bundle(
+                bundle,
+                verification_key=verification_key,
+                git_root=git_root,
+                check_artifacts=change_class != "ruler",
+            )
             if bundle.get("bundle_sha256") != bundle_ref.get("bundle_sha256"):
                 fail("instrument_bundle_hash", "InstrumentBundle content identity changed")
+            if change_class == "ruler":
+                for artifact in bundle.get("artifacts", []):
+                    relative = str(artifact.get("path", ""))
+                    path = git_root / relative
+                    actual_hash = sha256_file(path) if path.is_file() else None
+                    if actual_hash != artifact.get("sha256"):
+                        instrument_changes.append(
+                            {"path": relative, "before_sha256": artifact.get("sha256"), "after_sha256": actual_hash}
+                        )
+                        if relative not in actual_path_set:
+                            fail("unexplained_instrument_change", relative)
         except (ValueError, FileNotFoundError) as exc:
             fail("instrument_bundle_validation", str(exc))
 
@@ -481,9 +505,6 @@ def verify_binding_manifest(
     if not scope_path.is_file() or sha256_file(scope_path) != scope_ref.get("sha256"):
         fail("scope_source", "pre-wave scope source is missing or changed")
 
-    actual_paths = changed_paths if changed_paths is not None else derive_changed_paths(
-        str(manifest.get("base_repository", {}).get("git_sha", "")), git_root=git_root
-    )
     declared = manifest.get("declared_scope", {})
     patterns = [str(value) for value in declared.get("paths", [])]
     affected = {key: set() for key in SCOPE_KEYS}
@@ -515,5 +536,6 @@ def verify_binding_manifest(
         "manifest_id": manifest.get("manifest_id"),
         "changed_paths": path_rows,
         "derived_affectedness": {key: sorted(affected[key]) for key in SCOPE_KEYS},
+        "instrument_changes": instrument_changes,
         "failures": failures,
     }
