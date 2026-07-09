@@ -30,6 +30,21 @@ calendar. It is local-only by default. If a dogfood Mac exposes no local
 EventKit source, `source_policy: default_if_no_local` is an explicit test setup
 override; reports must record that the sandbox calendar was not local-only.
 
+A mutating EventKit result is accepted only from the user-visible app-bundled
+bridge identity. Build and launch `dist/CalendarPilot.app`, set
+`CALENDAR_PILOT_EVENTKIT_BRIDGE` to:
+
+```text
+dist/CalendarPilot.app/Contents/Resources/app/bin/
+CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge
+```
+
+Then run `make live-eventkit-e2e` with
+`CALENDAR_PILOT_REQUIRE_EVENTKIT=1`, `CALENDAR_PILOT_EVENTKIT_MUTATION=1`, and
+the two sandbox variables above. A raw Swift binary or an IDE/terminal permission
+surface is health evidence only. The canonical command and JSON assertions live in
+[`../../compression-roadmap.md`](../../compression-roadmap.md), §4.9.
+
 ## Required artifacts per run
 
 Every run directory should contain:

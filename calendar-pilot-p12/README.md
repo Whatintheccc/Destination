@@ -13,7 +13,7 @@ This repo intentionally implements the **agentic optimizer inversion** rather th
 ## What is in this repo
 
 ```text
-calendar-pilot/
+calendar-pilot-p12/
   packages/CalendarPilotKernel/     Swift package: calendar authority + actuation/staging kernel
   src/calendar_pilot/               Python package: DiffusionGemma + Codex + simulator
   src/calendar_pilot/providers/     Provider adapter interfaces for Google/Apple/Microsoft
@@ -28,7 +28,7 @@ calendar-pilot/
 ## Quickstart
 
 ```bash
-cd calendar-pilot
+cd calendar-pilot-p12
 PYTHONPATH=src python3 -m unittest discover -s tests
 PYTHONPATH=src python3 -m calendar_pilot.app demo --observation data/sample_calendar.json --replay-out runs/replay.jsonl
 PYTHONPATH=src python3 scripts/train_offline_policy.py --replay runs/replay.jsonl --out runs/offline_policy_report.json
@@ -38,8 +38,11 @@ swift run --package-path packages/CalendarPilotKernel CalendarPilotDemo
 
 ## Access Points
 
-Run these from repo root unless noted. The root `Makefile` delegates into the
-active framework tree.
+Run these from this active app root (`Destination/calendar-pilot-p12`), not from
+the workspace-level `Destination/Makefile`. The workspace delegate is stale until
+the P13.0 access-point repair. The canonical P13-P17 gate selection, run order,
+evidence bundle, and live-app procedure are in
+[`../compression-roadmap.md`](../compression-roadmap.md), §4.4–§4.9.
 
 ```bash
 make py-test
@@ -73,6 +76,22 @@ make ml-ladder
 make frontier-diff
 make scorecard
 ```
+
+P12 instrument and compression bootstrap:
+
+```bash
+make p12-release
+jq -e '.decision == "pass" and .ok == true' runs/p12_release/p12_release_report.json
+
+make cvar-report
+make b-migrate
+make wave-harness
+```
+
+`make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
+only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live
+backend legs. The C-VAR/`B_migrate`/wave targets are bootstrap checks until the
+P13.0 requirements in the compression roadmap are complete.
 
 The demo performs this loop and can write replay JSONL for offline policy reduction:
 
@@ -137,7 +156,8 @@ Privacy is not the primary product doctrine here. The repo treats data access as
 
 Start with `docs/ARCHITECTURE.md`, `docs/CONTRACTS.md`, `docs/LAB.md`, `docs/PROVIDER_BOUNDARY.md`, and `docs/SELF_PLAY.md`. Prior pass notes live under `docs/history/`.
 
-- `docs/P11_IMPLEMENTATION_SUMMARY.md` records the implemented P11 slice and validation commands.
+- `../P12-RECORD.md` is the frozen P12 evidence record.
+- `../compression-roadmap.md` is the living P13-P17 architecture and validation control document.
 
 ## P12 signal-plane access points
 
@@ -153,9 +173,8 @@ make p12-release
 
 Core P12 docs:
 
-- `p12-direction.md`
-- `docs/P12_TEST_FRAMEWORK.md`
 - `docs/SIGNAL_STREAMS.md`
-- `docs/P12_IMPLEMENTATION_SUMMARY.md`
+- `../P12-RECORD.md`
+- `../compression-roadmap.md`
 
 P12 separates `ActionStream`, `WorldStream`, `BiographyStream`, derived semantic signals, and system rows. Reward reduction consumes ActionStream rows only; semantic labels can affect ranking/timing but never authority tiers, scopes, or grants.
