@@ -1,0 +1,39 @@
+name: P13 ruler
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-ruler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: calendar-pilot-p12/pyproject.toml
+      - name: Install active app
+        run: python -m pip install -e calendar-pilot-p12
+      - name: Verify repository diff hygiene
+        run: git diff --check
+      - name: Run deterministic compatibility baseline
+        run: |
+          make py-test
+          make check-invariants
+          make architecture-eval-test
+          make architecture-evals
+          make cvar-report
+          make b-migrate
+          make p12-release
+      - name: Assert report decisions
+        run: |
+          jq -e '.decision == "pass" and .rails.preservation.decision == "pass" and .rails.preservation.scenario_count == 11' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json
+          jq -e '.decision == "pass"' calendar-pilot-p12/runs/cvar_report.json
+          jq -e '.decision == "pass"' calendar-pilot-p12/runs/b_migrate_report.json
+          jq -e '.decision == "pass" and .ok == true' calendar-pilot-p12/runs/p12_release/p12_release_report.json
