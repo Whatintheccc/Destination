@@ -318,7 +318,8 @@ promoter-signed `bootstrap` or `rollback` record whose previous-`CURRENT` precon
 instrument epoch, manifest/evidence hashes, payload hash, and pinned signer all verify.
 Direct, automatic, `--decide promote`, unsigned override, and positive-learning calls
 still return blocking hold before writes. The repository `CURRENT` remains on its legacy
-empty baseline until the separately bound migration wave runs.
+empty-baseline semantics through a signed `current_policy_pointer.v1`; it no longer uses
+the legacy direct tuning pointer.
 
 The control-plane access sequence is explicit:
 
