@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, positive-learning promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6's proposal-only control plane and signed empty-baseline pointer migration now pass: immutable payloads, disjoint sealed partitions, OS-enforced optimizer confinement, authenticated provenance, signed atomic bootstrap, runtime load, and byte-exact rollback are executable. Unsigned and positive-learning promotion remain hard holds; decision/exposure/propensity capture and an identifiable real-human improvement claim are still required before learning can advance `CURRENT`. P16 contraction remains blocked until the relevant operational cutovers and monitor certificates exist.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, positive-learning promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6's proposal-only control plane, signed empty-baseline pointer migration, and causal decision/exposure/outcome capture now pass: immutable payloads, sealed-partition non-exposure, OS-enforced optimizer confinement, authenticated promotion ingress, signed atomic bootstrap, exact rendered-set evidence, candidate-level feedback, runtime load, and byte-exact rollback are executable. Unsigned and positive-learning promotion remain hard holds; real partition windows, a frozen pre-search epoch, authenticated human reward ingress, and an identifiable improvement claim are still required before learning can advance `CURRENT`. P16 contraction remains blocked until the relevant operational cutovers and monitor certificates exist.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1195,7 +1195,7 @@ operational shadow. `lab-promote` remains frozen until every item passes:
 [x] Promotion ingress derives source class from a signed issuer registry, rejects duplicate conflicts, and rejects direct/transitive simulator-positive or synthetic Program A credit; positive-learning promotion remains closed.
 [x] The only writable `lab-promote` aperture requires a signed, content-addressed PolicyPayload/PromotionRecord transition; thresholds are instrument-bound and any change requires a new pre-search epoch.
 [x] Baseline search rows are family-disjoint from sealed holdout and forward shadow; the migrated empty tuning and no-effect shadow are explicitly labeled boundary plumbing, not improvement.
-[ ] Decision logs capture decision/event id, actual behavior payload/arm, eligible set, selected candidate/action id, selected-action propensity/determinism, exposure, context/pre-state hash, outcome window, censoring, and linked outcome row ids.
+[x] Decision logs capture decision/event id, actual behavior payload/arm, eligible set, selected candidate/action id, selected-action propensity/determinism, exact rendered exposure, context/pre-state hash, outcome window, censoring, and causally linked outcome row ids; all rows remain pre-epoch/search-only.
 [ ] Missing overlap/propensity reports `not_identifiable` and blocks an off-policy improvement claim.
 [x] A deliberately tampered PolicyPayload is rejected with byte-identical CURRENT; a valid signed bootstrap loads the exact payload and a separately signed rollback restores the baseline pointer byte-for-byte.
 ```
@@ -1244,6 +1244,28 @@ phase exclusion rule, not evidence of optimizer process isolation. The allowlist
 write boundary and sealed-partition non-exposure have since passed OS-enforced attacks.
 Real search/holdout/forward-shadow windows, their instrument hashes, and promotion-grade
 human evidence remain open.
+
+P13.6 evidence plumbing closed on candidate
+`1086b9ee6617d912902cf73f975bb440c22647e9` against signed base
+`edde8cb131c76b201da853b8f1c25c0d7b3fa7ad` and manifest
+`p13-learning-evidence-runtime:edde8cb131c7:20260710T234938Z`. One atomic
+decision now records the unique eligible arm set, selected behavior payload,
+deterministic/randomized marker, selected-action propensity, pre-state hash, and outcome
+window. The browser separately records the exact rendered subset; candidate cards record
+explicit accepted/dismissed/corrected ActionStream outcomes without a receipt or calendar
+effect. Elapsed windows become ignored and superseded windows become censored. Missing
+exposure, unrendered-candidate feedback, conflicting terminal outcomes, classifier scope
+broadening, and scope-file-in-candidate attacks all fail.
+
+Composite run `architecture-evals-20260710T235002232480Z-74a8324f` passed 11/11
+preservation and 45 target scenarios; only the later Frontier-vector,
+monitor-detectability, and executable-control debts remain nonbinding `not_reached`.
+Binding, independent C-VAR, B_migrate, P12 release, fixed reward screening, root list,
+LOC, schemas, and the exact-revert ExperimentRecord all passed. The full Python suite
+passed 305 tests with 11 skips; browser CDP E2E and all 17 non-mutating dogfood-release
+checks passed, while the opt-in EventKit mutation probe remained skipped. This closes
+capture plumbing only. The rows are expressly search-only until real partitions and a
+new pre-search instrument epoch freeze; no positive-learning claim or promotion opened.
 
 An invisible no-effect live shadow proves distribution coverage, conformance, latency,
 and cost—not downstream human effect outcomes. With explicit consent, blinded exposure
@@ -1951,8 +1973,8 @@ P13.5 retirements for `create_prep_block × deterministic_sandbox` and the exact
 `create_prep_block × apple_eventkit × binding_id@epoch` are complete. P13.4 remains only
 a dedicated one-probe sandbox and the P13.5 EventKit pass transfers only its named managed
 binding; production and wholly outside EventKit scopes remain incumbent-owned. The next
-binding work is P13.6's promotion-grade evidence path: atomic decision/exposure/outcome
-capture, identifiable improvement statistics, real partition windows, and a new
+binding work is P13.6's promotion-grade evidence path: authenticated human reward ingress,
+identifiable improvement statistics, real partition windows, and a new
 instrument epoch frozen before formal dogfood evidence is collected. Immutable
 proposal-only PolicyPayloads, signed bootstrap/rollback records, and the equivalent
 empty-baseline pointer migration are complete; positive-learning promotion remains held.
@@ -2041,8 +2063,9 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
    Control-plane mechanics are DONE: immutable payloads, a signed owner-gated
    bootstrap/rollback aperture, simulator-positive-credit rejection, tamper rejection,
    atomic CURRENT changes, and byte-exact rollback passed. Evidence prerequisites remain
+   Atomic decision/exposure/outcome capture is DONE but explicitly pre-epoch/search-only.
    OPEN: bind real search/holdout/forward-shadow windows into a pre-search instrument
-   epoch, capture atomic decision/exposure/outcome rows, and require identifiable
+   epoch, authenticate the human outcome ingress, and require identifiable
    improvement statistics before positive-learning promotion can open.
 
 10. Contract duplicated architecture under certificates.
@@ -2087,8 +2110,9 @@ total expanded-target classification, bridge-local identity validation, actual-I
 recovery, and receipt-owned undo. EffectKernel owns only that named lineage; production
 and every wholly outside EventKit scope remain incumbent-owned. P13.6 now packages the
 preserved empty learning baseline as an immutable PolicyPayload behind signed atomic
-bootstrap/rollback records. The next work adds promotion-grade human evidence and an
-identifiable improvement attestation, then freezes their real partitions and thresholds
+bootstrap/rollback records, and its UI now records a complete pre-epoch causal evidence
+chain. The next work authenticates human outcome ingress and adds an identifiable
+improvement attestation, then freezes real partitions and thresholds
 in a new pre-search instrument epoch; positive-learning promotion remains held until then.
 meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
 line count falls as a consequence. The floor is where the next subtraction would blind
