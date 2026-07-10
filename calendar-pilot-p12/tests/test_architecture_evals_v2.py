@@ -14,6 +14,11 @@ from evals.architecture.run_architecture_evals import (
     load_scenario_set,
 )
 from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrument_bundle
+from evals.architecture.predicates.p13 import (
+    cited_required_projection,
+    product_core_no_effect_reachability,
+    reducer_determinism,
+)
 
 
 RULER_TARGETS = {
@@ -22,6 +27,12 @@ RULER_TARGETS = {
     "target.binding_manifest_protected_path_rejection",
     "target.instrument_mutation_rejection",
     "target.promotion_override_rejection",
+}
+
+P13_1_TARGETS = {
+    "target.reducer_determinism",
+    "target.cited_required_projection",
+    "target.product_core_no_effect_reachability",
 }
 
 
@@ -148,6 +159,47 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
             self.assertEqual(by_id["target.effect_ticket_binding"]["gate_mode"], "required")
             self.assertEqual(by_id["target.effect_ticket_binding"]["status"], "not_reached")
             self.assertEqual(report["decision"], "hold")
+
+    def test_manifest_selected_p13_1_targets_bind_and_pass(self):
+        with tempfile.TemporaryDirectory(dir=APP_ROOT / "runs") as td:
+            root = Path(td)
+            manifest_path, public_key = self._binding(root, required_targets=P13_1_TARGETS)
+            report = build_report(
+                scenario_set_path=P13_SCENARIOS,
+                binding_manifest_path=manifest_path,
+                verification_key=public_key,
+                binding_changed_paths=[],
+                artifact_root=root / "artifacts",
+                out=root / "latest.json",
+            )
+            by_id = {row["scenario_id"]: row for row in report["scenarios"]}
+            self.assertEqual(report["decision"], "pass")
+            self.assertTrue(all(by_id[scenario_id]["gate_mode"] == "required" for scenario_id in P13_1_TARGETS))
+            self.assertTrue(all(by_id[scenario_id]["status"] == "pass" for scenario_id in P13_1_TARGETS))
+
+    def test_p13_1_predicates_reject_planted_counterexamples(self):
+        deterministic = reducer_determinism({"product_core": {
+            "first_sha256": "a",
+            "second_sha256": "b",
+            "reducer_version": "p13.1",
+            "event_types": ["authenticated_observation", "frontier_proposal", "admission_preview"],
+        }})
+        cited = cited_required_projection({"product_core": {
+            "status": "preview",
+            "reducer_version": "p13.1",
+            "required_fields_present": True,
+            "evidence_row_ids": ["missing"],
+            "all_evidence_rows_exist": False,
+        }})
+        reachable = product_core_no_effect_reachability({"product_core": {
+            "can_dispatch": True,
+            "forbidden_imports": [],
+            "forbidden_preview_fields": [],
+            "effect_counts": {"effect_attempts": 0, "claims": 0, "dispatches": 0, "provider_mutations": 0},
+        }})
+        self.assertEqual(deterministic["status"], "fail")
+        self.assertEqual(cited["status"], "fail")
+        self.assertEqual(reachable["status"], "fail")
 
     def test_optimizer_boundary_remains_explicit_debt(self):
         scenario_set = load_scenario_set(P13_SCENARIOS)
