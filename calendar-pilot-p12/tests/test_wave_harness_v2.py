@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from evals.p13_ruler.core import canonical_json_bytes, sha256_bytes
+from evals.p13_ruler.core import canonical_json_bytes, sha256_bytes, sha256_file
 from evals.p13_ruler.wave import (
     build_b_migrate_artifact,
     build_cvar_frontier_set,
@@ -25,6 +25,7 @@ from evals.p13_ruler.wave import (
     verify_root_list,
 )
 from scripts.make_reward_head_report import build_report as build_reward_report
+from scripts.run_p13_wave_gate import _b_migrate_assertions_path
 
 
 def _manifest() -> dict:
@@ -168,6 +169,23 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             )
             self.assertEqual(planted["decision"], "hold")
             self.assertIn("identical_producer", {row["code"] for row in planted["failures"]})
+
+    def test_b_migrate_assertion_set_is_manifest_bound(self):
+        manifest = _manifest()
+        self.assertEqual(
+            _b_migrate_assertions_path(manifest),
+            ROOT / "experiments/configs/b_migrate_frontend_view_state_v2.json",
+        )
+        with tempfile.TemporaryDirectory() as td:
+            assertions = Path(td) / "assertions.json"
+            assertions.write_text("{}", encoding="utf-8")
+            binding = {"path": str(assertions), "sha256": sha256_file(assertions)}
+            manifest["old_producer"]["b_migrate"]["assertion_set"] = binding
+            manifest["new_producer"]["b_migrate"]["assertion_set"] = deepcopy(binding)
+            self.assertEqual(_b_migrate_assertions_path(manifest), assertions)
+            manifest["new_producer"]["b_migrate"]["assertion_set"]["sha256"] = "0" * 64
+            with self.assertRaisesRegex(ValueError, "same assertion set"):
+                _b_migrate_assertions_path(manifest)
 
     def test_root_list_expiry_and_missing_behavior_coverage_hold(self):
         manifest = _manifest()
