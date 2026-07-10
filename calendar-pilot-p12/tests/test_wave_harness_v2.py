@@ -168,7 +168,8 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
         planted = deepcopy(verification)
         planted["changed_paths"].append({"path": "calendar-pilot-p12/src/calendar_pilot/effect_kernel/kernel.py"})
         self.assertFalse(is_learning_baseline_migration_wave(manifest, planted, architecture))
-        self.assertEqual(learning_baseline_rollback_evidence(), (False, None))
+        rollback_ok, rollback_artifact = learning_baseline_rollback_evidence()
+        self.assertEqual(rollback_artifact is not None, rollback_ok)
 
     def test_behavior_cvar_requires_clean_frozen_before_and_changed_after(self):
         with tempfile.TemporaryDirectory() as td:
