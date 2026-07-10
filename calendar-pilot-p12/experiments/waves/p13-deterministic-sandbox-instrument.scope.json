@@ -59,7 +59,45 @@
     "target.instrument_mutation_rejection",
     "target.promotion_override_rejection"
   ],
-  "old_producer": null,
-  "new_producer": null,
+  "old_producer": {
+    "cvar": {
+      "producer_id": "cvar.before.current",
+      "command": [
+        "python3",
+        "scripts/produce_cvar_frontier.py",
+        "--role",
+        "before",
+        "--current",
+        "experiments/promoted/CURRENT.json"
+      ]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.old.frontend_snapshot",
+      "command": [
+        "python3",
+        "scripts/produce_b_migrate_old.py"
+      ]
+    }
+  },
+  "new_producer": {
+    "cvar": {
+      "producer_id": "cvar.after.current",
+      "command": [
+        "python3",
+        "scripts/produce_cvar_frontier.py",
+        "--role",
+        "after",
+        "--current",
+        "experiments/promoted/CURRENT.json"
+      ]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.new.frontend_projector",
+      "command": [
+        "python3",
+        "scripts/produce_b_migrate_new.py"
+      ]
+    }
+  },
   "live_legs": []
 }
