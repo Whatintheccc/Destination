@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E is complete and P12 is closed (run `20260706T220150Z-step-e-complete`); P13.0 ruler mechanics are implemented, but they are not a migration authorization boundary—product migration is blocked on externally governed operator authorization, independent TCB review, and isolated evaluation
+Position: Step E is complete and P12 is closed (run `20260706T220150Z-step-e-complete`); P13.0 ruler and non-authorizing attestation-scaffold mechanics are implemented, but they are not a migration authorization boundary—product migration is blocked on externally governed operator authorization, independent TCB review, and isolated evaluation
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -272,6 +272,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and immutable per-run evidence | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 | `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
+| `make p13-attestation-scaffold-test` | strict scaffold-policy/packet/review mechanics, typed TCB bindings, role separation, expiry, replay, no-follow external-file handling, fixed verifier executable, and permanent-hold counterexamples | authenticated policy provenance, external custody/governance, evaluator isolation, `WaveAuthorization`, `EvaluationReceipt`, migration authority, or a wave decision |
 | `make p13-loc-report` | versioned tracked-`/src` Python file list, hashes, exclusions, total, repository/subtree identity, and optional before/after delta | conceptual mass or untracked source; untracked Python produces hold |
 | `make p13-instrument P13_VERIFY_KEY=…` | clean-tree, content-addressed evaluator/config/schema/test/toolchain identity and signer verification root | a signed wave scope or candidate pass |
 | `make wave-bind WAVE=… CHANGE_CLASS=…` | clean pre-wave scope, base commit, InstrumentBundle, ownership map, expiry, required scenarios, and external RSA signature | the post-change diff or scenario results |
@@ -1120,6 +1121,7 @@ starts until all of these are true:
 [x] architecture_scenario_set.v1 is frozen as history; v2 describes the four-role topology without a fixed scenario-count ceiling.
 [x] `make wave-bind` and manifest verification prove signature and undeclared-affectedness mechanics with development keys.
 [x] Automatic and forced promotion return blocking hold before promotion/report artifact writes and leave `CURRENT` byte-identical through P13.5.
+[x] A separate `scaffold.v1` verifier checks an externally located but explicitly unanchored scaffold-only policy, evaluator-signed packet with typed TCB entries, and reviewer-signed exact-packet/TCB binding; its report permits only hold/fail and fixes both `authorizes_migration: false` and `policy_provenance_verified: false`.
 [ ] An externally governed `WaveAuthorization` pins origin, base commit/tree/app-tree, scope, ownership map, instrument, evaluator image/entrypoint, allowed producers, frozen-before receipt, policy id/key epoch, and expiry before candidate work.
 [ ] An isolated evaluator produces a signed `EvaluationPacket` over the exact candidate identity, sealed inputs, evaluator execution identity, raw result-artifact hashes, and evaluator-derived affectedness before review.
 [ ] An engineering wave that changes TCB code has an independent `TCBReviewAttestation` over the exact candidate commit/tree/binary diff, evaluator-derived TCB path set and blobs, `EvaluationPacket`, reviewer policy/key id, decision, and expiry.
@@ -1247,8 +1249,40 @@ and protected candidate-author/co-author principals named by external policy; a 
 tree hash is not a signing identity. Technical key separation is not proof of human
 independence. The independent policy, custody, revocation, artifact location, and protected
 CI/merge enforcement are deliberate external authority decisions. Until they are supplied,
-these schemas and verifier are intentionally not implemented: a local generic approval
-mechanism would create the appearance of authorization without its source.
+the authorizing `WaveAuthorization.v1`, `EvaluationReceipt.v1`, and fixed external verifier
+remain intentionally unimplemented: a local generic approval mechanism would create the
+appearance of authorization without its source.
+
+One deliberately inert seam is implemented now:
+
+```text
+externally located, self-declared P13ScaffoldingTrustPolicy.v1 (always scaffold_only)
+  -> evaluator-signed EvaluationPacket.scaffold.v1
+  -> reviewer-signed TCBReviewAttestation.scaffold.v1
+  -> AttestationScaffoldReport.v1
+     (hold|fail; authorizes_migration=false; policy_provenance_verified=false)
+```
+
+The pure scaffold verifier accepts only absolute, resolved files outside the candidate
+workspace and any Git worktree. It reads each input once through a no-follow descriptor,
+rejects hard links and mutation during read, and parses strict JSON with no duplicate keys,
+floats, non-finite values, unknown fields, commands, or executable names. The packet carries
+the sorted repository-relative TCB paths and their typed before/after mode and blob state;
+the verifier derives the signed path/blob set hashes rather than trusting opaque digests.
+It resolves RSA keys only through the self-declared policy, domain-separates signed record
+versions, and checks canonical payload hashes, signatures, revocation, technical role
+separation, time ordering, candidate/evidence/TCB references, and cross-subject replay.
+Signature checks invoke root-owned `/usr/bin/openssl` under a minimal environment. It never
+executes candidate commands or providers and has no wave-harness or promoter integration.
+
+A mechanically valid generated-key fixture with reviewer `approve` is still top-level hold.
+The report calls the trust root `unanchored_scaffold` and explicitly defers bootstrap-root
+authentication, durable policy/key/artifact custody and governance, pre-candidate
+authorization, fresh detached-checkout identity derivation, isolated execution,
+post-review TOCTOU recheck, `EvaluationReceipt`, and protected merge/deployment. External
+path checks are input hygiene, not evidence of independent custody. Cross-subject replay is
+rejected; global nonce-reuse detection is not claimed because the scaffold has no durable
+ledger.
 
 ---
 

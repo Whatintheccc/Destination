@@ -1,0 +1,77 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_tcb_review_attestation_scaffold.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13TCBReviewAttestationScaffoldV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tcb_review_attestation_schema_version",
+    "review_id",
+    "policy",
+    "packet",
+    "candidate_identity_sha256",
+    "tcb_path_set_sha256",
+    "tcb_blob_set_sha256",
+    "reviewer",
+    "decision",
+    "reason",
+    "issued_at",
+    "expires_at",
+    "payload_sha256",
+    "signature"
+  ],
+  "properties": {
+    "tcb_review_attestation_schema_version": {"const": "p13_tcb_review_attestation.scaffold.v1"},
+    "review_id": {"$ref": "#/$defs/id"},
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "policy_epoch", "content_sha256"],
+      "properties": {
+        "policy_id": {"$ref": "#/$defs/id"},
+        "policy_epoch": {"type": "integer", "minimum": 1},
+        "content_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "payload_sha256"],
+      "properties": {
+        "packet_id": {"$ref": "#/$defs/id"},
+        "payload_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "candidate_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "tcb_path_set_sha256": {"$ref": "#/$defs/sha256"},
+    "tcb_blob_set_sha256": {"$ref": "#/$defs/sha256"},
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principal_id", "key_id"],
+      "properties": {
+        "principal_id": {"$ref": "#/$defs/id"},
+        "key_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "decision": {"enum": ["approve", "hold", "reject"]},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "payload_sha256": {"$ref": "#/$defs/sha256"},
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value_base64"],
+      "properties": {
+        "algorithm": {"const": "rsa-sha256"},
+        "value_base64": {"type": "string", "pattern": "^[A-Za-z0-9+/]+={0,2}$"}
+      }
+    }
+  }
+}

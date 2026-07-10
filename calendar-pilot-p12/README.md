@@ -137,6 +137,7 @@ P13 ruler identity and pre-wave binding:
 
 ```bash
 make p13-ruler-test
+make p13-attestation-scaffold-test
 make p13-loc-report
 
 # Development/ruler key only. It proves mechanics; it cannot authorize migration.
@@ -193,6 +194,25 @@ candidate checkout, and reports are ignored local artifacts. They cannot authori
 or other TCB migration. The required external operator authorization, reviewer attestation,
 and isolated evaluator receipt are specified in
 [`../compression-roadmap.md`](../compression-roadmap.md), §8.5.1.
+
+The attestation scaffold is intentionally non-authorizing. It verifies the internal
+consistency of an externally located, self-declared `scaffold_only` policy, evaluator
+packet, and reviewer attestation without executing candidate commands or touching
+product/promotion state. The policy has no bootstrap-root authentication: the report
+always records `policy_provenance_verified: false`, can only be `hold` or `fail`, and
+always records `authorizes_migration: false`. Even a mechanically valid reviewer approval
+exits with blocking status. Run its planted attacks with:
+
+```bash
+make p13-attestation-scaffold-test
+```
+
+`verify_p13_attestation_scaffold.py` is a read-only scaffold probe, not a wave or
+promotion access point. Its policy, packet, review, and output must all be absolute external
+paths. Inputs are read no-follow and reject hard links, Git worktrees, and mutation during
+read; this is file-handling hygiene, not proof of external custody. It remains disconnected
+from `wave-harness`, CI promotion assertions, and `promote_policy.py` until external
+governance and isolated evaluation exist.
 
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
