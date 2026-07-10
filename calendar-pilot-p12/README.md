@@ -313,12 +313,40 @@ normal receipt-owned `REQUEST_UNDO` path, and verifies exact-calendar absence. T
 remains `authorizes_production: false`; every other EventKit scope and production mode
 stays incumbent-owned.
 
-`make lab-promote` remains frozen while the P13.6 ruler is installed. Direct, automatic,
-and `--decide promote` invocations return blocking hold before promotion/report artifact
-writes and leave `CURRENT` byte-identical. Run `make p13-learning-ruler-test` for the
-immutable payload, partition, process-boundary, provenance, and signed-transition
-contract checks. P13.6 may replace the refusal only after the corresponding implementation
-and atomic `CURRENT` rollback evidence are binding.
+`make lab-promote` has one P13.6 aperture: `RECORD=...` may apply a content-addressed,
+promoter-signed `bootstrap` or `rollback` record whose previous-`CURRENT` precondition,
+instrument epoch, manifest/evidence hashes, payload hash, and pinned signer all verify.
+Direct, automatic, `--decide promote`, unsigned override, and positive-learning calls
+still return blocking hold before writes. The repository `CURRENT` remains on its legacy
+empty baseline until the separately bound migration wave runs.
+
+The control-plane access sequence is explicit:
+
+```bash
+make p13-learning-ruler-test
+
+make learning-propose \
+  SEARCH=<sanitized-search.jsonl> HOLDOUT=<sealed-holdout.jsonl> \
+  FORWARD_SHADOW=<sealed-forward-shadow.jsonl> \
+  POLICY_PARAMETERS=<declarative-policy.json> PAYLOAD_ID=<id> \
+  PROPOSAL_DIR=<repo-local-proposal-dir> P13_MANIFEST=<bound-manifest>
+
+make learning-evaluate \
+  PAYLOAD=<policy-payload.json> OPTIMIZER_REPORT=<optimizer-report.json> \
+  PARTITIONS=<partition-manifest.json> P13_MANIFEST=<bound-manifest> \
+  P13_INSTRUMENT=<instrument-bundle.json> \
+  P13_VERIFY_KEY=<pinned-public.pem> P13_SIGNING_KEY=<external-private.pem> \
+  TRANSITION=bootstrap PROMOTER_OUT=<repo-local-promoter-dir>
+
+make lab-promote RECORD=<promoter-dir/promotion_record.json>
+```
+
+`learning-propose` is macOS-only and fails closed if `sandbox-exec` is unavailable or
+cannot apply its deny-by-default profile. The optimizer may read sanitized search and
+write its proposal directory; sealed holdout/forward-shadow reads and evaluator,
+manifest, `CURRENT`, and effect-TCB write opens must return `EPERM`/`EACCES`. A normal
+positive-learning `TRANSITION=promote` is intentionally still hold until the improvement
+statistics contract and real partition evidence are bound.
 
 `make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
 only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live
