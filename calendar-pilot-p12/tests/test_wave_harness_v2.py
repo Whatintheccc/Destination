@@ -20,6 +20,7 @@ from evals.p13_ruler.core import canonical_json_bytes, sha256_bytes, sha256_file
 from evals.p13_ruler.wave import (
     P13_3_SANDBOX_SCENARIOS,
     P13_4_EVENTKIT_SCENARIOS,
+    P13_5_EVENTKIT_RETIREMENT_SCENARIOS,
     P13_5_RETIREMENT_SCENARIOS,
     build_b_migrate_artifact,
     build_cvar_frontier_set,
@@ -28,6 +29,7 @@ from evals.p13_ruler.wave import (
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
     is_owner_controlled_eventkit_sandbox_wave,
+    is_owner_controlled_eventkit_retirement_wave,
     is_owner_controlled_sandbox_wave,
     is_owner_controlled_vertical_retirement_wave,
     is_structurally_no_effect_wave,
@@ -604,6 +606,92 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             self.assertEqual(record["candidate"]["evidence_class"], "owner_controlled_vertical_retirement")
             self.assertEqual(record["rollback"]["proof_artifact"]["mode"], "owner_frozen_selector")
             self.assertEqual(record["outcomes"]["outcome_window"], "bounded_deterministic_runtime_retirement")
+
+    def test_eventkit_binding_retirement_record_requires_exact_scope_and_receipt_owner(self):
+        schema = json.loads((ROOT / "contracts/experiment_record_v2.schema.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+
+            def write(name: str, payload: dict) -> Path:
+                path = root / name
+                path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+                return path
+
+            changed = [
+                "calendar-pilot-p12/src/calendar_pilot/effect_kernel/eventkit_retirement.py",
+                "calendar-pilot-p12/src/calendar_pilot/codex/tools.py",
+                "calendar-pilot-p12/src/calendar_pilot/providers/apple_eventkit.py",
+                "calendar-pilot-p12/packages/CalendarPilotKernel/Sources/CalendarPilotEventKitBridge/main.swift",
+                "calendar-pilot-p12/tests/test_p13_eventkit_retirement.py",
+            ]
+            manifest = {
+                "manifest_id": "p13-eventkit-retirement:test",
+                "wave": "p13-eventkit-retirement-test",
+                "change_class": "migration",
+                "base_repository": {"git_sha": "base-sha", "app_tree_sha": "base-app-tree"},
+                "instrument_bundle": {"bundle_sha256": "bundle", "file_sha256": "bundle-file"},
+                "required_scenarios": sorted(P13_5_EVENTKIT_RETIREMENT_SCENARIOS),
+            }
+            verification = {
+                "decision": "pass",
+                "changed_paths": [{"path": path} for path in changed],
+                "derived_affectedness": {
+                    "actions": ["*", "create_prep_block"],
+                    "backends": ["*", "apple_eventkit", "codex", "deterministic", "deterministic_sandbox", "eventkit"],
+                    "surfaces": ["authority_gate", "effect_gateway", "frontier", "provider", "tests"],
+                    "instruments": ["release_and_wave_ruler", "tests"],
+                    "control_planes": ["effect_tcb", "evaluator", "optimizer"],
+                },
+            }
+            architecture = {
+                "decision": "pass",
+                "rails": {"preservation": {"status_counts": {"pass": 11}}},
+                "scenarios": [
+                    {"scenario_id": scenario_id, "gate_mode": "required", "status": "pass"}
+                    for scenario_id in sorted(P13_5_EVENTKIT_RETIREMENT_SCENARIOS)
+                ],
+            }
+            cvar = {
+                "decision": "pass",
+                "compared_rows": [{"seed_id": "seed:one", "delta_top_reward": 0.0}],
+                "promotion_decisions": {"before": "promote", "after": "promote"},
+                "bootstrap": {"mean_delta": 0.0, "ci95": [0.0, 0.0], "variance": 0.0},
+                "borderline": {"flip_rate": 0.0},
+                "thresholds": {"values": {"max_delta_variance": 0.0025}},
+                "before_artifact": {"path": "before.json", "sha256": "before"},
+            }
+            b_migrate = {
+                "decision": "pass",
+                "assertions": [{"name": "verified_normal_outcome", "status": "pass"}],
+                "before_artifact": {"path": "old.json", "sha256": "old"},
+            }
+            reward = {
+                "decision": "pass",
+                "reward_head_deltas": {},
+                "reward_evidence": {"consumed_reward_rows": [], "declared_source_classification": {}},
+            }
+            paths = {
+                "manifest_path": write("manifest.json", manifest),
+                "binding_verification_path": write("binding.json", verification),
+                "architecture_report_path": write("architecture.json", architecture),
+                "cvar_report_path": write("cvar.json", cvar),
+                "b_migrate_report_path": write("b_migrate.json", b_migrate),
+                "release_report_path": write("release.json", {"decision": "pass"}),
+                "reward_report_path": write("reward.json", reward),
+                "root_list_report_path": write("root_list.json", {"decision": "pass"}),
+                "loc_report_path": write("loc.json", {"decision": "pass", "delta": {"delta_lines": 1200}}),
+            }
+            record = build_experiment_record(
+                **paths,
+                candidate_repository={"git_sha": "candidate", "app_tree_sha": "candidate-tree"},
+                git_delta=[{"status": "M", "path": path} for path in changed],
+            )
+            Draft202012Validator(schema).validate(record)
+            self.assertTrue(is_owner_controlled_eventkit_retirement_wave(manifest, verification, architecture))
+            self.assertEqual(record["decision"], "pass")
+            self.assertEqual(record["candidate"]["evidence_class"], "owner_controlled_eventkit_binding_retirement")
+            self.assertEqual(record["rollback"]["proof_artifact"]["mode"], "owner_frozen_binding_selector")
+            self.assertEqual(record["outcomes"]["outcome_window"], "bounded_eventkit_binding_retirement")
 
             broadened = deepcopy(verification)
             broadened["derived_affectedness"]["backends"] = ["codex", "deterministic_sandbox", "apple_eventkit"]
