@@ -31,7 +31,8 @@
     ],
     "control_planes": [
       "effect_tcb",
-      "evaluator"
+      "evaluator",
+      "optimizer"
     ]
   },
   "required_scenarios": [
