@@ -1,0 +1,414 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/architecture_eval_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "rail": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking_scenario_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "decision": {
+          "enum": [
+            "pass",
+            "hold",
+            "fail",
+            "not_reached"
+          ]
+        },
+        "scenario_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status_counts": {
+          "additionalProperties": false,
+          "properties": {
+            "fail": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "hold": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "not_reached": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "pass": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pass",
+            "fail",
+            "hold",
+            "not_reached"
+          ],
+          "type": "object"
+        },
+        "unmet_scenario_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "decision",
+        "scenario_count",
+        "status_counts",
+        "blocking_scenario_ids",
+        "unmet_scenario_ids"
+      ],
+      "type": "object"
+    },
+    "scenario": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_case": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "type": "array"
+        },
+        "binding_trigger": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "normal",
+            "denial",
+            "stale_state",
+            "missing_evidence",
+            "conflict",
+            "timeout_failure",
+            "commit",
+            "rollback",
+            "monitor_preservation"
+          ]
+        },
+        "gate_mode": {
+          "enum": [
+            "required",
+            "observe"
+          ]
+        },
+        "observable_vector": {
+          "type": "object"
+        },
+        "predicate_evidence": {
+          "type": "object"
+        },
+        "predicate_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "rail": {
+          "enum": [
+            "preservation",
+            "target_conformance"
+          ]
+        },
+        "scenario_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "hold",
+            "fail",
+            "not_reached"
+          ]
+        },
+        "summary": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "rail",
+        "gate_mode",
+        "category",
+        "adapter_case",
+        "predicate_id",
+        "binding_trigger",
+        "status",
+        "summary",
+        "observable_vector",
+        "predicate_evidence",
+        "artifacts"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "architecture_eval_report_schema_version": {
+      "const": "architecture_eval_report.v1"
+    },
+    "artifact_root": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "hold",
+        "fail"
+      ]
+    },
+    "execution": {
+      "additionalProperties": false,
+      "properties": {
+        "access_point": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "adapter": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "command": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "cwd": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "backend_identities": {
+          "additionalProperties": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minProperties": 1,
+          "type": "object"
+        },
+        "environment_variable_names_present": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "exit_code": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "finished_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "live_backends": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "report_decision": {
+          "enum": [
+            "pass",
+            "hold",
+            "fail"
+          ]
+        },
+        "runtime_mode": {
+          "const": "fixture"
+        },
+        "started_at": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cwd",
+        "command",
+        "access_point",
+        "adapter",
+        "runtime_mode",
+        "backend_identities",
+        "live_backends",
+        "started_at",
+        "finished_at",
+        "exit_code",
+        "report_decision",
+        "environment_variable_names_present"
+      ],
+      "type": "object"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "instrument_artifacts": {
+      "items": {
+        "$ref": "#/$defs/artifact"
+      },
+      "minItems": 6,
+      "type": "array"
+    },
+    "rails": {
+      "additionalProperties": false,
+      "properties": {
+        "preservation": {
+          "$ref": "#/$defs/rail"
+        },
+        "target_conformance": {
+          "$ref": "#/$defs/rail"
+        }
+      },
+      "required": [
+        "preservation",
+        "target_conformance"
+      ],
+      "type": "object"
+    },
+    "repository": {
+      "additionalProperties": false,
+      "properties": {
+        "app_path": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "app_tree_sha": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "app_worktree_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "dirty": {
+          "type": "boolean"
+        },
+        "git_sha": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "git_status_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "git_sha",
+        "app_tree_sha",
+        "app_path",
+        "dirty",
+        "git_status_sha256",
+        "app_worktree_sha256"
+      ],
+      "type": "object"
+    },
+    "report_paths": {
+      "additionalProperties": false,
+      "properties": {
+        "immutable": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "latest": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "latest",
+        "immutable"
+      ],
+      "type": "object"
+    },
+    "run_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "scenario_set": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "scenario_set_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_set_id",
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/scenario"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "architecture_eval_report_schema_version",
+    "run_id",
+    "generated_at",
+    "decision",
+    "repository",
+    "instrument_artifacts",
+    "report_paths",
+    "execution",
+    "scenario_set",
+    "artifact_root",
+    "rails",
+    "scenarios"
+  ],
+  "title": "ArchitectureEvalReportV1",
+  "type": "object"
+}

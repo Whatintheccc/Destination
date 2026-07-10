@@ -1,0 +1,67 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "compression-roadmap.md",
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/README.md",
+    "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
+    "calendar-pilot-p12/contracts/VERSIONS.json",
+    "calendar-pilot-p12/contracts/p13_attestation_scaffold_report.schema.json",
+    "calendar-pilot-p12/contracts/p13_evaluation_packet_scaffold.schema.json",
+    "calendar-pilot-p12/contracts/p13_scaffolding_trust_policy.schema.json",
+    "calendar-pilot-p12/contracts/p13_tcb_review_attestation_scaffold.schema.json",
+    "calendar-pilot-p12/evals/p13_ruler/attestation_scaffold.py",
+    "calendar-pilot-p12/scripts/verify_p13_attestation_scaffold.py",
+    "calendar-pilot-p12/tests/test_p13_attestation_scaffold.py"
+  ],
+  "declared": {
+    "actions": ["*"],
+    "backends": ["*"],
+    "surfaces": [
+      "app_access",
+      "architecture_docs",
+      "configuration",
+      "contracts",
+      "docs",
+      "evaluation",
+      "ruler_scripts",
+      "tests"
+    ],
+    "instruments": [
+      "access_point_docs",
+      "architecture_eval",
+      "architecture_spec",
+      "configuration",
+      "contract_schemas",
+      "release_and_wave_ruler",
+      "tests",
+      "wave_gate"
+    ],
+    "control_planes": [
+      "effect_tcb",
+      "evaluator",
+      "optimizer"
+    ]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
+    "target.binding_manifest_signature",
+    "target.instrument_mutation_rejection",
+    "target.promotion_override_rejection"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}

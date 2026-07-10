@@ -1,59 +1,18 @@
-.PHONY: py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard ml-ladder check-invariants evidence-bundle mac-app-build desktop-shortcut test dogfood-release demo swift-demo
+APP_DIR := calendar-pilot-p12
 
-APP_DIR := calendar-pilot-system-framework
+DELEGATED_TARGETS := \
+	test py-test swift-test swift-ipc-test \
+	browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e \
+	replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder \
+	check-invariants evidence-bundle \
+	lab-validate-seeds lab-run lab-compare lab-promote \
+	architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test \
+	p13-ruler-test p13-attestation-scaffold-test p13-loc-report \
+	p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness \
+	p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release \
+	mac-app-build desktop-shortcut dogfood-release demo swift-demo zip
 
-py-test:
-	$(MAKE) -C "$(APP_DIR)" py-test
+.PHONY: $(DELEGATED_TARGETS)
 
-swift-test:
-	$(MAKE) -C "$(APP_DIR)" swift-test
-
-swift-ipc-test:
-	$(MAKE) -C "$(APP_DIR)" swift-ipc-test
-
-browser-e2e:
-	$(MAKE) -C "$(APP_DIR)" browser-e2e
-
-live-codex-e2e:
-	$(MAKE) -C "$(APP_DIR)" live-codex-e2e
-
-live-diffusiongemma-e2e:
-	$(MAKE) -C "$(APP_DIR)" live-diffusiongemma-e2e
-
-live-eventkit-e2e:
-	$(MAKE) -C "$(APP_DIR)" live-eventkit-e2e
-
-replay-offline-tuning-loop:
-	$(MAKE) -C "$(APP_DIR)" replay-offline-tuning-loop
-
-frontier-diff:
-	$(MAKE) -C "$(APP_DIR)" frontier-diff
-
-scorecard:
-	$(MAKE) -C "$(APP_DIR)" scorecard
-
-ml-ladder:
-	$(MAKE) -C "$(APP_DIR)" ml-ladder
-
-check-invariants:
-	$(MAKE) -C "$(APP_DIR)" check-invariants
-
-evidence-bundle:
-	$(MAKE) -C "$(APP_DIR)" evidence-bundle
-
-mac-app-build:
-	$(MAKE) -C "$(APP_DIR)" mac-app-build
-
-desktop-shortcut:
-	$(MAKE) -C "$(APP_DIR)" desktop-shortcut
-
-test: py-test swift-test check-invariants
-
-dogfood-release:
-	$(MAKE) -C "$(APP_DIR)" dogfood-release
-
-demo:
-	$(MAKE) -C "$(APP_DIR)" demo
-
-swift-demo:
-	$(MAKE) -C "$(APP_DIR)" swift-demo
+$(DELEGATED_TARGETS):
+	$(MAKE) -C "$(APP_DIR)" $@

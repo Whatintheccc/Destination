@@ -1,0 +1,22 @@
+{
+  "experiment_record_schema_version": "experiment_record.v2",
+  "experiment_id": "wave_id",
+  "phase": "P13",
+  "change_class": "ruler",
+  "hypothesis": "The declared wave preserves protected behavior while changing only its signed scope.",
+  "binding_manifest": {"manifest_id": "", "path": "", "sha256": "", "instrument_bundle_sha256": ""},
+  "delta": {"summary": "", "spans": [], "cluster_ids": [], "loc_delta": null},
+  "fixed": {"instrument_bundle_sha256": "", "instrument_bundle_file_sha256": "", "base_git_sha": "", "base_app_tree_sha": ""},
+  "rows": {"trained": [], "graded": [], "compared": []},
+  "baseline": {"metrics": {}, "artifacts": {}},
+  "effect": {"metrics": {}, "uncertainty": {}},
+  "regressed": {"applicable": false, "metric": null, "delta": null, "acceptable": null, "reason": ""},
+  "ablation": {"applicable": false, "method": null, "artifact": null, "decision_stable": null, "reason": ""},
+  "rollback": {"applicable": false, "revert_sha": null, "proof_artifact": null, "baseline_restored": null, "reason": ""},
+  "candidate": null,
+  "outcomes": {"reward_vector": null, "source_identity": null, "provenance": "not_applicable:ruler", "outcome_window": null},
+  "statistics": {"estimand": "no product effect", "uncertainty_method": "seed bootstrap", "equivalence_margin": null, "protected_slices": []},
+  "identifiability": {"status": "not_applicable", "reason": "Ruler-only wave makes no product-effect claim"},
+  "attestations": {"binding_manifest": {}, "architecture": {}, "cvar": {}, "b_migrate": {}, "p12_release": {}, "reward_screen": {}, "root_list": {}, "loc": {}},
+  "decision": "hold"
+}

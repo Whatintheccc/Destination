@@ -1,6 +1,7 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote cvar-report b-migrate wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-attestation-scaffold-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.NOTPARALLEL: wave-harness
 
 py-test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -59,13 +60,72 @@ lab-compare:
 lab-promote:
 	PYTHONPATH=src python3 scripts/promote_policy.py --batch $(BATCH)
 
+architecture-evals:
+	CALENDAR_PILOT_ARCH_EVAL_ACCESS_POINT='make architecture-evals' PYTHONPATH=src python3 evals/architecture/run_architecture_evals.py
+
+architecture-eval-test:
+	PYTHONPATH=src:tests python3 -m unittest test_architecture_evals
+
+architecture-eval-v2-test:
+	PYTHONPATH=src:tests python3 -m unittest test_architecture_evals_v2
+
+architecture-evals-v2:
+	@test -n "$(P13_VERIFY_KEY)" || (echo "P13_VERIFY_KEY is required" >&2; exit 2)
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	CALENDAR_PILOT_ARCH_EVAL_ACCESS_POINT='make architecture-evals-v2' PYTHONPATH=src python3 evals/architecture/run_architecture_evals.py --scenario-set evals/architecture/scenarios/p13_v2.json --binding-manifest "$(P13_MANIFEST)" --verification-key "$(P13_VERIFY_KEY)" --out runs/architecture_evals/architecture_eval_report_v2.json
+
+p13-ruler-test:
+	PYTHONPATH=src:tests python3 -m unittest test_p13_ruler
+
+p13-attestation-scaffold-test:
+	PYTHONPATH=src:tests python3 -m unittest test_p13_attestation_scaffold
+
+p13-loc-report:
+	PYTHONPATH=src python3 scripts/run_p13_loc_report.py --out runs/p13_loc_report.json
+
+P13_VERIFY_KEY ?=
+P13_SIGNING_KEY ?=
+P13_INSTRUMENT ?= runs/p13_instrument_bundle.json
+P13_SCOPE ?= experiments/waves/$(WAVE).scope.json
+P13_MANIFEST ?= runs/p13_manifests/$(WAVE).json
+CHANGE_CLASS ?=
+
+p13-instrument:
+	@test -n "$(P13_VERIFY_KEY)" || (echo "P13_VERIFY_KEY is required" >&2; exit 2)
+	PYTHONPATH=src python3 scripts/make_p13_instrument_bundle.py --verification-key "$(P13_VERIFY_KEY)" --out "$(P13_INSTRUMENT)"
+
+wave-bind: p13-instrument
+	@test -n "$(WAVE)" || (echo "WAVE is required" >&2; exit 2)
+	@test -n "$(CHANGE_CLASS)" || (echo "CHANGE_CLASS is required" >&2; exit 2)
+	@test -n "$(P13_SIGNING_KEY)" || (echo "P13_SIGNING_KEY is required" >&2; exit 2)
+	PYTHONPATH=src python3 scripts/make_binding_manifest.py --wave "$(WAVE)" --change-class "$(CHANGE_CLASS)" --scope "$(P13_SCOPE)" --instrument-bundle "$(P13_INSTRUMENT)" --signing-key "$(P13_SIGNING_KEY)" --verification-key "$(P13_VERIFY_KEY)" --out "$(P13_MANIFEST)"
+
+binding-manifest-verify:
+	@test -n "$(P13_VERIFY_KEY)" || (echo "P13_VERIFY_KEY is required" >&2; exit 2)
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	PYTHONPATH=src python3 scripts/verify_binding_manifest.py --manifest "$(P13_MANIFEST)" --verification-key "$(P13_VERIFY_KEY)"
+
 cvar-report:
 	PYTHONPATH=src python3 scripts/run_cvar_report.py --out runs/cvar_report.json
+
+cvar-report-v2:
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	@test -n "$(CVAR_BEFORE)" || (echo "CVAR_BEFORE is required" >&2; exit 2)
+	@test -n "$(CVAR_AFTER)" || (echo "CVAR_AFTER is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_cvar_report_v2.py --manifest "$(P13_MANIFEST)" --before-artifact "$(CVAR_BEFORE)" --after-artifact "$(CVAR_AFTER)" --out runs/cvar_report_v2.json
 
 b-migrate:
 	PYTHONPATH=src python3 scripts/run_b_migrate_dual_run.py --out runs/b_migrate_report.json
 
-wave-harness: cvar-report b-migrate p12-release
+b-migrate-v2:
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_b_migrate_dual_run_v2.py --manifest "$(P13_MANIFEST)" --out runs/b_migrate_report_v2.json
+
+wave-harness:
+	@test -n "$(WAVE)" || (echo "WAVE is required" >&2; exit 2)
+	@test -n "$(P13_VERIFY_KEY)" || (echo "P13_VERIFY_KEY is required" >&2; exit 2)
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_p13_wave_gate.py --manifest "$(P13_MANIFEST)" --verification-key "$(P13_VERIFY_KEY)" $(if $(CVAR_BEFORE),--before-cvar-artifact "$(CVAR_BEFORE)",) --out runs/p13_wave_gate_report.json
 
 mac-app-build:
 	scripts/build_macos_app.sh

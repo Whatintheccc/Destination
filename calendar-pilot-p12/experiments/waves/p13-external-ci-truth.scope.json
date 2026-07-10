@@ -1,0 +1,24 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "compression-roadmap.md",
+    "calendar-pilot-p12/README.md"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": [],
+    "surfaces": [
+      "architecture_docs",
+      "docs"
+    ],
+    "instruments": [
+      "access_point_docs",
+      "architecture_spec"
+    ],
+    "control_planes": []
+  },
+  "required_scenarios": [],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}

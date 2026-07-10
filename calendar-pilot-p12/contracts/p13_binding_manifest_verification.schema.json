@@ -1,0 +1,20 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_binding_manifest_verification.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13BindingManifestVerificationV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "binding_manifest_verification_schema_version", "decision", "manifest_id",
+    "changed_paths", "derived_affectedness", "instrument_changes", "failures"
+  ],
+  "properties": {
+    "binding_manifest_verification_schema_version": {"const": "p13_binding_manifest_verification.v1"},
+    "decision": {"enum": ["pass", "fail"]},
+    "manifest_id": {"type": ["string", "null"]},
+    "changed_paths": {"type": "array"},
+    "derived_affectedness": {"type": "object"},
+    "instrument_changes": {"type": "array"},
+    "failures": {"type": "array"}
+  }
+}

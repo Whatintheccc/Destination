@@ -1,0 +1,51 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_binding_manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13BindingManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "binding_manifest_schema_version", "manifest_id", "wave", "change_class",
+    "created_at", "expires_at", "base_repository", "instrument_bundle", "ownership_map",
+    "scope_source", "declared_scope", "required_scenarios", "old_producer", "new_producer",
+    "live_legs", "signer", "payload_sha256", "signature"
+  ],
+  "properties": {
+    "binding_manifest_schema_version": {"const": "p13_binding_manifest.v1"},
+    "manifest_id": {"type": "string"},
+    "wave": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,63}$"},
+    "change_class": {"enum": ["ruler", "migration", "compression", "learning"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "base_repository": {"type": "object"},
+    "instrument_bundle": {"type": "object"},
+    "ownership_map": {"type": "object"},
+    "scope_source": {"type": "object"},
+    "declared_scope": {"type": "object"},
+    "required_scenarios": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "old_producer": {"type": ["object", "null"]},
+    "new_producer": {"type": ["object", "null"]},
+    "live_legs": {"type": "array", "items": {"$ref": "#/$defs/liveLeg"}},
+    "signer": {"type": "object"},
+    "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {"type": "object"}
+  },
+  "$defs": {
+    "liveLeg": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["leg", "status", "reason", "artifact", "owner", "sign_off", "affected_by_wave", "expires_at", "next_unblock_action"],
+      "properties": {
+        "leg": {"type": "string", "minLength": 1},
+        "status": {"enum": ["ran", "root-listed"]},
+        "reason": {"type": "object", "required": ["basis", "detail"]},
+        "artifact": {"type": "object", "required": ["path", "sha256"]},
+        "owner": {"type": "string", "minLength": 1},
+        "sign_off": {"type": "string", "minLength": 1},
+        "affected_by_wave": {"type": "boolean"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "next_unblock_action": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

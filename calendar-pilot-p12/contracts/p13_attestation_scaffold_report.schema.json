@@ -1,0 +1,79 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_attestation_scaffold_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13AttestationScaffoldReportV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attestation_scaffold_report_schema_version",
+    "decision",
+    "authorizes_migration",
+    "mechanics_valid",
+    "policy_provenance_verified",
+    "trust_root_status",
+    "policy_id",
+    "packet_id",
+    "review_id",
+    "review_decision",
+    "checks",
+    "failures",
+    "hold_reasons",
+    "deferred_authority"
+  ],
+  "properties": {
+    "attestation_scaffold_report_schema_version": {"const": "p13_attestation_scaffold_report.v1"},
+    "decision": {"enum": ["hold", "fail"]},
+    "authorizes_migration": {"const": false},
+    "mechanics_valid": {"type": "boolean"},
+    "policy_provenance_verified": {"const": false},
+    "trust_root_status": {"const": "unanchored_scaffold"},
+    "policy_id": {"type": ["string", "null"]},
+    "packet_id": {"type": ["string", "null"]},
+    "review_id": {"type": ["string", "null"]},
+    "review_decision": {"enum": ["approve", "hold", "reject", null]},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "detail"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "status": {"enum": ["pass", "hold", "fail"]},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "detail"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "hold_reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "detail"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "deferred_authority": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

@@ -1,0 +1,181 @@
+{
+  "ownership_map_schema_version": "p13_ownership_map.v1",
+  "rules": [
+    {
+      "pattern": "Makefile",
+      "surfaces": ["workspace_access"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["root_ci"],
+      "control_planes": ["evaluator"]
+    },
+    {
+      "pattern": ".github/**",
+      "surfaces": ["workspace_access"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["root_ci"],
+      "control_planes": ["evaluator"]
+    },
+    {
+      "pattern": "compression-roadmap.md",
+      "surfaces": ["architecture_docs"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["architecture_spec"],
+      "control_planes": []
+    },
+    {
+      "pattern": "calendar-pilot-p12/Makefile",
+      "surfaces": ["app_access"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["wave_gate"],
+      "control_planes": ["evaluator"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/README.md",
+      "surfaces": ["docs"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["access_point_docs"],
+      "control_planes": []
+    },
+    {
+      "pattern": "calendar-pilot-p12/evals/**",
+      "surfaces": ["evaluation"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["architecture_eval"],
+      "control_planes": ["evaluator"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/scripts/**",
+      "surfaces": ["ruler_scripts"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["release_and_wave_ruler"],
+      "control_planes": ["evaluator", "optimizer"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/contracts/**",
+      "surfaces": ["contracts"],
+      "actions": ["*"],
+      "backends": ["*"],
+      "instruments": ["contract_schemas"],
+      "control_planes": ["effect_tcb", "evaluator"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/configs/**",
+      "surfaces": ["configuration"],
+      "actions": ["*"],
+      "backends": ["*"],
+      "instruments": ["configuration"],
+      "control_planes": ["effect_tcb", "evaluator", "optimizer"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/experiments/configs/**",
+      "surfaces": ["experiment_configuration"],
+      "actions": ["*"],
+      "backends": ["*"],
+      "instruments": ["experiment_configuration"],
+      "control_planes": ["evaluator", "optimizer"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/experiments/templates/**",
+      "surfaces": ["experiment_record"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["experiment_record"],
+      "control_planes": ["evaluator"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/experiments/waves/**",
+      "surfaces": ["wave_scope"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["binding_manifest"],
+      "control_planes": ["evaluator"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/frontend/**",
+      "surfaces": ["frontend"],
+      "actions": ["*"],
+      "backends": [],
+      "instruments": [],
+      "control_planes": []
+    },
+    {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/codex/**",
+      "surfaces": ["frontier"],
+      "actions": ["*"],
+      "backends": ["codex"],
+      "instruments": [],
+      "control_planes": []
+    },
+    {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/**",
+      "surfaces": ["frontier", "learning"],
+      "actions": ["*"],
+      "backends": ["nim"],
+      "instruments": [],
+      "control_planes": ["optimizer"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/environment/**",
+      "surfaces": ["journal", "operational_runtime", "reducer"],
+      "actions": ["*"],
+      "backends": ["*"],
+      "instruments": [],
+      "control_planes": ["effect_tcb"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/providers/**",
+      "surfaces": ["provider"],
+      "actions": ["*"],
+      "backends": ["*"],
+      "instruments": [],
+      "control_planes": ["effect_tcb"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/swift_bridge/**",
+      "surfaces": ["authority_gate", "effect_gateway"],
+      "actions": ["*"],
+      "backends": ["deterministic", "eventkit"],
+      "instruments": [],
+      "control_planes": ["effect_tcb"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/*.py",
+      "surfaces": ["contracts", "journal", "operational_runtime"],
+      "actions": ["*"],
+      "backends": ["*"],
+      "instruments": [],
+      "control_planes": ["effect_tcb"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/packages/**",
+      "surfaces": ["authority_gate", "effect_gateway", "provider"],
+      "actions": ["*"],
+      "backends": ["deterministic", "eventkit"],
+      "instruments": [],
+      "control_planes": ["effect_tcb"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/tests/**",
+      "surfaces": ["tests"],
+      "actions": [],
+      "backends": [],
+      "instruments": ["tests"],
+      "control_planes": ["evaluator"]
+    },
+    {
+      "pattern": "calendar-pilot-p12/docs/**",
+      "surfaces": ["docs"],
+      "actions": [],
+      "backends": [],
+      "instruments": [],
+      "control_planes": []
+    }
+  ]
+}

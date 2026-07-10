@@ -1,0 +1,181 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/p13_evaluation_packet_scaffold.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P13EvaluationPacketScaffoldV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evaluation_packet_schema_version",
+    "packet_id",
+    "policy",
+    "manifest",
+    "candidate",
+    "instrument",
+    "effect_tcb",
+    "sealed_inputs",
+    "raw_evidence",
+    "evaluator",
+    "issued_at",
+    "expires_at",
+    "payload_sha256",
+    "signature"
+  ],
+  "properties": {
+    "evaluation_packet_schema_version": {"const": "p13_evaluation_packet.scaffold.v1"},
+    "packet_id": {"$ref": "#/$defs/id"},
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "policy_epoch", "content_sha256"],
+      "properties": {
+        "policy_id": {"$ref": "#/$defs/id"},
+        "policy_epoch": {"type": "integer", "minimum": 1},
+        "content_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_id", "payload_sha256"],
+      "properties": {
+        "manifest_id": {"$ref": "#/$defs/id"},
+        "payload_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_origin_id",
+        "base_commit",
+        "base_tree",
+        "candidate_commit",
+        "candidate_tree",
+        "candidate_app_tree",
+        "canonical_binary_diff_sha256",
+        "changed_paths_sha256",
+        "affectedness_sha256",
+        "identity_sha256"
+      ],
+      "properties": {
+        "repository_origin_id": {"$ref": "#/$defs/id"},
+        "base_commit": {"$ref": "#/$defs/gitObject"},
+        "base_tree": {"$ref": "#/$defs/gitObject"},
+        "candidate_commit": {"$ref": "#/$defs/gitObject"},
+        "candidate_tree": {"$ref": "#/$defs/gitObject"},
+        "candidate_app_tree": {"$ref": "#/$defs/gitObject"},
+        "canonical_binary_diff_sha256": {"$ref": "#/$defs/sha256"},
+        "changed_paths_sha256": {"$ref": "#/$defs/sha256"},
+        "affectedness_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "instrument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle_sha256", "scope_sha256", "ownership_map_sha256"],
+      "properties": {
+        "bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "scope_sha256": {"$ref": "#/$defs/sha256"},
+        "ownership_map_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "effect_tcb": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries", "path_set_sha256", "blob_set_sha256", "entry_count"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/tcbEntry"}
+        },
+        "path_set_sha256": {"$ref": "#/$defs/sha256"},
+        "blob_set_sha256": {"$ref": "#/$defs/sha256"},
+        "entry_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "sealed_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "raw_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principal_id", "key_id", "image_digest", "entrypoint_sha256"],
+      "properties": {
+        "principal_id": {"$ref": "#/$defs/id"},
+        "key_id": {"$ref": "#/$defs/id"},
+        "image_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "entrypoint_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "payload_sha256": {"$ref": "#/$defs/sha256"},
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitObject": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "tcbEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_relative_path", "before", "after"],
+      "properties": {
+        "repository_relative_path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "before": {"$ref": "#/$defs/tcbState"},
+        "after": {"$ref": "#/$defs/tcbState"}
+      },
+      "not": {
+        "properties": {
+          "before": {"type": "null"},
+          "after": {"type": "null"}
+        },
+        "required": ["before", "after"]
+      }
+    },
+    "tcbState": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "blob_sha256"],
+          "properties": {
+            "mode": {"enum": ["100644", "100755", "120000", "160000"]},
+            "blob_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      ]
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "content_sha256", "byte_size", "store_id"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/id"},
+        "content_sha256": {"$ref": "#/$defs/sha256"},
+        "byte_size": {"type": "integer", "minimum": 0},
+        "store_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value_base64"],
+      "properties": {
+        "algorithm": {"const": "rsa-sha256"},
+        "value_base64": {"type": "string", "pattern": "^[A-Za-z0-9+/]+={0,2}$"}
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/experiment_record_v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExperimentRecordV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "experiment_record_schema_version", "experiment_id", "phase", "change_class", "hypothesis",
+    "binding_manifest", "delta", "fixed", "rows", "baseline", "effect", "regressed",
+    "ablation", "rollback", "candidate", "outcomes", "statistics", "identifiability",
+    "attestations", "decision"
+  ],
+  "properties": {
+    "experiment_record_schema_version": {"const": "experiment_record.v2"},
+    "experiment_id": {"type": "string", "minLength": 1},
+    "phase": {"enum": ["P13", "P16", "P17"]},
+    "change_class": {"enum": ["ruler", "migration", "compression", "learning"]},
+    "hypothesis": {"type": "string", "minLength": 1},
+    "binding_manifest": {"type": "object", "required": ["manifest_id", "path", "sha256", "instrument_bundle_sha256"]},
+    "delta": {"type": "object", "required": ["summary", "spans", "cluster_ids", "loc_delta"]},
+    "fixed": {"type": "object", "required": ["instrument_bundle_sha256", "instrument_bundle_file_sha256", "base_git_sha", "base_app_tree_sha"]},
+    "rows": {"type": "object", "required": ["trained", "graded", "compared"]},
+    "baseline": {"type": "object", "required": ["metrics", "artifacts"]},
+    "effect": {"type": "object", "required": ["metrics", "uncertainty"]},
+    "regressed": {"type": "object", "required": ["applicable", "metric", "delta", "acceptable", "reason"]},
+    "ablation": {"type": "object", "required": ["applicable", "method", "artifact", "decision_stable", "reason"]},
+    "rollback": {"type": "object", "required": ["applicable", "revert_sha", "proof_artifact", "baseline_restored", "reason"]},
+    "candidate": {"type": ["object", "null"]},
+    "outcomes": {"type": "object", "required": ["reward_vector", "source_identity", "provenance", "outcome_window"]},
+    "statistics": {"type": "object", "required": ["estimand", "uncertainty_method", "equivalence_margin", "protected_slices"]},
+    "identifiability": {"type": "object", "required": ["status", "reason"], "properties": {"status": {"enum": ["identified", "not_identifiable", "not_applicable"]}}},
+    "attestations": {"type": "object", "required": ["binding_manifest", "architecture", "cvar", "b_migrate", "p12_release", "reward_screen", "root_list", "loc"]},
+    "decision": {"enum": ["pass", "hold", "fail"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"change_class": {"const": "ruler"}}},
+      "then": {
+        "properties": {
+          "candidate": {"type": "null"},
+          "identifiability": {"properties": {"status": {"const": "not_applicable"}}},
+          "ablation": {"properties": {"applicable": {"const": false}}},
+          "rollback": {"properties": {"applicable": {"const": false}}}
+        }
+      },
+      "else": {
+        "properties": {
+          "candidate": {"type": "object"},
+          "ablation": {"properties": {"applicable": {"const": true}, "decision_stable": {"const": true}}},
+          "rollback": {"properties": {"applicable": {"const": true}, "baseline_restored": {"const": true}}}
+        }
+      }
+    }
+  ]
+}
