@@ -438,6 +438,100 @@ def eventkit_sandbox_contract(vector: dict[str, Any]) -> PredicateResult:
     )
 
 
+RETIREMENT_CASE_EXPECTATIONS: dict[str, dict[str, Any]] = {
+    "retirement_scope_binding": {
+        "normal_selector": "effect_kernel",
+        "eventkit_selector": "incumbent",
+        "other_action_selector": "incumbent",
+        "retired_scope_cardinality": 1,
+    },
+    "retirement_single_owner": {
+        "active_owner_count": 1,
+        "effect_kernel_capable": True,
+        "incumbent_capable": False,
+        "normal_incumbent_override_rejected": True,
+    },
+    "retirement_runtime_commit": {
+        "access_point": "CodexToolRuntime.REQUEST_COMMIT",
+        "ticket_count": 1,
+        "claim_count": 1,
+        "dispatch_count": 1,
+        "provider_mutation_count": 1,
+        "final_phase": "verified",
+        "legacy_kernel_commit_count": 0,
+        "legacy_provider_commit_count": 0,
+        "visible_receipt_cited": True,
+    },
+    "retirement_runtime_undo": {
+        "access_point": "CodexToolRuntime.REQUEST_UNDO",
+        "compensation_ticket_count": 1,
+        "compensation_claim_count": 1,
+        "compensation_dispatch_count": 1,
+        "provider_removal_count": 1,
+        "final_phase": "verified",
+        "effect_absent": True,
+        "legacy_kernel_undo_count": 0,
+        "legacy_provider_undo_count": 0,
+        "visible_receipt_cited": True,
+    },
+    "retirement_restart_rollback": {
+        "owner_after_restart": "effect_kernel",
+        "phase_before_reconcile": "applying_unknown",
+        "phase_after_reconcile": "verified",
+        "same_ticket_after_restart": True,
+        "dispatch_count_after_restart": 1,
+        "rollback_source": "owner_frozen_selector",
+        "owner_after_rollback": "incumbent",
+        "active_owner_count_after_rollback": 1,
+        "dual_owner_observed": False,
+    },
+}
+
+
+def vertical_retirement_contract(vector: dict[str, Any]) -> PredicateResult:
+    capability = vector.get("target_capability")
+    if isinstance(capability, dict) and capability.get("reached") is False:
+        return p13_target_not_implemented(vector)
+    evidence = vector.get("vertical_retirement")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    case = str(evidence.get("case", ""))
+    expected = RETIREMENT_CASE_EXPECTATIONS.get(case)
+    universal = {
+        "retirement_profile": "owner_controlled_vertical_retirement",
+        "authorizes_production": False,
+        "retired_action_family": "create_prep_block",
+        "retired_backend": "deterministic_sandbox",
+        "normal_owner": "effect_kernel",
+        "unaffected_eventkit_owner": "incumbent",
+        "unaffected_other_action_owner": "incumbent",
+        "caller_owner_override_available": False,
+    }
+    if expected is None:
+        return _result("hold", "P13.5 retirement evidence is missing or names an unknown case.", retirement=evidence)
+    required = set(universal) | set(expected)
+    missing = sorted(required - set(evidence))
+    if missing:
+        return _result("hold", "P13.5 retirement evidence is incomplete.", case=case, missing=missing)
+    mismatches = {
+        key: {"expected": value, "actual": evidence.get(key)}
+        for key, value in {**universal, **expected}.items()
+        if evidence.get(key) != value
+    }
+    if mismatches:
+        return _result(
+            "fail",
+            "The vertical retirement violates scope, sole ownership, runtime routing, compensation, restart, or rollback invariants.",
+            case=case,
+            mismatches=mismatches,
+        )
+    return _result(
+        "pass",
+        "The exact deterministic action/backend pair has one normal EffectKernel owner and a bounded owner-controlled rollback.",
+        case=case,
+        observed={key: evidence[key] for key in sorted(required)},
+    )
+
+
 def p13_target_not_implemented(vector: dict[str, Any]) -> PredicateResult:
     capability = vector.get("target_capability")
     capability = capability if isinstance(capability, dict) else {}
@@ -469,5 +563,6 @@ P13_PREDICATES: dict[str, Predicate] = {
     "cited_read_side_cutover": cited_read_side_cutover,
     "sandbox_effect_contract": sandbox_effect_contract,
     "eventkit_sandbox_contract": eventkit_sandbox_contract,
+    "vertical_retirement_contract": vertical_retirement_contract,
     "p13_target_not_implemented": p13_target_not_implemented,
 }

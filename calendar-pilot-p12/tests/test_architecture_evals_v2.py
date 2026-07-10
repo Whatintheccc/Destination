@@ -17,6 +17,7 @@ from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrum
 from evals.architecture.predicates.p13 import (
     EVENTKIT_CASE_EXPECTATIONS,
     EVENTKIT_EQUALITY_REQUIREMENTS,
+    RETIREMENT_CASE_EXPECTATIONS,
     SANDBOX_CASE_EXPECTATIONS,
     SANDBOX_EQUALITY_REQUIREMENTS,
     cited_read_side_cutover,
@@ -25,6 +26,7 @@ from evals.architecture.predicates.p13 import (
     reducer_determinism,
     eventkit_sandbox_contract,
     sandbox_effect_contract,
+    vertical_retirement_contract,
 )
 
 
@@ -65,6 +67,13 @@ P13_4_TARGETS = {
     "target.eventkit_compensation_binding",
     "target.eventkit_compensation_conflict_hold",
     "target.eventkit_no_learning_effect_path",
+}
+P13_5_TARGETS = {
+    "target.retirement_scope_binding",
+    "target.retirement_single_owner",
+    "target.retirement_runtime_commit",
+    "target.retirement_runtime_undo",
+    "target.retirement_restart_rollback",
 }
 
 
@@ -350,6 +359,44 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
                 target_escape = deepcopy(evidence)
                 target_escape["authorizes_production"] = True
                 self.assertEqual(eventkit_sandbox_contract({"eventkit_effect_kernel": target_escape})["status"], "fail")
+
+    def test_p13_5_targets_use_frozen_retirement_predicate_before_implementation(self):
+        scenario_set = load_scenario_set(P13_SCENARIOS)
+        by_id = {row["scenario_id"]: row for row in scenario_set["scenarios"]}
+        self.assertTrue(
+            all(by_id[scenario_id]["predicate_id"] == "vertical_retirement_contract" for scenario_id in P13_5_TARGETS)
+        )
+
+    def test_p13_5_predicate_accepts_complete_raw_facts_and_rejects_each_planted_counterexample(self):
+        universal = {
+            "retirement_profile": "owner_controlled_vertical_retirement",
+            "authorizes_production": False,
+            "retired_action_family": "create_prep_block",
+            "retired_backend": "deterministic_sandbox",
+            "normal_owner": "effect_kernel",
+            "unaffected_eventkit_owner": "incumbent",
+            "unaffected_other_action_owner": "incumbent",
+            "caller_owner_override_available": False,
+        }
+        for case, expected in RETIREMENT_CASE_EXPECTATIONS.items():
+            with self.subTest(case=case):
+                evidence = {"case": case, **universal, **deepcopy(expected)}
+                self.assertEqual(vertical_retirement_contract({"vertical_retirement": evidence})["status"], "pass")
+
+                key = next(iter(expected))
+                planted = deepcopy(evidence)
+                value = planted[key]
+                if isinstance(value, bool):
+                    planted[key] = not value
+                elif isinstance(value, int):
+                    planted[key] = value + 1
+                else:
+                    planted[key] = f"wrong:{value}"
+                self.assertEqual(vertical_retirement_contract({"vertical_retirement": planted})["status"], "fail")
+
+                scope_escape = deepcopy(evidence)
+                scope_escape["unaffected_eventkit_owner"] = "effect_kernel"
+                self.assertEqual(vertical_retirement_contract({"vertical_retirement": scope_escape})["status"], "fail")
 
 
 if __name__ == "__main__":
