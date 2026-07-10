@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, positive-learning promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6 now has a bound control plane for immutable payloads, OS-enforced optimizer confinement, authenticated provenance, and signed atomic bootstrap/rollback. Unsigned and positive-learning promotion remain hard holds, and the repository `CURRENT` has not migrated; the next wave must bind real disjoint partitions and perform the baseline pointer migration. P16 contraction remains blocked until the relevant operational cutovers and monitor certificates exist.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, positive-learning promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6's proposal-only control plane and signed empty-baseline pointer migration now pass: immutable payloads, disjoint sealed partitions, OS-enforced optimizer confinement, authenticated provenance, signed atomic bootstrap, runtime load, and byte-exact rollback are executable. Unsigned and positive-learning promotion remain hard holds; decision/exposure/propensity capture and an identifiable real-human improvement claim are still required before learning can advance `CURRENT`. P16 contraction remains blocked until the relevant operational cutovers and monitor certificates exist.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1194,10 +1194,10 @@ operational shadow. `lab-promote` remains frozen until every item passes:
 [x] Holdout access, evaluator mutation, and real optimizer executor write-boundary attacks are planted failures with denied syscall/profile evidence; the binding certificate ran through macOS `sandbox-exec`, not a Python permission convention.
 [x] Promotion ingress derives source class from a signed issuer registry, rejects duplicate conflicts, and rejects direct/transitive simulator-positive or synthetic Program A credit; positive-learning promotion remains closed.
 [x] The only writable `lab-promote` aperture requires a signed, content-addressed PolicyPayload/PromotionRecord transition; thresholds are instrument-bound and any change requires a new pre-search epoch.
-[ ] Training/search rows are disjoint from sealed holdout; the tuning-loop control-note check is labeled plumbing, not improvement.
+[x] Baseline search rows are family-disjoint from sealed holdout and forward shadow; the migrated empty tuning and no-effect shadow are explicitly labeled boundary plumbing, not improvement.
 [ ] Decision logs capture decision/event id, actual behavior payload/arm, eligible set, selected candidate/action id, selected-action propensity/determinism, exposure, context/pre-state hash, outcome window, censoring, and linked outcome row ids.
 [ ] Missing overlap/propensity reports `not_identifiable` and blocks an off-policy improvement claim.
-[ ] A deliberately bad PolicyPayload is rejected without changing CURRENT; a valid payload completes signed promotion and atomic rollback.
+[x] A deliberately tampered PolicyPayload is rejected with byte-identical CURRENT; a valid signed bootstrap loads the exact payload and a separately signed rollback restores the baseline pointer byte-for-byte.
 ```
 
 P13.6 control-plane status (2026-07-10): the pre-change ruler manifest
@@ -1208,8 +1208,8 @@ target scenarios; only the unrelated Frontier-vector, monitor-detectability, and
 executable-control debts remained `not_reached`. The certificate used temporary,
 content-addressed attack fixtures: it proves the macOS OS boundary, signed pointer
 transition/byte-exact rollback, and authenticated direct/transitive simulator rejection.
-It does not satisfy the unchecked real-data items above, move repository `CURRENT`, or
-authorize positive-learning promotion. Those remain the next migration wave.
+It did not itself move repository `CURRENT` or authorize positive-learning promotion;
+the separately rebound baseline migration below moved only the equivalent empty pointer.
 
 The first baseline-migration rehearsal exposed and rejected a false-quality C-VAR pass:
 the legacy loader treated the signed pointer object as an empty tuning, which happened to
@@ -1224,6 +1224,19 @@ their docs; all five P13.6 target scenarios must be required and pass. That clas
 uses the fixed zero-simulator-credit reward fixture and grades the signed rollback record
 plus byte-identical baseline pointer as the ablation/rollback proof. Any source, effect,
 backend, or extra control-plane path falls back to the generic behavior-bearing gate.
+
+P13.6 baseline migration closed on manifest
+`p13-learning-baseline-migration:64575751a361:20260710T212634Z`. Composite architecture
+run `architecture-evals-20260710T212947724101Z-331d2d38` passed 11/11 preservation and
+44 target scenarios; the only three nonbinding `not_reached` debts are the later
+Frontier safety vector, monitor detectability, and executable explanation controls.
+C-VAR verified the signed record, loaded payload
+`fcf0450ddd259bc8fda10643023e60b650c8b43e6ee2fd2999db460ecdf9a932`, and measured
+zero mean delta; independent `B_migrate`, P12 release, fixed reward screening, live-leg
+ledger, LOC, schemas, and `ExperimentRecord.v2` all passed. Tampering left `CURRENT`
+unchanged; the drill pointer promoted and signed rollback restored baseline pointer hash
+`2acfcbcbfe76e8f1fe5c28331cd34756c5a6716e24b64a5be9a4867f96fa9290` exactly. This is
+a migration of preserved empty-baseline semantics, not a positive-learning result.
 
 No optimizer participates in P13.0–P13.5 wave or promotion decisions; existing learning
 code is inference/evidence-only and the promotion access point is frozen. This is a
