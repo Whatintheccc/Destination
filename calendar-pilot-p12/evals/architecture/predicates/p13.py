@@ -532,6 +532,162 @@ def vertical_retirement_contract(vector: dict[str, Any]) -> PredicateResult:
     )
 
 
+MANAGED_EVENTKIT_RETIREMENT_CASE_EXPECTATIONS: dict[str, dict[str, Any]] = {
+    "eventkit_managed_binding_state": {
+        "binding_id_generation": "csprng_opaque",
+        "binding_epoch": 1,
+        "binding_states": ["UNBOUND", "ACTIVE", "SUSPENDED", "REBIND_REQUIRED"],
+        "fingerprint_fields": ["event_store_id", "calendar_id", "source_id", "source_type", "title_tripwire"],
+        "title_authority_locator": False,
+        "permission_loss_state": "SUSPENDED",
+        "identity_mismatch_state": "REBIND_REQUIRED",
+        "rebind_increments_epoch": True,
+        "stale_epoch_denied": True,
+        "setup_confirmation_exact": True,
+        "identity_counterexamples_all_hold": True,
+        "identity_counterexamples_zero_mutation": True,
+    },
+    "eventkit_managed_ownership": {
+        "classifier_input": "canonical_expanded_target_vector",
+        "explicit_binding_owner": "effect_kernel",
+        "bound_target_without_binding_result": "hold",
+        "unknown_binding_result": "hold",
+        "nested_bound_target_owner": "effect_kernel",
+        "mixed_target_result": "hold",
+        "missing_target_metadata_result": "hold",
+        "wholly_outside_owner": "incumbent",
+        "managed_legacy_fallback_count": 0,
+    },
+    "eventkit_managed_runtime_commit": {
+        "access_point": "CodexToolRuntime.REQUEST_COMMIT",
+        "per_mutation_confirmation_exact": True,
+        "ticket_count": 2,
+        "claim_count": 2,
+        "dispatch_count": 2,
+        "verified_event_count": 2,
+        "replay_dispatch_count": 2,
+        "inner_identifier_only_validation": True,
+        "post_save_verification": True,
+        "toctou_phase": "applying_unknown",
+        "blind_retry_count": 0,
+        "legacy_kernel_commit_count": 0,
+        "legacy_provider_commit_count": 0,
+    },
+    "eventkit_managed_runtime_undo": {
+        "access_point": "CodexToolRuntime.REQUEST_UNDO",
+        "compensation_confirmation_exact": True,
+        "receipt_owner_routing": True,
+        "historical_fingerprint_retained": True,
+        "exact_old_epoch_result": "verified",
+        "drifted_old_epoch_result": "hold",
+        "redirected_to_current_epoch": False,
+        "ambiguous_event_recovery_result": "hold",
+        "effect_absent": True,
+        "legacy_kernel_undo_count": 0,
+        "legacy_provider_undo_count": 0,
+    },
+    "eventkit_managed_durable_owner": {
+        "global_durable_ledger": True,
+        "durable_signing_state": True,
+        "process_lease": "os_held_crash_released",
+        "concurrent_owner_result": "hold",
+        "missing_ledger_result": "hold",
+        "corrupt_ledger_result": "hold",
+        "owner_after_restart": "effect_kernel",
+        "same_ticket_after_restart": True,
+        "phase_before_reconcile": "applying_unknown",
+        "phase_after_reconcile": "verified",
+        "redispatch_count_after_restart": 0,
+        "dual_owner_observed": False,
+    },
+    "eventkit_managed_live_contract": {
+        "live_leg": "live-eventkit-e2e",
+        "canonical_app_bound": True,
+        "canonical_bridge_bound": True,
+        "confirmed_binding_record": True,
+        "permission_status": "full_access",
+        "calendar_writable": True,
+        "exact_candidate_bound": True,
+        "commit_access_point": "CodexToolRuntime.REQUEST_COMMIT",
+        "undo_access_point": "CodexToolRuntime.REQUEST_UNDO",
+        "apply_post_verified": True,
+        "restart_reconciled_without_redispatch": True,
+        "cleanup_status": "verified_absent",
+        "legacy_mutation_count": 0,
+    },
+}
+
+
+MANAGED_EVENTKIT_RETIREMENT_EQUALITY_REQUIREMENTS: dict[str, tuple[tuple[str, str], ...]] = {
+    "eventkit_managed_runtime_commit": (
+        ("canonical_target_vector_sha256", "bridge_target_vector_sha256"),
+        ("ticket_binding", "expected_binding"),
+        ("post_apply_binding", "expected_binding"),
+    ),
+    "eventkit_managed_runtime_undo": (
+        ("receipt_binding", "expected_original_binding"),
+        ("bridge_binding", "expected_original_binding"),
+    ),
+    "eventkit_managed_live_contract": (
+        ("live_binding", "expected_binding"),
+        ("apply_ticket_binding", "expected_binding"),
+        ("compensation_receipt_binding", "expected_binding"),
+    ),
+}
+
+
+def managed_eventkit_retirement_contract(vector: dict[str, Any]) -> PredicateResult:
+    capability = vector.get("target_capability")
+    if isinstance(capability, dict) and capability.get("reached") is False:
+        return p13_target_not_implemented(vector)
+    evidence = vector.get("managed_eventkit_retirement")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    case = str(evidence.get("case", ""))
+    expected = MANAGED_EVENTKIT_RETIREMENT_CASE_EXPECTATIONS.get(case)
+    universal = {
+        "retirement_profile": "owner_controlled_eventkit_binding_retirement",
+        "authorizes_production": False,
+        "retired_action_family": "create_prep_block",
+        "retired_backend": "apple_eventkit",
+        "retirement_scope": "binding_id@epoch",
+        "normal_owner": "effect_kernel",
+        "unaffected_other_calendar_owner": "incumbent",
+        "unaffected_other_action_owner": "incumbent",
+        "caller_owner_override_available": False,
+        "invalid_managed_fallback_available": False,
+        "one_event_per_ticket": True,
+    }
+    if expected is None:
+        return _result("hold", "Managed EventKit retirement evidence is missing or names an unknown case.", retirement=evidence)
+    required = set(universal) | set(expected)
+    for left, right in MANAGED_EVENTKIT_RETIREMENT_EQUALITY_REQUIREMENTS.get(case, ()):
+        required.update((left, right))
+    missing = sorted(required - set(evidence))
+    if missing:
+        return _result("hold", "Managed EventKit retirement evidence is incomplete.", case=case, missing=missing)
+    mismatches = {
+        key: {"expected": value, "actual": evidence.get(key)}
+        for key, value in {**universal, **expected}.items()
+        if evidence.get(key) != value
+    }
+    for left, right in MANAGED_EVENTKIT_RETIREMENT_EQUALITY_REQUIREMENTS.get(case, ()):
+        if not evidence.get(left) or evidence.get(left) != evidence.get(right):
+            mismatches[f"{left}={right}"] = {"left": evidence.get(left), "right": evidence.get(right)}
+    if mismatches:
+        return _result(
+            "fail",
+            "The managed EventKit retirement violates binding, ownership, confirmation, materialization, compensation, durability, or live-certificate invariants.",
+            case=case,
+            mismatches=mismatches,
+        )
+    return _result(
+        "pass",
+        "The exact person-confirmed EventKit binding has one normal EffectKernel owner without global production authority.",
+        case=case,
+        observed={key: evidence[key] for key in sorted(required)},
+    )
+
+
 def p13_target_not_implemented(vector: dict[str, Any]) -> PredicateResult:
     capability = vector.get("target_capability")
     capability = capability if isinstance(capability, dict) else {}
@@ -564,5 +720,6 @@ P13_PREDICATES: dict[str, Predicate] = {
     "sandbox_effect_contract": sandbox_effect_contract,
     "eventkit_sandbox_contract": eventkit_sandbox_contract,
     "vertical_retirement_contract": vertical_retirement_contract,
+    "managed_eventkit_retirement_contract": managed_eventkit_retirement_contract,
     "p13_target_not_implemented": p13_target_not_implemented,
 }
