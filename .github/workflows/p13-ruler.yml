@@ -9,17 +9,25 @@ permissions:
 
 jobs:
   deterministic-ruler:
-    runs-on: ubuntu-latest
+    name: deterministic-ruler
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require a fresh exact checkout
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test ! -e calendar-pilot-p12/runs
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: calendar-pilot-p12/pyproject.toml
       - name: Install active app
-        run: python -m pip install -e 'calendar-pilot-p12[evals]'
+        run: python -m pip install --disable-pip-version-check -e 'calendar-pilot-p12[evals]'
       - name: Verify repository diff hygiene
         run: git diff --check
       - name: Run deterministic compatibility baseline
@@ -32,23 +40,267 @@ jobs:
           make p13-attestation-scaffold-test
           make p13-loc-report
           make architecture-evals
-      - name: Freeze P13 instrument identity
+      - name: Exercise exact-commit ruler mechanics and composite gate
         run: |
+          set -euo pipefail
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/p13-signing-private.pem"
           openssl pkey -in "$RUNNER_TEMP/p13-signing-private.pem" -pubout -out "$RUNNER_TEMP/p13-signing-public.pem"
           make p13-instrument P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make wave-bind WAVE=p13-ruler-truth-repair CHANGE_CLASS=ruler P13_SIGNING_KEY="$RUNNER_TEMP/p13-signing-private.pem" P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make binding-manifest-verify WAVE=p13-ruler-truth-repair P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make architecture-evals-v2 WAVE=p13-ruler-truth-repair P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make wave-bind WAVE=p13-wave-harness-v3 CHANGE_CLASS=ruler P13_SIGNING_KEY="$RUNNER_TEMP/p13-signing-private.pem" P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make wave-harness WAVE=p13-wave-harness-v3 P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make wave-bind WAVE=p13-remote-reproducibility CHANGE_CLASS=ruler P13_SIGNING_KEY="$RUNNER_TEMP/p13-signing-private.pem" P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make binding-manifest-verify WAVE=p13-remote-reproducibility P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make architecture-evals-v2 WAVE=p13-remote-reproducibility P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make wave-harness WAVE=p13-remote-reproducibility P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
       - name: Assert report decisions
         run: |
+          set -euo pipefail
           jq -e '.decision == "pass" and .file_count > 0 and .total_lines > 0' calendar-pilot-p12/runs/p13_loc_report.json
           jq -e '.p13_instrument_bundle_schema_version == "p13_instrument_bundle.v1" and (.artifacts | length) > 0' calendar-pilot-p12/runs/p13_instrument_bundle.json
+          jq -e '.decision == "pass" and (.changed_paths | length) == 0 and (.failures | length) == 0' calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.verification.json
           jq -e '.decision == "pass" and .rails.preservation.decision == "pass" and .rails.preservation.scenario_count == 11' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json
-          jq -e '.architecture_eval_report_schema_version == "architecture_eval_report.v2" and .decision == "pass" and .rails.preservation.decision == "pass" and ([.scenarios[] | select(.rail == "target_conformance" and .gate_mode == "required" and .status != "pass")] | length) == 0' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json
+          jq -e '.architecture_eval_report_schema_version == "architecture_eval_report.v2" and .decision == "pass" and .rails.preservation.decision == "pass" and (.binding.manifest.path | endswith("/p13-remote-reproducibility.json")) and ([.scenarios[] | select(.rail == "target_conformance" and .gate_mode == "required" and .status != "pass")] | length) == 0' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json
           jq -e '.decision == "pass" and .ok == true' calendar-pilot-p12/runs/p12_release/p12_release_report.json
           jq -e '.decision == "pass" and .ok == true and ([.gates[] | select(. != "pass")] | length) == 0' calendar-pilot-p12/runs/p13_wave_gate_report.json
-          jq -e '.experiment_record_schema_version == "experiment_record.v2" and .phase == "P13" and .decision == "pass"' calendar-pilot-p12/runs/p13_wave_gate/p13-wave-harness-v3/experiment_record.json
-          jq -e '.reward_head_report_schema_version == "reward_head_report.v3" and .decision == "pass" and .reward_evidence.occurrence_ids_unique == true' calendar-pilot-p12/runs/p13_wave_gate/p13-wave-harness-v3/reward_screen_report.json
+          jq -e '.experiment_record_schema_version == "experiment_record.v2" and .phase == "P13" and .decision == "pass"' calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/experiment_record.json
+          jq -e '.reward_head_report_schema_version == "reward_head_report.v3" and .decision == "pass" and .reward_evidence.occurrence_ids_unique == true' calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/reward_screen_report.json
+      - name: Verify exact-commit evidence coherence
+        run: |
+          set -euo pipefail
+          head_sha="$(git rev-parse HEAD)"
+          app_tree="$(git rev-parse HEAD:calendar-pilot-p12)"
+          test "$head_sha" = "$GITHUB_SHA"
+
+          for report in \
+            calendar-pilot-p12/runs/p13_loc_report.json \
+            calendar-pilot-p12/runs/p13_instrument_bundle.json \
+            calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json \
+            calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json \
+            calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/architecture_eval_report_v2.json \
+            calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/loc_report.json
+          do
+            jq -e --arg git_sha "$head_sha" --arg app_tree "$app_tree" \
+              '.repository.git_sha == $git_sha and .repository.app_tree_sha == $app_tree and .repository.dirty == false' \
+              "$report"
+          done
+
+          manifest="calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.json"
+          verification="calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.verification.json"
+          instrument="calendar-pilot-p12/runs/p13_instrument_bundle.json"
+          top_gate="calendar-pilot-p12/runs/p13_wave_gate_report.json"
+          wave_dir="calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility"
+          experiment="$wave_dir/experiment_record.json"
+
+          jq -e --arg git_sha "$head_sha" --arg app_tree "$app_tree" \
+            '.base_repository.git_sha == $git_sha and .base_repository.app_tree_sha == $app_tree and .base_repository.dirty == false' \
+            "$manifest"
+
+          manifest_id="$(jq -r '.manifest_id' "$manifest")"
+          test "$(jq -r '.manifest_id' "$verification")" = "$manifest_id"
+          test "$(jq -r '.manifest_id' "$top_gate")" = "$manifest_id"
+          test "$(jq -r '.binding_manifest.manifest_id' "$experiment")" = "$manifest_id"
+          test "$(jq -r '.manifest_id' "$wave_dir/cvar_report_v2.json")" = "$manifest_id"
+          test "$(jq -r '.manifest_id' "$wave_dir/b_migrate_report_v2.json")" = "$manifest_id"
+          test "$(jq -r '.fixed.base_git_sha' "$experiment")" = "$head_sha"
+          test "$(jq -r '.fixed.base_app_tree_sha' "$experiment")" = "$app_tree"
+
+          instrument_bundle_sha="$(jq -r '.bundle_sha256' "$instrument")"
+          test "$(jq -r '.binding_manifest.instrument_bundle_sha256' "$experiment")" = "$instrument_bundle_sha"
+          test "$(jq -r '.binding_manifest.sha256' "$experiment")" = "$(sha256sum "$manifest" | cut -d ' ' -f 1)"
+          test "$(jq -r '.verification_root.public_key_sha256' "$instrument")" = "$(sha256sum "$RUNNER_TEMP/p13-signing-public.pem" | cut -d ' ' -f 1)"
+          test "$(jq -r '.binding.manifest.sha256' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json)" = "$(sha256sum "$manifest" | cut -d ' ' -f 1)"
+
+          jq -e '.attestations | length == 8 and all(.[]; .decision == "pass")' "$experiment"
+          while IFS=$'\t' read -r name path expected
+          do
+            test -n "$name"
+            test -f "$path"
+            test "$(sha256sum "$path" | cut -d ' ' -f 1)" = "$expected"
+          done < <(jq -r '.attestations | to_entries[] | [.key, .value.path, .value.sha256] | @tsv' "$experiment")
+
+          for report in "$wave_dir/cvar_report_v2.json" "$wave_dir/b_migrate_report_v2.json"
+          do
+            for side in before after
+            do
+              path="$(jq -r --arg side "$side" '.[$side + "_artifact"].path' "$report")"
+              expected="$(jq -r --arg side "$side" '.[$side + "_artifact"].sha256' "$report")"
+              test -f "$path"
+              test "$(sha256sum "$path" | cut -d ' ' -f 1)" = "$expected"
+            done
+          done
+
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Stage bounded remote-reproducibility evidence
+        env:
+          WORKFLOW_REF_VALUE: ${{ github.workflow_ref }}
+          WORKFLOW_SHA_VALUE: ${{ github.workflow_sha }}
+          PR_HEAD_SHA_VALUE: ${{ github.event.pull_request.head.sha || '' }}
+          PR_BASE_SHA_VALUE: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+          bundle_dir="$RUNNER_TEMP/p13-remote-reproducibility"
+          test ! -e "$bundle_dir"
+          mkdir -p "$bundle_dir"
+
+          copy_subject() {
+            source="$1"
+            destination="$2"
+            test -f "$source"
+            install -D -m 0644 "$source" "$bundle_dir/$destination"
+          }
+
+          copy_subject .github/workflows/p13-ruler.yml workflow/p13-ruler.yml
+          copy_subject calendar-pilot-p12/experiments/waves/p13-remote-reproducibility.scope.json scope/p13-remote-reproducibility.scope.json
+          copy_subject "$RUNNER_TEMP/p13-signing-public.pem" verification/development-signing-public.pem
+          copy_subject calendar-pilot-p12/runs/p13_loc_report.json reports/p13_loc_report.json
+          copy_subject calendar-pilot-p12/runs/p13_instrument_bundle.json reports/p13_instrument_bundle.json
+          copy_subject calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.json reports/p13_manifests/p13-remote-reproducibility.json
+          copy_subject calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.verification.json reports/p13_manifests/p13-remote-reproducibility.verification.json
+          copy_subject calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json reports/architecture_evals/architecture_eval_report.json
+          copy_subject calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json reports/architecture_evals/architecture_eval_report_v2.json
+          copy_subject calendar-pilot-p12/runs/p12_release/p12_release_report.json reports/p12_release/p12_release_report.json
+          copy_subject calendar-pilot-p12/runs/p13_wave_gate_report.json reports/p13_wave_gate_report.json
+
+          for subject in \
+            binding_manifest_verification.json \
+            architecture_eval_report_v2.json \
+            cvar_before.json \
+            cvar_after.json \
+            cvar_report_v2.json \
+            b_migrate_old.json \
+            b_migrate_new.json \
+            b_migrate_report_v2.json \
+            reward_screen_report.json \
+            root_list_verification.json \
+            loc_report.json \
+            experiment_record.json
+          do
+            copy_subject "calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/$subject" "reports/p13_wave_gate/p13-remote-reproducibility/$subject"
+          done
+
+          python_version="$(python --version 2>&1)"
+          pip_version="$(python -m pip --version)"
+          openssl_version="$(openssl version)"
+          git_version="$(git --version)"
+          checkout_sha="$(git rev-parse HEAD)"
+          checkout_tree="$(git rev-parse HEAD^{tree})"
+          app_tree="$(git rev-parse HEAD:calendar-pilot-p12)"
+          workflow_sha256="$(sha256sum .github/workflows/p13-ruler.yml | cut -d ' ' -f 1)"
+          scope_sha256="$(sha256sum calendar-pilot-p12/experiments/waves/p13-remote-reproducibility.scope.json | cut -d ' ' -f 1)"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+          jq -n \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg event "$GITHUB_EVENT_NAME" \
+            --arg ref "$GITHUB_REF" \
+            --arg head_ref "${GITHUB_HEAD_REF:-}" \
+            --arg base_ref "${GITHUB_BASE_REF:-}" \
+            --arg pr_head_sha "$PR_HEAD_SHA_VALUE" \
+            --arg pr_base_sha "$PR_BASE_SHA_VALUE" \
+            --arg github_sha "$GITHUB_SHA" \
+            --arg checkout_sha "$checkout_sha" \
+            --arg checkout_tree "$checkout_tree" \
+            --arg app_tree "$app_tree" \
+            --arg workflow "$GITHUB_WORKFLOW" \
+            --arg workflow_ref "$WORKFLOW_REF_VALUE" \
+            --arg workflow_sha "$WORKFLOW_SHA_VALUE" \
+            --arg workflow_sha256 "$workflow_sha256" \
+            --arg scope_sha256 "$scope_sha256" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_number "$GITHUB_RUN_NUMBER" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg run_url "$run_url" \
+            --arg actor "$GITHUB_ACTOR" \
+            --arg triggering_actor "${GITHUB_TRIGGERING_ACTOR:-$GITHUB_ACTOR}" \
+            --arg runner_os "$RUNNER_OS" \
+            --arg runner_arch "$RUNNER_ARCH" \
+            --arg runner_image_os "${ImageOS:-unknown}" \
+            --arg runner_image_version "${ImageVersion:-unknown}" \
+            --arg python "$python_version" \
+            --arg pip "$pip_version" \
+            --arg openssl "$openssl_version" \
+            --arg git "$git_version" \
+            '{
+              kind: "p13_remote_reproducibility_run_context",
+              semantics: {
+                candidate_controlled: true,
+                remote_execution_observed: true,
+                evaluator_independence: false,
+                migration_authority: false,
+                artifact_deletable_or_expiring: true,
+                artifact_retention_days: 90
+              },
+              github: {
+                repository: $repository,
+                event: $event,
+                ref: $ref,
+                head_ref: $head_ref,
+                base_ref: $base_ref,
+                pr_head_sha: $pr_head_sha,
+                pr_base_sha: $pr_base_sha,
+                sha: $github_sha,
+                actor: $actor,
+                triggering_actor: $triggering_actor,
+                workflow: $workflow,
+                workflow_ref: $workflow_ref,
+                workflow_sha: $workflow_sha,
+                run_id: $run_id,
+                run_number: $run_number,
+                run_attempt: $run_attempt,
+                run_url: $run_url
+              },
+              checkout: {
+                commit: $checkout_sha,
+                tree: $checkout_tree,
+                app_tree: $app_tree,
+                workflow_sha256: $workflow_sha256,
+                scope_sha256: $scope_sha256
+              },
+              runtime: {
+                runner_os: $runner_os,
+                runner_arch: $runner_arch,
+                runner_image_os: $runner_image_os,
+                runner_image_version: $runner_image_version,
+                python: $python,
+                pip: $pip,
+                openssl: $openssl,
+                git: $git
+              }
+            }' > "$bundle_dir/run-context.json"
+
+          mkdir -p "$bundle_dir/environment"
+          python -m pip freeze --all | LC_ALL=C sort > "$bundle_dir/environment/python-packages.txt"
+          copy_subject /etc/os-release environment/os-release
+
+          (
+            cd "$bundle_dir"
+            find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum
+          ) > "$bundle_dir/SHA256SUMS"
+          (cd "$bundle_dir" && sha256sum --check SHA256SUMS)
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Upload bounded remote-reproducibility evidence
+        id: evidence-upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: p13-remote-reproducibility-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p13-remote-reproducibility
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 9
+      - name: Publish remote-reproducibility envelope identity
+        env:
+          ARTIFACT_DIGEST: ${{ steps.evidence-upload.outputs.artifact-digest }}
+          ARTIFACT_ID: ${{ steps.evidence-upload.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.evidence-upload.outputs.artifact-url }}
+        run: |
+          set -euo pipefail
+          test -n "$ARTIFACT_ID"
+          test -n "$ARTIFACT_URL"
+          test "${#ARTIFACT_DIGEST}" -eq 64
+          {
+            printf '### P13 remote-reproducibility evidence\n\n'
+            printf 'Candidate-controlled remote execution only; not evaluator independence, attestation, or migration authority.\n\n'
+            printf -- '- Exact checkout: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Artifact ID: `%s`\n' "$ARTIFACT_ID"
+            printf -- '- Artifact SHA-256: `%s`\n' "$ARTIFACT_DIGEST"
+            printf -- '- Retention: 90 days (artifact remains deletable/expiring)\n'
+            printf -- '- Artifact: %s\n' "$ARTIFACT_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
