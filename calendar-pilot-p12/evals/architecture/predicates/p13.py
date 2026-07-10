@@ -166,6 +166,157 @@ def cited_read_side_cutover(vector: dict[str, Any]) -> PredicateResult:
     return _result("pass", "The create-prep-block card is reconstructed from persisted cited Journal rows while incumbent controls remain the sole effect path.", read_side=evidence)
 
 
+SANDBOX_CASE_EXPECTATIONS: dict[str, dict[str, Any]] = {
+    "trusted_ingress_forgery": {
+        "valid_admission_status": "ticket",
+        "forged_admission_status": "denied",
+        "forged_reason": "source_unauthenticated",
+        "stale_admission_status": "denied",
+        "stale_reason": "pre_state_mismatch",
+        "ticket_count_after": 1,
+    },
+    "effect_ticket_binding": {
+        "admission_status": "ticket",
+        "ticket_kind": "apply",
+        "signature_valid": True,
+        "tampered_signature_valid": False,
+        "nonce_unique": True,
+        "grant_epoch_matches_current": True,
+    },
+    "compensation_ticket_binding": {
+        "admission_status": "ticket",
+        "ticket_kind": "compensate",
+        "signature_valid": True,
+        "separate_ticket": True,
+        "separate_nonce": True,
+    },
+    "ticket_single_claim": {
+        "first_phase": "verified",
+        "second_phase": "verified",
+        "claim_count": 1,
+        "claim_fact_count": 1,
+    },
+    "duplicate_delivery": {
+        "dispatch_count": 1,
+        "mutation_count": 1,
+        "same_receipt_hash": True,
+        "same_idempotency_key": True,
+    },
+    "crash_before_claim": {
+        "crash_stage": "before_claim",
+        "phase_after_crash": "unclaimed",
+        "claim_count_after_crash": 0,
+        "dispatch_count_after_crash": 0,
+        "mutation_count_after_crash": 0,
+        "recovered_phase": "verified",
+        "recovered_dispatch_count": 1,
+    },
+    "crash_after_claim": {
+        "crash_stage": "after_claim_before_dispatch",
+        "phase_after_crash": "claimed",
+        "claim_count": 1,
+        "dispatch_count": 0,
+        "mutation_count": 0,
+        "reconciled_phase": "not_applied",
+    },
+    "crash_after_dispatch": {
+        "crash_stage": "after_dispatch_before_receipt",
+        "phase_after_crash": "applying_unknown",
+        "dispatch_count_before_reconcile": 1,
+        "mutation_count_before_reconcile": 1,
+        "reconciled_phase": "verified",
+        "dispatch_count_after_reconcile": 1,
+    },
+    "verify_ambiguity_reconcile": {
+        "initial_phase": "applying_unknown",
+        "initial_success_label": False,
+        "reconciled_phase": "verified",
+        "dispatch_count": 1,
+        "mutation_count": 1,
+    },
+    "revoke_claim_race": {
+        "before_claim_phase": "denied",
+        "before_claim_dispatch_count": 0,
+        "after_claim_phase": "claimed",
+        "after_claim_reconciled_phase": "not_applied",
+        "after_claim_dispatch_count": 0,
+        "invalid_epoch_admission_status": "denied",
+        "invalid_epoch_reason": "grant_epoch_invalid",
+    },
+    "restart_reconciliation": {
+        "phase_before_restart": "applying_unknown",
+        "phase_after_restart": "verified",
+        "same_ticket_id": True,
+        "same_idempotency_key": True,
+        "dispatch_count": 1,
+        "mutation_count": 1,
+    },
+    "compensation_conflict_hold": {
+        "initial_phase": "verified",
+        "compensation_admission_status": "hold",
+        "compensation_reason": "compensation_prestate_conflict",
+        "compensation_dispatch_count": 0,
+        "later_edit_preserved": True,
+    },
+    "no_learning_effect_path": {
+        "forbidden_imports": [],
+        "accepted_action_families": ["create_prep_block"],
+        "default_selector": "incumbent",
+        "explicit_selector": "deterministic_sandbox",
+        "real_provider_reachable": False,
+    },
+}
+
+SANDBOX_EQUALITY_REQUIREMENTS: dict[str, tuple[tuple[str, str], ...]] = {
+    "effect_ticket_binding": (
+        ("ticket_intent_hash", "expected_intent_hash"),
+        ("ticket_pre_state_hash", "expected_pre_state_hash"),
+    ),
+    "compensation_ticket_binding": (
+        ("ticket_target_receipt_hash", "expected_target_receipt_hash"),
+        ("ticket_fresh_state_hash", "expected_fresh_state_hash"),
+    ),
+}
+
+
+def sandbox_effect_contract(vector: dict[str, Any]) -> PredicateResult:
+    capability = vector.get("target_capability")
+    if isinstance(capability, dict) and capability.get("reached") is False:
+        return p13_target_not_implemented(vector)
+    evidence = vector.get("effect_kernel")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    case = str(evidence.get("case", ""))
+    expected = SANDBOX_CASE_EXPECTATIONS.get(case)
+    universal = {
+        "authority_profile": "owner_controlled_sandbox",
+        "authorizes_production": False,
+        "adapter_id": "deterministic_sandbox",
+        "adapter_credential_count": 0,
+        "adapter_external_io": False,
+    }
+    if expected is None:
+        return _result("hold", "P13.3 sandbox evidence is missing or names an unknown case.", effect_kernel=evidence)
+    missing = sorted((set(universal) | set(expected)) - set(evidence))
+    if missing:
+        return _result("hold", "P13.3 sandbox evidence is incomplete.", case=case, missing=missing)
+    mismatches = {
+        key: {"expected": value, "actual": evidence.get(key)}
+        for key, value in {**universal, **expected}.items()
+        if evidence.get(key) != value
+    }
+    for left, right in SANDBOX_EQUALITY_REQUIREMENTS.get(case, ()):
+        if not evidence.get(left) or evidence.get(left) != evidence.get(right):
+            mismatches[f"{left}={right}"] = {"left": evidence.get(left), "right": evidence.get(right)}
+    if mismatches:
+        return _result("fail", "The deterministic sandbox violates a ticket, lifecycle, isolation, or non-authority invariant.", case=case, mismatches=mismatches)
+    return _result(
+        "pass",
+        "The deterministic sandbox supplies the required raw facts while remaining non-authorizing and externally inert.",
+        case=case,
+        observed={key: evidence[key] for key in sorted(set(universal) | set(expected))},
+    )
+
+
 def p13_target_not_implemented(vector: dict[str, Any]) -> PredicateResult:
     capability = vector.get("target_capability")
     capability = capability if isinstance(capability, dict) else {}
@@ -195,5 +346,6 @@ P13_PREDICATES: dict[str, Predicate] = {
     "cited_required_projection": cited_required_projection,
     "product_core_no_effect_reachability": product_core_no_effect_reachability,
     "cited_read_side_cutover": cited_read_side_cutover,
+    "sandbox_effect_contract": sandbox_effect_contract,
     "p13_target_not_implemented": p13_target_not_implemented,
 }

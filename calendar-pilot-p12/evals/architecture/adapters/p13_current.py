@@ -19,6 +19,7 @@ from evals.p13_ruler.core import (
 )
 
 from .p12_current import P12CurrentAdapter
+from .p13_effect_scenarios import P13_3_CASES, collect_sandbox_effect_case
 
 
 DEBT_EVIDENCE: dict[str, tuple[str, list[str]]] = {
@@ -219,6 +220,20 @@ class P13CurrentAdapter:
         path = self._write(scenario_dir / "cited_read_side_cutover.json", evidence)
         return {"read_side": evidence}, [("cited_read_side_cutover", path)]
 
+    def _sandbox_effect_evidence(self, case: str, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
+        evidence = collect_sandbox_effect_case(case, scenario_dir=scenario_dir, root=self.root)
+        if evidence is None:
+            blocker, required = DEBT_EVIDENCE[case]
+            return {
+                "target_capability": {
+                    "reached": False,
+                    "blocker": blocker,
+                    "required_evidence": required,
+                }
+            }, []
+        path = self._write(scenario_dir / f"{case}.json", evidence)
+        return {"effect_kernel": evidence}, [(f"effect_kernel_{case}", path)]
+
     def _promotion_freeze_evidence(self, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
         current = self.root / "experiments/promoted/CURRENT.json"
         current_before = current.read_bytes()
@@ -314,6 +329,8 @@ class P13CurrentAdapter:
             return self._product_core_evidence(case, scenario_dir)
         if case == "cited_read_side_cutover":
             return self._cited_read_side_evidence(scenario_dir)
+        if case in P13_3_CASES:
+            return self._sandbox_effect_evidence(case, scenario_dir)
         if case in DEBT_EVIDENCE:
             blocker, required = DEBT_EVIDENCE[case]
             return {"target_capability": {"reached": False, "blocker": blocker, "required_evidence": required}}, []

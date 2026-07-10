@@ -250,6 +250,20 @@ field, and keeps simulate/stage/commit controls routed to the incumbent Swift-ow
 path. The `incumbent` compatibility selector is the tested rollback path; this target does
 not authorize a ticket, dispatch, provider mutation, or P13.3 handoff.
 
+The P13.3 owner-controlled deterministic sandbox has one focused access point:
+
+```bash
+make p13-deterministic-sandbox-test
+```
+
+It exercises the frozen ticket/Gateway evaluator over `create_prep_block`, including
+exact apply and compensation binding, atomic one-use claim/outbox, duplicate delivery,
+crash/restart, unknown-outcome reconciliation, revocation races, and compensation
+conflict. Its adapter has no credentials or external-I/O capability, the selector
+defaults to the incumbent outside an explicit sandbox invocation, and every artifact
+states `authorizes_production: false`. It cannot authorize EventKit, deployment,
+retirement, or promotion; those remain behind the external §8.5.1 boundary.
+
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
 writes and leave `CURRENT` byte-identical. P13.6 may
