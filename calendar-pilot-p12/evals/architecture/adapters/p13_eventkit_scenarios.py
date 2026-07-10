@@ -267,6 +267,7 @@ def collect_eventkit_effect_case(case: str, *, scenario_dir: Path, root: Path) -
             after_claim.gateway.execute(after_claim_ticket, now=NOW, crash_at="after_claim_before_dispatch")
         except api.InjectedCrash:
             pass
+        after_claim_phase = after_claim.gateway.phase(after_claim_ticket.ticket_id)
         after_claim_reconciled = after_claim.gateway.reconcile(after_claim_ticket.ticket_id, now=NOW)
 
         after_dispatch = _fixture(api, scenario_dir / "after-dispatch.json")
@@ -290,7 +291,7 @@ def collect_eventkit_effect_case(case: str, *, scenario_dir: Path, root: Path) -
             "mutation_count": fixture.gateway.snapshot()["mutation_count"],
             "crash_before_phase": before.gateway.phase(before_ticket.ticket_id),
             "crash_before_dispatch_count": before.gateway.snapshot()["dispatch_count"],
-            "crash_after_claim_phase": after_claim.gateway.phase(after_claim_ticket.ticket_id),
+            "crash_after_claim_phase": after_claim_phase,
             "crash_after_claim_reconciled": after_claim_reconciled.phase,
             "crash_after_dispatch_phase": after_dispatch.gateway.phase(after_dispatch_ticket.ticket_id),
             "restart_reconciled_phase": restarted_receipt.phase,
