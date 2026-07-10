@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import sys
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -28,6 +29,7 @@ from evals.p13_ruler.wave import (
     b_migrate_assertions_path,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
+    _tuning_pin,
     is_owner_controlled_eventkit_sandbox_wave,
     is_owner_controlled_eventkit_retirement_wave,
     is_owner_controlled_sandbox_wave,
@@ -119,6 +121,26 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
                 manifest=_manifest(),
             )
             self.assertEqual(integrity["gates"]["artifact_integrity"]["status"], "hold")
+
+    def test_cvar_verifies_signed_current_and_loads_the_referenced_payload(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "runs") as td:
+            current_path = Path(td) / "CURRENT.json"
+            current_path.write_text(json.dumps({
+                "current_policy_pointer_schema_version": "current_policy_pointer.v1",
+                "promotion_record": {"path": "unused", "sha256": "a" * 64},
+                "payload_sha256": "b" * 64,
+                "transition": "bootstrap",
+            }), encoding="utf-8")
+            payload_path = ROOT / "experiments/promoted/policy_tuning_empty_baseline.json"
+            payload = {"policy_parameters": {"policy_tuning": {"tuning_id": "signed-baseline", "intent_reward_bias": {}}}}
+            record = {"record_id": "signed-record", "payload": {"path": payload_path.relative_to(ROOT).as_posix(), "sha256": sha256_file(payload_path)}}
+            with patch("scripts.p13_learning_control.load_current_policy_payload", return_value=(payload, record)) as loader:
+                tuning, pin = _tuning_pin(current_path)
+            loader.assert_called_once_with(current_path)
+            self.assertEqual(tuning.tuning_id, "signed-baseline")
+            self.assertTrue(pin["signed_current_verified"])
+            self.assertEqual(pin["promotion_record_id"], "signed-record")
+            self.assertEqual(pin["policy_tuning_sha256"], sha256_file(payload_path))
 
     def test_behavior_cvar_requires_clean_frozen_before_and_changed_after(self):
         with tempfile.TemporaryDirectory() as td:

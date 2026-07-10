@@ -273,7 +273,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make p12-release` | deterministic P12 instruments: invariants, streams, frontier/scorecard, measurement, calibration, provider capabilities, reward heads, curriculum, ablations, Belief/explain, C-VAR bootstrap, `B_migrate` bootstrap, secret scan | browser, app bundle, Swift IPC, live Codex/NIM/EventKit; those are separate run-or-root-list legs |
 | `make cvar-report` | historical P12 frozen-seed self-consistency with the current default invocation | pre-wave versus post-wave code equivalence; it is not accepted by the P13 gate |
 | `make b-migrate` | historical P12 current-session snapshot ↔ current-projector shape check | independent old-organ versus new-kernel equivalence; it is not accepted by the P13 gate |
-| `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability | the rest of the wave decision |
+| `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability; signed `CURRENT` is verified and its exact referenced PolicyPayload is loaded | the rest of the wave decision |
 | `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's separately named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.1+ action/backend comparison vector until that wave declares it |
 | `make wave-harness WAVE=… P13_VERIFY_KEY=…` | owner-controlled wave decision over manifest affectedness, v2 architecture, C-VAR, `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2`; effect-capable waves also bind the exact provider identity, sandbox target, explicit opt-in, reconciliation, and compensation evidence | authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
 | `.github/workflows/p13-ruler.yml` (`deterministic-ruler`) | an exact GitHub-hosted replay on pull requests and `main`; fresh report generation, report/input identity coherence, fixed artifact inventory, checksums, run context, and 90-day retention | app-bundled identity, macOS permission state, explicitly opted-in EventKit mutation, or bit-for-bit reproducibility after mutable runner/dependency state changes |
@@ -1210,6 +1210,13 @@ content-addressed attack fixtures: it proves the macOS OS boundary, signed point
 transition/byte-exact rollback, and authenticated direct/transitive simulator rejection.
 It does not satisfy the unchecked real-data items above, move repository `CURRENT`, or
 authorize positive-learning promotion. Those remain the next migration wave.
+
+The first baseline-migration rehearsal exposed and rejected a false-quality C-VAR pass:
+the legacy loader treated the signed pointer object as an empty tuning, which happened to
+match the empty incumbent. Ruler manifest
+`p13-learning-cvar-loader:a1cb5caf1933:20260710T210435Z` binds the repair so C-VAR now
+verifies the signed record and loads its referenced payload hash. The migration must be
+rebound and replayed after this ruler commit; the rehearsal itself carries no verdict.
 
 No optimizer participates in P13.0–P13.5 wave or promotion decisions; existing learning
 code is inference/evidence-only and the promotion access point is frozen. This is a
