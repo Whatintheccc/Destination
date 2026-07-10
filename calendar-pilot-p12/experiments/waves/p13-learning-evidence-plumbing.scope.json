@@ -6,6 +6,7 @@
     "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
     "calendar-pilot-p12/contracts/VERSIONS.json",
     "calendar-pilot-p12/contracts/learning_evidence_event.schema.json",
+    "calendar-pilot-p12/contracts/replay_record.schema.json",
     "calendar-pilot-p12/evals/architecture/adapters/p13_current.py",
     "calendar-pilot-p12/evals/architecture/adapters/p13_learning_scenarios.py",
     "calendar-pilot-p12/evals/architecture/predicates/p13.py",
@@ -42,6 +43,7 @@
       "operational_runtime",
       "reducer",
       "tests",
+      "unowned",
       "wave_scope"
     ],
     "instruments": [
