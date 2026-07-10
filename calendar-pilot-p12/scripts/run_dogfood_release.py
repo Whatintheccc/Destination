@@ -639,7 +639,12 @@ def scan_for_secrets() -> dict[str, Any]:
         if generated_root.exists():
             paths.extend(path for path in generated_root.rglob("*") if path.is_file())
     findings = secret_findings(paths)
-    return {"name": "secret_scan", "ok": not findings, "findings": findings, "scanned_roots": ["tracked files", "calendar-pilot-frontend 2/runs", "calendar-pilot-frontend 2/dist"]}
+    return {
+        "name": "secret_scan",
+        "ok": not findings,
+        "findings": findings,
+        "scanned_roots": ["tracked files", "calendar-pilot-p12/runs", "calendar-pilot-p12/dist"],
+    }
 
 
 def secret_findings(paths: list[Path]) -> list[str]:

@@ -1241,7 +1241,9 @@ a migration of preserved empty-baseline semantics, not a positive-learning resul
 No optimizer participates in P13.0–P13.5 wave or promotion decisions; existing learning
 code is inference/evidence-only and the promotion access point is frozen. This is a
 phase exclusion rule, not evidence of optimizer process isolation. The allowlisted
-write boundary and sealed holdout remain P13.6 work.
+write boundary and sealed-partition non-exposure have since passed OS-enforced attacks.
+Real search/holdout/forward-shadow windows, their instrument hashes, and promotion-grade
+human evidence remain open.
 
 An invisible no-effect live shadow proves distribution coverage, conformance, latency,
 and cost—not downstream human effect outcomes. With explicit consent, blinded exposure
@@ -1949,7 +1951,11 @@ P13.5 retirements for `create_prep_block × deterministic_sandbox` and the exact
 `create_prep_block × apple_eventkit × binding_id@epoch` are complete. P13.4 remains only
 a dedicated one-probe sandbox and the P13.5 EventKit pass transfers only its named managed
 binding; production and wholly outside EventKit scopes remain incumbent-owned. The next
-binding work is P13.6's immutable proposal-only PolicyPayload and signed promotion path.
+binding work is P13.6's promotion-grade evidence path: atomic decision/exposure/outcome
+capture, identifiable improvement statistics, real partition windows, and a new
+instrument epoch frozen before formal dogfood evidence is collected. Immutable
+proposal-only PolicyPayloads, signed bootstrap/rollback records, and the equivalent
+empty-baseline pointer migration are complete; positive-learning promotion remains held.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
@@ -2032,8 +2038,12 @@ binding work is P13.6's immutable proposal-only PolicyPayload and signed promoti
    and composite gate. Repeat the full certificate before retiring any additional scope.
 
 9. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
-   Replace the frozen promoter with a signed, owner-gated path; separate search/holdout/live evidence; simulator never
-   supplies positive promotion credit; sign PromotionRecord before CURRENT changes.
+   Control-plane mechanics are DONE: immutable payloads, a signed owner-gated
+   bootstrap/rollback aperture, simulator-positive-credit rejection, tamper rejection,
+   atomic CURRENT changes, and byte-exact rollback passed. Evidence prerequisites remain
+   OPEN: bind real search/holdout/forward-shadow windows into a pre-search instrument
+   epoch, capture atomic decision/exposure/outcome rows, and require identifiable
+   improvement statistics before positive-learning promotion can open.
 
 10. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.
@@ -2075,8 +2085,11 @@ visible commit/undo and retained only as an owner-frozen rollback selector. The 
 EventKit retirement is now closed for one opaque managed-calendar binding lineage with
 total expanded-target classification, bridge-local identity validation, actual-ID crash
 recovery, and receipt-owned undo. EffectKernel owns only that named lineage; production
-and every wholly outside EventKit scope remain incumbent-owned. The next work makes
-learning immutable proposal payloads plus signed promotion records;
+and every wholly outside EventKit scope remain incumbent-owned. P13.6 now packages the
+preserved empty learning baseline as an immutable PolicyPayload behind signed atomic
+bootstrap/rollback records. The next work adds promotion-grade human evidence and an
+identifiable improvement attestation, then freezes their real partitions and thresholds
+in a new pre-search instrument epoch; positive-learning promotion remains held until then.
 meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
 line count falls as a consequence. The floor is where the next subtraction would blind
 the system, weaken compensation/control, thin evidence, or corrupt evaluation.
