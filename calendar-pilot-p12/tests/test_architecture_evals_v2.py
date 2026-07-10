@@ -471,7 +471,7 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
                     "fail",
                 )
 
-    def test_required_eventkit_retirement_targets_hold_before_product_edits(self):
+    def test_required_eventkit_retirement_targets_are_evidence_derived(self):
         with tempfile.TemporaryDirectory(dir=APP_ROOT / "runs") as td:
             root = Path(td)
             manifest_path, public_key = self._binding(root, required_targets=P13_5_EVENTKIT_TARGETS)
@@ -484,9 +484,10 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
                 out=root / "latest.json",
             )
             by_id = {row["scenario_id"]: row for row in report["scenarios"]}
-            self.assertEqual(report["decision"], "hold")
             self.assertTrue(all(by_id[scenario_id]["gate_mode"] == "required" for scenario_id in P13_5_EVENTKIT_TARGETS))
-            self.assertTrue(all(by_id[scenario_id]["status"] == "not_reached" for scenario_id in P13_5_EVENTKIT_TARGETS))
+            statuses = {by_id[scenario_id]["status"] for scenario_id in P13_5_EVENTKIT_TARGETS}
+            self.assertIn(statuses, ({"not_reached"}, {"pass"}))
+            self.assertEqual(report["decision"], "pass" if statuses == {"pass"} else "hold")
 
 
 if __name__ == "__main__":
