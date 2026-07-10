@@ -135,28 +135,26 @@ and derived decisions/artifact hashes before it can return success.
 
 The legacy v2 fields `report_paths.immutable` and console `immutable_out` mean only
 that the runner chose a fresh per-run destination and refused overwrite at creation
-time. They prove no write protection, retention, post-run tamper resistance, external
-custody, evaluator independence, or authorization. Renaming them requires a future
-versioned report-contract ruler wave.
+time. They prove no write protection, retention, or post-run tamper resistance. Renaming
+them requires a future versioned report-contract ruler wave.
 
 P13 ruler identity and pre-wave binding:
 
 ```bash
 make p13-ruler-test
-make p13-attestation-scaffold-test
 make p13-loc-report
 
-# Development/ruler key only. It proves mechanics; it cannot authorize migration.
-P13_DEV_KEY_DIR="$HOME/.config/calendar-pilot/p13-ruler-dev"
-mkdir -p "$P13_DEV_KEY_DIR"
+# Owner-controlled wave key.
+P13_WAVE_KEY_DIR="$HOME/.config/calendar-pilot/p13-wave"
+mkdir -p "$P13_WAVE_KEY_DIR"
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 \
-  -out "$P13_DEV_KEY_DIR/signing-private.pem"
-openssl pkey -in "$P13_DEV_KEY_DIR/signing-private.pem" -pubout \
-  -out "$P13_DEV_KEY_DIR/signing-public.pem"
-chmod 600 "$P13_DEV_KEY_DIR/signing-private.pem"
+  -out "$P13_WAVE_KEY_DIR/signing-private.pem"
+openssl pkey -in "$P13_WAVE_KEY_DIR/signing-private.pem" -pubout \
+  -out "$P13_WAVE_KEY_DIR/signing-public.pem"
+chmod 600 "$P13_WAVE_KEY_DIR/signing-private.pem"
 
 make p13-instrument \
-  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
+  P13_VERIFY_KEY="$P13_WAVE_KEY_DIR/signing-public.pem"
 ```
 
 Before candidate edits, commit a scope file at
@@ -164,14 +162,14 @@ Before candidate edits, commit a scope file at
 
 ```bash
 make wave-bind WAVE=<wave> CHANGE_CLASS=<ruler|migration|compression|learning> \
-  P13_SIGNING_KEY="$P13_DEV_KEY_DIR/signing-private.pem" \
-  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
+  P13_SIGNING_KEY="$P13_WAVE_KEY_DIR/signing-private.pem" \
+  P13_VERIFY_KEY="$P13_WAVE_KEY_DIR/signing-public.pem"
 
 make binding-manifest-verify WAVE=<wave> \
-  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
+  P13_VERIFY_KEY="$P13_WAVE_KEY_DIR/signing-public.pem"
 
 make wave-harness WAVE=<wave> \
-  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
+  P13_VERIFY_KEY="$P13_WAVE_KEY_DIR/signing-public.pem"
 
 jq -e '
   .decision == "pass" and .ok == true and
@@ -194,38 +192,16 @@ Both `hold` and `fail` return a nonzero shell status. Behavior-bearing waves mus
 clean pre-wave C-VAR artifact with `CVAR_BEFORE=<path>`; the harness will not regenerate
 their baseline after candidate work.
 
-These commands are development/ruler access points only. Local key paths are caller
-inputs and local reports are ignored artifacts. The checked-in root workflow runs the
-deterministic Python ruler with an explicit stub kernel on pull requests and protected
-`main`, generates an ephemeral development key inside the candidate job, and uploads a
-fixed checksummed evidence bundle for 90 days. [Run 29076097058](https://github.com/Whatintheccc/Destination/actions/runs/29076097058)
+Local key paths are caller inputs and local reports are ignored artifacts. The checked-in
+root workflow runs the deterministic Python ruler with an explicit stub kernel on pull
+requests and protected `main`, generates a wave key inside the job, and uploads a fixed
+checksummed evidence bundle for 90 days. [Run 29076097058](https://github.com/Whatintheccc/Destination/actions/runs/29076097058)
 is the exact-main hosted replay for implementation commit
 `def14738de5befff611b14c8371b29a47677b59c`; its retained evidence and limitations are
-recorded in [`../compression-roadmap.md`](../compression-roadmap.md), §8.5. Swift remains
-a separate access point and is not implied by this Linux Python replay. Because evaluator
-code and the development key remain candidate-controlled, neither the hosted run nor a
-local result can authorize an effect-TCB migration. The required external operator
-authorization, reviewer attestation, and isolated evaluator receipt are specified in
-§8.5.1 of that roadmap.
-
-The attestation scaffold is intentionally non-authorizing. It verifies the internal
-consistency of an externally located, self-declared `scaffold_only` policy, evaluator
-packet, and reviewer attestation without executing candidate commands or touching
-product/promotion state. The policy has no bootstrap-root authentication: the report
-always records `policy_provenance_verified: false`, can only be `hold` or `fail`, and
-always records `authorizes_migration: false`. Even a mechanically valid reviewer approval
-exits with blocking status. Run its planted attacks with:
-
-```bash
-make p13-attestation-scaffold-test
-```
-
-`verify_p13_attestation_scaffold.py` is a read-only scaffold probe, not a wave or
-promotion access point. Its policy, packet, review, and output must all be absolute external
-paths. Inputs are read no-follow and reject hard links, Git worktrees, and mutation during
-read; this is file-handling hygiene, not proof of external custody. It remains disconnected
-from `wave-harness`, CI promotion assertions, and `promote_policy.py` until external
-governance and isolated evaluation exist.
+recorded in [`../compression-roadmap.md`](../compression-roadmap.md), §8.5. Swift and
+app-bundled EventKit remain separate access points and are not implied by this Linux
+Python replay. Effect-capable waves pass only when the owner-signed manifest, composite
+wave, and every affected app/live leg pass together.
 
 The P13.1 no-effect vertical has one focused root access point:
 
@@ -262,13 +238,15 @@ crash/restart, unknown-outcome reconciliation, revocation races, and compensatio
 conflict. Its adapter has no credentials or external-I/O capability, the selector
 defaults to the incumbent outside an explicit sandbox invocation, and every artifact
 states `authorizes_production: false`. It cannot authorize EventKit, deployment,
-retirement, or promotion; those remain behind the external §8.5.1 boundary.
+retirement, or promotion. P13.4 binds EventKit separately through the canonical app
+bundle, exact sandbox calendar, explicit opt-in, reconciliation, verified compensation,
+cleanup, and affected live legs in §8.5.1.
 
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
 writes and leave `CURRENT` byte-identical. P13.6 may
 replace that refusal only after immutable `PolicyPayload`, signed `PromotionRecord`,
-isolated evaluator/holdout, and atomic `CURRENT` rollback contracts are binding.
+sealed holdout, and atomic `CURRENT` rollback contracts are binding.
 
 `make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
 only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live
