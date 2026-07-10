@@ -15,10 +15,13 @@ from evals.architecture.run_architecture_evals import (
 )
 from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrument_bundle
 from evals.architecture.predicates.p13 import (
+    SANDBOX_CASE_EXPECTATIONS,
+    SANDBOX_EQUALITY_REQUIREMENTS,
     cited_read_side_cutover,
     cited_required_projection,
     product_core_no_effect_reachability,
     reducer_determinism,
+    sandbox_effect_contract,
 )
 
 
@@ -36,6 +39,21 @@ P13_1_TARGETS = {
     "target.product_core_no_effect_reachability",
 }
 P13_2_TARGETS = P13_1_TARGETS | {"target.cited_read_side_cutover"}
+P13_3_TARGETS = {
+    "target.trusted_ingress_forgery",
+    "target.effect_ticket_binding",
+    "target.compensation_ticket_binding",
+    "target.ticket_single_claim",
+    "target.duplicate_delivery",
+    "target.crash_before_claim",
+    "target.crash_after_claim",
+    "target.crash_after_dispatch",
+    "target.verify_ambiguity_reconcile",
+    "target.revoke_claim_race",
+    "target.restart_reconciliation",
+    "target.compensation_conflict_hold",
+    "target.no_learning_effect_path",
+}
 
 
 class ArchitectureEvalV2Tests(unittest.TestCase):
@@ -243,6 +261,43 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
         scenario_set = load_scenario_set(P13_SCENARIOS)
         row = next(row for row in scenario_set["scenarios"] if row["scenario_id"] == "target.optimizer_write_boundary")
         self.assertEqual(row["predicate_id"], "p13_target_not_implemented")
+
+    def test_p13_3_targets_use_frozen_evidence_predicate_before_implementation(self):
+        scenario_set = load_scenario_set(P13_SCENARIOS)
+        by_id = {row["scenario_id"]: row for row in scenario_set["scenarios"]}
+        self.assertTrue(all(by_id[scenario_id]["predicate_id"] == "sandbox_effect_contract" for scenario_id in P13_3_TARGETS))
+
+    def test_p13_3_predicate_accepts_complete_raw_facts_and_rejects_each_planted_counterexample(self):
+        universal = {
+            "authority_profile": "owner_controlled_sandbox",
+            "authorizes_production": False,
+            "adapter_id": "deterministic_sandbox",
+            "adapter_credential_count": 0,
+            "adapter_external_io": False,
+        }
+        for case, expected in SANDBOX_CASE_EXPECTATIONS.items():
+            with self.subTest(case=case):
+                evidence = {"case": case, **universal, **deepcopy(expected)}
+                for left, right in SANDBOX_EQUALITY_REQUIREMENTS.get(case, ()):
+                    evidence[left] = evidence[right] = f"sha256:{case}:{left}"
+                self.assertEqual(sandbox_effect_contract({"effect_kernel": evidence})["status"], "pass")
+
+                key = next(iter(expected))
+                planted = deepcopy(evidence)
+                value = planted[key]
+                if isinstance(value, bool):
+                    planted[key] = not value
+                elif isinstance(value, int):
+                    planted[key] = value + 1
+                elif isinstance(value, list):
+                    planted[key] = [*value, "planted-counterexample"]
+                else:
+                    planted[key] = f"wrong:{value}"
+                self.assertEqual(sandbox_effect_contract({"effect_kernel": planted})["status"], "fail")
+
+                production = deepcopy(evidence)
+                production["authorizes_production"] = True
+                self.assertEqual(sandbox_effect_contract({"effect_kernel": production})["status"], "fail")
 
 
 if __name__ == "__main__":
