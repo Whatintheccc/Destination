@@ -64,6 +64,14 @@ class P13LearningRulerTests(unittest.TestCase):
         self.assertEqual(sha256_file(key), root["public_key_sha256"])
         self.assertEqual(root["allowed_instrument_epochs"], ["p13.6-control.1"])
 
+    def test_committed_current_resolves_its_signed_closure_from_content_archive(self):
+        payload, record = load_current_policy_payload(ROOT / "experiments/promoted/CURRENT.json")
+        self.assertEqual(sha256_file(ROOT / record["payload"]["path"]), record["payload"]["sha256"])
+        self.assertEqual(payload["payload_id"], "p13.6-empty-baseline")
+        self.assertEqual(record["transition"], "bootstrap")
+        self.assertFalse((ROOT / record["instrument_bundle"]["path"]).exists())
+        self.assertFalse((ROOT / record["binding_manifest"]["path"]).exists())
+
     def test_positive_learning_transition_stays_closed_without_statistics_contract(self):
         with tempfile.TemporaryDirectory(dir=ROOT / "runs") as td:
             out = Path(td) / "promoter"

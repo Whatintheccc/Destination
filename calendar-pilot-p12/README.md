@@ -192,11 +192,13 @@ Both `hold` and `fail` return a nonzero shell status. Behavior-bearing waves mus
 clean pre-wave C-VAR artifact with `CVAR_BEFORE=<path>`; the harness will not regenerate
 their baseline after candidate work.
 
-Local key paths are caller inputs and local reports are ignored artifacts. The two exact
-`runs/` artifacts referenced by the repository's signed baseline PromotionRecord are a
-narrow exception: its InstrumentBundle and BindingManifest are tracked so a fresh checkout
-can verify `CURRENT` without workstation-local state. Their signed hashes make any later
-regeneration visible as a dirty integrity failure. The checked-in
+Local key paths are caller inputs and local reports under `runs/` are ignored artifacts.
+The repository's signed baseline PromotionRecord retains its original run locators, while
+the exact InstrumentBundle and BindingManifest bytes it references are tracked in the
+content-addressed `experiments/learning/archive/artifacts/` closure. Resolution falls back
+to that archive only when the signed locator is absent and the SHA-256 identity matches;
+an existing mismatched locator still fails. This lets a fresh checkout verify `CURRENT`
+without adding generated `runs/` state or weakening tamper detection. The checked-in
 root workflow runs the deterministic Python ruler with an explicit stub kernel on pull
 requests and protected `main`, generates a wave key inside the job, and uploads a fixed
 checksummed evidence bundle for 90 days. [Run 29076097058](https://github.com/Whatintheccc/Destination/actions/runs/29076097058)
