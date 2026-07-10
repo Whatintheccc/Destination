@@ -91,6 +91,25 @@ def _tuning_pin(current_path: Path) -> tuple[Any, dict[str, Any]]:
     from calendar_pilot.types import PolicyTuning
 
     current = load_json(current_path)
+    if current.get("current_policy_pointer_schema_version") == "current_policy_pointer.v1":
+        from scripts.p13_learning_control import load_current_policy_payload
+
+        policy_payload, record = load_current_policy_payload(current_path)
+        parameters = policy_payload.get("policy_parameters", {})
+        tuning_payload = parameters.get("policy_tuning") if isinstance(parameters.get("policy_tuning"), dict) else parameters
+        target = resolve(str(record.get("payload", {}).get("path", "")))
+        if not target.is_file() or sha256_file(target) != record.get("payload", {}).get("sha256"):
+            raise ValueError("signed CURRENT payload identity changed during C-VAR materialization")
+        return PolicyTuning.from_dict(tuning_payload), {
+            "current_path": str(current_path),
+            "current_sha256": sha256_file(current_path),
+            "policy_tuning_id": tuning_payload.get("tuning_id"),
+            "policy_tuning_path": str(target),
+            "policy_tuning_sha256": sha256_file(target),
+            "promotion_record_id": record.get("record_id"),
+            "promotion_record_sha256": current.get("promotion_record", {}).get("sha256"),
+            "signed_current_verified": True,
+        }
     target = resolve(str(current.get("path", ""))) if current.get("path") else current_path
     tuning_payload = load_json(target) if target.exists() else {}
     return PolicyTuning.from_dict(tuning_payload), {
