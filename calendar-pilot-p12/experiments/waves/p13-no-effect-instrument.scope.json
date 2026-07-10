@@ -1,6 +1,7 @@
 {
   "wave_scope_schema_version": "p13_wave_scope.v1",
   "declared_paths": [
+    "Makefile",
     "calendar-pilot-p12/Makefile",
     "calendar-pilot-p12/README.md",
     "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
@@ -25,7 +26,8 @@
       "docs",
       "experiment_configuration",
       "ruler_scripts",
-      "tests"
+      "tests",
+      "workspace_access"
     ],
     "instruments": [
       "access_point_docs",
@@ -33,7 +35,8 @@
       "experiment_configuration",
       "release_and_wave_ruler",
       "tests",
-      "wave_gate"
+      "wave_gate",
+      "root_ci"
     ],
     "control_planes": [
       "effect_tcb",
