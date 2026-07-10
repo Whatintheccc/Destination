@@ -1,0 +1,690 @@
+{
+  "artifacts": [
+    {
+      "kind": "access_point",
+      "path": ".github/workflows/p13-ruler.yml",
+      "sha256": "9ebef866599e8a38187ffdf6677e7c33540a3c7259a1ce2fead9a0598deddb62",
+      "size_bytes": 17113
+    },
+    {
+      "kind": "access_point",
+      "path": "Makefile",
+      "sha256": "12f50fa003b9c4dfab16e826c475299c4542db6e2fd6bec555202a9fe7c83244",
+      "size_bytes": 888
+    },
+    {
+      "kind": "access_point",
+      "path": "calendar-pilot-p12/Makefile",
+      "sha256": "c4e263ce9c187a94fe8ea1d4ed91e9504bb5dcedd5a207306c788eef7dda60b8",
+      "size_bytes": 10591
+    },
+    {
+      "kind": "access_point",
+      "path": "calendar-pilot-p12/README.md",
+      "sha256": "c00a08a775269a75e40d1c971d2ffff21c4bd0e7ff6052425626bfa17588667f",
+      "size_bytes": 18569
+    },
+    {
+      "kind": "architecture",
+      "path": "compression-roadmap.md",
+      "sha256": "e0769d8aa2a471e6cd196276fa4d5b709ed5e4c69360f8e7b46fa982af114f15",
+      "size_bytes": 137201
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
+      "sha256": "25ed8aeb36b272a1bc08aac3b3a81713379ebb158967a413a24efdbb841745d1",
+      "size_bytes": 10843
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/configs/p13_learning_optimizer_boundary.json",
+      "sha256": "a8cd9e7d410971b5c7b97ae6b218ad125f09651bc8fe009ac5b55e2794b640ac",
+      "size_bytes": 572
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/configs/p13_learning_promotion_public.pem",
+      "sha256": "22b5b6479ae70799f101caecef35a51db9e3c7c52ac317b925edc7de532ac9a2",
+      "size_bytes": 451
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/configs/p13_learning_promotion_root.json",
+      "sha256": "0c9835257a6d04ea01e3c2e93455c70fa8b6dea0277b6df3073a1c2e13452750",
+      "size_bytes": 323
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/configs/p13_ownership_map.json",
+      "sha256": "c298e788068a6134b2b3ebd7b3f3af9628f97dd5225db56f5fb1adbb782f7b97",
+      "size_bytes": 5749
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/configs/training_weights.json",
+      "sha256": "14ec557019dc0e9b87871c4ae72619789e1fe165f27483b4abd8f74a134fda39",
+      "size_bytes": 181
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/b_migrate_create_prep_block_p13_1.json",
+      "sha256": "be71d365f9c777a607f7b432b5eea2c9f7a624269c1b2f8136e2e15e78e72c44",
+      "size_bytes": 2561
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/b_migrate_create_prep_block_p13_3.json",
+      "sha256": "b8275fc425609a359508924b570e645c467ef5215060e79231584b5371309636",
+      "size_bytes": 2191
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/b_migrate_create_prep_block_read_side_p13_2.json",
+      "sha256": "f68215c3ecf1eebaaabff43426b56066dca0ba3504aecc273db058c1e96c1d10",
+      "size_bytes": 1026
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/b_migrate_frontend_view_state.json",
+      "sha256": "5b2d0653d7339a55d8159eea5110c862c1eec48a667de964f098a07daa8a9540",
+      "size_bytes": 1198
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/b_migrate_frontend_view_state_v2.json",
+      "sha256": "da6095342b20d85b331ebcd9c3e34e070b6fc74a34fce3f2ab11cbd72e664ba0",
+      "size_bytes": 1322
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/create_prep_block_required_fields_v1.json",
+      "sha256": "cb5cf66adc01d61a1fe2ac937e2bd2d1209fb890ecf97cafc3648aa5c8b73f9f",
+      "size_bytes": 1648
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/cvar_seed_set.json",
+      "sha256": "6341f5ea14ea75de57c32cf6ca50feeac55890f0a7fd88239306eba1befcafaf",
+      "size_bytes": 558
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/cvar_thresholds.json",
+      "sha256": "79578d4ba54953df0b5d0f326258756103cad06244d145d8ff8b13452ef4fb12",
+      "size_bytes": 256
+    },
+    {
+      "kind": "configuration",
+      "path": "calendar-pilot-p12/experiments/configs/promotion_thresholds.json",
+      "sha256": "8d2362be24f1c2d7365d00c26ac244999506e0d37e5e2c67b1621fbd17a50459",
+      "size_bytes": 530
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/VERSIONS.json",
+      "sha256": "82fe792e983282a1270485e6967fff3f5f4f02bfff3fcf42163d04cf1aebe7ce",
+      "size_bytes": 2451
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/architecture_eval_report.schema.json",
+      "sha256": "0a1a9bd95241103880ef2cdf9ef3cd83d6e40896890c784e5b1ad74906bcf991",
+      "size_bytes": 8961
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/architecture_eval_report_v2.schema.json",
+      "sha256": "866ce3a5c4f39f606f77575b76aef2778902febb77f995082319e4e1734faec4",
+      "size_bytes": 3649
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/b_migrate_artifact.schema.json",
+      "sha256": "49589df82d7735adac4d44cad56a8d5975cfac0cfe7e0f9c5cab9d12682d351f",
+      "size_bytes": 1143
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/b_migrate_report.schema.json",
+      "sha256": "9a1d7935e4df8f32461aeccc1bd393dd753ab1e54f146b3fdb5ad684ce0d0096",
+      "size_bytes": 898
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/b_migrate_report_v2.schema.json",
+      "sha256": "599ee9cfdbb01ce8bc5f8babeb4be877b70ee061a0924b334d11a1fe9ee7bc1f",
+      "size_bytes": 1046
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/cvar_frontier_set.schema.json",
+      "sha256": "de89081eab3bc3e9c357f211eaba615e4af5e4ab412d4b6edaa95c6e42cf01ec",
+      "size_bytes": 1170
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/cvar_report.schema.json",
+      "sha256": "313b8cccf09de0e753d479a0de8a8c2c96dbc76f70973eb0565e339f9f1304b8",
+      "size_bytes": 1284
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/cvar_report_v2.schema.json",
+      "sha256": "da0cc8b69ba8d0ff15bb4b01d33d078afb2d27253e8dc82ebaa29f2a21863821",
+      "size_bytes": 1164
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/experiment_record.schema.json",
+      "sha256": "4f200d13820ca7da7f2006fd85d7c3fe3543ee0e285dbddbbd13f832da5c4cd2",
+      "size_bytes": 898
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/experiment_record_v2.schema.json",
+      "sha256": "b938d8691895c187c846cc8d8565458f7b24c8835fcc612a5804ce458b39a929",
+      "size_bytes": 3674
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/learning_partition_manifest.schema.json",
+      "sha256": "060767bf5f815c14e8c1fbe9d33eb661c2db83bac149e391d5867322b4633d2b",
+      "size_bytes": 2482
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/managed_eventkit_live_certificate.schema.json",
+      "sha256": "87e5254a4dd2a14e5278ef180c659bf85b8a6e1c5b9f34cce51ebaf8721bbb3b",
+      "size_bytes": 3663
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/optimizer_execution_report.schema.json",
+      "sha256": "51a97f420fdecd3019243007e786aa49d0344ae072308f0a6edaf5f48d2ee97b",
+      "size_bytes": 1865
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_attestation_scaffold_report.schema.json",
+      "sha256": "18de98c0881bcea30c0b1f1fa2189d1c82827074becc82551c9982d2adc11451",
+      "size_bytes": 2388
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_binding_manifest.schema.json",
+      "sha256": "b3b36d33cc50e1a8a183a37cf0a5ceffb4fac09802c1c959323ffbfc0d0611e2",
+      "size_bytes": 2414
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_binding_manifest_verification.schema.json",
+      "sha256": "aacd902ecf56f6d2829b216545b2cb9a713bd24745b12cf3686d1cee7558bde4",
+      "size_bytes": 825
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_evaluation_packet_scaffold.schema.json",
+      "sha256": "58ed8a6f0d59e77c79b70244f0c91786a015ab67e75528b7c7d82dbd0feda1be",
+      "size_bytes": 5931
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_instrument_bundle.schema.json",
+      "sha256": "784bac1b9efb220561b38425f39b2405b253baf3c53e1f42ab060c000646fdef",
+      "size_bytes": 1475
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_loc_report.schema.json",
+      "sha256": "70e7d3a73d12b723878c2a8d958a3af351e68e5314d7c69fbbb9216893fe303a",
+      "size_bytes": 1532
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_root_list_verification.schema.json",
+      "sha256": "dff90e55c36082626ba54fb981502aaf0f7c86a84174233508b4539c4cf3b4e5",
+      "size_bytes": 781
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_scaffolding_trust_policy.schema.json",
+      "sha256": "c3b9a1cdd507b16e2d4ae5e481667a1929f66375c6b436ffbfa13b3b5b154fcd",
+      "size_bytes": 2453
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_tcb_review_attestation_scaffold.schema.json",
+      "sha256": "c6689fe6af56b379623e0e9d23b0c20f9b02a38d916584640be021a4a8c60d69",
+      "size_bytes": 2562
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_wave_gate_report.schema.json",
+      "sha256": "798a25f634a1d7995eb749848d4660b99d4eb98880331862643b5b1e3711d9e1",
+      "size_bytes": 1224
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/p13_wave_scope.schema.json",
+      "sha256": "6e624ec1ebee4d87b71b435c34a7f0bb3d1107c0aea7a8785a90e1c72820997c",
+      "size_bytes": 2700
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/policy_payload.schema.json",
+      "sha256": "96c7d9484cfc9832f05212b432992236644953a00d2f8406537a9d923ddf8153",
+      "size_bytes": 2264
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/promotion_record.schema.json",
+      "sha256": "e9576a4eaccc0cc9698183a5d4ca7d3e21af768c6281ad48fc70ec3c001d9d64",
+      "size_bytes": 3632
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/required_field_manifest.schema.json",
+      "sha256": "f45895a570676b31ba4b7949e0fad6174cc0b373a791f9061a6bd5fbb9533b2c",
+      "size_bytes": 1785
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/reward_head_report_v2.schema.json",
+      "sha256": "a9c004ac93e89d5f0e4ceaaed8d832891595ec29edfc0fea9fe1efd84c94641b",
+      "size_bytes": 1637
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/reward_head_report_v3.schema.json",
+      "sha256": "c0dda27ad56e78926b4c639255983d4d318205e19f4b712cbbf826074d4fd1d7",
+      "size_bytes": 1612
+    },
+    {
+      "kind": "contract",
+      "path": "calendar-pilot-p12/contracts/reward_ingress_ledger.schema.json",
+      "sha256": "362354fbc97c6bb2eee7d43834a6c4f74e6e87bcd94cf2056ee8b3447a9d5254",
+      "size_bytes": 2302
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/__init__.py",
+      "sha256": "115635205c25280af37bd3a69e5861c61760ab671f25d6746220a15ae6273856",
+      "size_bytes": 140
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/p12_current.py",
+      "sha256": "f5077a0b39139527711bbc764dfec18e2b2bce2a411a7b8450597f0e61933667",
+      "size_bytes": 44766
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/p13_current.py",
+      "sha256": "a37a554fd6f3b97152ebfabd11eaeb5ee78bd963526df03a8eb3cab3cdb141a2",
+      "size_bytes": 26216
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/p13_effect_scenarios.py",
+      "sha256": "ab597de8697525c7bb016cad37bee374a7ccadb5233c81059c0878bb9fcf2a13",
+      "size_bytes": 17458
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/p13_eventkit_retirement_scenarios.py",
+      "sha256": "36708b3513a92fafa561640e046073ef105aa908e2bb81886bda4c6b22e5cf5c",
+      "size_bytes": 29439
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/p13_eventkit_scenarios.py",
+      "sha256": "b1f830e33e1f9c76d7f83b3369071536c9091e69d099f62840cbdf3f0e3b0472",
+      "size_bytes": 16312
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/p13_learning_scenarios.py",
+      "sha256": "d37e2036bb8b80fded8f137d6029a6ba50bbe7a12da012fb2f16ad137a67e578",
+      "size_bytes": 17286
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/adapters/p13_retirement_scenarios.py",
+      "sha256": "dff05c9b7b95598e886a9fda579bbe8544c042d3199e8884f951364a5e15d72f",
+      "size_bytes": 9505
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/evaluation.py",
+      "sha256": "e8684e1bce8497e1bbc61d6e089f4c64bba7fb6c0cc1e48ac04d90d5bb84c065",
+      "size_bytes": 3139
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/predicates/__init__.py",
+      "sha256": "9d26f91160462f9d19ff8bac202074d9caaa7f3d5d3c4655d63b833decf308f6",
+      "size_bytes": 494
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/predicates/core.py",
+      "sha256": "41b13f0e86a725a59234d400ada976d9d2a9a1b8d580a0bdfa32fe497d879bb6",
+      "size_bytes": 48479
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/predicates/p13.py",
+      "sha256": "f9cef300c08a710e365661664a857f2d5999b1863f381ff77526ea09549713c1",
+      "size_bytes": 39209
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/run_architecture_evals.py",
+      "sha256": "6c24a13ed7bcbd651797db10ea138c9ca8210a7f7cb07a7f22e905ccbaefaeca",
+      "size_bytes": 24691
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/scenarios/canonical.json",
+      "sha256": "b673b6cc86f15bbd49f87dc0360884d5e1daa61108b8a4a5b3273128d6268e7c",
+      "size_bytes": 7014
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/architecture/scenarios/p13_v2.json",
+      "sha256": "4c5ad9f1d49a6458e2a26fec8e7382f308425b80c42d49d9f184762830c350d4",
+      "size_bytes": 16355
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/p13_ruler/attestation_scaffold.py",
+      "sha256": "1a9510a14b48238987638abcf5c9352ee31774d4eb63d04acc1c7ca4d289b972",
+      "size_bytes": 29444
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/p13_ruler/core.py",
+      "sha256": "c4c9ba4571e4e84e635e264c2c8e3374cf4dfb3bc03c4270860d4536b6eacba5",
+      "size_bytes": 24745
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/evals/p13_ruler/wave.py",
+      "sha256": "088e4d4bb06941c363622af8f7d589dee7fa815a2135c9f54e670d05ba45d15c",
+      "size_bytes": 62448
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/evaluate_policy_payload.py",
+      "sha256": "ee3ff62708c2aafa22e4178d237fa251db72d5f49c33f8a945f2060ad027e39c",
+      "size_bytes": 7816
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/make_binding_manifest.py",
+      "sha256": "8b222fe45fd8273bc311badcbf30d51c2c61becf26bbb965d10f9e9b6ee951e9",
+      "size_bytes": 1884
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/make_experiment_record.py",
+      "sha256": "ab678893b919fa029272d3bca98101748d0902ee2d06b97a204683276aebe5d1",
+      "size_bytes": 1917
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/make_p13_instrument_bundle.py",
+      "sha256": "aa1c9f307c951e97aa74417e9a18643b433bd101bc65e8954a971ee2621ee206",
+      "size_bytes": 1425
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/p13_learning_control.py",
+      "sha256": "c334213bdd0571f16fa66c5e22f964027bcdcb61ad3d0fd3f7ec4227b0be9567",
+      "size_bytes": 17804
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_new.py",
+      "sha256": "388a3df7e1050c346b8347a94409742949488923c24fec084c5eb1e8cddc4a69",
+      "size_bytes": 940
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_old.py",
+      "sha256": "7d891b9e454e51e2ccd2c3bb1c53f5a4c9df5d1dde810e58f9b8c1ce7921e928",
+      "size_bytes": 938
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_p13_1_new.py",
+      "sha256": "e7e867d816aff31fe2f88ec8d6c9e6c333c70d21085c2e8eaf66a05b079c09bd",
+      "size_bytes": 2894
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_p13_1_old.py",
+      "sha256": "a26f19b547e62a6452c4cd9887e7d599cb484d2f944003bc10730d790b2db8b3",
+      "size_bytes": 4214
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_p13_2_new.py",
+      "sha256": "18a69545aaf01d6e70e1f9c05cf0b102a2e85eae5e6639b51d7f5e2c20f76f12",
+      "size_bytes": 3944
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_p13_2_old.py",
+      "sha256": "a73879f5b2709cf1931245a3d036ed7d6aba02873238c3565fa29b5638154644",
+      "size_bytes": 3305
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_p13_3_new.py",
+      "sha256": "ada1b9205b9a382e3b0b21d1c9583dc3c5022ed5901b0960c644bc0bdc807a46",
+      "size_bytes": 5318
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_b_migrate_p13_3_old.py",
+      "sha256": "f2d2b63800e2618ffe85929f809bb04e4bd0dc77a7a18a3561d2bb41bd8d8db7",
+      "size_bytes": 4651
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/produce_cvar_frontier.py",
+      "sha256": "18aafc268baa42162b1425d3be4f057fcb8b951c009507a2d16ec65cccf69c65",
+      "size_bytes": 1544
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_b_migrate_dual_run.py",
+      "sha256": "8a608180830f5f46f4e7c9549d03800d0d56f9fe0f02032486d2393c38a59269",
+      "size_bytes": 5680
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_b_migrate_dual_run_v2.py",
+      "sha256": "6ed06249e323b3dbfc6cf3c17d828cf6756f9fcb1f8af9b68f21882108c5b660",
+      "size_bytes": 3159
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_cvar_report.py",
+      "sha256": "cdab084f03a836428e84055ced7ffe39d27fa3090096d494a1b5f54bf666b0dd",
+      "size_bytes": 11818
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_cvar_report_v2.py",
+      "sha256": "aba3b6e94eb133cf766de7383e4e358435828f2ef7bc844f45bdd96d25d8eb61",
+      "size_bytes": 1342
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_lab_experiment.py",
+      "sha256": "c8d02e8b7273521ba0c795c0d2410159bc4f57af5388c2d107fee9a5eefc2fc0",
+      "size_bytes": 32200
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_p13_loc_report.py",
+      "sha256": "2e9c6c2c6245c1b7a4a6e81d39a34c6c26207429f8c1c408a29e6cc886bbe057",
+      "size_bytes": 1369
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_p13_wave_gate.py",
+      "sha256": "b8fdd1efbc7998b8ed024a93b6a574415ed4c6a42434fc6bf076737c13cb1b4b",
+      "size_bytes": 11853
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/run_policy_optimizer.py",
+      "sha256": "9136a636af260daaf7a2a257e380cdbfbbeaf069f81249f7e3f323b36246ab78",
+      "size_bytes": 5927
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/verify_binding_manifest.py",
+      "sha256": "1bad2a81ea199cffbda43fffcde4ceeba4edb05f0d1eb556b1281ada7413c5da",
+      "size_bytes": 1390
+    },
+    {
+      "kind": "evaluator",
+      "path": "calendar-pilot-p12/scripts/verify_p13_attestation_scaffold.py",
+      "sha256": "677925057002bb6445e31fb5f1c39226a6adb3ca6d2646d7a90175c277c27ac6",
+      "size_bytes": 2153
+    },
+    {
+      "kind": "fixture",
+      "path": "calendar-pilot-p12/tests/fixtures/p13_action_rewards.jsonl",
+      "sha256": "142c857f94b31a0a4c4e3dd07d889d997e43e44842b031f257ceaf6c085a5c95",
+      "size_bytes": 1152
+    },
+    {
+      "kind": "optimizer",
+      "path": "calendar-pilot-p12/scripts/policy_optimizer_worker.py",
+      "sha256": "b7a21d3ec3ba6c34622146ecccf46fc49fb21dbf5b430e7ebcf6035a4a857465",
+      "size_bytes": 2897
+    },
+    {
+      "kind": "promotion",
+      "path": "calendar-pilot-p12/scripts/make_reward_head_report.py",
+      "sha256": "20e18b20de3466aace9c8ed481a85bf56b5e9ab03f7bd4693aea4abead32d854",
+      "size_bytes": 13126
+    },
+    {
+      "kind": "promotion",
+      "path": "calendar-pilot-p12/scripts/promote_policy.py",
+      "sha256": "5f770148db2280a502ac5631e5b90459d1168881f2acece9563b98bb771c645a",
+      "size_bytes": 5082
+    },
+    {
+      "kind": "template",
+      "path": "calendar-pilot-p12/experiments/templates/experiment_record.template.json",
+      "sha256": "ac1876bf54dd9cf32085e313a34d6c57d83280f56a6b46e1dcd6a4d9c724dffa",
+      "size_bytes": 672
+    },
+    {
+      "kind": "template",
+      "path": "calendar-pilot-p12/experiments/templates/experiment_record_v2.template.json",
+      "sha256": "6017afe241b45d9eb0c8914b3b591ca2e6cbe6a8e63bda3686c88ae083c8f1b9",
+      "size_bytes": 1622
+    },
+    {
+      "kind": "template",
+      "path": "calendar-pilot-p12/experiments/templates/p13_wave_scope.template.json",
+      "sha256": "0aaa8257c22b5a245646c658d523735694569d270f4f25c3d27ec7d2f6f7ceb8",
+      "size_bytes": 338
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_architecture_evals.py",
+      "sha256": "18b700652aeb33ae9ffc43102bb04d6ba7e7214b3c39762e328a6c229cd54796",
+      "size_bytes": 46079
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_architecture_evals_v2.py",
+      "sha256": "6fc275e124a16c54a7febea2f100f4a5c878494348eb85d4256881ddd4e28e3d",
+      "size_bytes": 23836
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_p13_attestation_scaffold.py",
+      "sha256": "72eb522658599825864d94de54bd692b12b8e6371ed05b40794393c8fb94f8b0",
+      "size_bytes": 27688
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_p13_cited_read_side.py",
+      "sha256": "a5f51cd629cb215361128c9ffe07956e141e9abf9189c91629a50c402cd81b08",
+      "size_bytes": 5300
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_p13_learning_promotion.py",
+      "sha256": "e406e6e485eef5879c0fd1995162b37a435482924472dee47e0edb44de335c97",
+      "size_bytes": 20896
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_p13_no_effect_vertical.py",
+      "sha256": "b39643ae108284221404901d138d9822a0de20d7c7414e75bfd644d76be70e37",
+      "size_bytes": 7159
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_p13_promotion_freeze.py",
+      "sha256": "c1a204ab6ff8940e2adb1bc40939c18c4109f3b69979511a5260c8acb3141702",
+      "size_bytes": 2550
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_p13_ruler.py",
+      "sha256": "bc769276d09b10f880c6ac7feaea6d3a5f456df57a859510015c5f883fb2c5b3",
+      "size_bytes": 8987
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_step_e_instrument_reports.py",
+      "sha256": "a6d101fec79c5c15618b636d3bc921d0e440a8c18c5780f9f664fcc6535c90f6",
+      "size_bytes": 15849
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_wave_harness.py",
+      "sha256": "920c0acdb4b4bfcbf951eb8b02a068440a69df393217837d88bebe196d31374e",
+      "size_bytes": 2618
+    },
+    {
+      "kind": "test",
+      "path": "calendar-pilot-p12/tests/test_wave_harness_v2.py",
+      "sha256": "8dbd934fc9c9d644dac5ff024355e098b63501457f0d7ac9f7e96ce1abcb26ac",
+      "size_bytes": 48430
+    }
+  ],
+  "bundle_sha256": "bb7325267150ecf120e4213a302819fe31a74c25a0fa77b25b459b3ab197b9f8",
+  "instrument_epoch": "p13.6-control.1",
+  "p13_instrument_bundle_schema_version": "p13_instrument_bundle.v1",
+  "repository": {
+    "app_path": "calendar-pilot-p12",
+    "app_tree_sha": "f7cfda26cf46e41420aee18a0b2c846bdfe9cad0",
+    "dirty": false,
+    "git_sha": "64575751a3614fcaf198a558e02ca6c2ba36f049",
+    "git_status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "toolchain": {
+    "implementation": "CPython",
+    "openssl": "OpenSSL 3.6.1 27 Jan 2026 (Library: OpenSSL 3.6.1 27 Jan 2026)",
+    "platform": "macOS-26.3.1-arm64-arm-64bit",
+    "python": "3.12.8"
+  },
+  "verification_root": {
+    "algorithm": "rsa-sha256",
+    "public_key_sha256": "22b5b6479ae70799f101caecef35a51db9e3c7c52ac317b925edc7de532ac9a2"
+  }
+}
