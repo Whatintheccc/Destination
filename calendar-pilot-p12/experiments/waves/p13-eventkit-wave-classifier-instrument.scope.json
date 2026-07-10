@@ -11,7 +11,7 @@
     "actions": ["*"],
     "backends": ["*"],
     "surfaces": ["configuration", "evaluation", "ruler_scripts", "tests", "wave_scope"],
-    "instruments": ["binding_manifest", "configuration", "release_and_wave_ruler", "tests", "wave_gate"],
+    "instruments": ["architecture_eval", "binding_manifest", "configuration", "release_and_wave_ruler", "tests", "wave_gate"],
     "control_planes": ["effect_tcb", "evaluator", "optimizer"]
   },
   "required_scenarios": [
