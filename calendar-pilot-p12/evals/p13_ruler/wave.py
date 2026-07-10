@@ -537,6 +537,14 @@ def verify_root_list(manifest: dict[str, Any], *, now: datetime | None = None) -
         artifact_path = resolve(str(artifact.get("path", "")), root=GIT_ROOT)
         if not artifact_path.is_file() or sha256_file(artifact_path) != artifact.get("sha256"):
             row_failures.append("artifact is missing or its hash changed")
+        elif (
+            entry.get("leg") == "live-eventkit-e2e"
+            and "target.eventkit_managed_live_contract" in set(manifest.get("required_scenarios", []))
+        ):
+            if status != "ran" or entry.get("affected_by_wave") is not True:
+                row_failures.append("managed EventKit retirement requires a fresh affected ran leg")
+            else:
+                row_failures.extend(_managed_eventkit_live_certificate_failures(load_json(artifact_path)))
         if not str(entry.get("owner", "")).strip() or not str(entry.get("sign_off", "")).strip():
             row_failures.append("owner and sign_off are required")
         try:
@@ -566,6 +574,76 @@ def verify_root_list(manifest: dict[str, Any], *, now: datetime | None = None) -
         "failures": failures,
         "hold_reasons": holds,
     }
+
+
+def _managed_eventkit_live_certificate_failures(report: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+
+    def require(condition: bool, detail: str) -> None:
+        if not condition:
+            failures.append(detail)
+
+    def integer(value: Any) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+
+    health = report.get("health", {})
+    material = report.get("materialization", {})
+    binding = material.get("binding", {})
+    app = material.get("app_identity", {})
+    bridge = material.get("bridge_identity", {})
+    receipts = material.get("receipt_external_ids", {})
+    marker_scan = material.get("marker_scan", {})
+    parent = material.get("parent_fixture", {})
+    final = material.get("final_snapshot", {})
+    driver = material.get("driver", {})
+    actual_external_id = str(material.get("actual_external_id", ""))
+    current_sha = repository_identity()["git_sha"]
+    sha_fields = [
+        material.get("creating_receipt_sha256"),
+        material.get("creating_receipt_post_state_hash"),
+        binding.get("fingerprint_sha256"),
+        binding.get("app_sha256"),
+        binding.get("bridge_sha256"),
+    ]
+
+    require(report.get("provider") == "apple_eventkit", "managed EventKit live provider is not apple_eventkit")
+    require(report.get("require_live") is True and report.get("mutation_enabled") is True, "managed EventKit live mutation was not explicitly required")
+    require(health.get("configured") is True and health.get("authorization_status") == "full_access", "managed EventKit live permission is not full_access")
+    require(material.get("managed_eventkit_live_certificate_schema_version") == "managed_eventkit_live_certificate.v1", "managed EventKit live certificate version is invalid")
+    require(material.get("contract_validation", {}).get("status") == "pass", "managed EventKit live certificate schema validation did not pass")
+    require(material.get("status") == "passed", "managed EventKit live certificate did not pass")
+    require(material.get("authority_profile") == "owner_controlled_eventkit_binding_retirement", "managed EventKit live authority profile is invalid")
+    require(material.get("authorizes_production") is False, "managed EventKit live certificate claims production authority")
+    require(material.get("repository_commit") == current_sha, "managed EventKit live certificate is not from the exact candidate commit")
+    require(material.get("permission_status") == "full_access", "managed EventKit live driver permission is not full_access")
+    require(binding.get("calendar_id") == material.get("calendar_id"), "managed EventKit live calendar does not match the binding")
+    require(binding.get("app_path") == app.get("path") and binding.get("app_sha256") == app.get("sha256"), "managed EventKit live app identity does not match the binding")
+    require(binding.get("bridge_path") == bridge.get("path") and binding.get("bridge_sha256") == bridge.get("sha256"), "managed EventKit live bridge identity does not match the binding")
+    require(bool(binding.get("binding_id")) and integer(binding.get("epoch")) > 0, "managed EventKit live binding lineage is missing")
+    require(material.get("commit_access_point") == "CodexToolRuntime.REQUEST_COMMIT", "managed EventKit live commit bypassed the normal access point")
+    require(material.get("undo_access_point") == "CodexToolRuntime.REQUEST_UNDO", "managed EventKit live undo bypassed the normal access point")
+    require(material.get("crash_injection_point") == "after_eventkit_save_before_local_external_id_persistence", "managed EventKit live save/local-ID crash gap was not exercised")
+    require(material.get("commit_initial_status") == "failed" and material.get("phase_before_reconcile") == "applying_unknown", "managed EventKit live crash did not leave applying_unknown")
+    require(material.get("startup_reconciliation_phase") == "verified" and material.get("phase_after_reconcile") == "verified", "managed EventKit startup reconciliation did not verify")
+    require(material.get("replay_commit_status") == "committed", "managed EventKit normal retry did not surface the verified receipt")
+    require(material.get("undo_status") == "reverted" and material.get("cleanup_status") == "verified_absent", "managed EventKit live compensation did not verify absence")
+    require(bool(actual_external_id), "managed EventKit live actual external ID is missing")
+    require(receipts.get("calendar_receipt") == [actual_external_id], "calendar receipt does not expose the actual EventKit ID")
+    require(receipts.get("provider_receipt") == [actual_external_id], "provider receipt does not expose the actual EventKit ID")
+    require(receipts.get("durable_ledger") == [actual_external_id], "durable ledger does not retain the actual EventKit ID before verification")
+    require(material.get("compensation_target_receipt_sha256") == material.get("creating_receipt_sha256"), "compensation does not target the creating receipt")
+    require(material.get("legacy_mutation_count") == 0, "managed EventKit live path invoked a legacy mutation")
+    require(marker_scan.get("apply_match_count") == 1 and marker_scan.get("apply_match_event_ids") == [actual_external_id], "managed EventKit live marker scan is not uniquely bound to the actual event")
+    require(not marker_scan.get("apply_ambiguous_keys") and not marker_scan.get("apply_ambiguous_event_ids"), "managed EventKit apply marker scan is ambiguous")
+    require(marker_scan.get("final_match_count") == 0 and not marker_scan.get("final_ambiguous_keys") and not marker_scan.get("final_ambiguous_event_ids"), "managed EventKit final marker scan is not empty and unambiguous")
+    require(parent.get("used") is True and parent.get("apply_phase") == "verified" and parent.get("cleanup_phase") == "verified", "managed EventKit live parent fixture was not independently applied and compensated")
+    require(final.get("events") == {} and not final.get("event_matches"), "managed EventKit live final calendar snapshot is not empty")
+    require(integer(driver.get("identifier_only_validation_count")) >= 2 and integer(driver.get("post_verify_count")) >= 2, "managed EventKit live bridge did not validate and post-verify both mutations")
+    require(all(isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value) for value in sha_fields), "managed EventKit live identity or receipt hash is invalid")
+    return failures
 
 
 def artifact_ref(path: Path, *, decision: str | None = None) -> dict[str, Any]:

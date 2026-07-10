@@ -1,0 +1,78 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/managed_eventkit_live_certificate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ManagedEventKitLiveCertificateV1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "managed_eventkit_live_certificate_schema_version", "status", "authority_profile",
+    "authorizes_production", "repository_commit", "app_identity", "bridge_identity",
+    "binding", "permission_status", "calendar_id", "candidate_id", "commit_access_point",
+    "commit_initial_status", "crash_injection_point", "phase_before_reconcile",
+    "phase_after_reconcile", "startup_reconciliation_phase", "replay_commit_status",
+    "undo_access_point", "undo_status", "actual_external_id", "receipt_external_ids",
+    "creating_receipt_sha256", "creating_receipt_post_state_hash",
+    "compensation_target_receipt_sha256", "legacy_mutation_count", "marker_scan",
+    "cleanup_status", "parent_fixture", "final_snapshot", "driver"
+  ],
+  "properties": {
+    "managed_eventkit_live_certificate_schema_version": {"const": "managed_eventkit_live_certificate.v1"},
+    "status": {"enum": ["passed", "failed"]},
+    "authority_profile": {"const": "owner_controlled_eventkit_binding_retirement"},
+    "authorizes_production": {"const": false},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "app_identity": {"$ref": "#/$defs/fileIdentity"},
+    "bridge_identity": {"$ref": "#/$defs/fileIdentity"},
+    "binding": {"type": "object"},
+    "permission_status": {"const": "full_access"},
+    "calendar_id": {"type": "string", "minLength": 1},
+    "candidate_id": {"type": "string", "minLength": 1},
+    "commit_access_point": {"const": "CodexToolRuntime.REQUEST_COMMIT"},
+    "commit_initial_status": {"const": "failed"},
+    "crash_injection_point": {"const": "after_eventkit_save_before_local_external_id_persistence"},
+    "phase_before_reconcile": {"const": "applying_unknown"},
+    "phase_after_reconcile": {"const": "verified"},
+    "startup_reconciliation_phase": {"const": "verified"},
+    "replay_commit_status": {"const": "committed"},
+    "undo_access_point": {"const": "CodexToolRuntime.REQUEST_UNDO"},
+    "undo_status": {"const": "reverted"},
+    "actual_external_id": {"type": "string", "minLength": 1},
+    "receipt_external_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calendar_receipt", "provider_receipt", "durable_ledger"],
+      "properties": {
+        "calendar_receipt": {"$ref": "#/$defs/nonemptyStringArray"},
+        "provider_receipt": {"$ref": "#/$defs/nonemptyStringArray"},
+        "durable_ledger": {"$ref": "#/$defs/nonemptyStringArray"}
+      }
+    },
+    "creating_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "creating_receipt_post_state_hash": {"$ref": "#/$defs/sha256"},
+    "compensation_target_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "legacy_mutation_count": {"const": 0},
+    "marker_scan": {"type": "object"},
+    "cleanup_status": {"const": "verified_absent"},
+    "parent_fixture": {"type": "object"},
+    "final_snapshot": {"type": "object"},
+    "driver": {"type": "object"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "nonemptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

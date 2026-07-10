@@ -11,26 +11,28 @@
     "calendar-pilot-p12/src/calendar_pilot/codex/tools.py",
     "calendar-pilot-p12/src/calendar_pilot/effect_kernel/__init__.py",
     "calendar-pilot-p12/src/calendar_pilot/effect_kernel/eventkit_retirement.py",
+    "calendar-pilot-p12/src/calendar_pilot/effect_kernel/kernel.py",
     "calendar-pilot-p12/src/calendar_pilot/frontend/session.py",
     "calendar-pilot-p12/src/calendar_pilot/providers/apple_eventkit.py",
     "calendar-pilot-p12/tests/test_p13_eventkit_retirement.py"
   ],
   "declared": {
     "actions": ["*", "create_prep_block"],
-    "backends": ["*", "apple_eventkit", "codex", "deterministic_sandbox"],
+    "backends": ["*", "apple_eventkit", "codex", "deterministic", "deterministic_sandbox", "eventkit"],
     "surfaces": [
       "app_access",
       "authority_gate",
       "docs",
       "effect_gateway",
       "frontend",
+      "frontier",
       "provider",
       "ruler_scripts",
       "swift_bridge",
       "tests",
       "wave_scope"
     ],
-    "instruments": ["binding_manifest", "release_and_wave_ruler", "tests", "wave_gate"],
+    "instruments": ["access_point_docs", "binding_manifest", "release_and_wave_ruler", "tests", "wave_gate"],
     "control_planes": ["effect_tcb", "evaluator", "optimizer"]
   },
   "required_scenarios": [

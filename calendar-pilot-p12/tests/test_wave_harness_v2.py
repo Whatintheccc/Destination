@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from evals.p13_ruler.core import canonical_json_bytes, sha256_bytes, sha256_file
+from evals.p13_ruler.core import canonical_json_bytes, repository_identity, sha256_bytes, sha256_file
 from evals.p13_ruler.wave import (
     P13_3_SANDBOX_SCENARIOS,
     P13_4_EVENTKIT_SCENARIOS,
@@ -229,6 +229,96 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             self.assertEqual(expired["decision"], "hold")
             self.assertEqual(expired["hold_reasons"][0]["code"], "root_list_expired")
             self.assertIn("affected_live_leg_not_run", {row["code"] for row in expired["hold_reasons"]})
+
+    def test_managed_eventkit_live_leg_requires_semantic_evidence_not_only_a_valid_hash(self):
+        sha = "a" * 64
+        actual_id = "source:event:actual"
+        material = {
+            "managed_eventkit_live_certificate_schema_version": "managed_eventkit_live_certificate.v1",
+            "contract_validation": {"schema": "managed_eventkit_live_certificate.schema.json", "status": "pass", "errors": []},
+            "status": "passed",
+            "authority_profile": "owner_controlled_eventkit_binding_retirement",
+            "authorizes_production": False,
+            "repository_commit": repository_identity()["git_sha"],
+            "app_identity": {"path": "/Applications/CalendarPilot.app", "sha256": sha},
+            "bridge_identity": {"path": "/Applications/CalendarPilot.app/Contents/Resources/app/bin/CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge", "sha256": sha},
+            "binding": {
+                "binding_id": "binding:test",
+                "epoch": 1,
+                "calendar_id": "calendar:test",
+                "app_path": "/Applications/CalendarPilot.app",
+                "app_sha256": sha,
+                "bridge_path": "/Applications/CalendarPilot.app/Contents/Resources/app/bin/CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge",
+                "bridge_sha256": sha,
+                "fingerprint_sha256": sha,
+            },
+            "calendar_id": "calendar:test",
+            "permission_status": "full_access",
+            "commit_access_point": "CodexToolRuntime.REQUEST_COMMIT",
+            "undo_access_point": "CodexToolRuntime.REQUEST_UNDO",
+            "crash_injection_point": "after_eventkit_save_before_local_external_id_persistence",
+            "commit_initial_status": "failed",
+            "phase_before_reconcile": "applying_unknown",
+            "phase_after_reconcile": "verified",
+            "startup_reconciliation_phase": "verified",
+            "replay_commit_status": "committed",
+            "undo_status": "reverted",
+            "cleanup_status": "verified_absent",
+            "actual_external_id": actual_id,
+            "receipt_external_ids": {
+                "calendar_receipt": [actual_id],
+                "provider_receipt": [actual_id],
+                "durable_ledger": [actual_id],
+            },
+            "creating_receipt_sha256": sha,
+            "creating_receipt_post_state_hash": sha,
+            "compensation_target_receipt_sha256": sha,
+            "legacy_mutation_count": 0,
+            "marker_scan": {
+                "apply_match_count": 1,
+                "apply_match_event_ids": [actual_id],
+                "apply_ambiguous_keys": [],
+                "apply_ambiguous_event_ids": [],
+                "final_match_count": 0,
+                "final_ambiguous_keys": [],
+                "final_ambiguous_event_ids": [],
+            },
+            "parent_fixture": {"used": True, "apply_phase": "verified", "cleanup_phase": "verified"},
+            "final_snapshot": {"events": {}, "event_matches": []},
+            "driver": {"identifier_only_validation_count": 2, "post_verify_count": 2},
+        }
+        report = {
+            "provider": "apple_eventkit",
+            "require_live": True,
+            "mutation_enabled": True,
+            "health": {"configured": True, "authorization_status": "full_access"},
+            "materialization": material,
+        }
+        with tempfile.TemporaryDirectory() as td:
+            artifact = Path(td) / "eventkit.json"
+            artifact.write_text(json.dumps(report), encoding="utf-8")
+            manifest = _manifest()
+            manifest["change_class"] = "migration"
+            manifest["required_scenarios"] = ["target.eventkit_managed_live_contract"]
+            manifest["live_legs"] = [{
+                "leg": "live-eventkit-e2e",
+                "status": "ran",
+                "reason": {"basis": "ran", "detail": "exact candidate"},
+                "artifact": {"path": str(artifact), "sha256": sha256_file(artifact)},
+                "owner": "single-owner development",
+                "sign_off": "exact candidate observed",
+                "affected_by_wave": True,
+                "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "next_unblock_action": "rerun after identity change",
+            }]
+            self.assertEqual(verify_root_list(manifest)["decision"], "pass")
+
+            report["materialization"]["receipt_external_ids"]["durable_ledger"] = ["wrong:event"]
+            artifact.write_text(json.dumps(report), encoding="utf-8")
+            manifest["live_legs"][0]["artifact"]["sha256"] = sha256_file(artifact)
+            planted = verify_root_list(manifest)
+            self.assertEqual(planted["decision"], "fail")
+            self.assertIn("durable ledger", planted["failures"][0]["detail"])
 
     def test_v2_experiment_contract_names_the_eight_evidence_fields(self):
         schema = json.loads((ROOT / "contracts/experiment_record_v2.schema.json").read_text(encoding="utf-8"))

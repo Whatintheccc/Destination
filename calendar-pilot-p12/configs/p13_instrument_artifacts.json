@@ -20,6 +20,7 @@
     {"kind": "configuration", "path": "calendar-pilot-p12/experiments/configs/create_prep_block_required_fields_v1.json"},
     {"kind": "configuration", "path": "calendar-pilot-p12/experiments/configs/promotion_thresholds.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/VERSIONS.json"},
+    {"kind": "contract", "path": "calendar-pilot-p12/contracts/managed_eventkit_live_certificate.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/architecture_eval_report.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/architecture_eval_report_v2.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/b_migrate_artifact.schema.json"},

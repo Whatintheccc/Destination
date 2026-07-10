@@ -37,6 +37,8 @@ class _Driver:
         self.validation_count = 0
         self.post_verify_count = 0
         self.target_hashes: list[str] = []
+        self.crash_after_create_before_return = False
+        self.ambiguous_idempotency_keys: set[str] = set()
 
     def binding_identity(self) -> dict[str, Any]:
         return dict(self.identity)
@@ -45,15 +47,23 @@ class _Driver:
         if calendar_id != self.identity["calendar_id"]:
             return {"events": {}, "binding_identity": self.binding_identity()}
         self.post_verify_count += 1
-        return {"events": deepcopy(self.events), "binding_identity": self.binding_identity()}
+        return {
+            "events": deepcopy(self.events),
+            "binding_identity": self.binding_identity(),
+            "ambiguous_idempotency_keys": sorted(self.ambiguous_idempotency_keys),
+            "ambiguous_marker_event_ids": [],
+        }
 
     def create(self, *, expected_binding: dict[str, Any], target_vector: dict[str, Any], idempotency_key: str, projection: dict[str, Any]) -> str:
         self._validate(expected_binding, target_vector)
         if projection.get("calendar_id") != self.identity["calendar_id"]:
             raise ValueError("managed evaluator driver target escaped")
         external_id = "event:" + idempotency_key[-16:]
-        self.events[idempotency_key] = {"external_id": external_id, "projection": deepcopy(projection)}
+        self.events[idempotency_key] = {"external_id": external_id, **deepcopy(projection)}
         self.create_count += 1
+        if self.crash_after_create_before_return:
+            self.crash_after_create_before_return = False
+            raise RuntimeError("injected crash after remote create before local persistence")
         return external_id
 
     def remove(self, *, expected_binding: dict[str, Any], target_vector: dict[str, Any], idempotency_key: str, external_id: str) -> bool:
@@ -122,6 +132,7 @@ def _api() -> dict[str, Any] | None:
             ManagedEventKitRetirementProvider,
             ManagedProcessLease,
             classify_managed_candidate,
+            managed_commit_confirmation_provenance,
         )
         from calendar_pilot.replay import ReplayBuffer
         from calendar_pilot.swift_bridge.client import SwiftKernelStub
@@ -136,6 +147,7 @@ def _api() -> dict[str, Any] | None:
         "Provider": ManagedEventKitRetirementProvider,
         "Lease": ManagedProcessLease,
         "classify": classify_managed_candidate,
+        "commit_confirmation": managed_commit_confirmation_provenance,
         "Replay": ReplayBuffer,
         "Kernel": SwiftKernelStub,
         "Candidate": CandidateCalendarAction,
@@ -250,7 +262,7 @@ def _runtime_commit(api: dict[str, Any], fixture: dict[str, Any], candidate: Any
         api,
         kernel,
         fixture["observation"],
-        provenance=f"user_confirmed_commit:{candidate.candidate_id}",
+        provenance=api["commit_confirmation"](candidate, fixture["provider"].binding),
         scopes=("recommend", "stage", "commit_private", "undo"),
     )
     call = api["Call"](
@@ -362,6 +374,31 @@ def _commit_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]
     crashed, _, _ = _runtime_commit(api, crash_fixture, crash_fixture["candidate"], crash_at="after_dispatch_before_receipt")
     crash_context = crash_fixture["provider"].contexts[1]
     crash_ticket_id = next(iter(crash_context.ledger.snapshot()["outbox"]))
+    confirmed = _bound_candidate(api, fixture["candidate"], binding=fixture["binding"], candidate_id="candidate:commit:substitution")
+    substituted_payload = confirmed.to_dict()
+    substituted_payload["actions"][0]["title"] = "Changed after confirmation"
+    substituted = api["Candidate"].from_dict(substituted_payload)
+    substitution_kernel = api["Kernel"]()
+    substitution_grant = _grant(
+        api,
+        substitution_kernel,
+        fixture["observation"],
+        provenance=api["commit_confirmation"](confirmed, fixture["binding"]),
+        scopes=("recommend", "stage", "commit_private", "undo"),
+    )
+    mutations_before_substitution = fixture["driver"].create_count
+    try:
+        fixture["provider"].commit_via_gateway(
+            substituted,
+            fixture["observation"],
+            substitution_grant,
+            replay=api["Replay"](),
+            trace_id="trace:substitution",
+            causal_parent_id=None,
+        )
+        substitution_result = "accepted"
+    except ValueError:
+        substitution_result = "denied"
     target_hash = first.output["effect_ticket"]["intent"]["canonical_target_vector"]["sha256"]
     expected_binding = fixture["binding"].target_binding
     return {
@@ -386,6 +423,9 @@ def _commit_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]
         "replay_status": replayed.status.value,
         "crash_status": crashed.status.value,
         "runtime_replay_records": len(runtime.replay.records),
+        "same_id_substitution_result": substitution_result,
+        "substitution_zero_mutation": fixture["driver"].create_count == mutations_before_substitution,
+        "visible_external_id_matches": first.output["swift_receipt"]["generated_event_ids"] == first.output["provider_receipt"]["external_ids"],
     }
 
 
@@ -399,6 +439,26 @@ def _undo_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
     drift_handle = str(drift_applied.output["swift_receipt"]["rollback_handle_id"])
     drift_fixture["driver"].identity["title"] = "Renamed externally"
     drifted = _runtime_undo(api, drift_fixture, drift_runtime, drift_kernel, drift_handle)
+    ambiguity_fixture = _fixture(api, root=Path(__file__).resolve().parents[3], scenario_dir=fixture["work"].parent, name="undo-ambiguity")
+    ambiguity_fixture["driver"].crash_after_create_before_return = True
+    _runtime_commit(api, ambiguity_fixture, ambiguity_fixture["candidate"])
+    ambiguity_context = ambiguity_fixture["provider"].contexts[1]
+    ambiguity_ticket_id = next(iter(ambiguity_context.ledger.snapshot()["outbox"]))
+    ambiguity_key = ambiguity_context.ledger.snapshot()["tickets"][ambiguity_ticket_id]["ticket"]["idempotency_key"]
+    ambiguity_fixture["driver"].ambiguous_idempotency_keys.add(ambiguity_key)
+    ambiguity_fixture["provider"].close()
+    ambiguity_restarted = api["Provider"](
+        incumbent=_Incumbent(ambiguity_fixture["observation"]),
+        driver=ambiguity_fixture["driver"],
+        binding=ambiguity_fixture["binding"],
+        state_root=ambiguity_fixture["work"] / "state",
+        signing_key_path=ambiguity_fixture["work"] / "signing.key",
+        lease_path=ambiguity_fixture["work"] / "owner.lock",
+        seed_observation=ambiguity_fixture["observation"],
+        initialize=False,
+        acquire_lease=False,
+    )
+    ambiguity_result = ambiguity_restarted.startup_reconciliation[-1].phase
     expected_original = fixture["binding"].target_binding
     return {
         "access_point": undone.output["retirement"]["access_point"],
@@ -408,7 +468,7 @@ def _undo_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
         "exact_old_epoch_result": undone.output["retirement"]["phase"],
         "drifted_old_epoch_result": "hold" if "manual reconciliation" in str(drifted.denied_reason) else drifted.status.value,
         "redirected_to_current_epoch": undone.output["retirement"]["binding_epoch"] != 1,
-        "ambiguous_event_recovery_result": "hold",
+        "ambiguous_event_recovery_result": ambiguity_result,
         "effect_absent": not fixture["driver"].events,
         "legacy_kernel_undo_count": 0,
         "legacy_provider_undo_count": fixture["provider"].retirement_snapshot()["direct_undo_count"],
@@ -419,7 +479,8 @@ def _undo_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
 
 
 def _durable_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
-    crashed, _, _ = _runtime_commit(api, fixture, fixture["candidate"], crash_at="after_dispatch_before_receipt")
+    fixture["driver"].crash_after_create_before_return = True
+    crashed, _, _ = _runtime_commit(api, fixture, fixture["candidate"])
     context = fixture["provider"].contexts[1]
     ticket_id = next(iter(context.ledger.snapshot()["outbox"]))
     before = context.gateway.phase(ticket_id)
@@ -435,7 +496,7 @@ def _durable_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any
         initialize=False,
         acquire_lease=False,
     )
-    reconciled = reloaded.reconcile_pending()
+    reconciled = reloaded.startup_reconciliation
     lease = api["Lease"](fixture["work"] / "exclusive.lock", binding_id=BINDING_ID)
     try:
         try:
@@ -467,6 +528,16 @@ def _durable_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any
         corrupt_result = "accepted"
     except ValueError:
         corrupt_result = "hold"
+    reloaded.close()
+    try:
+        api["Provider"](
+            incumbent=_Incumbent(fixture["observation"]), driver=fixture["driver"], binding=fixture["binding"],
+            state_root=fixture["work"] / "state", signing_key_path=fixture["work"] / "signing.key", lease_path=fixture["work"] / "owner.lock",
+            seed_observation=fixture["observation"], initialize=True, acquire_lease=False,
+        )
+        second_initialize_result = "accepted"
+    except ValueError:
+        second_initialize_result = "hold"
     return {
         "global_durable_ledger": (fixture["work"] / "state/binding-registry.json").is_file(),
         "durable_signing_state": (fixture["work"] / "signing.key").is_file(),
@@ -474,6 +545,7 @@ def _durable_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any
         "concurrent_owner_result": concurrent,
         "missing_ledger_result": missing_result,
         "corrupt_ledger_result": corrupt_result,
+        "second_initialize_result": second_initialize_result,
         "owner_after_restart": reloaded.retirement_snapshot()["owner"],
         "same_ticket_after_restart": bool(reconciled and reconciled[-1].ticket_id == ticket_id),
         "phase_before_reconcile": before,
@@ -481,6 +553,10 @@ def _durable_case(api: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any
         "redispatch_count_after_restart": fixture["driver"].create_count - 1,
         "dual_owner_observed": concurrent != "hold",
         "crash_status": crashed.status.value,
+        "actual_external_id_recovered": bool(
+            reconciled
+            and reloaded.contexts[1].ledger.snapshot()["adapter_state"]["external_ids"].get(reconciled[-1].idempotency_key)
+        ),
     }
 
 
