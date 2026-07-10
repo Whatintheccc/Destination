@@ -126,12 +126,18 @@ EventKit; it neither completes P13.0 nor begins a vertical migration or earns
 compression credit. See
 [`../compression-roadmap.md`](../compression-roadmap.md), §4.6 and §8.5.
 
-Each run writes an immutable report/artifact directory under
+Each run writes a fresh non-overwriting report/artifact directory under
 `runs/architecture_evals/<run-id>/` and refreshes
 `runs/architecture_evals/architecture_eval_report.json` as the latest pointer. Reports
 record committed and dirty-worktree identity plus hashes for the runner, adapter,
 predicates, scenario set, and schema. The gate validates both the Draft 2020-12 schema
 and derived decisions/artifact hashes before it can return success.
+
+The legacy v2 fields `report_paths.immutable` and console `immutable_out` mean only
+that the runner chose a fresh per-run destination and refused overwrite at creation
+time. They prove no write protection, retention, post-run tamper resistance, external
+custody, evaluator independence, or authorization. Renaming them requires a future
+versioned report-contract ruler wave.
 
 P13 ruler identity and pre-wave binding:
 
@@ -174,11 +180,11 @@ jq -e '
 ```
 
 Binding verifies signature, expiry, InstrumentBundle hashes, scope-source identity,
-and evaluator-derived affectedness from committed, staged, unstaged, and untracked paths.
+and locally verifier-derived affectedness from committed, staged, unstaged, and untracked paths.
 Any undeclared path/category or changed instrument artifact fails closed.
 
-The binding wave harness verifies the manifest, runs scenario-set v2, compares two
-independently materialized C-VAR frontier artifacts, invokes the manifest's separately
+The local fail-closed wave harness verifies the manifest, runs scenario-set v2, compares two
+separately materialized C-VAR frontier artifacts, invokes the manifest's separately
 named old/new `B_migrate` producer commands, runs P12 release, verifies content-addressed
 reward-occurrence identity, declared source/reference shape, and direct simulator-credit
 screening, validates signed live-leg/root-list entries and expiry, writes
@@ -189,8 +195,9 @@ clean pre-wave C-VAR artifact with `CVAR_BEFORE=<path>`; the harness will not re
 their baseline after candidate work.
 
 These commands are development/ruler access points only. Their key paths are caller
-inputs, the current CI key is generated in the candidate job, evaluator code runs from the
-candidate checkout, and reports are ignored local artifacts. They cannot authorize a P13.1
+inputs, the checked-in root workflow is defined to generate an ephemeral key inside the
+candidate job if it runs, evaluator code runs from the candidate checkout, and reports
+are ignored local artifacts. They cannot authorize a P13.1
 or other TCB migration. The required external operator authorization, reviewer attestation,
 and isolated evaluator receipt are specified in
 [`../compression-roadmap.md`](../compression-roadmap.md), §8.5.1.

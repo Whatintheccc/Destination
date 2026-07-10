@@ -174,12 +174,18 @@ git/workspace root   Destination/
 active app root      Destination/calendar-pilot-p12/
 ```
 
-Until P13.0 repairs the workspace-level delegate and installs CI at the actual git
-root, **every command in this document runs from the active app root**. The
-workspace-level `Makefile` is not an accepted access point: it still names the retired
-`calendar-pilot-system-framework` snapshot.
+The workspace-level `Makefile` is now an accepted thin delegate only for target names
+explicitly listed in its `DELEGATED_TARGETS`; those named workspace access points run
+from the git root and delegate to the active-app `Makefile`. The active-app `Makefile`
+and scripts remain the implementation authority. Unlisted target names are not
+workspace access points; direct targets and scripts not explicitly named as workspace
+access points run from the active app root.
 
-Canonical preflight:
+The tracked root Actions file is a candidate-controlled workflow definition, not
+evidence that remote CI exists, ran this commit, retained its evidence, or enforced a
+merge/deployment decision. Those are separate external facts.
+
+Canonical preflight for direct app commands:
 
 ```bash
 GIT_ROOT="$(git rev-parse --show-toplevel)"
@@ -222,16 +228,17 @@ Git history shows the executable surface accumulating in this order: Python/Swif
 browser/app; Swift IPC and live Codex/NIM/EventKit; deterministic ML ladder,
 invariants, and evidence; contract vectors and lab cells; P11 trajectory/variance
 checks; then the P12 instrument and wave wrappers. That lineage explains old target
-names, but does not make them aliases: the active-app `Makefile` and scripts are the
-only command authority now.
+names, but does not make them aliases: the active-app `Makefile` and scripts remain the
+implementation authority, while the current root `Makefile` is only an explicit
+allowlist delegate.
 
 Explicit supersessions:
 
 ```text
-make variance-probe          -> make cvar-report (bootstrap until P13.0; §8.5)
+make variance-probe          -> make cvar-report-v2 for a bound wave; make cvar-report is historical bootstrap only
 make lab-validate-scenarios  -> curriculum validation inside make p12-release
-make loc-report              -> no current target; use the tracked /src count below until P13.0 installs a versioned reporter
-archived root Makefiles      -> active app Makefile only
+make loc-report              -> make p13-loc-report
+archived root Makefiles      -> current allowlisted root delegate -> active-app Makefile
 archived p11/p12 test docs   -> this matrix + current scripts
 ```
 
@@ -267,10 +274,10 @@ The command name alone is never the claim. Use the scope and report below.
 | `make cvar-report` | historical P12 frozen-seed self-consistency with the current default invocation | pre-wave versus post-wave code equivalence; it is not accepted by the P13 gate |
 | `make b-migrate` | historical P12 current-session snapshot ↔ current-projector shape check | independent old-organ versus new-kernel equivalence; it is not accepted by the P13 gate |
 | `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability | the rest of the wave decision |
-| `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's independently named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.1+ action/backend comparison vector until that wave declares it |
+| `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's separately named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.1+ action/backend comparison vector until that wave declares it |
 | `make wave-harness WAVE=… P13_VERIFY_KEY=…` | development/ruler evidence composition over manifest affectedness, v2 architecture, C-VAR, `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | migration authorization, independent review, isolated evaluator execution, authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
-| `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and immutable per-run evidence | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
+| `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and a fresh non-overwriting per-run report directory | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 | `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
 | `make p13-attestation-scaffold-test` | strict scaffold-policy/packet/review mechanics, typed TCB bindings, role separation, expiry, replay, no-follow external-file handling, fixed verifier executable, and permanent-hold counterexamples | authenticated policy provenance, external custody/governance, evaluator isolation, `WaveAuthorization`, `EvaluationReceipt`, migration authority, or a wave decision |
 | `make p13-loc-report` | versioned tracked-`/src` Python file list, hashes, exclusions, total, repository/subtree identity, and optional before/after delta | conceptual mass or untracked source; untracked Python produces hold |
@@ -288,19 +295,23 @@ executable switches; all remain `gate_mode: observe`. They must not certify a P1
 migration. Their `not_reached` results remain visible debt and never contribute to a
 pass count.
 
-P13.0 now provides `architecture_scenario_set.v2` and the contract for an
-evaluator-owned, immutable pre-wave `BindingManifest`. The manifest—not candidate code
-and not prose—selects the
-required target predicates before a wave begins. It records touched action families,
-backends, surfaces, old/new invocation identities, scenario/instrument hashes, live
-legs, signer, and expiry. A migration-authorizing manifest's signer and verification
-root must live outside candidate control. Current CI-generated keys prove only the
-cryptographic mechanics and cannot authorize migration. The evaluator independently
-derives actual affectedness from the complete diff
-(including new/untracked paths) plus a versioned ownership map and fails on every
-touched-but-undeclared action, backend, surface, instrument, TCB, or control-plane file.
-A candidate cannot edit, repin, downgrade, or select `observe`; any attempted mutation
-or scope under-declaration is a gate failure.
+P13.0 now provides `architecture_scenario_set.v2` and local contract/verifier mechanics
+for a pre-wave `BindingManifest`. Under the pinned local instrument, the signed payload—not
+prose—selects the required target predicates before a wave begins. It records touched
+action families, backends, surfaces, old/new invocation identities,
+scenario/instrument hashes, live legs, signer, and expiry. The local verifier derives
+affectedness from the complete diff (including new/untracked paths) plus a versioned
+ownership map and fails on every touched-but-undeclared action, backend, surface,
+instrument, TCB, or control-plane file. These mechanics detect tested mutation,
+downgrade, `observe` selection, and scope-under-declaration attacks under that pinned
+instrument; they do not establish evaluator ownership, immutability, or candidate write
+exclusion.
+
+Those stronger properties exist only when an externally held pre-wave authorization
+pins the candidate and instrument, an isolated evaluator runs the fixed verifier and
+instrument, and a protected consumer accepts only the resulting receipt. A key generated
+inside the candidate-controlled root workflow, if and when that workflow runs, proves
+cryptographic mechanics only and cannot authorize migration.
 
 P13.0 installs one creation and one verification access point:
 
@@ -312,16 +323,17 @@ make wave-harness WAVE="$WAVE" P13_VERIFY_KEY="$P13_VERIFY_KEY"
 For a migration authorization, `wave-bind` is run and signed by the external operator
 before candidate edits. A development-key invocation tests the same payload mechanics but
 does not authorize a candidate.
-`binding-manifest-verify` checks signature, expiry, hashes, and evaluator-derived
+`binding-manifest-verify` checks signature, expiry, hashes, and locally derived
 affectedness; `architecture-evals-v2` applies the selected required predicates. The
-binding `wave-harness` composes those checks with the evidence certificates, validates
-their schemas and decisions, and returns nonzero for both hold and fail. A
+local fail-closed `wave-harness` composes those checks with the evidence certificates,
+validates their schemas and decisions, and returns nonzero for both hold and fail. A
 behavior-bearing wave must pass `CVAR_BEFORE=<frozen-clean-artifact>`; the harness
 refuses to regenerate that baseline after candidate work.
 
 The current access points are a ruler, not the final authorization boundary: their key
-paths are caller inputs, CI currently creates development keys in the same candidate job,
-the evaluator runs from the candidate checkout, and reports live under ignored `runs/`.
+paths are caller inputs, the checked-in root workflow is defined to create development
+keys inside the same candidate job if it runs, the evaluator runs from the candidate
+checkout, and reports live under ignored `runs/`.
 They can demonstrate fail-closed mechanics, but no local report, caller-supplied key, or
 same-checkout evaluator result can admit P13.1.
 
@@ -339,12 +351,19 @@ reported, not because `not_reached` was treated as success.
 
 `architecture_scenario_set.v1` pins the exact historical preservation and target ids;
 dropping a rail or scenario without a version bump remains a gate error. Every invocation
-uses a fresh run directory, retains an immutable report, and refreshes a latest-report
-pointer. The report records the committed tree, dirty-worktree digest, and hashes for
+uses a fresh non-overwriting run directory, retains its report, and refreshes a
+latest-report pointer. The report records the committed tree, dirty-worktree digest, and hashes for
 the runner, adapter, predicates, scenario set, and schema. The gate validates Draft
 2020-12 shape, derived decisions/counts, and every artifact hash before returning
 success. An arbitrary or pre-existing artifact directory is rejected rather than
 recursively deleted.
+
+Compatibility warning: the v2 machine fields `report_paths.immutable` and console
+`immutable_out` are legacy labels meaning only that the runner chose a fresh per-run
+destination and refused overwrite at creation time. They prove no filesystem or object
+lock, retention, post-run tamper resistance, external custody, evaluator independence,
+or authorization. A semantic rename requires a versioned report-contract ruler wave and
+remains debt before migration authorization.
 
 The historical scalar source-LOC command counted tracked Python lines under
 `calendar-pilot-p12/src/`, matching the `/src` trajectory in §10:
@@ -1001,8 +1020,9 @@ attestations           change-class-required evaluator/promoter artifacts and ha
 
 Fields are conditional and typed by `change_class`; inapplicable fields are explicit,
 never fabricated. Ruler records carry planted sensitivity and no-product-change
-evidence. Migration/compression records carry frozen, independently generated old/new
-artifacts and equivalence/refinement statistics. Only learning records require:
+evidence. Migration/compression records carry frozen, separately generated old/new
+artifacts and equivalence/refinement statistics; a migration claim additionally requires
+the external isolation and receipt chain in §8.5.1. Only learning records require:
 
 ```text
 partitions   training/search/holdout/live ids and hashes
@@ -1056,10 +1076,11 @@ provenance remains in [P12 Record §6](P12-RECORD.md), wave-harness follow-up.
 
 P13.0 leaves those v1 artifacts frozen as historical compatibility evidence and adds
 `cvar_frontier_set.v1` + `cvar_report.v2`, `b_migrate_artifact.v1` +
-`b_migrate_report.v2`, and `experiment_record.v2`. The binding wave harness accepts
-only the v2 certificates. It independently invokes manifest-bound producers, requires
-a clean frozen pre-wave C-VAR artifact for behavior-bearing changes, validates the
-eight evidence fields and conditional envelope, and blocks every non-pass decision.
+`b_migrate_report.v2`, and `experiment_record.v2`. The local fail-closed wave harness
+accepts only the v2 certificates. It invokes separately named manifest-bound producers,
+rejects aliased or self-derived artifacts, requires a clean frozen pre-wave C-VAR
+artifact for behavior-bearing changes, validates the eight evidence fields and
+conditional envelope, and blocks every non-pass decision.
 
 ### 8.3 Vertical Migration Barrier
 
@@ -1112,7 +1133,8 @@ starts until all of these are true:
 
 ```text
 [x] The workspace Makefile delegates to calendar-pilot-p12, or is removed as an access point.
-[x] CI exists at the actual git root and runs the deterministic baseline plus report-decision assertions.
+[x] A candidate-controlled workflow definition exists at the actual git root and declares the deterministic baseline plus report-decision assertions.
+[ ] That exact workflow definition is present on the remote default branch and has an externally observed provenance-bound successful run for the exact commit/workflow identity with retained logs and report hashes. This proves remote reproducibility only, not evaluator independence or migration authority.
 [x] A clean-tree development manifest proves InstrumentBundle@sha, active-app subtree pinning, signing, expiry, and verification mechanics.
 [ ] The release verification root is durable, operator-held, and outside the repository and candidate workspace; a manifest signed only by an ephemeral development key cannot authorize migration.
 [x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
@@ -1131,9 +1153,9 @@ starts until all of these are true:
 [x] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
 [x] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
 [x] ExperimentRecord phase is P13 (then P16/P17 as applicable), not the Step E constant.
-[x] C-VAR consumes frozen pre-wave outputs and independently generated post-wave outputs.
+[x] C-VAR consumes frozen pre-wave outputs and separately generated post-wave outputs.
 [x] C-VAR fails when before and after artifacts are the same; behavior-changing waves additionally require a clean frozen base and changed post-wave source/tuning identity.
-[x] B_migrate invokes independently named producer commands and rejects identical, aliased, or self-derived artifacts using planted old/new producers.
+[x] B_migrate invokes separately named producer commands and rejects identical, aliased, or self-derived artifacts using planted old/new producers.
 [ ] Each P13.1+ manifest binds the actual old/new commands and comparison vector for intents, projections, admission/refinement, reward, evidence, reconciliation, and compensation.
 [x] Reward screening reports content-addressed occurrence identity, declared human/simulator source classes, causal-reference shape checks, and direct simulator-positive-credit rejection without claiming authentication.
 [ ] Stable issuer/event identity, authenticated and resolved causal provenance, duplicate-conflict handling, and transitive simulator noninterference are binding at reward ingress.
@@ -1320,15 +1342,19 @@ the known-red flags pinned in the Record are never silently worsened by a wave
 
 ### 9.3 P13: One Complete Vertical At A Time
 
-P13 begins with P13.0 (§8.5), not role implementation. The canonical access point,
-root CI, report-decision semantics, independent before/after certificates, root-list
-expiry, and the actual experiment record must be binding before any behavior migration.
+P13 begins with P13.0 (§8.5), not role implementation. The canonical delegate and
+candidate-controlled root workflow definition must be present. An externally observed
+exact-commit run with retained evidence must establish remote reproducibility. Local
+report-decision mechanics, separately materialized before/after artifacts with
+alias/self-derivation rejection, root-list expiry, and the actual experiment record must
+remain fail-closed. Only the externally authorized evaluation/receipt and protected
+consumption in §8.5.1 bind a behavior migration.
 The new P13 baseline then pins the post-documentation commit, active-app subtree, exact
 LOC vector, deterministic reports, and affected live/app evidence.
 
 P13.1 additionally requires the external authorization boundary in §8.5.1. A clean
-development manifest, local report, or CI-generated key is evidence about ruler mechanics,
-not permission to create the walking skeleton.
+development manifest, local report, or candidate-job development key is evidence about
+ruler mechanics, not permission to create the walking skeleton.
 
 The first unit is `create_prep_block`, not a shared framework or an organ. Contract
 design and shadow plumbing are one vertical learning exercise: contracts emerge only
@@ -1470,13 +1496,13 @@ Any claim of "3,000-line architecture" that does not name the detectability, cal
 | ID | Decision | Architectural resolution |
 |---|---|---|
 | D-00 | Target of the program | conceptual mass; LOC is reported output |
-| D-01 | Release gate reach | Step E landed the run-or-root-list discipline; P13.0 makes sign-off, artifact hash, affectedness, and expiry machine-binding (§4.8, §8.5) |
+| D-01 | Release gate reach | Step E landed the run-or-root-list discipline; P13.0 makes artifact hash, affectedness, expiry, and development-signature mechanics locally fail-closed, while migration authority remains external (§4.8, §8.5) |
 | D-02 | Core topology | four roles: Journal, Reducer, Gate, Gateway; ports/tags/projections are not peer services |
 | D-03 | Trust boundary | effect TCB is authenticated ingress/preconditions + Gate + epoch/nonce + Gateway durable claim/outbox/verifier and confined credential adapter; evaluator integrity is a separate plane |
 | D-04 | Authority | standing consent Grant is separate from exact, expiring, one-use effect and compensation tickets |
 | D-05 | First migration unit | complete `create_prep_block` vertical; read-side cutover precedes deterministic and then EventKit effect handoff |
 | D-06 | Acceptance | compression proves equivalence; learning proves positive human improvement; hard safety is lexicographically first |
-| D-07 | Architecture evals | v1 is historical preservation; v2 + immutable BindingManifest governs P13 targets |
+| D-07 | Architecture evals | v1 is historical preservation; v2 + a signed pre-wave BindingManifest locally selects P13 targets; externally authorized ownership/immutability is required for migration |
 | D-08 | Learning promotion | frozen PolicyPayload + signed PromotionRecord; failed hard gates cannot be overridden |
 | D-09 | Simulator evidence | may expand search, train separate failure detectors, or veto; zero direct/transitive positive promotion credit |
 | D-10 | Meta-optimization | post-P17 option, not a P13–P17 phase; joint model/evaluator evolution is out of scope |
@@ -1549,7 +1575,7 @@ Use this checklist for every proposed wave.
 ### Evidence
 
 ```text
-[ ] InstrumentBundle@sha and immutable BindingManifest are pinned before the wave.
+[ ] InstrumentBundle@sha and a signed pre-wave BindingManifest are pinned; behavior migration additionally proves externally authorized ownership and immutability.
 [ ] Baseline vector is recorded before change.
 [ ] Change class selects equivalence or positive-improvement statistics.
 [ ] For learning only: search, sealed holdout, and forward-shadow partitions are disjoint and attested.
@@ -1600,18 +1626,18 @@ Use this checklist for every proposed wave.
 
 Retired by Step E (evidence: [P12 Record §6](P12-RECORD.md)): the original
 deterministic-only P12 reach, the three original pass-by-construction placebo reports,
-and the missing `Belief`/`explain` contract. P13.0 now has binding compression-wave
-wrappers and access-point plumbing; the durable signer and independent-review
-boundaries in §8.5 remain the migration blockers.
+and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
+compression-wave mechanics and access-point plumbing; the durable signer and
+independent-review boundaries in §8.5 remain the migration blockers.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
-| workspace and app roots disagree | a green command can exercise a retired or nonexistent snapshot | one canonical app root now; repair root delegate and install root CI in P13.0 |
-| C-VAR and `B_migrate` defaults are self-derived | a behavior-changing wave can compare the new implementation to itself | independent frozen before and generated after paths; planted counterexamples |
+| local workflow YAML or a candidate-job green is mistaken for independent evaluation | the candidate can change the workflow/verifier that appears to grade it; remote execution alone can become an authority placebo | bind exact candidate/workflow identity and retain externally observed run evidence for reproducibility; require isolated evaluation and protected receipt consumption for authority |
+| C-VAR and `B_migrate` defaults are self-derived | a behavior-changing wave can compare the new implementation to itself | separately materialized frozen-before and generated-after paths with alias/self-derivation rejection; external isolation before migration |
 | report hold can return shell success | Make/CI can continue after a non-promotable result | promotion wrapper requires JSON `decision: pass` and exits nonzero otherwise |
 | static signed root-list entries do not enforce expiry | old live evidence can silently certify a touched path | versioned ledger with hashes, affectedness, sign-off, and enforced expiry |
-| v1 target `binding_trigger` is inert prose | all nine target debts can remain `observe/not_reached` while the top-level gate passes | v2 plus evaluator-owned immutable BindingManifest before migration |
-| BindingManifest can under-declare the diff | a signed but incomplete scope can omit binding cases | evaluator derives affectedness from full diff + ownership map and fails every undeclared touch |
+| v1 target `binding_trigger` is inert prose | all nine target debts can remain `observe/not_reached` while the top-level gate passes | v2 plus an externally authorized pre-wave BindingManifest before migration |
+| BindingManifest can under-declare the diff | a signed but incomplete scope can omit binding cases | fixed verifier derives affectedness from full diff + ownership map and fails every undeclared touch; isolated evaluator reruns it before receipt |
 | a promotion implementation could regain a writable override | a human/agent could write `CURRENT` after a hard failure | access point is frozen before writes through P13.5; P13.6 must admit only signed payloads after external gates; a new threshold means a new instrument epoch |
 | training and evaluation reuse lab runs/seeds | autonomous search can optimize its evaluator | disjoint search, family-disjoint sealed holdout, and frozen forward live shadow |
 | simulator reward has positive training weight | policy can learn to please its model of the user | separate ledgers; simulator can veto/train failure detector but has zero positive promotion credit |
@@ -1639,13 +1665,17 @@ boundaries in §8.5 remain the migration blockers.
    Belief and explain are shipped. LOC rose as designed.
 
 2. Complete P13.0 before the first product walking skeleton.
-   Canonical access point, root CI, scenario-set v2, immutable BindingManifest,
-   manifest affectedness, real experiment record, independent C-VAR/B_migrate,
-   validated live-leg ledger, durable operator signer, independent TCB reviewer.
+   Canonical access point, root workflow definition, externally observed exact-commit
+   run evidence, protected consumption, scenario-set v2, externally authorized
+   BindingManifest, manifest affectedness, real experiment record, separately materialized
+   C-VAR/B_migrate evidence, validated live-leg ledger, durable operator signer,
+   independent TCB reviewer.
 
-3. Route every wave through the binding promotion harness.
-   Correct change class, conditional evidence hashes, baseline, uncertainty, slices,
-   ablation, rollback, plus the change-to-gate union in §4.7.
+3. Compose local wave evidence, then cross the fixed external authorization boundary.
+   The local harness records change class, evidence hashes, baseline, uncertainty,
+   slices, ablation, rollback, and the §4.7 gate union. The isolated evaluator and
+   independent reviewer produce the packet, review, and final receipt; only a future
+   promoter consumes that receipt.
 
 4. Build the no-effect create_prep_block walking skeleton end to end.
    ProductCore append/reduce/cited projection, structurally non-dispatchable
@@ -1685,9 +1715,10 @@ replaceable; event tags remain tags; Belief/UI/explain remain cited projections.
 small effect TCB is surrounded by increasingly capable but untrusted proposal machinery.
 
 The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
-`explain` contracts are shipped ([P12 Record](P12-RECORD.md)). P13.0 now has binding
-development verification access points, scenario-set v2, affectedness, independent comparison certificates, and
-a promotion freeze. Its honest remaining boundary is organizational, cryptographic, and
+`explain` contracts are shipped ([P12 Record](P12-RECORD.md)). P13.0 now has fail-closed
+local development verification access points, scenario-set v2, affectedness, separately
+materialized comparison certificates with alias/self-derivation rejection, and a
+promotion freeze. Its honest remaining boundary is organizational, cryptographic, and
 execution-isolation: install the externally governed authorization, independent review,
 and isolated-evaluation chain in §8.5.1 before any product skeleton. Then migrate one
 complete `create_prep_block` vertical through no-effect,

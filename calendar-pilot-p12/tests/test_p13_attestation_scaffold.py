@@ -49,7 +49,7 @@ def _sha(label: str) -> str:
 
 
 class P13AttestationScaffoldTests(unittest.TestCase):
-    def _key(self, root: Path, name: str, principal: str) -> tuple[Path, dict]:
+    def _key(self, root: Path, name: str, principal: str, *, now: datetime = NOW) -> tuple[Path, dict]:
         private = root / f"{name}.private.pem"
         der = root / f"{name}.public.der"
         subprocess.run(
@@ -71,8 +71,8 @@ class P13AttestationScaffoldTests(unittest.TestCase):
             "algorithm": "rsa-sha256",
             "spki_der_base64": base64.b64encode(public_bytes).decode("ascii"),
             "public_key_sha256": hashlib.sha256(public_bytes).hexdigest(),
-            "not_before": _iso(NOW - timedelta(minutes=45)),
-            "not_after": _iso(NOW + timedelta(hours=10)),
+            "not_before": _iso(now - timedelta(minutes=45)),
+            "not_after": _iso(now + timedelta(hours=10)),
         }
         return private, role
 
@@ -94,18 +94,18 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return path
 
-    def _fixture(self, root: Path, *, review_decision: str = "approve") -> dict:
-        operator_private, operator = self._key(root, "operator", "principal:operator")
-        evaluator_private, evaluator = self._key(root, "evaluator", "principal:evaluator")
-        reviewer_private, reviewer = self._key(root, "reviewer", "principal:reviewer")
+    def _fixture(self, root: Path, *, review_decision: str = "approve", now: datetime = NOW) -> dict:
+        operator_private, operator = self._key(root, "operator", "principal:operator", now=now)
+        evaluator_private, evaluator = self._key(root, "evaluator", "principal:evaluator", now=now)
+        reviewer_private, reviewer = self._key(root, "reviewer", "principal:reviewer", now=now)
         policy = {
             "scaffolding_trust_policy_schema_version": "p13_scaffolding_trust_policy.v1",
             "mode": "scaffold_only",
             "policy_id": "policy:p13-scaffold-test",
             "policy_epoch": 1,
             "repository_origin_id": "github.com:Whatintheccc:Destination",
-            "valid_from": _iso(NOW - timedelta(hours=1)),
-            "expires_at": _iso(NOW + timedelta(hours=12)),
+            "valid_from": _iso(now - timedelta(hours=1)),
+            "expires_at": _iso(now + timedelta(hours=12)),
             "roles": {
                 "operator_authorizer": operator,
                 "isolated_evaluator": evaluator,
@@ -174,8 +174,8 @@ class P13AttestationScaffoldTests(unittest.TestCase):
                 "image_digest": f"sha256:{_sha('evaluator-image')}",
                 "entrypoint_sha256": _sha("evaluator-entrypoint"),
             },
-            "issued_at": _iso(NOW - timedelta(minutes=30)),
-            "expires_at": _iso(NOW + timedelta(hours=2)),
+            "issued_at": _iso(now - timedelta(minutes=30)),
+            "expires_at": _iso(now + timedelta(hours=2)),
         }
         self._sign(packet, evaluator_private)
         packet_path = self._write(root / "packet.json", packet)
@@ -190,8 +190,8 @@ class P13AttestationScaffoldTests(unittest.TestCase):
             "reviewer": {"principal_id": reviewer["principal_id"], "key_id": reviewer["key_id"]},
             "decision": review_decision,
             "reason": "scaffold review fixture",
-            "issued_at": _iso(NOW - timedelta(minutes=15)),
-            "expires_at": _iso(NOW + timedelta(hours=1)),
+            "issued_at": _iso(now - timedelta(minutes=15)),
+            "expires_at": _iso(now + timedelta(hours=1)),
         }
         self._sign(review, reviewer_private)
         review_path = self._write(root / "review.json", review)
@@ -500,7 +500,8 @@ class P13AttestationScaffoldTests(unittest.TestCase):
     def test_cli_never_exits_success_or_mutates_candidate_state(self):
         with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
             root = Path(td)
-            fixture = self._fixture(root)
+            live_now = datetime.now(timezone.utc)
+            fixture = self._fixture(root, now=live_now)
             out = root / "report.json"
             current_before = CURRENT.read_bytes()
             status_before = subprocess.run(
@@ -531,6 +532,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
             report = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual(process.returncode, 3, process.stderr)
         self.assertEqual(report["decision"], "hold")
+        self.assertTrue(report["mechanics_valid"])
         self.assertFalse(report["authorizes_migration"])
         self.assertEqual(CURRENT.read_bytes(), current_before)
         self.assertEqual(status_after, status_before)
