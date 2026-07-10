@@ -574,8 +574,9 @@ def git_delta_against(base_git_sha: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _selected_no_effect_scenario_passes(manifest: dict[str, Any], architecture: dict[str, Any]) -> bool:
-    scenario_id = "target.product_core_no_effect_reachability"
+def _selected_scenario_passes(
+    manifest: dict[str, Any], architecture: dict[str, Any], scenario_id: str
+) -> bool:
     if scenario_id not in manifest.get("required_scenarios", []):
         return False
     return any(
@@ -596,7 +597,9 @@ def is_structurally_no_effect_wave(
     return bool(
         manifest.get("change_class") == "migration"
         and verification.get("decision") == "pass"
-        and _selected_no_effect_scenario_passes(manifest, architecture)
+        and _selected_scenario_passes(
+            manifest, architecture, "target.product_core_no_effect_reachability"
+        )
         and not affected.get("backends")
         and not affected.get("control_planes")
     )
@@ -652,13 +655,18 @@ def build_experiment_record(
         and all(row.get("status") == "A" and row.get("path") for row in git_delta)
         and set(delta_paths) == set(changed_paths)
     )
+    cited_read_side_rollback = bool(
+        structural_no_effect
+        and _selected_scenario_passes(manifest, architecture, "target.cited_read_side_cutover")
+        and b_migrate.get("decision") == "pass"
+    )
     compared_seed_ids = [str(row.get("seed_id")) for row in cvar.get("compared_rows", [])]
     compared_assertions = [str(row.get("name")) for row in b_migrate.get("assertions", [])]
     deltas = [float(row.get("delta_top_reward", 0.0)) for row in cvar.get("compared_rows", [])]
     worst_delta = min(deltas) if deltas else None
     ablation_stable = bool(structural_no_effect and b_migrate.get("decision") == "pass")
     rollback_restored = bool(
-        exact_additive_rollback
+        (exact_additive_rollback or cited_read_side_rollback)
         and verification.get("decision") == "pass"
         and architecture.get("decision") == "pass"
         and cvar.get("decision") == "pass"
@@ -746,13 +754,16 @@ def build_experiment_record(
             "revert_sha": None if ruler else manifest.get("base_repository", {}).get("git_sha"),
             "proof_artifact": (
                 {
-                    "mode": "exact_additive_revert",
+                    "mode": "incumbent_read_selector" if cited_read_side_rollback else "exact_additive_revert",
                     "base_git_sha": manifest.get("base_repository", {}).get("git_sha"),
                     "base_app_tree_sha": manifest.get("base_repository", {}).get("app_tree_sha"),
                     "candidate_git_sha": candidate_repository.get("git_sha"),
                     "candidate_app_tree_sha": candidate_repository.get("app_tree_sha"),
                     "git_delta": git_delta,
                     "binding_verification": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
+                    "incumbent_projection": (
+                        b_migrate.get("before_artifact") if cited_read_side_rollback else None
+                    ),
                 }
                 if structural_no_effect
                 else None
@@ -762,7 +773,11 @@ def build_experiment_record(
                 "No product code or payload promotion occurred"
                 if ruler
                 else (
-                    "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                    (
+                        "The independent incumbent projection remains executable and equivalent behind the compatibility selector."
+                        if cited_read_side_rollback
+                        else "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                    )
                     if rollback_restored
                     else "A behavior-bearing wave must attach exact rollback proof before promotion"
                 )

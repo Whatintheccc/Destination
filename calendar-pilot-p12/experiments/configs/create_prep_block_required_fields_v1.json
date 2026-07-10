@@ -1,0 +1,58 @@
+{
+  "required_field_manifest_schema_version": "required_field_manifest.v1",
+  "manifest_id": "create_prep_block.cited_candidate_card.v1",
+  "action_family": "create_prep_block",
+  "view_version": "view_state.v2",
+  "projection_version": "product_core.cited_candidate_card.v1",
+  "protected_fields": [
+    "candidate_id",
+    "control_notes",
+    "intent",
+    "model_story",
+    "rank",
+    "required_authority_tier",
+    "reward_breakdown",
+    "right_moment_decision",
+    "status_hint",
+    "subtitle",
+    "title",
+    "type"
+  ],
+  "cited_fields": [
+    "citation.event_ids",
+    "citation.evidence_refs",
+    "citation.projection_version",
+    "citation.reducer_version",
+    "projection.calendar_id",
+    "projection.end",
+    "projection.explanation",
+    "projection.start",
+    "projection.title"
+  ],
+  "controls": [
+    {
+      "control_id": "simulate",
+      "route_template": "/api/candidates/{candidate_id}/simulate",
+      "method": "POST",
+      "authority_source": "incumbent_swift_gate",
+      "effect_owner": "incumbent",
+      "expected_artifact": "simulation_receipt"
+    },
+    {
+      "control_id": "stage",
+      "route_template": "/api/candidates/{candidate_id}/stage",
+      "method": "POST",
+      "authority_source": "incumbent_swift_gate",
+      "effect_owner": "incumbent",
+      "expected_artifact": "swift_stage_receipt"
+    },
+    {
+      "control_id": "commit",
+      "route_template": "/api/candidates/{candidate_id}/commit",
+      "method": "POST",
+      "authority_source": "incumbent_swift_gate",
+      "effect_owner": "incumbent",
+      "expected_artifact": "verified_incumbent_provider_receipt"
+    }
+  ]
+}

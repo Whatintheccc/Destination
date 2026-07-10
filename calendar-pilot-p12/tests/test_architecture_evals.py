@@ -570,13 +570,17 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                 "product_core_no_effect_reachability",
                 {"product_core": {"can_dispatch": True, "forbidden_imports": [], "forbidden_preview_fields": [], "effect_counts": {"effect_attempts": 0, "claims": 0, "dispatches": 0, "provider_mutations": 0}}},
             ),
+            "uncited_read_side": (
+                "cited_read_side_cutover",
+                {"read_side": {}},
+            ),
             "p13_target_claim_without_evidence": (
                 "p13_target_not_implemented",
                 {"target_capability": {"reached": True}},
             ),
         }
 
-        self.assertEqual(len(planted), 29)
+        self.assertEqual(len(planted), 30)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():

@@ -1,0 +1,37 @@
+{
+  "b_migrate_assertion_schema_version": "b_migrate_assertions.v2",
+  "assertion_set_id": "create_prep_block_cited_read_side_p13_2",
+  "description": "Protected visible-card equivalence between the incumbent session snapshot and the P13.2 cited ProductCore read side.",
+  "protected_observables": [
+    "candidate_card",
+    "incumbent_control_routes",
+    "effect_ownership",
+    "effect_nonreachability"
+  ],
+  "assertions": [
+    {
+      "name": "protected_candidate_card",
+      "mode": "equal",
+      "before_path": "protected_card",
+      "after_path": "protected_card"
+    },
+    {
+      "name": "incumbent_control_routes",
+      "mode": "equal",
+      "before_path": "controls",
+      "after_path": "controls"
+    },
+    {
+      "name": "sole_effect_owner",
+      "mode": "equal",
+      "before_path": "effect_owner",
+      "after_path": "effect_owner"
+    },
+    {
+      "name": "zero_new_effects",
+      "mode": "equal",
+      "before_path": "new_effect_counts",
+      "after_path": "new_effect_counts"
+    }
+  ]
+}

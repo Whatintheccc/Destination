@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
+from jsonschema import Draft202012Validator
+
 from evals.p13_ruler.core import (
     build_binding_manifest,
     build_instrument_bundle,
@@ -173,6 +175,50 @@ class P13CurrentAdapter:
         path = self._write(scenario_dir / f"{case}.json", evidence)
         return {"product_core": evidence}, [(f"product_core_{case}", path)]
 
+    def _cited_read_side_evidence(self, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
+        from scripts.produce_b_migrate_p13_2_new import build_artifact as build_new
+        from scripts.produce_b_migrate_p13_2_old import build_artifact as build_old
+
+        manifest = json.loads(
+            (self.root / "experiments/configs/create_prep_block_required_fields_v1.json").read_text(encoding="utf-8")
+        )
+        schema = json.loads(
+            (self.root / "contracts/required_field_manifest.schema.json").read_text(encoding="utf-8")
+        )
+        old = build_old()["observable"]
+        new = build_new()["observable"]
+        card = {
+            **new.get("protected_card", {}),
+            "citation": new.get("citation", {}),
+            "projection": new.get("projection", {}),
+            "controls": new.get("controls", []),
+        }
+
+        def has_path(payload: dict[str, Any], dotted: str) -> bool:
+            value: Any = payload
+            for part in dotted.split("."):
+                if not isinstance(value, dict) or part not in value:
+                    return False
+                value = value[part]
+            return True
+
+        required_paths = [*manifest["protected_fields"], *manifest["cited_fields"]]
+        citation = new.get("citation", {})
+        evidence = {
+            "manifest_valid": not bool(list(Draft202012Validator(schema).iter_errors(manifest))),
+            "protected_fields_equal": old.get("protected_card") == new.get("protected_card"),
+            "required_fields_present": all(has_path(card, path) for path in required_paths),
+            "citation_event_ids": citation.get("event_ids", []),
+            "all_citations_in_journal": new.get("all_citations_in_journal"),
+            "reducer_version": citation.get("reducer_version"),
+            "projection_version": citation.get("projection_version"),
+            "controls": new.get("controls", []),
+            "restart_restored": new.get("restart_restored"),
+            "effect_counts": new.get("new_effect_counts", {}),
+        }
+        path = self._write(scenario_dir / "cited_read_side_cutover.json", evidence)
+        return {"read_side": evidence}, [("cited_read_side_cutover", path)]
+
     def _promotion_freeze_evidence(self, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
         current = self.root / "experiments/promoted/CURRENT.json"
         current_before = current.read_bytes()
@@ -266,6 +312,8 @@ class P13CurrentAdapter:
     def collect(self, case: str, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
         if case in {"reducer_determinism", "cited_required_projection", "product_core_no_effect_reachability"}:
             return self._product_core_evidence(case, scenario_dir)
+        if case == "cited_read_side_cutover":
+            return self._cited_read_side_evidence(scenario_dir)
         if case in DEBT_EVIDENCE:
             blocker, required = DEBT_EVIDENCE[case]
             return {"target_capability": {"reached": False, "blocker": blocker, "required_evidence": required}}, []

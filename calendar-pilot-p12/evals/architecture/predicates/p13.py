@@ -130,6 +130,42 @@ def product_core_no_effect_reachability(vector: dict[str, Any]) -> PredicateResu
     return _result("pass", "ProductCore is structurally non-dispatchable and records zero effect attempts or provider mutations.", product_core=evidence)
 
 
+def cited_read_side_cutover(vector: dict[str, Any]) -> PredicateResult:
+    evidence = vector.get("read_side")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    required = {
+        "manifest_valid", "protected_fields_equal", "required_fields_present",
+        "citation_event_ids", "all_citations_in_journal", "reducer_version",
+        "projection_version", "controls", "restart_restored", "effect_counts",
+    }
+    if not required.issubset(evidence):
+        return _result("hold", "P13.2 cited read-side evidence is incomplete.", read_side=evidence)
+    expected_counts = {"effect_attempts": 0, "claims": 0, "dispatches": 0, "provider_mutations": 0}
+    controls = evidence.get("controls", [])
+    controls_ok = bool(controls) and all(
+        isinstance(row, dict)
+        and row.get("effect_owner") == "incumbent"
+        and row.get("authority_source") == "incumbent_swift_gate"
+        and str(row.get("route", "")).startswith("/api/candidates/")
+        for row in controls
+    )
+    ok = (
+        evidence["manifest_valid"] is True
+        and evidence["protected_fields_equal"] is True
+        and evidence["required_fields_present"] is True
+        and bool(evidence["citation_event_ids"])
+        and evidence["all_citations_in_journal"] is True
+        and bool(evidence["reducer_version"])
+        and evidence["projection_version"] == "product_core.cited_candidate_card.v1"
+        and controls_ok
+        and evidence["restart_restored"] is True
+        and evidence["effect_counts"] == expected_counts
+    )
+    if not ok:
+        return _result("fail", "The cited read side lost a protected field, citation, restart value, incumbent control route, or no-effect wall.", read_side=evidence)
+    return _result("pass", "The create-prep-block card is reconstructed from persisted cited Journal rows while incumbent controls remain the sole effect path.", read_side=evidence)
+
+
 def p13_target_not_implemented(vector: dict[str, Any]) -> PredicateResult:
     capability = vector.get("target_capability")
     capability = capability if isinstance(capability, dict) else {}
@@ -158,5 +194,6 @@ P13_PREDICATES: dict[str, Predicate] = {
     "reducer_determinism": reducer_determinism,
     "cited_required_projection": cited_required_projection,
     "product_core_no_effect_reachability": product_core_no_effect_reachability,
+    "cited_read_side_cutover": cited_read_side_cutover,
     "p13_target_not_implemented": p13_target_not_implemented,
 }

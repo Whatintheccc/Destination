@@ -15,6 +15,7 @@ from evals.architecture.run_architecture_evals import (
 )
 from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrument_bundle
 from evals.architecture.predicates.p13 import (
+    cited_read_side_cutover,
     cited_required_projection,
     product_core_no_effect_reachability,
     reducer_determinism,
@@ -34,6 +35,7 @@ P13_1_TARGETS = {
     "target.cited_required_projection",
     "target.product_core_no_effect_reachability",
 }
+P13_2_TARGETS = P13_1_TARGETS | {"target.cited_read_side_cutover"}
 
 
 class ArchitectureEvalV2Tests(unittest.TestCase):
@@ -200,6 +202,42 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
         self.assertEqual(deterministic["status"], "fail")
         self.assertEqual(cited["status"], "fail")
         self.assertEqual(reachable["status"], "fail")
+
+    def test_manifest_selected_p13_2_targets_bind_and_pass(self):
+        with tempfile.TemporaryDirectory(dir=APP_ROOT / "runs") as td:
+            root = Path(td)
+            manifest_path, public_key = self._binding(root, required_targets=P13_2_TARGETS)
+            report = build_report(
+                scenario_set_path=P13_SCENARIOS,
+                binding_manifest_path=manifest_path,
+                verification_key=public_key,
+                binding_changed_paths=[],
+                artifact_root=root / "artifacts",
+                out=root / "latest.json",
+            )
+            by_id = {row["scenario_id"]: row for row in report["scenarios"]}
+            self.assertEqual(report["decision"], "pass")
+            self.assertTrue(all(by_id[scenario_id]["gate_mode"] == "required" for scenario_id in P13_2_TARGETS))
+            self.assertTrue(all(by_id[scenario_id]["status"] == "pass" for scenario_id in P13_2_TARGETS))
+
+    def test_p13_2_predicate_rejects_missing_citation_and_new_effect_owner(self):
+        planted = cited_read_side_cutover({"read_side": {
+            "manifest_valid": True,
+            "protected_fields_equal": True,
+            "required_fields_present": True,
+            "citation_event_ids": [],
+            "all_citations_in_journal": False,
+            "reducer_version": "product_core.create_prep_block.v1",
+            "projection_version": "product_core.cited_candidate_card.v1",
+            "controls": [{
+                "route": "/api/candidates/candidate/commit",
+                "effect_owner": "product_core",
+                "authority_source": "product_core",
+            }],
+            "restart_restored": True,
+            "effect_counts": {"effect_attempts": 0, "claims": 0, "dispatches": 0, "provider_mutations": 0},
+        }})
+        self.assertEqual(planted["status"], "fail")
 
     def test_optimizer_boundary_remains_explicit_debt(self):
         scenario_set = load_scenario_set(P13_SCENARIOS)

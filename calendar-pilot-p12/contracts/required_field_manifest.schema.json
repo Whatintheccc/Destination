@@ -1,0 +1,53 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/required_field_manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RequiredFieldManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "required_field_manifest_schema_version",
+    "manifest_id",
+    "action_family",
+    "view_version",
+    "projection_version",
+    "protected_fields",
+    "cited_fields",
+    "controls"
+  ],
+  "properties": {
+    "required_field_manifest_schema_version": {"const": "required_field_manifest.v1"},
+    "manifest_id": {"type": "string", "minLength": 1},
+    "action_family": {"const": "create_prep_block"},
+    "view_version": {"const": "view_state.v2"},
+    "projection_version": {"type": "string", "minLength": 1},
+    "protected_fields": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "cited_fields": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "controls": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["control_id", "route_template", "method", "authority_source", "effect_owner", "expected_artifact"],
+        "properties": {
+          "control_id": {"enum": ["simulate", "stage", "commit"]},
+          "route_template": {"type": "string", "pattern": "^/api/candidates/\\{candidate_id\\}/"},
+          "method": {"const": "POST"},
+          "authority_source": {"const": "incumbent_swift_gate"},
+          "effect_owner": {"const": "incumbent"},
+          "expected_artifact": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}
