@@ -1312,6 +1312,45 @@ and six later nonbinding `not_reached` debts. The full Python suite passed 260 t
 10 skips; Swift passed 17 tests, Swift IPC passed 9, the macOS app built, and dogfood
 release reported `ok: true`. Every P13.4 artifact remains non-authorizing for production.
 
+#### 8.5.2 P13.5 Vertical Retirement Order
+
+P13.5 retires ownership one action/backend pair at a time; it does not turn a sandbox
+certificate into a global provider switch. The first retirement wave is
+`create_prep_block × deterministic_sandbox`. It changes the normal runtime default for
+that exact pair from the incumbent lifecycle to the new Gate/Gateway and changes no
+EventKit or other action-family default. This is the smallest reversible proof that the
+new effect path is operational rather than a lab-only parallel implementation.
+
+The first wave binds all of the following before its product edit:
+
+```text
+retired_scope              create_prep_block × deterministic_sandbox only
+normal_effect_owner        EffectKernel Gate/Gateway for that exact pair
+legacy_effect_owner        unreachable from its normal commit and undo access points
+unaffected_owners          incumbent for EventKit and every other action/backend pair
+apply                      one ticket, one claim, one dispatch, one verified mutation
+undo                       separate compensation ticket and verified absence
+restart                    durable owner selection, ticket/outbox, and reconciliation
+normal_override            no caller-selected old/new owner flag
+rollback                   owner-controlled immutable selector rollback; never dual owner
+production                 false
+promotion                  false
+```
+
+Operational retirement and code deletion are different events. P13.5 removes the
+incumbent path as normal truth for the bound pair but retains one owner-controlled
+rollback selector until the wave closes; P16 may delete the unreachable implementation
+only after contraction certificates prove that its monitors and evidence are preserved.
+The runtime certificate must exercise the same visible commit and undo access points used
+by the application and prove zero legacy kernel/provider mutation calls for the retired
+pair. A selector unit test or direct Gateway fixture is insufficient.
+
+The EventKit retirement is a subsequent P13.5 wave. It must rebind the exact app and
+bridge identities, target-calendar policy, permission state, affected live leg, normal
+runtime commit/undo access points, and cleanup evidence. Until that wave passes,
+`create_prep_block × apple_eventkit` and all production modes remain incumbent-owned.
+No deterministic result can authorize the EventKit retirement.
+
 ---
 
 ## 9. Phase Architecture
