@@ -26,6 +26,7 @@
   "lab/scorecard.schema.json": "v1",
   "label_activation.schema.json": "v1",
   "learning_partition_manifest.schema.json": "v1",
+  "learning_evidence_event.schema.json": "v1",
   "measurement_report.schema.json": "v1",
   "managed_eventkit_live_certificate.schema.json": "v1",
   "p13_attestation_scaffold_report.schema.json": "v1",

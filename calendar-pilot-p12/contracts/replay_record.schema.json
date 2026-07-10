@@ -22,6 +22,9 @@
     "record_type": {
       "enum": [
         "decision",
+        "learning_decision",
+        "learning_exposure",
+        "learning_outcome",
         "receipt",
         "reward",
         "self_play_episode",

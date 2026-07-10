@@ -574,6 +574,10 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                 "reward_identity_provenance",
                 {"reward_ingress": {}},
             ),
+            "learning_evidence_unlinked": (
+                "learning_evidence_chain",
+                {"learning_evidence": {}},
+            ),
             "nondeterministic_product_core": (
                 "reducer_determinism",
                 {"product_core": {"first_sha256": "a", "second_sha256": "b", "reducer_version": "v1", "event_types": []}},
@@ -669,7 +673,7 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
             ),
         }
 
-        self.assertEqual(len(planted), 38)
+        self.assertEqual(len(planted), 39)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():

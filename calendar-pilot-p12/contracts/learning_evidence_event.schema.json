@@ -1,0 +1,125 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/learning_evidence_event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LearningEvidenceEventV1",
+  "oneOf": [
+    {"$ref": "#/$defs/decision"},
+    {"$ref": "#/$defs/exposure"},
+    {"$ref": "#/$defs/outcome"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "arm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "rank", "behavior_payload_sha256"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "rank": {"type": "integer", "minimum": 0},
+        "behavior_payload_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "learning_evidence_event_schema_version", "event_type", "event_id",
+        "decision_id", "trace_id", "recorded_at", "session_id", "runtime_mode",
+        "policy_backend", "policy_version", "context", "eligible_set", "selected",
+        "selected_behavior_payload", "selected_behavior_payload_sha256", "outcome_window"
+      ],
+      "properties": {
+        "learning_evidence_event_schema_version": {"const": "learning_evidence_event.v1"},
+        "event_type": {"const": "decision"},
+        "event_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1},
+        "trace_id": {"type": "string", "minLength": 1},
+        "recorded_at": {"$ref": "#/$defs/timestamp"},
+        "session_id": {"type": "string", "minLength": 1},
+        "runtime_mode": {"type": ["string", "null"]},
+        "policy_backend": {"type": "string", "minLength": 1},
+        "policy_version": {"type": "string", "minLength": 1},
+        "context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["observation_id", "pre_state_sha256"],
+          "properties": {
+            "observation_id": {"type": ["string", "null"]},
+            "pre_state_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "eligible_set": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/arm"}},
+        "selected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["candidate_id", "selection_mode", "propensity"],
+          "properties": {
+            "candidate_id": {"type": "string", "minLength": 1},
+            "selection_mode": {"enum": ["deterministic", "randomized"]},
+            "propensity": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+          }
+        },
+        "selected_behavior_payload": {"type": "object"},
+        "selected_behavior_payload_sha256": {"$ref": "#/$defs/sha256"},
+        "outcome_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["starts_at", "ends_at", "timeout_outcome", "superseded_outcome"],
+          "properties": {
+            "starts_at": {"$ref": "#/$defs/timestamp"},
+            "ends_at": {"$ref": "#/$defs/timestamp"},
+            "timeout_outcome": {"const": "ignored"},
+            "superseded_outcome": {"const": "censored"}
+          }
+        }
+      }
+    },
+    "exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "learning_evidence_event_schema_version", "event_type", "event_id",
+        "exposure_id", "decision_id", "parent_event_id", "trace_id", "rendered_at",
+        "surface", "eligible_candidate_ids", "rendered_candidate_ids"
+      ],
+      "properties": {
+        "learning_evidence_event_schema_version": {"const": "learning_evidence_event.v1"},
+        "event_type": {"const": "exposure"},
+        "event_id": {"type": "string", "minLength": 1},
+        "exposure_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1},
+        "parent_event_id": {"type": "string", "minLength": 1},
+        "trace_id": {"type": "string", "minLength": 1},
+        "rendered_at": {"$ref": "#/$defs/timestamp"},
+        "surface": {"type": "string", "minLength": 1},
+        "eligible_candidate_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "rendered_candidate_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "learning_evidence_event_schema_version", "event_type", "event_id",
+        "outcome_id", "decision_id", "exposure_id", "parent_event_id", "trace_id",
+        "candidate_id", "outcome", "observed_at", "reason", "censoring_reason"
+      ],
+      "properties": {
+        "learning_evidence_event_schema_version": {"const": "learning_evidence_event.v1"},
+        "event_type": {"const": "outcome"},
+        "event_id": {"type": "string", "minLength": 1},
+        "outcome_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1},
+        "exposure_id": {"type": "string", "minLength": 1},
+        "parent_event_id": {"type": "string", "minLength": 1},
+        "trace_id": {"type": "string", "minLength": 1},
+        "candidate_id": {"type": "string", "minLength": 1},
+        "outcome": {"enum": ["accepted", "dismissed", "corrected", "ignored", "censored"]},
+        "observed_at": {"$ref": "#/$defs/timestamp"},
+        "reason": {"type": "string"},
+        "censoring_reason": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

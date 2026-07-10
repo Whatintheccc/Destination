@@ -285,11 +285,16 @@ def assert_static_shell() -> None:
         "simulate-btn",
         "stage-btn",
         "commit-btn",
+        "candidate-accepted",
+        "candidate-dismissed",
+        "candidate-corrected",
         "feedback-useful",
         "replay-export",
         "/api/self-play",
         "/api/authority",
         "/api/runtime",
+        "/api/learning/exposure",
+        "/api/learning/outcome",
         "openEnvelopeOverlay",
         "connectEvents",
     ]
@@ -318,6 +323,25 @@ def run_live_api_loop(base_url: str) -> dict[str, Any]:
     if not cards:
         raise AssertionError("/api/plans did not produce candidate cards")
     candidate_id = cards[0]["candidate_id"]
+    evidence = planned.get("learning", {}).get("evidence", {})
+    decision = evidence.get("latest_decision") or {}
+    if not decision.get("decision_id"):
+        raise AssertionError("/api/plans did not produce an atomic learning decision")
+    rendered_ids = [card["candidate_id"] for card in cards[: min(4, len(cards))]]
+    exposure = api_post(base_url, "/api/learning/exposure", {
+        "decision_id": decision["decision_id"],
+        "rendered_candidate_ids": rendered_ids,
+        "surface": "browser_e2e",
+    })
+    outcome = api_post(base_url, "/api/learning/outcome", {
+        "decision_id": decision["decision_id"],
+        "exposure_id": exposure["exposure_id"],
+        "candidate_id": candidate_id,
+        "outcome": "accepted",
+        "reason": "browser e2e explicit candidate feedback",
+    })
+    if outcome.get("decision") != "pass":
+        raise AssertionError("candidate-level learning outcome did not pass")
 
     simulated = api_post(base_url, f"/api/candidates/{candidate_id}/simulate", {})
     if "simulated" not in json.dumps(simulated):
@@ -370,6 +394,13 @@ def run_live_api_loop(base_url: str) -> dict[str, Any]:
         raise AssertionError("replay export is empty")
     if replay_export.get("runtime", {}).get("runtime_mode") != "fixture":
         raise AssertionError("replay export did not include fixture runtime provenance")
+    learning_rows = {row.get("record_type"): row for row in replay_export["records"] if row.get("record_type", "").startswith("learning_")}
+    if not {"learning_decision", "learning_exposure", "learning_outcome"}.issubset(learning_rows):
+        raise AssertionError("replay export lacks the complete learning evidence chain")
+    if learning_rows["learning_exposure"].get("causal_parent_id") != learning_rows["learning_decision"].get("record_id"):
+        raise AssertionError("learning exposure does not cite its decision")
+    if learning_rows["learning_outcome"].get("causal_parent_id") != learning_rows["learning_exposure"].get("record_id"):
+        raise AssertionError("learning outcome does not cite its exposure")
 
     error = api_post(base_url, "/api/not-a-route", {}, expected_status=400)
     if "error" not in error or "state" not in error:

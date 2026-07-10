@@ -194,6 +194,50 @@ def reward_identity_provenance(vector: dict[str, Any]) -> PredicateResult:
     return _result("pass", "Signed issuer identity fixes global occurrence and source class; direct and transitive simulator-positive credit is rejected.", reward_ingress=evidence)
 
 
+def learning_evidence_chain(vector: dict[str, Any]) -> PredicateResult:
+    debt = _target_debt(vector)
+    if debt is not None:
+        return debt
+    evidence = vector.get("learning_evidence")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    decision = evidence.get("decision") if isinstance(evidence.get("decision"), dict) else {}
+    exposure = evidence.get("exposure") if isinstance(evidence.get("exposure"), dict) else {}
+    outcome = evidence.get("outcome") if isinstance(evidence.get("outcome"), dict) else {}
+    decision_payload = decision.get("payload") if isinstance(decision.get("payload"), dict) else {}
+    exposure_payload = exposure.get("payload") if isinstance(exposure.get("payload"), dict) else {}
+    outcome_payload = outcome.get("payload") if isinstance(outcome.get("payload"), dict) else {}
+    eligible = decision_payload.get("eligible_set") if isinstance(decision_payload.get("eligible_set"), list) else []
+    eligible_ids = [str(row.get("candidate_id")) for row in eligible if isinstance(row, dict) and row.get("candidate_id")]
+    rendered = exposure_payload.get("rendered_candidate_ids") if isinstance(exposure_payload.get("rendered_candidate_ids"), list) else []
+    selected = decision_payload.get("selected") if isinstance(decision_payload.get("selected"), dict) else {}
+    context = decision_payload.get("context") if isinstance(decision_payload.get("context"), dict) else {}
+    if not eligible_ids or len(eligible_ids) != len(set(eligible_ids)):
+        return _result("hold" if not evidence else "fail", "The learning decision lacks one atomic unique eligible set.", learning_evidence=evidence)
+    if selected.get("candidate_id") not in eligible_ids or selected.get("selection_mode") not in {"deterministic", "randomized"}:
+        return _result("fail", "The selected learning arm is not eligible or lacks a selection mode.", selected=selected, eligible_ids=eligible_ids)
+    propensity = selected.get("propensity")
+    if not isinstance(propensity, (int, float)) or not 0 < float(propensity) <= 1:
+        return _result("fail", "The selected learning arm lacks a valid propensity.", selected=selected)
+    if selected.get("selection_mode") == "deterministic" and float(propensity) != 1.0:
+        return _result("fail", "A deterministic learning decision reported non-unit propensity.", selected=selected)
+    if len(str(context.get("pre_state_sha256", ""))) != 64 or not decision_payload.get("selected_behavior_payload"):
+        return _result("hold", "The learning decision lacks its pre-state hash or actual behavior payload.", context=context)
+    if exposure.get("causal_parent_id") != decision.get("record_id") or exposure_payload.get("decision_id") != decision.get("record_id"):
+        return _result("fail", "Rendered exposure does not cite the atomic decision.", decision=decision, exposure=exposure)
+    if not rendered or not set(rendered).issubset(set(eligible_ids)):
+        return _result("fail", "The rendered set is empty or not a subset of the eligible set.", rendered=rendered, eligible_ids=eligible_ids)
+    if outcome.get("causal_parent_id") != exposure.get("record_id") or outcome_payload.get("exposure_id") != exposure.get("record_id"):
+        return _result("fail", "The human outcome does not cite the rendered exposure.", exposure=exposure, outcome=outcome)
+    if outcome_payload.get("candidate_id") not in rendered or outcome.get("signal_stream") != "action":
+        return _result("fail", "The outcome is not attached to a rendered candidate on ActionStream.", outcome=outcome, rendered=rendered)
+    attacks = ("missing_exposure_rejected", "unrendered_outcome_rejected", "conflicting_outcome_rejected")
+    if not all(evidence.get(key) is True for key in attacks):
+        return _result("fail", "A planted learning-evidence counterexample escaped.", attacks={key: evidence.get(key) for key in attacks})
+    if evidence.get("formal_epoch_bound") is not False or evidence.get("promotion_use") != "search_only_until_pre_search_epoch_freezes":
+        return _result("fail", "Pre-epoch learning evidence was mislabeled as promotion evidence.", learning_evidence=evidence)
+    return _result("pass", "One atomic decision cites its eligible arm set and propensity; the exact rendered subset and terminal ActionStream outcome form a causal chain while pre-epoch use remains search-only.", decision_id=decision.get("record_id"), exposure_id=exposure.get("record_id"), outcome_id=outcome.get("record_id"))
+
+
 def reducer_determinism(vector: dict[str, Any]) -> PredicateResult:
     evidence = vector.get("product_core")
     evidence = evidence if isinstance(evidence, dict) else {}
@@ -833,6 +877,7 @@ P13_PREDICATES: dict[str, Predicate] = {
     "holdout_non_exposure": holdout_non_exposure,
     "signed_policy_promotion": signed_policy_promotion,
     "reward_identity_provenance": reward_identity_provenance,
+    "learning_evidence_chain": learning_evidence_chain,
     "reducer_determinism": reducer_determinism,
     "cited_required_projection": cited_required_projection,
     "product_core_no_effect_reachability": product_core_no_effect_reachability,

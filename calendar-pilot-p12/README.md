@@ -331,6 +331,7 @@ The control-plane access sequence is explicit:
 
 ```bash
 make p13-learning-ruler-test
+make p13-learning-evidence-test
 
 make learning-propose \
   SEARCH=<sanitized-search.jsonl> HOLDOUT=<sealed-holdout.jsonl> \
@@ -347,6 +348,15 @@ make learning-evaluate \
 
 make lab-promote RECORD=<promoter-dir/promotion_record.json>
 ```
+
+The evidence target proves one atomic eligible-set decision with its selected behavior
+payload, deterministic/randomized marker, selected-action propensity, and pre-state hash;
+an exposure row records the exact candidate subset actually rendered; and an ActionStream
+outcome records explicit `accepted`, `dismissed`, or `corrected` feedback without requiring
+a receipt or calendar effect. Missing exposure, unrendered-candidate feedback, and
+conflicting terminal outcomes fail closed. Elapsed windows become `ignored`; a newer
+decision censors still-open exposures. Until a later pre-search epoch binds real partition
+windows and thresholds, these rows are labeled search-only and cannot support promotion.
 
 `learning-propose` is macOS-only and fails closed if `sandbox-exec` is unavailable or
 cannot apply its deny-by-default profile. The optimizer may read sanitized search and
