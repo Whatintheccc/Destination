@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1/P13.2 `create_prep_block` no-effect and cited-read verticals passed their signed composite waves. P13.3 may now proceed only in the owner-controlled deterministic sandbox defined in §8.5.1; that lane confers no real-provider, production, retirement, deployment, or promotion authority. The external authorization boundary remains binding before P13.4 or any such handoff.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.3 `create_prep_block` no-effect, cited-read, and owner-controlled deterministic-sandbox verticals passed their signed composite waves. P13.4 is the next phase and remains blocked on the external authorization boundary in §8.5.1. No real-provider, production, retirement, deployment, or promotion authority has been conferred.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1503,6 +1503,32 @@ compensation. Its receipts are development evidence with
 `authorizes_production: false`; deterministic handoff does not authorize EventKit or
 production handoff.
 
+P13.3 closed on candidate `08c8c4d933e2ecfc01c6b5649eac0d166a4fc5b7`
+against signed base `3740be010067f994ae90c277d7ccbf13706f7aa7` and manifest
+`p13-create-prep-block-deterministic-sandbox:3740be010067:20260710T101741Z`.
+The frozen InstrumentBundle was
+`1f7803ad1a158553226b4014d9a770726f70df64b141d9f51775756d2cda3b29`.
+The additive `EffectKernel` contains one Gate, one durable claim/outbox Gateway, one
+pure no-credential deterministic adapter, and one selector that defaults to the
+incumbent unless `owner_controlled_sandbox` is explicit. Apply and compensation tickets
+bind exact intent/pre-state, grant epoch, nonce, and target receipt where applicable;
+duplicate, crash, unknown, reconcile, revoke, restart, and later-edit cases are frozen
+architecture evidence. Every ticket, receipt, ledger, report, and selector result remains
+non-authorizing, and the package has no EventKit, provider, Swift-bridge, model, network,
+subprocess, or credential import path.
+
+The composite wave passed binding, architecture, C-VAR, independent `B_migrate`, P12
+release, fixed unaffected reward screening, live-leg root list, LOC, `ExperimentRecord.v2`,
+and schema validation. Architecture run
+`architecture-evals-20260710T101851837198Z-2216fc9b` recorded 11/11 preservation passes,
+22 target passes, and only six later nonbinding `not_reached` debts. The independent
+normal-outcome comparison passed all 13 assertions, and the experiment record identified
+the claim narrowly as deterministic sandbox lifecycle equivalence with an exact additive
+rollback to the default incumbent selector. The full Python suite passed 252 tests with
+10 skips. Dogfood release reported `ok: true` across Python, Swift, Swift IPC, browser,
+app build/sanity, launch/port ownership, artifacts, and secret scans; mutating EventKit
+remained skipped. This closes P13.3 only and leaves P13.4 externally blocked.
+
 During P13.2, only controls already proven on the incumbent may render as actionable;
 they route through one compatibility selector to the incumbent effect path and their
 receipts return to the Journal. New-only revoke/reconcile/compensation controls remain
@@ -1663,7 +1689,7 @@ Use this checklist for every proposed wave.
 [ ] Behavior is classified as role, port/adapter, event, projection, command, or control-plane function.
 [ ] The exact action family/backend vertical and old/new invocation identities are named.
 [ ] The candidate write aperture is explicit and allowlisted.
-[ ] P13.1/P13.2 product code proves it is structurally outside the effect TCB; any later effect-TCB handoff or retirement edit is manifest-declared and satisfies §8.5.1.
+[ ] P13.1/P13.2 product code proves it is structurally outside the effect TCB; P13.3 effect-TCB code is confined to the explicit non-authorizing deterministic profile; any real-provider, production handoff, or retirement edit is manifest-declared and satisfies the external §8.5.1 profile.
 [ ] Every durable semantic, safety-, explanation-, and decision-bearing field is in the Journal + Reducer manifest; ephemeral UI state owns no product truth.
 ```
 
@@ -1736,8 +1762,8 @@ Retired by Step E (evidence: [P12 Record §6](P12-RECORD.md)): the original
 deterministic-only P12 reach, the three original pass-by-construction placebo reports,
 and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
 compression-wave mechanics, a protected root access point, and exact-main hosted replay
-evidence. P13.1 no-effect construction and P13.2 cited read-side cutover are complete.
-P13.3 may proceed only as the owner-controlled deterministic sandbox in §8.5.1. The
+evidence. P13.1 no-effect construction, P13.2 cited read-side cutover, and the bounded
+P13.3 owner-controlled deterministic sandbox are complete. The
 durable-signer, independent-review, and isolated-evaluation profile remains the blocker
 for P13.4, any real-provider or production effect handoff, old-truth retirement,
 deployment, and production learning promotion.
@@ -1796,7 +1822,7 @@ deployment, and production learning promotion.
 
 5. Cut over its cited read side while the incumbent remains the sole effect owner. — DONE
 
-6. Exercise deterministic effects only in the §8.5.1 owner-controlled sandbox.
+6. Exercise deterministic effects only in the §8.5.1 owner-controlled sandbox. — DONE
    Keep the incumbent as every non-sandbox default and production owner; admit no
    credentials or external-I/O provider; stamp all tickets, receipts, and reports as
    non-authorizing. At the sole Gateway selector prove effect and compensation tickets,
@@ -1840,8 +1866,9 @@ freeze, and one protected exact-main hosted replay with a checksummed evidence b
 That closes P13.0 for single-owner development. P13.1 and P13.2 have migrated one bounded
 `create_prep_block` vertical through a structurally no-effect ProductCore and
 `AdmissionPreview`, then cut over its cited read-side projection while the incumbent
-remains the sole effect owner. P13.3 may now exercise ticket/Gateway semantics only in
-the owner-controlled deterministic sandbox, whose artifacts cannot authorize production.
+remains the sole non-sandbox and production effect owner. P13.3 now exercises
+ticket/Gateway semantics only in the owner-controlled deterministic sandbox, whose
+artifacts cannot authorize production.
 The organizational, cryptographic, and execution-isolation profile in §8.5.1 remains the
 binding blocker before P13.4, app-bundled EventKit, real-provider or production effect
 ownership, retirement, deployment, or P13.6 promotion.
