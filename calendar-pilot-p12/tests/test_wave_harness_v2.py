@@ -23,6 +23,7 @@ from evals.p13_ruler.wave import (
     P13_4_EVENTKIT_SCENARIOS,
     P13_5_EVENTKIT_RETIREMENT_SCENARIOS,
     P13_5_RETIREMENT_SCENARIOS,
+    P13_6_LEARNING_BASELINE_SCENARIOS,
     build_b_migrate_artifact,
     build_cvar_frontier_set,
     build_experiment_record,
@@ -35,6 +36,8 @@ from evals.p13_ruler.wave import (
     is_owner_controlled_sandbox_wave,
     is_owner_controlled_vertical_retirement_wave,
     is_structurally_no_effect_wave,
+    is_learning_baseline_migration_wave,
+    learning_baseline_rollback_evidence,
     verify_root_list,
 )
 from scripts.make_reward_head_report import build_report as build_reward_report
@@ -141,6 +144,31 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             self.assertTrue(pin["signed_current_verified"])
             self.assertEqual(pin["promotion_record_id"], "signed-record")
             self.assertEqual(pin["policy_tuning_sha256"], sha256_file(payload_path))
+
+    def test_learning_baseline_classifier_is_exact_and_uses_fixed_reward_fixture(self):
+        manifest = _manifest()
+        manifest["change_class"] = "migration"
+        manifest["required_scenarios"] = sorted(P13_6_LEARNING_BASELINE_SCENARIOS)
+        verification = {
+            "decision": "pass",
+            "changed_paths": [
+                {"path": "calendar-pilot-p12/experiments/learning/partition_manifest.json"},
+                {"path": "calendar-pilot-p12/experiments/promoted/CURRENT.json"},
+            ],
+            "derived_affectedness": {"actions": [], "backends": [], "control_planes": ["evaluator"]},
+        }
+        architecture = {
+            "scenarios": [
+                {"scenario_id": scenario_id, "gate_mode": "required", "status": "pass"}
+                for scenario_id in P13_6_LEARNING_BASELINE_SCENARIOS
+            ]
+        }
+        self.assertTrue(is_learning_baseline_migration_wave(manifest, verification, architecture))
+        self.assertTrue(uses_fixed_reward_fixture(manifest, verification, architecture))
+        planted = deepcopy(verification)
+        planted["changed_paths"].append({"path": "calendar-pilot-p12/src/calendar_pilot/effect_kernel/kernel.py"})
+        self.assertFalse(is_learning_baseline_migration_wave(manifest, planted, architecture))
+        self.assertEqual(learning_baseline_rollback_evidence(), (False, None))
 
     def test_behavior_cvar_requires_clean_frozen_before_and_changed_after(self):
         with tempfile.TemporaryDirectory() as td:
