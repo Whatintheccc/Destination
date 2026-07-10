@@ -87,7 +87,7 @@ def _fixture(api: dict[str, Any], *, root: Path, scenario_dir: Path, crash_at: s
         scopes=("recommend", "stage", "commit_private", "undo"),
         confirmation_provenance="p13.5_owner_confirmed",
         confirmed_by_user=True,
-        issued_at=observation.observed_at,
+        issued_at=datetime.now(timezone.utc),
     )
     replay = api["Replay"]()
     runtime = api["Runtime"](
