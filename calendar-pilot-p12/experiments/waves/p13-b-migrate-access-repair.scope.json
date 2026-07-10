@@ -1,0 +1,51 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/evals/p13_ruler/wave.py",
+    "calendar-pilot-p12/experiments/waves/p13-b-migrate-access-repair.scope.json",
+    "calendar-pilot-p12/scripts/run_b_migrate_dual_run_v2.py",
+    "calendar-pilot-p12/scripts/run_p13_wave_gate.py",
+    "calendar-pilot-p12/tests/test_wave_harness_v2.py"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": [],
+    "surfaces": [
+      "evaluation",
+      "ruler_scripts",
+      "tests",
+      "wave_scope"
+    ],
+    "instruments": [
+      "architecture_eval",
+      "binding_manifest",
+      "release_and_wave_ruler",
+      "tests"
+    ],
+    "control_planes": [
+      "evaluator",
+      "optimizer"
+    ]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
+    "target.binding_manifest_signature",
+    "target.instrument_mutation_rejection",
+    "target.promotion_override_rejection"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
