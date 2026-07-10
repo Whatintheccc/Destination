@@ -1257,6 +1257,12 @@ effect. Elapsed windows become ignored and superseded windows become censored. M
 exposure, unrendered-candidate feedback, conflicting terminal outcomes, classifier scope
 broadening, and scope-file-in-candidate attacks all fail.
 
+The exact stack entered protected `main` through PR #7's required linear rebase. The
+main-reachable implementation commit equivalent to the signed candidate is
+`bacb489709cdeb1afd4a77b88f3743c9a91ff61b`; the main-reachable closure record is
+`9eeaf5b815474d1f289db82ae31bc089ab737b80`. Dogfood evidence must cite those protected
+identities (plus the signed pre-merge manifest above), not the pre-rebase candidate alone.
+
 Composite run `architecture-evals-20260710T235002232480Z-74a8324f` passed 11/11
 preservation and 45 target scenarios; only the later Frontier-vector,
 monitor-detectability, and executable-control debts remain nonbinding `not_reached`.
