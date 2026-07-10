@@ -9,6 +9,7 @@
     "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
     "calendar-pilot-p12/contracts/**",
     "calendar-pilot-p12/evals/architecture/**",
+    "calendar-pilot-p12/evals/p13_ruler/wave.py",
     "calendar-pilot-p12/experiments/templates/experiment_record_v2.template.json",
     "calendar-pilot-p12/experiments/waves/p13-wave-harness-v3.scope.json",
     "calendar-pilot-p12/scripts/make_experiment_record.py",
@@ -30,6 +31,7 @@
       "experiment_record",
       "ruler_scripts",
       "tests",
+      "wave_scope",
       "workspace_access"
     ],
     "instruments": [
@@ -42,6 +44,7 @@
       "release_and_wave_ruler",
       "root_ci",
       "tests",
+      "binding_manifest",
       "wave_gate"
     ],
     "control_planes": ["effect_tcb", "evaluator", "optimizer"]
