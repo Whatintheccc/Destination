@@ -204,7 +204,7 @@ is the exact-main hosted replay for implementation commit
 recorded in [`../compression-roadmap.md`](../compression-roadmap.md), §8.5. Swift remains
 a separate access point and is not implied by this Linux Python replay. Because evaluator
 code and the development key remain candidate-controlled, neither the hosted run nor a
-local result can authorize a P13.1 or other TCB migration. The required external operator
+local result can authorize an effect-TCB migration. The required external operator
 authorization, reviewer attestation, and isolated evaluator receipt are specified in
 §8.5.1 of that roadmap.
 
@@ -237,6 +237,18 @@ It proves the `create_prep_block` ProductCore path is deterministic, cited, inde
 comparable to the incumbent preview, and structurally unable to construct tickets,
 `EffectAttempt`s, dispatches, or provider mutations. It does not cut over the frontend or
 authorize an effect.
+
+The P13.2 cited read-side cutover has one focused root access point:
+
+```bash
+make p13-cited-read-side-test
+```
+
+It pins the exact candidate-card field manifest, proves the cited card is reconstructed
+from persisted ProductCore Journal rows across restart, preserves every incumbent visible
+field, and keeps simulate/stage/commit controls routed to the incumbent Swift-owned effect
+path. The `incumbent` compatibility selector is the tested rollback path; this target does
+not authorize a ticket, dispatch, provider mutation, or P13.3 handoff.
 
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
