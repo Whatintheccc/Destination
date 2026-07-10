@@ -1,0 +1,146 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/README.md",
+    "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
+    "calendar-pilot-p12/contracts/VERSIONS.json",
+    "calendar-pilot-p12/contracts/learning_evidence_event.schema.json",
+    "calendar-pilot-p12/evals/architecture/adapters/p13_current.py",
+    "calendar-pilot-p12/evals/architecture/adapters/p13_learning_scenarios.py",
+    "calendar-pilot-p12/evals/architecture/predicates/p13.py",
+    "calendar-pilot-p12/evals/architecture/scenarios/p13_v2.json",
+    "calendar-pilot-p12/experiments/waves/p13-learning-evidence-plumbing.scope.json",
+    "calendar-pilot-p12/frontend/static/js/components/cards.js",
+    "calendar-pilot-p12/frontend/static/js/main.js",
+    "calendar-pilot-p12/scripts/run_browser_e2e.py",
+    "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/frontier_service.py",
+    "calendar-pilot-p12/src/calendar_pilot/environment/signal_streams.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/server.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session_snapshot.py",
+    "calendar-pilot-p12/src/calendar_pilot/replay.py",
+    "calendar-pilot-p12/tests/test_architecture_evals.py",
+    "calendar-pilot-p12/tests/test_architecture_evals_v2.py",
+    "calendar-pilot-p12/tests/test_p13_learning_evidence.py",
+    "compression-roadmap.md"
+  ],
+  "declared": {
+    "actions": ["*"],
+    "backends": ["*"],
+    "surfaces": [
+      "app_access",
+      "architecture_docs",
+      "configuration",
+      "contracts",
+      "docs",
+      "evaluation",
+      "frontend",
+      "frontier",
+      "journal",
+      "learning",
+      "operational_runtime",
+      "reducer",
+      "tests",
+      "wave_scope"
+    ],
+    "instruments": [
+      "access_point_docs",
+      "architecture_eval",
+      "architecture_spec",
+      "binding_manifest",
+      "configuration",
+      "contract_schemas",
+      "tests",
+      "wave_gate"
+    ],
+    "control_planes": ["effect_tcb", "evaluator", "optimizer"]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
+    "target.binding_manifest_signature",
+    "target.holdout_non_exposure",
+    "target.instrument_mutation_rejection",
+    "target.learning_evidence_chain",
+    "target.optimizer_write_boundary",
+    "target.promotion_override_rejection",
+    "target.reward_identity_provenance",
+    "target.signed_policy_promotion"
+  ],
+  "old_producer": {
+    "cvar": {
+      "producer_id": "cvar.before.current",
+      "command": ["python3", "scripts/produce_cvar_frontier.py", "--role", "before", "--current", "experiments/promoted/CURRENT.json"]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.old.session_snapshot",
+      "command": ["python3", "scripts/produce_b_migrate_old.py"]
+    }
+  },
+  "new_producer": {
+    "cvar": {
+      "producer_id": "cvar.after.current",
+      "command": ["python3", "scripts/produce_cvar_frontier.py", "--role", "after", "--current", "experiments/promoted/CURRENT.json"]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.new.frontend_projector",
+      "command": ["python3", "scripts/produce_b_migrate_new.py"]
+    }
+  },
+  "live_legs": [
+    {
+      "leg": "live-codex-e2e",
+      "status": "root-listed",
+      "reason": {
+        "basis": "unaffected",
+        "detail": "The wave records policy and UI evidence after generation; it does not change the Codex respondent, prompt, route, or output."
+      },
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live Codex behavior unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-codex-e2e before changing the Codex respondent, prompt, planner, route, or output."
+    },
+    {
+      "leg": "live-diffusiongemma-e2e",
+      "status": "root-listed",
+      "reason": {
+        "basis": "unaffected",
+        "detail": "The wave records the eligible and rendered sets without changing DiffusionGemma generation, normalization, ranking, or scores."
+      },
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live NIM behavior unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-diffusiongemma-e2e before changing the respondent, normalization, ranking, scores, or tuning."
+    },
+    {
+      "leg": "live-eventkit-e2e",
+      "status": "root-listed",
+      "reason": {
+        "basis": "unaffected",
+        "detail": "Recommendation evidence endpoints have no ticket, Gateway, provider, binding, or EventKit capability."
+      },
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; EventKit effect path unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run the app-bundled EventKit leg before any effect admission, Gateway, provider, binding, or EventKit change."
+    }
+  ]
+}
