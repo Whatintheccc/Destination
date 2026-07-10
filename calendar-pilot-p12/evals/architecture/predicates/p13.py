@@ -317,6 +317,127 @@ def sandbox_effect_contract(vector: dict[str, Any]) -> PredicateResult:
     )
 
 
+EVENTKIT_CASE_EXPECTATIONS: dict[str, dict[str, Any]] = {
+    "eventkit_identity_target_binding": {
+        "app_bundle_bound": True,
+        "bridge_bound": True,
+        "permission_status": "full_access",
+        "sandbox_calendar_id": "calendarpilot-sandbox-test",
+        "raw_cli_rejected": True,
+        "wrong_calendar_status": "denied",
+        "wrong_calendar_reason": "target_binding_invalid",
+        "effect_budget": 1,
+        "dispatch_count": 0,
+    },
+    "eventkit_ticket_binding": {
+        "admission_status": "ticket",
+        "signature_valid": True,
+        "tampered_signature_valid": False,
+        "deterministic_profile_status": "denied",
+        "deterministic_profile_reason": "authority_profile_invalid",
+        "nonce_unique": True,
+    },
+    "eventkit_effect_lifecycle": {
+        "initial_phase": "verified",
+        "duplicate_same_receipt": True,
+        "claim_count": 1,
+        "dispatch_count": 1,
+        "mutation_count": 1,
+        "crash_before_phase": "unclaimed",
+        "crash_before_dispatch_count": 0,
+        "crash_after_claim_phase": "claimed",
+        "crash_after_claim_reconciled": "not_applied",
+        "crash_after_dispatch_phase": "applying_unknown",
+        "restart_reconciled_phase": "verified",
+        "restart_same_ticket": True,
+        "restart_dispatch_count": 1,
+    },
+    "eventkit_revoke_claim_race": {
+        "before_claim_phase": "denied",
+        "before_claim_dispatch_count": 0,
+        "after_claim_phase": "claimed",
+        "after_claim_reconciled_phase": "not_applied",
+        "after_claim_dispatch_count": 0,
+        "invalid_epoch_status": "denied",
+        "invalid_epoch_reason": "grant_epoch_invalid",
+    },
+    "eventkit_compensation_binding": {
+        "apply_phase": "verified",
+        "compensation_admission_status": "ticket",
+        "compensation_phase": "verified",
+        "compensation_dispatch_count": 1,
+        "event_absent": True,
+    },
+    "eventkit_compensation_conflict_hold": {
+        "apply_phase": "verified",
+        "compensation_status": "hold",
+        "compensation_reason": "compensation_prestate_conflict",
+        "compensation_dispatch_count": 0,
+        "external_edit_preserved": True,
+    },
+    "eventkit_no_learning_effect_path": {
+        "forbidden_imports": [],
+        "provider_only_through_gateway": True,
+        "direct_commit_rejected": True,
+        "production_selector_available": False,
+    },
+}
+
+EVENTKIT_EQUALITY_REQUIREMENTS: dict[str, tuple[tuple[str, str], ...]] = {
+    "eventkit_ticket_binding": (("ticket_target_binding", "expected_target_binding"),),
+    "eventkit_compensation_binding": (
+        ("target_receipt_hash", "expected_target_receipt_hash"),
+        ("target_binding", "expected_target_binding"),
+    ),
+}
+
+
+def eventkit_sandbox_contract(vector: dict[str, Any]) -> PredicateResult:
+    capability = vector.get("target_capability")
+    if isinstance(capability, dict) and capability.get("reached") is False:
+        return p13_target_not_implemented(vector)
+    evidence = vector.get("eventkit_effect_kernel")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    case = str(evidence.get("case", ""))
+    expected = EVENTKIT_CASE_EXPECTATIONS.get(case)
+    universal = {
+        "authority_profile": "owner_controlled_eventkit_sandbox",
+        "authorizes_production": False,
+        "adapter_id": "apple_eventkit_sandbox",
+        "adapter_external_io": True,
+        "real_provider_reachable": True,
+        "action_family": "create_prep_block",
+        "default_selector": "incumbent",
+        "explicit_selector": "apple_eventkit_sandbox",
+    }
+    if expected is None:
+        return _result("hold", "P13.4 EventKit evidence is missing or names an unknown case.", eventkit=evidence)
+    missing = sorted((set(universal) | set(expected)) - set(evidence))
+    if missing:
+        return _result("hold", "P13.4 EventKit evidence is incomplete.", case=case, missing=missing)
+    mismatches = {
+        key: {"expected": value, "actual": evidence.get(key)}
+        for key, value in {**universal, **expected}.items()
+        if evidence.get(key) != value
+    }
+    for left, right in EVENTKIT_EQUALITY_REQUIREMENTS.get(case, ()):
+        if not evidence.get(left) or evidence.get(left) != evidence.get(right):
+            mismatches[f"{left}={right}"] = {"left": evidence.get(left), "right": evidence.get(right)}
+    if mismatches:
+        return _result(
+            "fail",
+            "The EventKit sandbox violates an identity, target, ticket, lifecycle, compensation, or isolation invariant.",
+            case=case,
+            mismatches=mismatches,
+        )
+    return _result(
+        "pass",
+        "The app-bundled EventKit sandbox satisfies the frozen single-owner effect certificate.",
+        case=case,
+        observed={key: evidence[key] for key in sorted(set(universal) | set(expected))},
+    )
+
+
 def p13_target_not_implemented(vector: dict[str, Any]) -> PredicateResult:
     capability = vector.get("target_capability")
     capability = capability if isinstance(capability, dict) else {}
@@ -347,5 +468,6 @@ P13_PREDICATES: dict[str, Predicate] = {
     "product_core_no_effect_reachability": product_core_no_effect_reachability,
     "cited_read_side_cutover": cited_read_side_cutover,
     "sandbox_effect_contract": sandbox_effect_contract,
+    "eventkit_sandbox_contract": eventkit_sandbox_contract,
     "p13_target_not_implemented": p13_target_not_implemented,
 }
