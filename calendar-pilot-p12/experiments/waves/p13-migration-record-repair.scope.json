@@ -2,6 +2,7 @@
   "wave_scope_schema_version": "p13_wave_scope.v1",
   "declared_paths": [
     "compression-roadmap.md",
+    "calendar-pilot-p12/contracts/experiment_record_v2.schema.json",
     "calendar-pilot-p12/evals/p13_ruler/wave.py",
     "calendar-pilot-p12/experiments/waves/p13-migration-record-repair.scope.json",
     "calendar-pilot-p12/scripts/run_p13_wave_gate.py",
@@ -9,10 +10,15 @@
     "calendar-pilot-p12/tests/test_wave_harness_v2.py"
   ],
   "declared": {
-    "actions": [],
-    "backends": [],
+    "actions": [
+      "*"
+    ],
+    "backends": [
+      "*"
+    ],
     "surfaces": [
       "architecture_docs",
+      "contracts",
       "evaluation",
       "ruler_scripts",
       "tests",
@@ -22,10 +28,12 @@
       "architecture_eval",
       "architecture_spec",
       "binding_manifest",
+      "contract_schemas",
       "release_and_wave_ruler",
       "tests"
     ],
     "control_planes": [
+      "effect_tcb",
       "evaluator",
       "optimizer"
     ]
