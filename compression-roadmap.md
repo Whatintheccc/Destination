@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. The first P13.5 retirement also passed: `create_prep_block × deterministic_sandbox` now has one normal EffectKernel owner and no normal legacy mutation route. The next P13.5 wave is the separately bound EventKit retirement. No production, deployment, or promotion authority has been conferred; EventKit and every production mode remain incumbent-owned until an exact target-calendar policy and live retirement certificate pass.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. The first P13.5 retirement also passed: `create_prep_block × deterministic_sandbox` now has one normal EffectKernel owner and no normal legacy mutation route. The next P13.5 wave is the separately bound EventKit retirement; its exact managed-calendar policy is frozen below and its ruler must be bound before product edits. No production, deployment, or promotion authority has been conferred. EventKit remains incumbent-owned until that exact live retirement certificate passes, and a passing certificate transfers only its named binding—not global EventKit or production ownership.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1345,11 +1345,88 @@ The runtime certificate must exercise the same visible commit and undo access po
 by the application and prove zero legacy kernel/provider mutation calls for the retired
 pair. A selector unit test or direct Gateway fixture is insufficient.
 
-The EventKit retirement is a subsequent P13.5 wave. It must rebind the exact app and
-bridge identities, target-calendar policy, permission state, affected live leg, normal
-runtime commit/undo access points, and cleanup evidence. Until that wave passes,
-`create_prep_block × apple_eventkit` and all production modes remain incumbent-owned.
-No deterministic result can authorize the EventKit retirement.
+The EventKit retirement is a subsequent P13.5 wave. Its retirement unit is not the broad
+action/backend pair and not a calendar name or raw EventKit identifier. It is exactly:
+
+```text
+retired_scope              create_prep_block × apple_eventkit × binding_id@epoch
+binding_id                 opaque CSPRNG identifier for one logical binding lineage
+binding_epoch              monotonic; every explicit rebind creates the next epoch
+binding_fingerprint        event_store_id + calendar_id + source_id + source_type + title_tripwire
+authority_locator          exact identifiers only; title/default/first-writable recovery forbidden
+normal_effect_owner        EffectKernel Gate/Gateway for the exact active binding
+invalid_managed_scope      EffectKernel hold; never incumbent fallback
+unaffected_owners          incumbent for every wholly outside calendar/action scope
+confirmation              explicit setup/rebind plus exact per-commit and per-undo confirmation
+materialization            app-bundled bridge validates in-process before write and verifies after
+durability                 global ledger/signing state plus one OS-held, crash-released owner lease
+apply                      one event per one-use ticket; multiple sequential tickets allowed
+undo                       receipt-owned compensation under its creating epoch and fingerprint
+rollback                   owner-frozen exact-scope selector; never dual owner
+production                 false
+promotion                  false
+```
+
+The setup ceremony binds the exact event-store, calendar, source, source type, displayed
+title as a drift tripwire, full-access state, and writability to a new opaque
+`binding_id@epoch`; the derived fingerprint hash is evidence, not authority. Title is
+never a lookup or recovery key. `calendarIdentifier` is only a local identifier and may
+be lost after a full sync, while `eventStoreIdentifier` changes when a damaged store is
+recreated. Either event, or any source/type/title/writability mismatch, moves the binding
+to `REBIND_REQUIRED`; permission loss moves it to `SUSPENDED`. Only explicit confirmed
+setup/rebind can return to `ACTIVE`, and old tickets can never be relabeled into the new
+epoch. These rules follow EventKit's documented identifier and permission behavior, not
+an assumption that one successful sandbox ID is permanent.
+
+One canonical expanded target vector drives both ownership selection and bridge
+materialization. A request is managed if it names the binding or any expanded/nested
+action targets its bound calendar. Missing binding metadata, mixed targets, or any nested
+escape is therefore a managed hold with zero mutation and zero legacy fallback. Only a
+request with no managed reference and every expanded action wholly outside the bound
+calendar remains incumbent-owned. The same vector is passed to the strict bridge; it is
+not independently reconstructed downstream.
+
+Immediately before save/remove, the canonical app-bundled bridge resolves identifiers
+only and revalidates full access, writability, event store, calendar, source, source type,
+title tripwire, binding epoch, app identity, and bridge identity in the same EventKit
+process. It uses the validated object for the operation, then post-fetches and verifies
+the exact calendar identity plus event content or absence. A mismatch or ambiguous
+post-state becomes `applying_unknown`/hold and reconciles before retry; it never changes
+calendar or dispatches blindly. The process lease prevents a second runtime owner, while
+missing/corrupt ledger or signing state blocks rather than creating a fresh authority
+universe.
+
+Setup/rebind confirmation binds the next epoch and complete target policy. Every apply
+separately binds the operation, `binding_id@epoch`, exact candidate/intent/pre-state,
+start/end/timezone/content, grant epoch, nonce, and idempotency key. Every undo separately
+binds the creating receipt and external event identifier. Historical fingerprints are
+retained only so a fresh compensation ticket may reach its creating owner; old-epoch undo
+is allowed only when the bridge still resolves the exact original event under the exact
+original store/calendar/source fingerprint and current permission/writability pass. It
+never redirects into the current binding. Identity drift or ambiguous marker/event
+recovery is a visible manual hold. Voluntary rebind blocks while any ticket is claimed,
+unknown, or otherwise nonterminal.
+
+The pre-edit certificate consolidates rather than duplicates the existing P13.3/P13.4
+state-machine cases. Its binding scenarios are:
+
+```text
+1  setup/rebind/epoch plus permission, writability, and every identity-field mismatch
+2  one total expanded-target ownership classifier, including omission and mixed-target attacks
+3  normal REQUEST_COMMIT liveness, two sequential tickets, replay, inner-TOCTOU, and post-save unknown
+4  receipt-routed REQUEST_UNDO/restart, exact old-epoch compensation, and drift hold
+5  durable ledger, single-owner process lease, crash/reconcile, and zero managed legacy calls
+6  exact-candidate app-bundled live bind/create/verify/restart/remove/verify certificate
+```
+
+Generic ticket, revoke, three crash-window, reconciliation, conflict, and learning-path
+predicates are reused as binding dependencies instead of copied into EventKit-specific
+lookalikes. The live leg must bind the exact candidate, app and bridge hashes, permission,
+binding record, affected normal access points, post-verification, restart, compensation,
+and cleanup. Until the composite wave passes, the incumbent owns all EventKit effects.
+After it passes, only the exact `binding_id@epoch` is operationally retired to
+EffectKernel; all other EventKit scopes and all production modes remain incumbent-owned.
+No deterministic result can authorize this retirement.
 
 The first P13.5 retirement closed on candidate
 `bbfa3889cd599f0badc70193e20f9de835d797e4` against signed base
@@ -1763,11 +1840,13 @@ and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
 compression-wave mechanics, a protected root access point, and exact-main hosted replay
 evidence. P13.1 no-effect construction, P13.2 cited read-side cutover, and the bounded
 P13.3 owner-controlled deterministic sandbox, P13.4 app-bundled EventKit sandbox, and the
-first P13.5 `create_prep_block × deterministic_sandbox` retirement are complete. The next
-binding decision is the EventKit retirement's exact target-calendar policy. P13.4 proved
-only a dedicated one-probe sandbox and cannot silently confer normal or production
-ownership; the incumbent remains the EventKit rollback/default until that separate live
-certificate passes. Learning promotion remains unchanged.
+first P13.5 `create_prep_block × deterministic_sandbox` retirement are complete. The
+EventKit target policy is now frozen as
+`create_prep_block × apple_eventkit × binding_id@epoch`; the next binding work is its
+pre-edit ruler and exact live certificate. P13.4 proved only a dedicated one-probe
+sandbox and cannot silently confer normal or production ownership; the incumbent remains
+the EventKit rollback/default until that separate composite passes. A pass transfers only
+the named managed binding. Learning promotion remains unchanged.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
@@ -1778,6 +1857,11 @@ certificate passes. Learning promotion remains unchanged.
 | v1 target `binding_trigger` is inert prose | all nine target debts can remain `observe/not_reached` while the top-level gate passes | v2 plus an owner-frozen pre-wave BindingManifest; P13.4 also binds the app/EventKit live certificate |
 | BindingManifest can under-declare the diff | a signed but incomplete scope can omit binding cases | protected verifier derives affectedness from full diff + ownership map and fails every undeclared touch; the composite wave reruns this check before its decision |
 | a promotion implementation could regain a writable override | a human/agent could write `CURRENT` after a hard failure | access point is frozen before writes through P13.5; P13.6 must admit only signed payloads after the owner-controlled gates; a new threshold means a new instrument epoch |
+| EventKit calendar or store identity drifts after setup | full sync, store recreation, rename, permission loss, or source change can make a once-valid target unsafe | bind opaque lineage + epoch and the exact store/calendar/source fingerprint; suspend or require explicit rebind on every mismatch; never locate by title/default |
+| target metadata omission escapes the retired owner | a candidate can name no binding while a nested action still targets the managed calendar | classify ownership from one canonical expanded target vector; any binding reference or bound target is managed and malformed managed requests hold without fallback |
+| a preflight check is mistaken for an atomic EventKit write | Calendar/iCloud state can change between Gate admission and provider mutation | identifier-only in-process bridge validation immediately before save/remove, use the validated object, post-fetch identity/content, and reconcile unknown outcomes |
+| session reset or concurrent app instance creates a second effect owner | a new ledger/key or two writers can reuse nonces, lose receipts, or route undo incorrectly | global durable binding/ledger/signing state plus one OS-held crash-released lease; missing/corrupt state blocks; undo routes by creating receipt/epoch |
+| broad confirmation is treated as instruction for a specific mutation | a standing grant can be replayed for a different target or event | bind setup/rebind separately and require an exact per-commit/per-undo confirmation covering binding epoch, intent, event fields, and receipt |
 | training and evaluation reuse lab runs/seeds | autonomous search can optimize its evaluator | disjoint search, family-disjoint sealed holdout, and frozen forward live shadow |
 | simulator reward has positive training weight | policy can learn to please its model of the user | separate ledgers; simulator can veto/train failure detector but has zero positive promotion credit |
 | tuning control-note counts as effect | plumbing change can masquerade as improvement | label current loop bootstrap-only; require human-outcome uncertainty rule |
@@ -1838,8 +1922,9 @@ certificate passes. Learning promotion remains unchanged.
 8. Retire old truth one proven action/backend pair at a time.
    `create_prep_block × deterministic_sandbox` — DONE. The real runtime commit/undo
    access points use Gate/Gateway by default for that pair, reject caller owner override,
-   and retain one owner-frozen rollback selector. EventKit retirement remains pending its
-   exact target-calendar policy and separately bound live certificate.
+   and retain one owner-frozen rollback selector. The EventKit policy is now frozen as
+   `create_prep_block × apple_eventkit × binding_id@epoch`; bind its six consolidated
+   scenario groups and live certificate before changing its normal owner.
 
 9. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
    Replace the frozen promoter with a signed, owner-gated path; separate search/holdout/live evidence; simulator never
@@ -1881,8 +1966,10 @@ exact app-bundled EventKit identity and sandbox target, including explicit opt-i
 restart reconciliation, separate compensation, verified cleanup, and the affected live
 leg. The first P13.5 retirement now makes EffectKernel the sole normal owner for
 `create_prep_block × deterministic_sandbox`, with the legacy route unreachable from
-visible commit/undo and retained only as an owner-frozen rollback selector. EventKit and
-production remain incumbent-owned pending their separately bound target policy and live
+visible commit/undo and retained only as an owner-frozen rollback selector. The bounded
+EventKit retirement policy is now fixed to one opaque managed-calendar binding lineage,
+total expanded-target classification, bridge-local identity validation, and receipt-owned
+undo. EventKit and production remain incumbent-owned pending that ruler and live
 retirement certificate. Learning becomes frozen proposal
 payloads plus signed promotion records only after that operational path is stable;
 meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
