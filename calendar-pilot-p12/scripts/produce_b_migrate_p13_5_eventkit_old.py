@@ -16,6 +16,7 @@ from calendar_pilot.codex import CodexToolRuntime
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
 from calendar_pilot.environment.fsio import atomic_write_json
 from calendar_pilot.providers.apple_eventkit import AppleEventKitProvider
+from calendar_pilot.product_core import run_create_prep_block_vertical
 from calendar_pilot.swift_bridge import SwiftKernelStub
 from calendar_pilot.types import CandidateCalendarAction, CodexToolCall, CodexToolName, CodexToolStatus, RawCalendarObservation, UserBiography
 from evals.p13_ruler.core import canonical_json_bytes, sha256_bytes
@@ -93,6 +94,15 @@ def build_artifact() -> dict:
         row for row in DiffusionGemmaPolicy().generate_candidates(observation, biography)
         if row.intent == "create_prep_block"
     ))
+    product = run_create_prep_block_vertical(
+        observation,
+        candidate,
+        source_authenticated=True,
+        received_at=observation.observed_at,
+    )
+    projection = product.preview.projection
+    if projection is None:
+        raise RuntimeError("incumbent EventKit comparison requires an admitted projection")
     temp_state = tempfile.TemporaryDirectory()
     provider = AppleEventKitProvider(state_path=Path(temp_state.name) / "provider.json", bridge=FixtureBridge())
     provider.real_provider = False
@@ -120,24 +130,23 @@ def build_artifact() -> dict:
     )
     if result.status != CodexToolStatus.COMMITTED:
         raise RuntimeError(f"incumbent EventKit fixture did not commit: {result.to_dict()}")
-    action = candidate.actions[0]
     provider_receipt = result.output["provider_receipt"]
     observable = {
         "action_family": candidate.intent,
         "candidate_id": candidate.candidate_id,
         "projection": {
-            "title": action.title,
-            "start": action.start.isoformat() if action.start else None,
-            "end": action.end.isoformat() if action.end else None,
-            "calendar_id": action.calendar_id,
-            "explanation": candidate.explanation,
+            "title": projection.title,
+            "start": projection.start,
+            "end": projection.end,
+            "calendar_id": projection.calendar_id,
+            "explanation": projection.explanation,
         },
         "outcome": {
             "phase": "verified",
             "effect_count": len(provider_receipt["created_external_ids"]),
             "compensation_available": bool(result.output["swift_receipt"].get("rollback_handle_id")),
         },
-        "evidence": {"row_ids": [f"observation:{observation.observation_id}", f"proposal:{candidate.candidate_id}"]},
+        "evidence": {"row_ids": list(product.input_evidence_row_ids)},
         "safety": {"authorizes_production": False, "real_provider_effect": False},
     }
     temp_state.cleanup()
