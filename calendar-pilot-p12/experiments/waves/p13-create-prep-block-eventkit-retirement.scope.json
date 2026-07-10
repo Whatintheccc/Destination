@@ -1,0 +1,147 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/README.md",
+    "calendar-pilot-p12/experiments/waves/p13-create-prep-block-eventkit-retirement.scope.json",
+    "calendar-pilot-p12/packages/CalendarPilotKernel/Sources/CalendarPilotEventKitBridge/main.swift",
+    "calendar-pilot-p12/scripts/produce_b_migrate_p13_5_eventkit_new.py",
+    "calendar-pilot-p12/scripts/produce_b_migrate_p13_5_eventkit_old.py",
+    "calendar-pilot-p12/scripts/run_live_eventkit_e2e.py",
+    "calendar-pilot-p12/src/calendar_pilot/codex/tools.py",
+    "calendar-pilot-p12/src/calendar_pilot/effect_kernel/__init__.py",
+    "calendar-pilot-p12/src/calendar_pilot/effect_kernel/eventkit_retirement.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session.py",
+    "calendar-pilot-p12/src/calendar_pilot/providers/apple_eventkit.py",
+    "calendar-pilot-p12/tests/test_p13_eventkit_retirement.py"
+  ],
+  "declared": {
+    "actions": ["*", "create_prep_block"],
+    "backends": ["*", "apple_eventkit", "codex", "deterministic_sandbox"],
+    "surfaces": [
+      "app_access",
+      "authority_gate",
+      "docs",
+      "effect_gateway",
+      "frontend",
+      "provider",
+      "ruler_scripts",
+      "swift_bridge",
+      "tests",
+      "wave_scope"
+    ],
+    "instruments": ["binding_manifest", "release_and_wave_ruler", "tests", "wave_gate"],
+    "control_planes": ["effect_tcb", "evaluator", "optimizer"]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.cited_read_side_cutover",
+    "target.cited_required_projection",
+    "target.compensation_conflict_hold",
+    "target.compensation_ticket_binding",
+    "target.crash_after_claim",
+    "target.crash_after_dispatch",
+    "target.crash_before_claim",
+    "target.duplicate_delivery",
+    "target.effect_ticket_binding",
+    "target.eventkit_compensation_binding",
+    "target.eventkit_compensation_conflict_hold",
+    "target.eventkit_effect_lifecycle",
+    "target.eventkit_identity_target_binding",
+    "target.eventkit_managed_binding_state",
+    "target.eventkit_managed_durable_owner",
+    "target.eventkit_managed_live_contract",
+    "target.eventkit_managed_ownership",
+    "target.eventkit_managed_runtime_commit",
+    "target.eventkit_managed_runtime_undo",
+    "target.eventkit_no_learning_effect_path",
+    "target.eventkit_revoke_claim_race",
+    "target.eventkit_ticket_binding",
+    "target.no_learning_effect_path",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism",
+    "target.restart_reconciliation",
+    "target.retirement_restart_rollback",
+    "target.retirement_runtime_commit",
+    "target.retirement_runtime_undo",
+    "target.retirement_scope_binding",
+    "target.retirement_single_owner",
+    "target.revoke_claim_race",
+    "target.ticket_single_claim",
+    "target.trusted_ingress_forgery",
+    "target.verify_ambiguity_reconcile"
+  ],
+  "old_producer": {
+    "cvar": {
+      "producer_id": "cvar.before.current",
+      "command": ["python3", "scripts/produce_cvar_frontier.py", "--role", "before", "--current", "experiments/promoted/CURRENT.json"]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.old.incumbent_eventkit.create_prep_block",
+      "command": ["python3", "scripts/produce_b_migrate_p13_5_eventkit_old.py"],
+      "assertion_set": {
+        "path": "experiments/configs/b_migrate_create_prep_block_p13_3.json",
+        "sha256": "b8275fc425609a359508924b570e645c467ef5215060e79231584b5371309636"
+      }
+    }
+  },
+  "new_producer": {
+    "cvar": {
+      "producer_id": "cvar.after.current",
+      "command": ["python3", "scripts/produce_cvar_frontier.py", "--role", "after", "--current", "experiments/promoted/CURRENT.json"]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.new.effect_kernel_eventkit_binding.create_prep_block",
+      "command": ["python3", "scripts/produce_b_migrate_p13_5_eventkit_new.py"],
+      "assertion_set": {
+        "path": "experiments/configs/b_migrate_create_prep_block_p13_3.json",
+        "sha256": "b8275fc425609a359508924b570e645c467ef5215060e79231584b5371309636"
+      }
+    }
+  },
+  "live_legs": [
+    {
+      "leg": "live-codex-e2e",
+      "status": "root-listed",
+      "reason": {"basis": "unaffected", "detail": "This wave consumes the frozen candidate and changes only EventKit ownership after candidate generation."},
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live Codex unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-codex-e2e before any wave changes respondent, context, or candidate generation."
+    },
+    {
+      "leg": "live-diffusiongemma-e2e",
+      "status": "root-listed",
+      "reason": {"basis": "unaffected", "detail": "This wave does not change DiffusionGemma, NIM normalization, frontier scoring, or candidate generation."},
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live NIM unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-diffusiongemma-e2e before any wave changes the respondent or frontier."
+    },
+    {
+      "leg": "live-eventkit-e2e",
+      "status": "root-listed",
+      "reason": {"basis": "unavailable", "detail": "The affected normal EventKit path is pending its exact-candidate app-bundled bind/create/restart/remove/verify run."},
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; EventKit retirement cannot close while this affected leg is root-listed",
+      "affected_by_wave": true,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run the canonical app-bundled managed EventKit certificate with exact binding, normal commit/undo, restart, post-verification, and cleanup."
+    }
+  ]
+}
