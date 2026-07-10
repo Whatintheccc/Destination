@@ -1,0 +1,8 @@
+{
+  "decision": "pass",
+  "learning_attestation_schema_version": "learning_attestation.v1",
+  "optimizer_report_sha256": "28a1cf8d310d5efbf201cc6281e1afd56d93ce257902ec4560ca65bdb8c0b0e5",
+  "partition_sha256": "6fc15d66e447f67a5479090e89c56fdd613da29e84ec1ddba267a2fd282aedc5",
+  "payload_sha256": "46589c80e5f122913078fd6c9881e4e3b1f5aea10262f8157396b5620259515a",
+  "role": "search"
+}

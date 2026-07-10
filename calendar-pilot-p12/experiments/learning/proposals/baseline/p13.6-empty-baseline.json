@@ -1,0 +1,41 @@
+{
+  "compatibility": {
+    "reducer_versions": [
+      "product_core.create_prep_block.v1"
+    ],
+    "schema_versions": [
+      "policy_tuning.v1"
+    ]
+  },
+  "content_sha256": "46589c80e5f122913078fd6c9881e4e3b1f5aea10262f8157396b5620259515a",
+  "parent_payload_id": null,
+  "payload_id": "p13.6-empty-baseline",
+  "policy_parameters": {
+    "policy_tuning": {
+      "bias_evidence": {},
+      "denied_intents": [],
+      "failure_penalties": {},
+      "frontier_effect": {},
+      "intent_reward_bias": {},
+      "source_report": "step_e_cvar_baseline",
+      "tuning_id": "empty_baseline"
+    }
+  },
+  "policy_payload_schema_version": "policy_payload.v1",
+  "prompts": [
+    "policy-payload-proposal.v1"
+  ],
+  "resources": {
+    "max_candidates": 1,
+    "max_compute_seconds": 30,
+    "seed_set_sha256": "330ade606e7b07a2e2b2a05c81c2b479108a2d6448c54e908f2527c4aad63bbb"
+  },
+  "respondents": [
+    "diffusiongemma.fixture.v1"
+  ],
+  "training": {
+    "partition_id": "p13.6.search",
+    "row_count": 1,
+    "row_set_sha256": "6fc15d66e447f67a5479090e89c56fdd613da29e84ec1ddba267a2fd282aedc5"
+  }
+}

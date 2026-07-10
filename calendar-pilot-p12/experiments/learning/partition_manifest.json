@@ -1,0 +1,41 @@
+{
+  "learning_partition_manifest_schema_version": "learning_partition_manifest.v1",
+  "instrument_epoch": "p13.6-control.1",
+  "thresholds_sha256": "8d2362be24f1c2d7365d00c26ac244999506e0d37e5e2c67b1621fbd17a50459",
+  "search": {
+    "partition_id": "p13.6.search",
+    "artifact_path": "experiments/learning/search/baseline_search.jsonl",
+    "artifact_sha256": "6fc15d66e447f67a5479090e89c56fdd613da29e84ec1ddba267a2fd282aedc5",
+    "family_set_sha256": "610444cac9b4b83bcdee80432a443030688e091e4622f1c93b982d221b90e4f8",
+    "row_count": 1,
+    "starts_at": "2026-07-08T00:00:00Z",
+    "ends_at": "2026-07-08T23:59:59Z",
+    "optimizer_access": "read"
+  },
+  "holdout": {
+    "partition_id": "p13.6.holdout.baseline",
+    "artifact_path": "experiments/learning/sealed/holdout/baseline_holdout.jsonl",
+    "artifact_sha256": "bb9bcb49941ad451c1319a5a7420e9af48cd49a4fffb022714c0ec9e9465c590",
+    "family_set_sha256": "f1e2b0f2844d5ba3f3d881ca6c647bf973da4690153f678c33bc51447981416b",
+    "row_count": 1,
+    "starts_at": "2026-07-09T00:00:00Z",
+    "ends_at": "2026-07-09T23:59:59Z",
+    "optimizer_access": "denied"
+  },
+  "forward_shadow": {
+    "partition_id": "p13.6.forward-shadow.baseline",
+    "artifact_path": "experiments/learning/sealed/forward_shadow/baseline_forward_shadow.jsonl",
+    "artifact_sha256": "d9094f3cba0d876ece8f01b73ec28c0d6e536e6a94d1aef92c6fb5cb99b85ee6",
+    "family_set_sha256": "0e651eab9445882662cc00436a1454eefa9795f8210ce8381b7dd2aa4b525211",
+    "row_count": 1,
+    "starts_at": "2026-07-10T20:58:00Z",
+    "ends_at": "2026-07-10T20:58:00Z",
+    "optimizer_access": "denied"
+  },
+  "disjointness": {
+    "artifact_hashes_distinct": true,
+    "family_sets_pairwise_disjoint": true,
+    "forward_shadow_starts_after_search": true
+  },
+  "manifest_sha256": "edcf7c46cdf1bdf5093c76f48903c51113de9e4a759c459c518975ef2c17541f"
+}

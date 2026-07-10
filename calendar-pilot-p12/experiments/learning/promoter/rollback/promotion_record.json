@@ -1,0 +1,55 @@
+{
+  "attestations": {
+    "forward_shadow": {
+      "decision": "pass",
+      "path": "experiments/learning/promoter/rollback/forward_shadow_attestation.json",
+      "sha256": "0d2ee856bd12d945f0e222c79a302ce115cc0e0025efa40e69f2347850247697"
+    },
+    "holdout": {
+      "decision": "pass",
+      "path": "experiments/learning/promoter/rollback/holdout_attestation.json",
+      "sha256": "78829f9dce3e1a14d9c2a7361e2e68966d6e34504b355a8826821ab9b5d60dfc"
+    },
+    "search": {
+      "decision": "pass",
+      "path": "experiments/learning/promoter/rollback/search_attestation.json",
+      "sha256": "93e97e41f3d892aa30cae7ad428a5676a074444488de125aa9a8b2039f7c37e3"
+    }
+  },
+  "binding_manifest": {
+    "manifest_id": "p13-learning-baseline-migration:64575751a361:20260710T212634Z",
+    "path": "runs/p13_manifests/p13-learning-baseline-migration-v6.json",
+    "sha256": "7d4d2c7db1a3a858905251d54f718c5ca6666026117adbd48a7579c95830239a"
+  },
+  "created_at": "2026-07-10T21:29:32.436220Z",
+  "decision": "pass",
+  "instrument_bundle": {
+    "bundle_sha256": "bb7325267150ecf120e4213a302819fe31a74c25a0fa77b25b459b3ab197b9f8",
+    "file_sha256": "839aca42e3192f9a116f15bf635e269b6386cb960a109baf322ee42e7701b035",
+    "instrument_epoch": "p13.6-control.1",
+    "path": "runs/p13-learning-baseline-migration-v6.bundle.json"
+  },
+  "partition_manifest": {
+    "path": "experiments/learning/partition_manifest.json",
+    "sha256": "78ab72b3e07b3fc628fb8299b47f1521e7e5714196af92ba8a18cff947f0ebdb"
+  },
+  "payload": {
+    "path": "experiments/learning/proposals/baseline/p13.6-empty-baseline.json",
+    "sha256": "fcf0450ddd259bc8fda10643023e60b650c8b43e6ee2fd2999db460ecdf9a932"
+  },
+  "payload_sha256": "89b6bc90743421c3fb5aa36cd16869daf5f773707d23f9ddbe831f3f65c58cbc",
+  "previous_current_sha256": "29bd91968f28d3838fa6d54b1ae390b96526fe23866a5cc9571d9ba05c03e912",
+  "promotion_record_schema_version": "promotion_record.v1",
+  "record_id": "p13.6:rollback:p13.6-empty-baseline:20260710T212932Z",
+  "reward_evidence": null,
+  "signature": {
+    "algorithm": "rsa-sha256",
+    "value_base64": "SxSXpz38T553fKoffJI242Ivb+/vd5SSPjMRDNiD9L1nTGzaEJC/VqH/cw7hm/+knW53rrlvAAyrmK5FGMUKbwj8uUSj065IwuoPv8f7QLDXSO5AjZBGs6Uorhj9xBSOwC7QWkMcxYh4UPvbKAnGA9BfWK3JEgN/dUpkdqTB5r/r4g0H1JeG1IdzGYLXFUfUYDZlfhJOcQNBkpvOYrex7ZFFfggrGcB3h6oAbbQ02oKMJI4N1U+IKBxK7FU1jENK9n+1ckebIyp5s30c4j4IOegKGsY+1IYwXELojYceKgV1QBS5SeX8MkoRWR4dh/PFZt0y9uWmMDTGFmk6g6o7pA=="
+  },
+  "signer": {
+    "algorithm": "rsa-sha256",
+    "public_key_sha256": "22b5b6479ae70799f101caecef35a51db9e3c7c52ac317b925edc7de532ac9a2",
+    "role": "promoter"
+  },
+  "transition": "rollback"
+}

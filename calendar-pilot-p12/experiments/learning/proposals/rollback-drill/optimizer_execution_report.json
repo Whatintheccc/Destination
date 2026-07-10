@@ -1,0 +1,58 @@
+{
+  "attempts": [
+    {
+      "errno": 1,
+      "kind": "holdout",
+      "operation": "read",
+      "outcome": "denied",
+      "target": "/Users/temp/Desktop/Destination/calendar-pilot-p12/experiments/learning/sealed/holdout/baseline_holdout.jsonl"
+    },
+    {
+      "errno": 1,
+      "kind": "forward_shadow",
+      "operation": "read",
+      "outcome": "denied",
+      "target": "/Users/temp/Desktop/Destination/calendar-pilot-p12/experiments/learning/sealed/forward_shadow/baseline_forward_shadow.jsonl"
+    },
+    {
+      "errno": 1,
+      "kind": "evaluator",
+      "operation": "write",
+      "outcome": "denied",
+      "target": "/Users/temp/Desktop/Destination/calendar-pilot-p12/evals/architecture/predicates/p13.py"
+    },
+    {
+      "errno": 1,
+      "kind": "manifest",
+      "operation": "write",
+      "outcome": "denied",
+      "target": "/Users/temp/Desktop/Destination/calendar-pilot-p12/runs/p13_manifests/p13-learning-baseline-migration-v6.json"
+    },
+    {
+      "errno": 1,
+      "kind": "current",
+      "operation": "write",
+      "outcome": "denied",
+      "target": "/Users/temp/Desktop/Destination/calendar-pilot-p12/experiments/promoted/CURRENT.json"
+    },
+    {
+      "errno": 1,
+      "kind": "effect_tcb",
+      "operation": "write",
+      "outcome": "denied",
+      "target": "/Users/temp/Desktop/Destination/calendar-pilot-p12/src/calendar_pilot/effect_kernel/kernel.py"
+    }
+  ],
+  "boundary": "macos-sandbox-exec",
+  "decision": "pass",
+  "executor_id": "p13.6-policy-payload-proposer",
+  "optimizer_execution_report_schema_version": "optimizer_execution_report.v1",
+  "platform": "macOS-26.3.1-arm64-arm-64bit",
+  "profile_sha256": "843f7312999901dbc309816312e2ea41bca01a090db5b0111a9b3aa20391977b",
+  "proposal": {
+    "path": "experiments/learning/proposals/rollback-drill/p13.6-empty-baseline-drill.json",
+    "sha256": "3e698be2c901278eef4bb21c1d12ae918e57149492d3363ed623283e84c1ce50",
+    "write_succeeded": true
+  },
+  "search_artifact_sha256": "6fc15d66e447f67a5479090e89c56fdd613da29e84ec1ddba267a2fd282aedc5"
+}
