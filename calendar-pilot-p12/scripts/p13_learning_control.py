@@ -14,6 +14,7 @@ from jsonschema import Draft202012Validator
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
+ARTIFACT_ARCHIVE_ROOT = APP_ROOT / "experiments" / "learning" / "archive" / "artifacts"
 HEX64 = set("0123456789abcdef")
 
 
@@ -93,8 +94,13 @@ def resolve_artifact(ref: dict[str, Any]) -> Path:
     relative = str(ref.get("path", ""))
     if not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
         raise ValueError(f"unsafe learning artifact path: {relative}")
+    expected_sha256 = str(ref.get("sha256", ""))
     path = (APP_ROOT / relative).resolve()
-    if not path.is_file() or sha256_file(path) != ref.get("sha256"):
+    if not path.is_file() and len(expected_sha256) == 64 and set(expected_sha256) <= HEX64:
+        archived = (ARTIFACT_ARCHIVE_ROOT / f"{expected_sha256}.json").resolve()
+        if archived.is_relative_to(ARTIFACT_ARCHIVE_ROOT.resolve()) and archived.is_file():
+            path = archived
+    if not path.is_file() or sha256_file(path) != expected_sha256:
         raise ValueError(f"learning artifact identity mismatch: {relative}")
     return path
 
