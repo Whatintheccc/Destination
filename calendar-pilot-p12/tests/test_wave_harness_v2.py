@@ -24,6 +24,7 @@ from evals.p13_ruler.wave import (
     P13_5_EVENTKIT_RETIREMENT_SCENARIOS,
     P13_5_RETIREMENT_SCENARIOS,
     P13_6_LEARNING_BASELINE_SCENARIOS,
+    P13_6_LEARNING_EVIDENCE_RUNTIME_PATHS,
     build_b_migrate_artifact,
     build_cvar_frontier_set,
     build_experiment_record,
@@ -37,6 +38,7 @@ from evals.p13_ruler.wave import (
     is_owner_controlled_vertical_retirement_wave,
     is_structurally_no_effect_wave,
     is_learning_baseline_migration_wave,
+    is_learning_evidence_plumbing_wave,
     learning_baseline_rollback_evidence,
     verify_root_list,
 )
@@ -170,6 +172,33 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
         self.assertFalse(is_learning_baseline_migration_wave(manifest, planted, architecture))
         rollback_ok, rollback_artifact = learning_baseline_rollback_evidence()
         self.assertEqual(rollback_artifact is not None, rollback_ok)
+
+    def test_learning_evidence_classifier_is_exact_and_rejects_scope_broadening(self):
+        manifest = _manifest()
+        manifest["change_class"] = "learning"
+        manifest["required_scenarios"] = ["target.learning_evidence_chain"]
+        verification = {
+            "decision": "pass",
+            "changed_paths": [{"path": path} for path in sorted(P13_6_LEARNING_EVIDENCE_RUNTIME_PATHS)],
+            "derived_affectedness": {
+                "actions": ["*"],
+                "backends": ["*", "nim"],
+                "control_planes": ["effect_tcb", "evaluator", "optimizer"],
+            },
+        }
+        architecture = {"scenarios": [{
+            "scenario_id": "target.learning_evidence_chain",
+            "gate_mode": "required",
+            "status": "pass",
+        }]}
+        self.assertTrue(is_learning_evidence_plumbing_wave(manifest, verification, architecture))
+        self.assertTrue(uses_fixed_reward_fixture(manifest, verification, architecture))
+        broadened = deepcopy(verification)
+        broadened["changed_paths"].append({"path": "calendar-pilot-p12/experiments/promoted/CURRENT.json"})
+        self.assertFalse(is_learning_evidence_plumbing_wave(manifest, broadened, architecture))
+        failed_scenario = deepcopy(architecture)
+        failed_scenario["scenarios"][0]["status"] = "hold"
+        self.assertFalse(is_learning_evidence_plumbing_wave(manifest, verification, failed_scenario))
 
     def test_behavior_cvar_requires_clean_frozen_before_and_changed_after(self):
         with tempfile.TemporaryDirectory() as td:
