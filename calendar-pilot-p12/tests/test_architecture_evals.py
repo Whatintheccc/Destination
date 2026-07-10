@@ -592,13 +592,29 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                     }
                 },
             ),
+            "eventkit_sandbox_escapes_target": (
+                "eventkit_sandbox_contract",
+                {
+                    "eventkit_effect_kernel": {
+                        "case": "eventkit_identity_target_binding",
+                        "authority_profile": "owner_controlled_eventkit_sandbox",
+                        "authorizes_production": True,
+                        "adapter_id": "apple_eventkit_sandbox",
+                        "adapter_external_io": True,
+                        "real_provider_reachable": True,
+                        "action_family": "create_prep_block",
+                        "default_selector": "incumbent",
+                        "explicit_selector": "apple_eventkit_sandbox",
+                    }
+                },
+            ),
             "p13_target_claim_without_evidence": (
                 "p13_target_not_implemented",
                 {"target_capability": {"reached": True}},
             ),
         }
 
-        self.assertEqual(len(planted), 31)
+        self.assertEqual(len(planted), 32)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():
