@@ -29,6 +29,7 @@ jobs:
           make architecture-eval-test
           make architecture-eval-v2-test
           make p13-ruler-test
+          make p13-attestation-scaffold-test
           make p13-loc-report
           make architecture-evals
       - name: Freeze P13 instrument identity
