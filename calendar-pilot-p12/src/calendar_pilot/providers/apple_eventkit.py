@@ -372,6 +372,117 @@ class AppleEventKitProvider:
             pass
 
 
+class AppleEventKitManagedDriver:
+    """Strict identifier-only port used by the managed EventKit EffectKernel adapter."""
+
+    provider_id = PROVIDER_ID
+
+    def __init__(self, provider: AppleEventKitProvider, *, calendar_id: str, expected_binding: Any | None = None) -> None:
+        self.provider = provider
+        self.calendar_id = str(calendar_id)
+        if not self.calendar_id or self.calendar_id == "default":
+            raise ValueError("managed EventKit driver requires an exact non-default calendar id")
+        self.identifier_only_validation_count = 0
+        self.post_verify_count = 0
+        self.last_pre_binding: dict[str, Any] | None = None
+        self.last_post_binding: dict[str, Any] | None = None
+        self.last_target_vector_sha256: str | None = None
+        self.runtime_identity_bound = False
+        if expected_binding is not None:
+            self._bind_runtime_identity(expected_binding)
+
+    def _bind_runtime_identity(self, binding: Any) -> None:
+        if not isinstance(self.provider.bridge, SwiftEventKitBridge):
+            raise CalendarProviderError("managed EventKit runtime requires the canonical Swift bridge")
+        executable = self.provider.bridge.executable or _default_bridge_path()
+        bridge_path = _canonical_bridge_executable(Path(executable)).resolve()
+        app_path = _calendar_pilot_app(bridge_path)
+        if app_path is None or not bridge_path.is_file():
+            raise CalendarProviderError("managed EventKit runtime bridge is not inside CalendarPilot.app")
+        expected_bridge = Path(str(binding.bridge_path)).resolve()
+        expected_app = Path(str(binding.app_path)).resolve()
+        if bridge_path != expected_bridge or app_path.resolve() != expected_app:
+            raise CalendarProviderError("managed EventKit app or bridge path changed")
+        if _file_sha256(bridge_path) != str(binding.bridge_sha256) or _tree_sha256(app_path) != str(binding.app_sha256):
+            raise CalendarProviderError("managed EventKit app or bridge hash changed")
+        self.runtime_identity_bound = True
+
+    @property
+    def permission_status(self) -> str:
+        health = self.provider.health_status()
+        return str(health.get("authorization_status") or health.get("status") or "unknown")
+
+    def binding_identity(self) -> dict[str, Any]:
+        result = self.provider.bridge.call("calendar_identity", {"calendar_id": self.calendar_id})
+        result["permission_status"] = str(result.get("authorization_status", self.permission_status))
+        return result
+
+    def snapshot(self, calendar_id: str) -> dict[str, Any]:
+        if calendar_id != self.calendar_id:
+            raise CalendarProviderError("managed EventKit snapshot target changed")
+        return self.provider.bridge.call("managed_snapshot", {"calendar_id": self.calendar_id})
+
+    def create(
+        self,
+        *,
+        expected_binding: dict[str, Any],
+        target_vector: dict[str, Any],
+        idempotency_key: str,
+        projection: dict[str, Any],
+    ) -> str:
+        explanation = str(projection.get("explanation", ""))
+        if any(line.startswith("CalendarPilot-Idempotency: ") for line in explanation.splitlines()):
+            raise CalendarProviderError("managed EventKit notes use a reserved marker namespace")
+        result = self.provider.bridge.call("managed_commit", {
+            "expected_binding": dict(expected_binding),
+            "target_vector": dict(target_vector),
+            "idempotency_key": idempotency_key,
+            "action": {
+                "action_type": "create_focus_block",
+                "title": projection["title"],
+                "start": projection["start"],
+                "end": projection["end"],
+                "calendar_id": self.calendar_id,
+                "attendees": [],
+                "metadata": {
+                    "notes": explanation,
+                    "calendarpilot_binding_id": str(expected_binding["binding_id"]),
+                    "calendarpilot_binding_epoch": str(expected_binding["binding_epoch"]),
+                },
+            },
+        })
+        self.identifier_only_validation_count += 1
+        self.post_verify_count += 1
+        self.last_pre_binding = dict(result.get("pre_binding", {}))
+        self.last_post_binding = dict(result.get("post_binding", {}))
+        self.last_target_vector_sha256 = str(result.get("target_vector_sha256", ""))
+        external_ids = [str(value) for value in result.get("created_external_ids", [])]
+        if len(external_ids) != 1 or result.get("verified") is not True:
+            raise CalendarProviderError("managed EventKit create did not post-verify exactly one event")
+        return external_ids[0]
+
+    def remove(
+        self,
+        *,
+        expected_binding: dict[str, Any],
+        target_vector: dict[str, Any],
+        idempotency_key: str,
+        external_id: str,
+    ) -> bool:
+        result = self.provider.bridge.call("managed_remove", {
+            "expected_binding": dict(expected_binding),
+            "target_vector": dict(target_vector),
+            "idempotency_key": idempotency_key,
+            "external_id": external_id,
+        })
+        self.identifier_only_validation_count += 1
+        self.post_verify_count += 1
+        self.last_pre_binding = dict(result.get("pre_binding", {}))
+        self.last_post_binding = dict(result.get("post_binding", {}))
+        self.last_target_vector_sha256 = str(result.get("target_vector_sha256", ""))
+        return bool(result.get("verified_absent", False))
+
+
 def _jsonable_action(action: Any) -> dict[str, Any]:
     from calendar_pilot.types import to_jsonable
 
@@ -392,6 +503,31 @@ def _expanded_actions(candidate: CandidateCalendarAction) -> list[AtomicCalendar
 
 def _default_state_path() -> Path:
     return Path(os.environ.get("CALENDAR_PILOT_EVENTKIT_STATE_FILE", str(Path.home() / "Library" / "Application Support" / "CalendarPilot" / "apple_eventkit_provider.json")))
+
+
+def _calendar_pilot_app(path: Path) -> Path | None:
+    for parent in [path, *path.parents]:
+        if parent.name == "CalendarPilot.app":
+            return parent
+    return None
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _tree_sha256(root: Path) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(value for value in root.rglob("*") if value.is_file()):
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(_file_sha256(path).encode())
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def _default_bridge_path() -> str:

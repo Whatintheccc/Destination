@@ -1009,20 +1009,22 @@ class SandboxEffectGateway:
 
             outbox = self.ledger._state["outbox"][ticket.ticket_id]
             target = self._target_receipt(ticket)
-            if ticket.kind == "apply":
-                next_state = self.adapter.dispatch_apply(self.ledger._state["adapter_state"], ticket)
-            elif target is not None:
-                next_state = self.adapter.dispatch_compensation(self.ledger._state["adapter_state"], ticket, target)
-            else:
+            if ticket.kind == "compensate" and target is None:
                 outbox["facts"].append("hold")
                 receipt = self._receipt(ticket, phase="hold", reasons=("target_receipt_missing",), now=now)
                 self._store_receipt(receipt)
                 self.ledger.persist()
                 return receipt
-            self.ledger._state["adapter_state"] = next_state
             outbox["facts"].extend(["dispatch", "unknown"])
             stored["status"] = "applying_unknown"
-            self.ledger._state["audit"].append({"fact": "effect_dispatched", "ticket_id": ticket.ticket_id})
+            self.ledger._state["audit"].append({"fact": "effect_dispatch_started", "ticket_id": ticket.ticket_id})
+            self.ledger.persist()
+            if ticket.kind == "apply":
+                next_state = self.adapter.dispatch_apply(self.ledger._state["adapter_state"], ticket)
+            else:
+                next_state = self.adapter.dispatch_compensation(self.ledger._state["adapter_state"], ticket, target)
+            self.ledger._state["adapter_state"] = next_state
+            self.ledger._state["audit"].append({"fact": "effect_dispatch_returned", "ticket_id": ticket.ticket_id})
             self.ledger.persist()
             if crash_at == "after_dispatch_before_receipt":
                 raise InjectedCrash("after_dispatch_before_receipt")

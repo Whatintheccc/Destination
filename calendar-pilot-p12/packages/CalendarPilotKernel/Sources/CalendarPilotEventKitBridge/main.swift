@@ -110,6 +110,14 @@ private final class EventKitCommandHandler {
             return try readEvents(payload)
         case "ensure_calendar":
             return try ensureCalendar(payload)
+        case "calendar_identity":
+            return try calendarIdentity(payload)
+        case "managed_snapshot":
+            return try managedSnapshot(payload)
+        case "managed_commit":
+            return try managedCommit(payload)
+        case "managed_remove":
+            return try managedRemove(payload)
         case "commit":
             return try commit(payload)
         case "rollback":
@@ -168,6 +176,156 @@ private final class EventKitCommandHandler {
         calendar.source = source
         try store.saveCalendar(calendar, commit: true)
         return calendarSetupPayload(calendar, created: true)
+    }
+
+    private func calendarIdentity(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
+        try requireAuthorized()
+        let calendarID = try (payload["calendar_id"]?.stringValue).orThrow("calendar_id")
+        return managedBindingPayload(try strictCalendar(id: calendarID))
+    }
+
+    private func managedSnapshot(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
+        try requireAuthorized()
+        let calendarID = try (payload["calendar_id"]?.stringValue).orThrow("calendar_id")
+        let calendar = try strictCalendar(id: calendarID)
+        let start = Date().addingTimeInterval(-366 * 24 * 60 * 60)
+        let end = Date().addingTimeInterval(2 * 366 * 24 * 60 * 60)
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: [calendar])
+        var groupedEvents: [String: [EKEvent]] = [:]
+        var ambiguousEventIDs: [String] = []
+        var eventMatches: [JSONValue] = []
+        for event in store.events(matching: predicate) {
+            let parsed = managedIdempotencyMarker(event.notes ?? "")
+            if parsed.key == nil && parsed.ambiguous == false { continue }
+            eventMatches.append(JSONValue([
+                "marker_key": JSONValue(parsed.key ?? ""),
+                "marker_ambiguous": JSONValue(parsed.ambiguous),
+                "event": JSONValue(eventPayload(event)),
+            ]))
+            if parsed.ambiguous {
+                ambiguousEventIDs.append(currentIdentifier(for: event))
+                continue
+            }
+            guard let marker = parsed.key else { continue }
+            groupedEvents[marker, default: []].append(event)
+        }
+        var events: [String: JSONValue] = [:]
+        var ambiguous: [String] = []
+        for marker in groupedEvents.keys.sorted() {
+            let matches = groupedEvents[marker] ?? []
+            if matches.count == 1, let event = matches.first {
+                events[marker] = JSONValue(eventPayload(event))
+            } else {
+                ambiguous.append(marker)
+            }
+        }
+        return [
+            "binding_identity": JSONValue(managedBindingPayload(calendar)),
+            "events": JSONValue(events),
+            "ambiguous_idempotency_keys": JSONValue(ambiguous.map(JSONValue.init)),
+            "ambiguous_marker_event_ids": JSONValue(ambiguousEventIDs.sorted().map(JSONValue.init)),
+            "event_matches": JSONValue(eventMatches),
+        ]
+    }
+
+    private func managedCommit(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
+        try requireAuthorized()
+        guard let expected = payload["expected_binding"]?.objectValue else {
+            throw BridgeFailure.missingField("expected_binding")
+        }
+        guard let vector = payload["target_vector"]?.objectValue else {
+            throw BridgeFailure.missingField("target_vector")
+        }
+        guard let actionValue = payload["action"] else {
+            throw BridgeFailure.missingField("action")
+        }
+        let action = try decode(EventKitAction.self, from: actionValue)
+        let calendar = try validateManagedBinding(expected)
+        try validateManagedTargetVector(vector, action: action, expected: expected)
+        let preBinding = managedBindingPayload(calendar)
+        let idempotencyKey = try (payload["idempotency_key"]?.stringValue).orThrow("idempotency_key")
+        let existing = existingEventIDs(for: idempotencyKey, calendar: calendar)
+        if existing.count > 1 {
+            throw BridgeFailure.sandboxViolation("managed EventKit idempotency marker is ambiguous")
+        }
+        if let existingID = existing.first {
+            let postBinding = managedBindingPayload(try validateManagedBinding(expected))
+            return [
+                "created_external_ids": JSONValue([JSONValue(existingID)]),
+                "pre_binding": JSONValue(preBinding),
+                "post_binding": JSONValue(postBinding),
+                "target_vector_sha256": JSONValue(vector["sha256"]?.stringValue ?? ""),
+                "verified": JSONValue(true),
+                "idempotent_replay": JSONValue(true),
+            ]
+        }
+        let event = EKEvent(eventStore: store)
+        event.title = action.title.isEmpty ? "CalendarPilot event" : action.title
+        event.startDate = try action.start.orThrow("start")
+        event.endDate = try action.end.orThrow("end")
+        event.calendar = calendar
+        let marker = "\nCalendarPilot-Idempotency: \(idempotencyKey)#0"
+        let notes = action.metadata["notes"] ?? "Created by CalendarPilot"
+        if notes.components(separatedBy: .newlines).contains(where: { $0.hasPrefix("CalendarPilot-Idempotency: ") }) {
+            throw BridgeFailure.sandboxViolation("managed EventKit notes use a reserved marker namespace")
+        }
+        event.notes = notes + marker
+        try store.save(event, span: .thisEvent, commit: true)
+        let created = existingEventIDs(for: idempotencyKey, calendar: calendar)
+        guard
+            created.count == 1,
+            let externalID = created.first,
+            let verifiedEvent = store.event(withIdentifier: externalID),
+            verifiedEvent.calendar?.calendarIdentifier == calendar.calendarIdentifier,
+            verifiedEvent.title == event.title,
+            abs(verifiedEvent.startDate.timeIntervalSince(event.startDate)) < 1,
+            abs(verifiedEvent.endDate.timeIntervalSince(event.endDate)) < 1
+        else {
+            throw BridgeFailure.sandboxViolation("managed EventKit create post-verification is ambiguous")
+        }
+        let postBinding = managedBindingPayload(try validateManagedBinding(expected))
+        return [
+            "created_external_ids": JSONValue([JSONValue(externalID)]),
+            "pre_binding": JSONValue(preBinding),
+            "post_binding": JSONValue(postBinding),
+            "target_vector_sha256": JSONValue(vector["sha256"]?.stringValue ?? ""),
+            "verified": JSONValue(true),
+        ]
+    }
+
+    private func managedRemove(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
+        try requireAuthorized()
+        guard let expected = payload["expected_binding"]?.objectValue else {
+            throw BridgeFailure.missingField("expected_binding")
+        }
+        guard let vector = payload["target_vector"]?.objectValue else {
+            throw BridgeFailure.missingField("target_vector")
+        }
+        let calendar = try validateManagedBinding(expected)
+        try validateManagedRemovalVector(vector, expected: expected)
+        let preBinding = managedBindingPayload(calendar)
+        let eventID = try (payload["external_id"]?.stringValue).orThrow("external_id")
+        let idempotencyKey = try (payload["idempotency_key"]?.stringValue).orThrow("idempotency_key")
+        let matchingIDs = existingEventIDs(for: idempotencyKey, calendar: calendar)
+        guard
+            matchingIDs.count == 1,
+            matchingIDs.first == eventID,
+            let event = store.event(withIdentifier: eventID),
+            event.calendar?.calendarIdentifier == calendar.calendarIdentifier,
+            managedIdempotencyMarker(event.notes ?? "").key == idempotencyKey,
+            managedIdempotencyMarker(event.notes ?? "").ambiguous == false
+        else {
+            throw BridgeFailure.sandboxViolation("managed EventKit compensation target is missing or ambiguous")
+        }
+        try store.remove(event, span: .thisEvent, commit: true)
+        let absent = store.event(withIdentifier: eventID) == nil && existingEventIDs(for: idempotencyKey, calendar: calendar).isEmpty
+        let postBinding = managedBindingPayload(try validateManagedBinding(expected))
+        return [
+            "pre_binding": JSONValue(preBinding),
+            "post_binding": JSONValue(postBinding),
+            "target_vector_sha256": JSONValue(vector["sha256"]?.stringValue ?? ""),
+            "verified_absent": JSONValue(absent),
+        ]
     }
 
     private func readEvents(_ payload: [String: JSONValue]) throws -> [String: JSONValue] {
@@ -357,6 +515,85 @@ private final class EventKitCommandHandler {
         ]
     }
 
+    private func managedBindingPayload(_ calendar: EKCalendar) -> [String: JSONValue] {
+        [
+            "provider": JSONValue("apple_eventkit"),
+            "authorization_status": JSONValue(statusName(EKEventStore.authorizationStatus(for: .event))),
+            "event_store_id": JSONValue(store.eventStoreIdentifier),
+            "calendar_id": JSONValue(calendar.calendarIdentifier),
+            "source_id": JSONValue(calendar.source.sourceIdentifier),
+            "source_type": JSONValue(sourceTypeName(calendar.source.sourceType)),
+            "title": JSONValue(calendar.title),
+            "writable": JSONValue(calendar.allowsContentModifications),
+        ]
+    }
+
+    private func validateManagedBinding(_ expected: [String: JSONValue]) throws -> EKCalendar {
+        let calendarID = try (expected["calendar_id"]?.stringValue).orThrow("expected_binding.calendar_id")
+        let calendar = try strictCalendar(id: calendarID)
+        let observed = managedBindingPayload(calendar)
+        let pairs = [
+            ("event_store_id", "event_store_id"),
+            ("calendar_id", "calendar_id"),
+            ("source_id", "source_id"),
+            ("source_type", "source_type"),
+            ("title_tripwire", "title"),
+        ]
+        for (expectedKey, observedKey) in pairs {
+            if expected[expectedKey]?.stringValue != observed[observedKey]?.stringValue {
+                throw BridgeFailure.sandboxViolation("managed EventKit binding mismatch at \(expectedKey)")
+            }
+        }
+        guard calendar.allowsContentModifications else {
+            throw BridgeFailure.sandboxViolation("managed EventKit calendar is not writable")
+        }
+        return calendar
+    }
+
+    private func validateManagedTargetVector(
+        _ vector: [String: JSONValue],
+        action: EventKitAction,
+        expected: [String: JSONValue]
+    ) throws {
+        guard
+            let rows = vector["expanded_write_targets"]?.arrayValue,
+            rows.count == 1,
+            let row = rows[0].objectValue,
+            let expectedCalendar = expected["calendar_id"]?.stringValue,
+            let expectedBindingID = expected["binding_id"]?.stringValue,
+            let expectedEpoch = expected["binding_epoch"]?.stringValue ?? expected["binding_epoch"]?.intValue.map(String.init),
+            !((vector["sha256"]?.stringValue ?? "").isEmpty),
+            row["calendar_id"]?.stringValue == expectedCalendar,
+            row["binding_id"]?.stringValue == expectedBindingID,
+            (row["binding_epoch"]?.stringValue ?? row["binding_epoch"]?.intValue.map(String.init)) == expectedEpoch,
+            action.calendarID == expectedCalendar,
+            action.metadata["calendarpilot_binding_id"] == expectedBindingID,
+            action.metadata["calendarpilot_binding_epoch"] == expectedEpoch
+        else {
+            throw BridgeFailure.sandboxViolation("managed EventKit canonical target vector is invalid")
+        }
+    }
+
+    private func validateManagedRemovalVector(
+        _ vector: [String: JSONValue],
+        expected: [String: JSONValue]
+    ) throws {
+        guard
+            let rows = vector["expanded_write_targets"]?.arrayValue,
+            rows.count == 1,
+            let row = rows[0].objectValue,
+            let expectedCalendar = expected["calendar_id"]?.stringValue,
+            let expectedBindingID = expected["binding_id"]?.stringValue,
+            let expectedEpoch = expected["binding_epoch"]?.stringValue ?? expected["binding_epoch"]?.intValue.map(String.init),
+            !((vector["sha256"]?.stringValue ?? "").isEmpty),
+            row["calendar_id"]?.stringValue == expectedCalendar,
+            row["binding_id"]?.stringValue == expectedBindingID,
+            (row["binding_epoch"]?.stringValue ?? row["binding_epoch"]?.intValue.map(String.init)) == expectedEpoch
+        else {
+            throw BridgeFailure.sandboxViolation("managed EventKit compensation target vector is invalid")
+        }
+    }
+
     private func sourceTypeName(_ sourceType: EKSourceType) -> String {
         switch sourceType {
         case .local: return "local"
@@ -442,6 +679,20 @@ private final class EventKitCommandHandler {
         throw BridgeFailure.noWritableCalendar
     }
 
+    private func strictCalendar(id: String) throws -> EKCalendar {
+        let requested = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !requested.isEmpty, requested != "default" else {
+            throw BridgeFailure.sandboxViolation("managed EventKit requires an exact calendar identifier")
+        }
+        guard let calendar = store.calendar(withIdentifier: requested) else {
+            throw BridgeFailure.sandboxViolation("managed EventKit calendar identifier is unavailable")
+        }
+        guard calendar.allowsContentModifications else {
+            throw BridgeFailure.sandboxViolation("managed EventKit calendar is not writable")
+        }
+        return calendar
+    }
+
     private func eventForIdentifier(_ id: String) throws -> EKEvent {
         guard let event = store.event(withIdentifier: id) else {
             throw BridgeFailure.eventNotFound(id)
@@ -479,6 +730,33 @@ private final class EventKitCommandHandler {
         return store.events(matching: predicate)
             .filter { ($0.notes ?? "").contains("CalendarPilot-Idempotency: \(idempotencyKey)#") }
             .map { currentIdentifier(for: $0) }
+    }
+
+    private func existingEventIDs(for idempotencyKey: String, calendar: EKCalendar) -> [String] {
+        guard !idempotencyKey.isEmpty else { return [] }
+        let end = Date().addingTimeInterval(2 * 366 * 24 * 60 * 60)
+        let start = Date().addingTimeInterval(-366 * 24 * 60 * 60)
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: [calendar])
+        return store.events(matching: predicate)
+            .filter {
+                let parsed = managedIdempotencyMarker($0.notes ?? "")
+                return parsed.ambiguous == false && parsed.key == idempotencyKey
+            }
+            .map { currentIdentifier(for: $0) }
+            .sorted()
+    }
+
+    private func managedIdempotencyMarker(_ notes: String) -> (key: String?, ambiguous: Bool) {
+        let prefix = "CalendarPilot-Idempotency: "
+        let lines = notes.components(separatedBy: .newlines).filter { $0.hasPrefix(prefix) }
+        guard !lines.isEmpty else { return (nil, false) }
+        guard lines.count == 1 else { return (nil, true) }
+        let value = String(lines[0].dropFirst(prefix.count))
+        let parts = value.split(separator: "#", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty, parts[1] == "0" else {
+            return (nil, true)
+        }
+        return (String(parts[0]), false)
     }
 
     private func verifyRestoredEvent(_ row: [String: JSONValue]) -> Bool {
@@ -528,6 +806,11 @@ private final class EventKitCommandHandler {
 private extension JSONValue {
     var arrayValue: [JSONValue]? {
         if case .array(let values) = self { return values }
+        return nil
+    }
+
+    var intValue: Int? {
+        if case .int(let value) = self { return value }
         return nil
     }
 }

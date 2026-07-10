@@ -32,6 +32,22 @@ from .retirement import (
     RETIREMENT_PROFILE,
     RetirementActionResult,
 )
+from .eventkit_retirement import (
+    BINDING_VERSION,
+    MANAGED_ADAPTER_ID,
+    MANAGED_AUTHORITY_PROFILE,
+    MANAGED_BACKEND,
+    MANAGED_OWNER,
+    ManagedCalendarBinding,
+    ManagedEventKitAdapter,
+    ManagedEventKitRetirementProvider,
+    ManagedOwnershipDecision,
+    ManagedProcessLease,
+    ManagedRetirementActionResult,
+    canonical_target_vector,
+    classify_managed_candidate,
+    managed_commit_confirmation_provenance,
+)
 
 
 __all__ = [
@@ -65,4 +81,18 @@ __all__ = [
     "RETIREMENT_OWNER",
     "RETIREMENT_PROFILE",
     "RetirementActionResult",
+    "BINDING_VERSION",
+    "MANAGED_ADAPTER_ID",
+    "MANAGED_AUTHORITY_PROFILE",
+    "MANAGED_BACKEND",
+    "MANAGED_OWNER",
+    "ManagedCalendarBinding",
+    "ManagedEventKitAdapter",
+    "ManagedEventKitRetirementProvider",
+    "ManagedOwnershipDecision",
+    "ManagedProcessLease",
+    "ManagedRetirementActionResult",
+    "canonical_target_vector",
+    "classify_managed_candidate",
+    "managed_commit_confirmation_provenance",
 ]
