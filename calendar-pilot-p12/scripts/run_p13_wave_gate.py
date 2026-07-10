@@ -22,6 +22,7 @@ from evals.p13_ruler.wave import (
     build_experiment_record,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
+    is_structurally_no_effect_wave,
     load_json,
     resolve,
     verify_root_list,
@@ -166,7 +167,12 @@ def main() -> None:
 
     release_path = ROOT / "runs/p12_release/p12_release_report.json"
     release_env = {**os.environ, "PYTHONPATH": "src"}
-    if manifest.get("change_class") == "ruler" and not release_env.get("CALENDAR_PILOT_REWARD_REPLAY"):
+    architecture = load_json(architecture_path)
+    fixed_reward_fixture = bool(
+        manifest.get("change_class") == "ruler"
+        or is_structurally_no_effect_wave(manifest, verification, architecture)
+    )
+    if fixed_reward_fixture:
         release_env["CALENDAR_PILOT_REWARD_REPLAY"] = "tests/fixtures/p13_action_rewards.jsonl"
     release_run = _run([sys.executable, "scripts/run_p12_release.py"], artifact=release_path, env=release_env)
     reward_path = artifacts / "reward_screen_report.json"

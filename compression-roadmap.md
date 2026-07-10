@@ -275,7 +275,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make b-migrate` | historical P12 current-session snapshot ↔ current-projector shape check | independent old-organ versus new-kernel equivalence; it is not accepted by the P13 gate |
 | `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability | the rest of the wave decision |
 | `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's separately named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.1+ action/backend comparison vector until that wave declares it |
-| `make wave-harness WAVE=… P13_VERIFY_KEY=…` | development/ruler evidence composition over manifest affectedness, v2 architecture, C-VAR, `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | migration authorization, independent review, isolated evaluator execution, authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
+| `make wave-harness WAVE=… P13_VERIFY_KEY=…` | development/ruler evidence composition over manifest affectedness, v2 architecture, C-VAR, `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2`; a structurally no-effect migration passes only with exact candidate identity, an independent incumbent-path ablation, and a manifest-complete additive rollback proof | migration authorization, independent review, isolated evaluator execution, authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
 | `.github/workflows/p13-ruler.yml` (`deterministic-ruler`) | an exact GitHub-hosted, candidate-controlled replay on pull requests and `main`; fresh report generation, report/input identity coherence, fixed artifact inventory, checksums, run context, and 90-day retention | evaluator independence, external key custody, migration authority, or bit-for-bit reproducibility after mutable runner/dependency state changes |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and a fresh non-overwriting per-run report directory | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
@@ -542,6 +542,21 @@ access_point, runtime_mode, backend identities,
 artifact paths + hashes, commit + app subtree,
 environment variable names present (never secret values)
 ```
+
+`ExperimentRecord.v2` is schema-valid at `hold`: incomplete non-ruler evidence is
+represented, not erased. A non-ruler `pass` additionally requires an exact candidate
+object, a stable ablation, a proved rollback to the signed base, and `identified`
+status. For the bounded P13.1 additive vertical, the incumbent `B_migrate` producer is
+the ablated variant and rollback is proved only when every manifest-derived candidate
+path is a new file whose removal exactly restores the signed base. Any modification,
+rename, deletion, backend/control-plane reachability, or missing no-effect predicate
+keeps the record on hold pending a stronger rollback artifact.
+
+The fixed reward fixture may replace the P12 release replay only for ruler waves and
+manifest-selected, architecture-passing structurally no-effect waves whose derived
+affectedness has no backend or control plane. It exercises reward-screen mechanics but
+makes no outcome claim. Learning/reward-affected waves must consume their candidate
+replay and cannot inherit that exception.
 
 A live leg may be root-listed only when it is unaffected or genuinely unavailable.
 The ledger is a versioned artifact, not a hard-coded `signed=True` branch:

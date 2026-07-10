@@ -20,8 +20,10 @@ from evals.p13_ruler.core import canonical_json_bytes, sha256_bytes, sha256_file
 from evals.p13_ruler.wave import (
     build_b_migrate_artifact,
     build_cvar_frontier_set,
+    build_experiment_record,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
+    is_structurally_no_effect_wave,
     verify_root_list,
 )
 from scripts.make_reward_head_report import build_report as build_reward_report
@@ -223,6 +225,98 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
         broken = deepcopy(template)
         broken["change_class"] = "compression"
         self.assertTrue(list(Draft202012Validator(schema).iter_errors(broken)))
+
+    def test_no_effect_migration_record_passes_only_with_exact_additive_rollback(self):
+        schema = json.loads((ROOT / "contracts/experiment_record_v2.schema.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+
+            def write(name: str, payload: dict) -> Path:
+                path = root / name
+                path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+                return path
+
+            manifest = {
+                "manifest_id": "p13-no-effect:test",
+                "wave": "p13-no-effect-test",
+                "change_class": "migration",
+                "base_repository": {"git_sha": "base-sha", "app_tree_sha": "base-app-tree"},
+                "instrument_bundle": {"bundle_sha256": "bundle", "file_sha256": "bundle-file"},
+                "required_scenarios": ["target.product_core_no_effect_reachability"],
+            }
+            verification = {
+                "decision": "pass",
+                "changed_paths": [{"path": "calendar-pilot-p12/src/calendar_pilot/product_core/new.py"}],
+                "derived_affectedness": {
+                    "actions": ["create_prep_block"],
+                    "backends": [],
+                    "surfaces": ["journal", "projection", "reducer"],
+                    "instruments": [],
+                    "control_planes": [],
+                },
+            }
+            architecture = {
+                "decision": "pass",
+                "rails": {"preservation": {"status_counts": {"pass": 11}}},
+                "scenarios": [{
+                    "scenario_id": "target.product_core_no_effect_reachability",
+                    "gate_mode": "required",
+                    "status": "pass",
+                }],
+            }
+            cvar = {
+                "decision": "pass",
+                "compared_rows": [{"seed_id": "seed:one", "delta_top_reward": 0.0}],
+                "promotion_decisions": {"before": "promote", "after": "promote"},
+                "bootstrap": {"mean_delta": 0.0, "ci95": [0.0, 0.0], "variance": 0.0},
+                "borderline": {"flip_rate": 0.0},
+                "thresholds": {"values": {"max_delta_variance": 0.0025}},
+                "before_artifact": {"path": "before.json", "sha256": "before"},
+            }
+            b_migrate = {
+                "decision": "pass",
+                "assertions": [{"name": "projection", "status": "pass"}],
+                "before_artifact": {"path": "old.json", "sha256": "old"},
+            }
+            release = {"decision": "pass"}
+            reward = {
+                "decision": "pass",
+                "reward_head_deltas": {},
+                "reward_evidence": {"consumed_reward_rows": [], "declared_source_classification": {}},
+            }
+            paths = {
+                "manifest_path": write("manifest.json", manifest),
+                "binding_verification_path": write("binding.json", verification),
+                "architecture_report_path": write("architecture.json", architecture),
+                "cvar_report_path": write("cvar.json", cvar),
+                "b_migrate_report_path": write("b_migrate.json", b_migrate),
+                "release_report_path": write("release.json", release),
+                "reward_report_path": write("reward.json", reward),
+                "root_list_report_path": write("root_list.json", {"decision": "pass"}),
+                "loc_report_path": write("loc.json", {"decision": "pass", "delta": {"delta_lines": 10}}),
+            }
+            candidate = {"git_sha": "candidate-sha", "app_tree_sha": "candidate-app-tree"}
+            additive = [{"status": "A", "path": "calendar-pilot-p12/src/calendar_pilot/product_core/new.py"}]
+            record = build_experiment_record(**paths, candidate_repository=candidate, git_delta=additive)
+            Draft202012Validator(schema).validate(record)
+            self.assertEqual(record["decision"], "pass")
+            self.assertTrue(record["ablation"]["decision_stable"])
+            self.assertTrue(record["rollback"]["baseline_restored"])
+            self.assertEqual(record["identifiability"]["status"], "identified")
+            self.assertTrue(is_structurally_no_effect_wave(manifest, verification, architecture))
+
+            modified = build_experiment_record(
+                **paths,
+                candidate_repository=candidate,
+                git_delta=[{"status": "M", "path": additive[0]["path"]}],
+            )
+            Draft202012Validator(schema).validate(modified)
+            self.assertEqual(modified["decision"], "hold")
+            self.assertFalse(modified["rollback"]["baseline_restored"])
+
+            forged = deepcopy(modified)
+            forged["decision"] = "pass"
+            self.assertTrue(list(Draft202012Validator(schema).iter_errors(forged)))
 
     def test_reward_rows_gain_occurrence_identity_and_declared_source_class(self):
         with tempfile.TemporaryDirectory() as td:

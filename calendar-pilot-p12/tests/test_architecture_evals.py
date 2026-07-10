@@ -558,13 +558,25 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                 "promotion_override_rejection",
                 {"promotion": {"forced_returncode": 0, "automatic_returncode": 0, "forced_decision": "pass", "automatic_decision": "pass", "current_unchanged": False, "promotion_trees_unchanged": False, "promotion_artifact_writes": 1}},
             ),
+            "nondeterministic_product_core": (
+                "reducer_determinism",
+                {"product_core": {"first_sha256": "a", "second_sha256": "b", "reducer_version": "v1", "event_types": []}},
+            ),
+            "uncited_product_core_projection": (
+                "cited_required_projection",
+                {"product_core": {"status": "preview", "reducer_version": "v1", "required_fields_present": True, "evidence_row_ids": [], "all_evidence_rows_exist": False}},
+            ),
+            "dispatchable_product_core": (
+                "product_core_no_effect_reachability",
+                {"product_core": {"can_dispatch": True, "forbidden_imports": [], "forbidden_preview_fields": [], "effect_counts": {"effect_attempts": 0, "claims": 0, "dispatches": 0, "provider_mutations": 0}}},
+            ),
             "p13_target_claim_without_evidence": (
                 "p13_target_not_implemented",
                 {"target_capability": {"reached": True}},
             ),
         }
 
-        self.assertEqual(len(planted), 26)
+        self.assertEqual(len(planted), 29)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():
