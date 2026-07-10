@@ -768,6 +768,14 @@ P13_5_EVENTKIT_RETIREMENT_SCENARIOS = {
     "target.eventkit_managed_live_contract",
 }
 
+P13_6_LEARNING_BASELINE_SCENARIOS = {
+    "target.optimizer_write_boundary",
+    "target.holdout_non_exposure",
+    "target.promotion_override_rejection",
+    "target.signed_policy_promotion",
+    "target.reward_identity_provenance",
+}
+
 
 def is_owner_controlled_sandbox_wave(
     manifest: dict[str, Any],
@@ -838,6 +846,77 @@ def is_owner_controlled_eventkit_retirement_wave(
     )
 
 
+def is_learning_baseline_migration_wave(
+    manifest: dict[str, Any],
+    verification: dict[str, Any],
+    architecture: dict[str, Any],
+) -> bool:
+    changed = {str(row.get("path")) for row in verification.get("changed_paths", [])}
+    allowed = all(
+        path == "calendar-pilot-p12/experiments/promoted/CURRENT.json"
+        or path == "calendar-pilot-p12/README.md"
+        or path == "compression-roadmap.md"
+        or path.startswith("calendar-pilot-p12/experiments/learning/")
+        for path in changed
+    )
+    affected = verification.get("derived_affectedness", {})
+    return bool(
+        manifest.get("change_class") == "migration"
+        and verification.get("decision") == "pass"
+        and changed
+        and allowed
+        and not affected.get("actions")
+        and not affected.get("backends")
+        and set(affected.get("control_planes", [])) <= {"evaluator"}
+        and all(
+            _selected_scenario_passes(manifest, architecture, scenario_id)
+            for scenario_id in P13_6_LEARNING_BASELINE_SCENARIOS
+        )
+    )
+
+
+def learning_baseline_rollback_evidence() -> tuple[bool, dict[str, Any] | None]:
+    from scripts.p13_learning_control import (
+        load_current_policy_payload,
+        load_promotion_root,
+        resolve_artifact,
+        validate_promotion_record,
+    )
+
+    current = APP_ROOT / "experiments/promoted/CURRENT.json"
+    snapshot = APP_ROOT / "experiments/learning/promoter/bootstrap/baseline_current_pointer.json"
+    rollback_record_path = APP_ROOT / "experiments/learning/promoter/rollback/promotion_record.json"
+    if not all(path.is_file() for path in (current, snapshot, rollback_record_path)):
+        return False, None
+    try:
+        if current.read_bytes() != snapshot.read_bytes():
+            return False, None
+        payload, baseline_record = load_current_policy_payload(current)
+        rollback_record = load_json(rollback_record_path)
+        _, public_key = load_promotion_root()
+        validate_promotion_record(rollback_record, public_key=public_key)
+        search_attestation = load_json(resolve_artifact(rollback_record["attestations"]["search"]))
+        restored = search_attestation.get("restore_current_pointer")
+        if restored != load_json(snapshot):
+            return False, None
+        if rollback_record.get("transition") != "rollback":
+            return False, None
+        if rollback_record.get("payload", {}).get("sha256") != baseline_record.get("payload", {}).get("sha256"):
+            return False, None
+        if payload.get("policy_parameters", {}).get("policy_tuning", {}).get("tuning_id") != "empty_baseline":
+            return False, None
+    except (ValueError, FileNotFoundError, json.JSONDecodeError):
+        return False, None
+    return True, {
+        "mode": "signed_policy_pointer",
+        "current_sha256": sha256_file(current),
+        "baseline_pointer": {"path": str(snapshot), "sha256": sha256_file(snapshot)},
+        "rollback_record": {"path": str(rollback_record_path), "sha256": sha256_file(rollback_record_path)},
+        "baseline_record_id": baseline_record.get("record_id"),
+        "rollback_record_id": rollback_record.get("record_id"),
+    }
+
+
 def build_experiment_record(
     *,
     manifest_path: Path,
@@ -885,7 +964,8 @@ def build_experiment_record(
     eventkit_effect = is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture)
     vertical_retirement = is_owner_controlled_vertical_retirement_wave(manifest, verification, architecture)
     eventkit_retirement = is_owner_controlled_eventkit_retirement_wave(manifest, verification, architecture)
-    bounded_development = structural_no_effect or sandbox_effect or eventkit_effect or vertical_retirement or eventkit_retirement
+    learning_baseline = is_learning_baseline_migration_wave(manifest, verification, architecture)
+    bounded_development = structural_no_effect or sandbox_effect or eventkit_effect or vertical_retirement or eventkit_retirement or learning_baseline
     delta_paths = [str(row.get("path")) for row in git_delta]
     exact_additive_rollback = bool(
         bounded_development
@@ -922,13 +1002,14 @@ def build_experiment_record(
         and _selected_scenario_passes(manifest, architecture, "target.eventkit_managed_durable_owner")
         and b_migrate.get("decision") == "pass"
     )
+    learning_rollback, learning_rollback_artifact = learning_baseline_rollback_evidence() if learning_baseline else (False, None)
     compared_seed_ids = [str(row.get("seed_id")) for row in cvar.get("compared_rows", [])]
     compared_assertions = [str(row.get("name")) for row in b_migrate.get("assertions", [])]
     deltas = [float(row.get("delta_top_reward", 0.0)) for row in cvar.get("compared_rows", [])]
     worst_delta = min(deltas) if deltas else None
     ablation_stable = bool(bounded_development and b_migrate.get("decision") == "pass")
     rollback_restored = bool(
-        (exact_additive_rollback or cited_read_side_rollback or eventkit_selector_rollback or retirement_selector_rollback or eventkit_retirement_selector_rollback)
+        (exact_additive_rollback or cited_read_side_rollback or eventkit_selector_rollback or retirement_selector_rollback or eventkit_retirement_selector_rollback or learning_rollback)
         and verification.get("decision") == "pass"
         and architecture.get("decision") == "pass"
         and cvar.get("decision") == "pass"
@@ -1019,6 +1100,7 @@ def build_experiment_record(
                     "mode": (
                         "incumbent_read_selector"
                         if cited_read_side_rollback
+                        else "signed_policy_pointer" if learning_rollback
                         else "owner_frozen_binding_selector" if eventkit_retirement_selector_rollback
                         else "owner_frozen_selector" if retirement_selector_rollback
                         else "incumbent_effect_selector" if eventkit_selector_rollback
@@ -1032,6 +1114,7 @@ def build_experiment_record(
                     "git_delta": git_delta,
                     "binding_verification": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
                     "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect or eventkit_effect or vertical_retirement or eventkit_retirement) else None,
+                    "signed_policy_rollback": learning_rollback_artifact,
                 }
                 if bounded_development
                 else None
@@ -1044,6 +1127,7 @@ def build_experiment_record(
                     (
                         "The independent incumbent projection remains executable and equivalent behind the compatibility selector."
                         if cited_read_side_rollback
+                        else "The separately signed rollback record restored the exact baseline CURRENT pointer and verified payload." if learning_rollback
                         else (
                             "The owner-frozen selector restores the incumbent with one active owner for the exact retired pair."
                             if retirement_selector_rollback

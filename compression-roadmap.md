@@ -1218,6 +1218,13 @@ match the empty incumbent. Ruler manifest
 verifies the signed record and loads its referenced payload hash. The migration must be
 rebound and replayed after this ruler commit; the rehearsal itself carries no verdict.
 
+The composite harness treats only the exact P13.6 baseline migration as bounded
+no-behavior plumbing: its diff is limited to `experiments/learning/**`, `CURRENT`, and
+their docs; all five P13.6 target scenarios must be required and pass. That classifier
+uses the fixed zero-simulator-credit reward fixture and grades the signed rollback record
+plus byte-identical baseline pointer as the ablation/rollback proof. Any source, effect,
+backend, or extra control-plane path falls back to the generic behavior-bearing gate.
+
 No optimizer participates in P13.0–P13.5 wave or promotion decisions; existing learning
 code is inference/evidence-only and the promotion access point is frozen. This is a
 phase exclusion rule, not evidence of optimizer process isolation. The allowlisted
