@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E is complete and P12 is closed (run `20260706T220150Z-step-e-complete`); P13.0 ruler mechanics are implemented, but product migration is blocked on a durable operator signing root and independent TCB review
+Position: Step E is complete and P12 is closed (run `20260706T220150Z-step-e-complete`); P13.0 ruler mechanics are implemented, but they are not a migration authorization boundary—product migration is blocked on externally governed operator authorization, independent TCB review, and isolated evaluation
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -268,7 +268,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make b-migrate` | historical P12 current-session snapshot ↔ current-projector shape check | independent old-organ versus new-kernel equivalence; it is not accepted by the P13 gate |
 | `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability | the rest of the wave decision |
 | `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's independently named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.1+ action/backend comparison vector until that wave declares it |
-| `make wave-harness WAVE=… P13_VERIFY_KEY=…` | one fail-closed decision over manifest affectedness, v2 architecture, independent C-VAR, independent `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
+| `make wave-harness WAVE=… P13_VERIFY_KEY=…` | development/ruler evidence composition over manifest affectedness, v2 architecture, C-VAR, `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | migration authorization, independent review, isolated evaluator execution, authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and immutable per-run evidence | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 | `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
@@ -308,13 +308,21 @@ make wave-bind WAVE="$WAVE" CHANGE_CLASS="$CHANGE_CLASS"
 make wave-harness WAVE="$WAVE" P13_VERIFY_KEY="$P13_VERIFY_KEY"
 ```
 
-`wave-bind` is run and externally signed before candidate edits.
+For a migration authorization, `wave-bind` is run and signed by the external operator
+before candidate edits. A development-key invocation tests the same payload mechanics but
+does not authorize a candidate.
 `binding-manifest-verify` checks signature, expiry, hashes, and evaluator-derived
 affectedness; `architecture-evals-v2` applies the selected required predicates. The
 binding `wave-harness` composes those checks with the evidence certificates, validates
 their schemas and decisions, and returns nonzero for both hold and fail. A
 behavior-bearing wave must pass `CVAR_BEFORE=<frozen-clean-artifact>`; the harness
 refuses to regenerate that baseline after candidate work.
+
+The current access points are a ruler, not the final authorization boundary: their key
+paths are caller inputs, CI currently creates development keys in the same candidate job,
+the evaluator runs from the candidate checkout, and reports live under ignored `runs/`.
+They can demonstrate fail-closed mechanics, but no local report, caller-supplied key, or
+same-checkout evaluator result can admit P13.1.
 
 The ruler truth-repair wave records 11/11 preservation passes, five binding ruler
 target passes, and 21 nonbinding `not_reached` target debts. Adding target scenarios has
@@ -1108,11 +1116,15 @@ starts until all of these are true:
 [ ] The release verification root is durable, operator-held, and outside the repository and candidate workspace; a manifest signed only by an ephemeral development key cannot authorize migration.
 [x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
 [x] pass is required for promotion; hold returns a blocking status from the wave gate.
-[x] root-list entries are versioned, BindingManifest-signed artifacts with owner/sign-off, hashes, affected_by_wave, and enforced expiry.
+[x] root-list format, signature, owner/sign-off, hash, affectedness, and expiry mechanics are versioned and exercised with development keys.
 [x] architecture_scenario_set.v1 is frozen as history; v2 describes the four-role topology without a fixed scenario-count ceiling.
-[x] `make wave-bind` and manifest verification create/verify an externally signed BindingManifest and fail undeclared affectedness.
+[x] `make wave-bind` and manifest verification prove signature and undeclared-affectedness mechanics with development keys.
 [x] Automatic and forced promotion return blocking hold before promotion/report artifact writes and leave `CURRENT` byte-identical through P13.5.
-[ ] An engineering wave that changes TCB code declares exact TCB paths, runs isolated, and requires external evaluation plus independent human review.
+[ ] An externally governed `WaveAuthorization` pins origin, base commit/tree/app-tree, scope, ownership map, instrument, evaluator image/entrypoint, allowed producers, frozen-before receipt, policy id/key epoch, and expiry before candidate work.
+[ ] An isolated evaluator produces a signed `EvaluationPacket` over the exact candidate identity, sealed inputs, evaluator execution identity, raw result-artifact hashes, and evaluator-derived affectedness before review.
+[ ] An engineering wave that changes TCB code has an independent `TCBReviewAttestation` over the exact candidate commit/tree/binary diff, evaluator-derived TCB path set and blobs, `EvaluationPacket`, reviewer policy/key id, decision, and expiry.
+[ ] The isolated evaluator rechecks the candidate and produces a signed `EvaluationReceipt` over the authorization, packet, review, exact candidate identity, sealed inputs, execution identity, report hashes, post-run tree hash, and decision. The promoter later consumes this receipt, not a mutable checkout or arbitrary JSON path.
+[ ] Trust policy, operator/reviewer key custody, reviewer replacement/revocation, and protected merge/deployment enforcement are external to the candidate repository and workspace. Distinct key fingerprints can prove role separation, not human or organizational independence.
 [x] Instrument mutation, manifest downgrade, scope under-declaration, and protected-path affectedness attacks are planted failures.
 [x] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
 [x] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
@@ -1183,6 +1195,61 @@ P13.0 may change only the ruler, access-point plumbing, and their tests. It prod
 product behavior change and no compression credit. Its exit bundle follows §4.8 and
 contains one demonstrated failing fixture for each protected decision surface.
 
+#### 8.5.1 The Authorization Boundary That Does Not Yet Exist
+
+Do not solve this by adding an approval service, queue, database, or a local “reviewed”
+flag. The smallest valid topology has four signed records and one fixed verifier:
+
+```text
+operator-held external root
+  -> WaveAuthorization.v1 (before candidate work)
+isolated evaluator
+  -> EvaluationPacket.v1 (raw evidence on one fixed candidate)
+independent reviewer-held external root
+  -> TCBReviewAttestation.v1 (over the packet and one candidate)
+isolated evaluator
+  -> EvaluationReceipt.v1 (packet + review + final recheck)
+future promoter
+  -> consumes only the content-addressed candidate + EvaluationReceipt
+```
+
+`WaveAuthorization.v1` must bind repository origin; base commit, tree, and app-tree;
+scope and ownership-map hashes; InstrumentBundle; evaluator image and entrypoint digest;
+required scenarios and allowed producer IDs; any frozen-before receipt; trust-policy id,
+key epoch, and expiry. Arbitrary manifest command lists are not an authorization surface.
+
+`EvaluationPacket.v1` is evaluator-owned, signed before review, and binds the exact
+candidate commit/tree and canonical binary diff; sealed inputs; evaluator image,
+entrypoint, and execution identity; InstrumentBundle; evaluator-derived affectedness;
+and the raw result-artifact hashes. It is the reviewable evidence subject, not a promotion
+decision or a substitute for a final receipt.
+
+`TCBReviewAttestation.v1` must bind that authorization and `EvaluationPacket`, the exact
+candidate commit/tree and canonical binary diff, changed-path and affectedness hashes, the
+full evaluator-derived `effect_tcb` path set with before/after blobs and modes,
+InstrumentBundle/evaluator identity, reviewer policy/key identity,
+`approve|hold|reject`, issued/expiry times, and a canonical signature. The reviewer can
+block a wave but cannot override a machine failure; absent, expired, conflicting, malformed,
+or mismatched review blocks. Its expiry is no later than the authorization's.
+
+`EvaluationReceipt.v1` is generated outside the candidate checkout after the review. It
+binds authorization, packet, and review; sealed inputs; evaluator environment; exact
+candidate identity and post-run tree hash; every result-artifact hash; decision; timestamp;
+and evaluator signature. The verifier must recompute ancestry, trees, binary diff,
+affectedness, and TCB blobs from a fresh detached checkout, then reject untracked, ignored,
+ambient-import, submodule, symlink, or post-review changes unless explicitly represented in
+candidate identity. This order avoids a signature hash cycle: evaluator packet, reviewer
+attestation, then final evaluator receipt.
+
+Review is required whenever evaluator-derived affectedness includes `effect_tcb`; candidate
+scope may not suppress it. A reviewer key must be distinct from the operator, evaluator,
+and protected candidate-author/co-author principals named by external policy; a commit or
+tree hash is not a signing identity. Technical key separation is not proof of human
+independence. The independent policy, custody, revocation, artifact location, and protected
+CI/merge enforcement are deliberate external authority decisions. Until they are supplied,
+these schemas and verifier are intentionally not implemented: a local generic approval
+mechanism would create the appearance of authorization without its source.
+
 ---
 
 ## 9. Phase Architecture
@@ -1224,6 +1291,10 @@ root CI, report-decision semantics, independent before/after certificates, root-
 expiry, and the actual experiment record must be binding before any behavior migration.
 The new P13 baseline then pins the post-documentation commit, active-app subtree, exact
 LOC vector, deterministic reports, and affected live/app evidence.
+
+P13.1 additionally requires the external authorization boundary in §8.5.1. A clean
+development manifest, local report, or CI-generated key is evidence about ruler mechanics,
+not permission to create the walking skeleton.
 
 The first unit is `create_prep_block`, not a shared framework or an organ. Contract
 design and shadow plumbing are one vertical learning exercise: contracts emerge only
@@ -1581,10 +1652,11 @@ small effect TCB is surrounded by increasingly capable but untrusted proposal ma
 
 The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
 `explain` contracts are shipped ([P12 Record](P12-RECORD.md)). P13.0 now has binding
-access points, scenario-set v2, affectedness, independent comparison certificates, and
-a promotion freeze. Its honest remaining boundary is organizational and cryptographic:
-install the durable operator verification root and independent TCB reviewer before any
-product skeleton. Then migrate one complete `create_prep_block` vertical through no-effect,
+development verification access points, scenario-set v2, affectedness, independent comparison certificates, and
+a promotion freeze. Its honest remaining boundary is organizational, cryptographic, and
+execution-isolation: install the externally governed authorization, independent review,
+and isolated-evaluation chain in §8.5.1 before any product skeleton. Then migrate one
+complete `create_prep_block` vertical through no-effect,
 read-side,
 deterministic-effect, and app-bundled EventKit barriers before generalizing (P13).
 Learning becomes frozen proposal payloads plus signed promotion records only after that operational path is stable;

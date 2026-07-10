@@ -109,7 +109,7 @@ from a verified pre-wave manifest:
 ```bash
 make architecture-eval-v2-test
 make architecture-evals-v2 WAVE=<wave> \
-  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
 ```
 
 The v2 command fails before evidence collection if the signature, expiry,
@@ -139,17 +139,17 @@ P13 ruler identity and pre-wave binding:
 make p13-ruler-test
 make p13-loc-report
 
-# Generate this operator-owned keypair outside the repository once.
-P13_KEY_DIR="$HOME/.config/calendar-pilot/p13-ruler"
-mkdir -p "$P13_KEY_DIR"
+# Development/ruler key only. It proves mechanics; it cannot authorize migration.
+P13_DEV_KEY_DIR="$HOME/.config/calendar-pilot/p13-ruler-dev"
+mkdir -p "$P13_DEV_KEY_DIR"
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 \
-  -out "$P13_KEY_DIR/signing-private.pem"
-openssl pkey -in "$P13_KEY_DIR/signing-private.pem" -pubout \
-  -out "$P13_KEY_DIR/signing-public.pem"
-chmod 600 "$P13_KEY_DIR/signing-private.pem"
+  -out "$P13_DEV_KEY_DIR/signing-private.pem"
+openssl pkey -in "$P13_DEV_KEY_DIR/signing-private.pem" -pubout \
+  -out "$P13_DEV_KEY_DIR/signing-public.pem"
+chmod 600 "$P13_DEV_KEY_DIR/signing-private.pem"
 
 make p13-instrument \
-  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
 ```
 
 Before candidate edits, commit a scope file at
@@ -157,14 +157,14 @@ Before candidate edits, commit a scope file at
 
 ```bash
 make wave-bind WAVE=<wave> CHANGE_CLASS=<ruler|migration|compression|learning> \
-  P13_SIGNING_KEY="$P13_KEY_DIR/signing-private.pem" \
-  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+  P13_SIGNING_KEY="$P13_DEV_KEY_DIR/signing-private.pem" \
+  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
 
 make binding-manifest-verify WAVE=<wave> \
-  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
 
 make wave-harness WAVE=<wave> \
-  P13_VERIFY_KEY="$P13_KEY_DIR/signing-public.pem"
+  P13_VERIFY_KEY="$P13_DEV_KEY_DIR/signing-public.pem"
 
 jq -e '
   .decision == "pass" and .ok == true and
@@ -186,6 +186,13 @@ authenticated ingress or transitive simulator noninterference; those remain targ
 Both `hold` and `fail` return a nonzero shell status. Behavior-bearing waves must pass a
 clean pre-wave C-VAR artifact with `CVAR_BEFORE=<path>`; the harness will not regenerate
 their baseline after candidate work.
+
+These commands are development/ruler access points only. Their key paths are caller
+inputs, the current CI key is generated in the candidate job, evaluator code runs from the
+candidate checkout, and reports are ignored local artifacts. They cannot authorize a P13.1
+or other TCB migration. The required external operator authorization, reviewer attestation,
+and isolated evaluator receipt are specified in
+[`../compression-roadmap.md`](../compression-roadmap.md), §8.5.1.
 
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
