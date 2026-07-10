@@ -49,6 +49,7 @@
     {"kind": "evaluator", "path": "calendar-pilot-p12/evals/architecture/adapters/p13_current.py"},
     {"kind": "evaluator", "path": "calendar-pilot-p12/evals/architecture/adapters/p13_effect_scenarios.py"},
     {"kind": "evaluator", "path": "calendar-pilot-p12/evals/architecture/adapters/p13_eventkit_scenarios.py"},
+    {"kind": "evaluator", "path": "calendar-pilot-p12/evals/architecture/adapters/p13_eventkit_retirement_scenarios.py"},
     {"kind": "evaluator", "path": "calendar-pilot-p12/evals/architecture/adapters/p13_retirement_scenarios.py"},
     {"kind": "evaluator", "path": "calendar-pilot-p12/evals/architecture/evaluation.py"},
     {"kind": "evaluator", "path": "calendar-pilot-p12/evals/architecture/predicates/__init__.py"},
