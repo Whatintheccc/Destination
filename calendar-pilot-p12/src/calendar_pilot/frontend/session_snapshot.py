@@ -110,11 +110,43 @@ class SessionSnapshotBuilder:
                 policy_metadata = output.get("policy_metadata") if isinstance(output.get("policy_metadata"), dict) else {}
                 tuning = policy_metadata.get("policy_tuning", {}) if isinstance(policy_metadata, dict) else {}
                 break
+        decisions = [record for record in self.session.replay.records if record.record_type == "learning_decision"]
+        latest_decision = decisions[-1] if decisions else None
+        exposures = [
+            record for record in self.session.replay.records
+            if record.record_type == "learning_exposure"
+            and latest_decision is not None
+            and record.payload.get("decision_id") == latest_decision.record_id
+        ]
+        latest_exposure = exposures[-1] if exposures else None
+        outcomes = [
+            record for record in self.session.replay.records
+            if record.record_type == "learning_outcome"
+            and latest_exposure is not None
+            and record.payload.get("exposure_id") == latest_exposure.record_id
+        ]
+        terminal_candidate_ids = {str(record.payload.get("candidate_id")) for record in outcomes}
+        rendered_candidate_ids = list(latest_exposure.payload.get("rendered_candidate_ids", [])) if latest_exposure else []
+        explicit_outcomes = [record for record in self.session.replay.records if record.record_type == "learning_outcome" and record.payload.get("outcome") in {"accepted", "dismissed", "corrected"}]
+        legacy_feedback = [record for record in self.session.replay.records if record.record_type == "human_feedback_event"]
         return {
             "taxonomy_health": taxonomy_health([card for card in candidate_cards if isinstance(card, dict)]),
             "frontier_rejections": {"count": sum(rejection_counts.values()), "reasons": rejection_counts},
             "reward_stream": [record.payload.get("reward", {}) for record in self.session.replay.records if record.record_type == "reward"][-20:],
             "tuning": tuning,
+            "evidence": {
+                "latest_decision": latest_decision.payload if latest_decision else None,
+                "latest_exposure": latest_exposure.payload if latest_exposure else None,
+                "latest_outcomes": [record.payload for record in outcomes],
+                "pending_candidate_ids": [candidate_id for candidate_id in rendered_candidate_ids if candidate_id not in terminal_candidate_ids],
+                "program_a": {
+                    "matched_examples": len(decisions),
+                    "explicit_feedback": len(explicit_outcomes) + len(legacy_feedback),
+                    "promotion_eligible": len(decisions) >= 20 and len(explicit_outcomes) + len(legacy_feedback) >= 10,
+                },
+                "formal_epoch_bound": False,
+                "promotion_use": "search_only_until_pre_search_epoch_freezes"
+            },
         }
 
     def pipeline_turns(self) -> list[dict[str, Any]]:

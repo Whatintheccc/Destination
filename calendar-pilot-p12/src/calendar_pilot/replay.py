@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import hashlib
 import json
@@ -19,6 +20,9 @@ REPLAY_KEEP_RECORD_TYPES = {
     "adversary_finding",
     "reward",
     "human_feedback_event",
+    "learning_decision",
+    "learning_exposure",
+    "learning_outcome",
     "semantic_signal",
     "signal_estimator_report",
     "belief",
@@ -47,6 +51,17 @@ def observation_fingerprint(observation: RawCalendarObservation | None) -> str |
         payload["tasks"] = sorted(payload["tasks"], key=lambda row: (str(row.get("task_id", "")), str(row.get("title", ""))))
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def observation_content_sha256(observation: RawCalendarObservation | None) -> str:
+    payload = to_jsonable(observation) if observation is not None else {}
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def payload_sha256(payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -121,6 +136,7 @@ class ReplayBuffer:
     jsonl_path: Path | None = field(default=None, repr=False)
     _persisted_keys: set[str] = field(default_factory=set, repr=False)
     skipped_unknown_versions: int = 0
+    source_session_id: str = ""
 
     def set_jsonl_path(self, path: str | Path | None) -> None:
         self.jsonl_path = Path(path) if path is not None else None
@@ -195,6 +211,172 @@ class ReplayBuffer:
         }
         rid = f"frontier_generation:{hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode('utf-8')).hexdigest()[:12]}"
         return self.append_generic("frontier_generation", payload, record_id=rid, trace_id=trace_id, causal_parent_id=causal_parent_id, signal_stream=SignalStream.SYSTEM.value)
+
+    def append_learning_decision(
+        self,
+        *,
+        trace_id: str,
+        candidates: list[CandidateCalendarAction],
+        selected_candidate_id: str,
+        policy_backend: str,
+        policy_version: str,
+        runtime_mode: str | None,
+        observation_id: str | None,
+        pre_state_sha256: str,
+        selection_mode: str = "deterministic",
+        propensity: float = 1.0,
+        causal_parent_id: str | None = None,
+        recorded_at: datetime | None = None,
+        outcome_window_seconds: int = 7 * 24 * 60 * 60,
+    ) -> str:
+        if not candidates:
+            raise ValueError("learning decision requires a non-empty eligible set")
+        by_id = {candidate.candidate_id: candidate for candidate in candidates}
+        if selected_candidate_id not in by_id:
+            raise ValueError("selected learning arm is not eligible")
+        if selection_mode not in {"deterministic", "randomized"}:
+            raise ValueError("unsupported learning selection mode")
+        if not 0 < float(propensity) <= 1:
+            raise ValueError("selected-action propensity must be in (0, 1]")
+        if selection_mode == "deterministic" and float(propensity) != 1.0:
+            raise ValueError("deterministic learning selection requires propensity 1")
+        now = recorded_at or datetime.now(timezone.utc)
+        selected_payload = by_id[selected_candidate_id].to_dict()
+        arms = [
+            {
+                "candidate_id": candidate.candidate_id,
+                "rank": rank,
+                "behavior_payload_sha256": payload_sha256(candidate.to_dict()),
+            }
+            for rank, candidate in enumerate(candidates)
+        ]
+        decision_sequence = sum(1 for record in self.records if record.record_type == "learning_decision")
+        identity = payload_sha256({
+            "trace_id": trace_id,
+            "decision_sequence": decision_sequence,
+            "eligible_set": arms,
+            "selected_candidate_id": selected_candidate_id,
+            "pre_state_sha256": pre_state_sha256,
+        })[:20]
+        decision_id = f"learning_decision:{identity}"
+        payload = {
+            "learning_evidence_event_schema_version": "learning_evidence_event.v1",
+            "event_type": "decision",
+            "event_id": decision_id,
+            "decision_id": decision_id,
+            "trace_id": trace_id,
+            "recorded_at": now.isoformat(),
+            "session_id": self.source_session_id or f"unbound:{trace_id}",
+            "runtime_mode": runtime_mode,
+            "policy_backend": policy_backend,
+            "policy_version": policy_version,
+            "context": {"observation_id": observation_id, "pre_state_sha256": pre_state_sha256},
+            "eligible_set": arms,
+            "selected": {
+                "candidate_id": selected_candidate_id,
+                "selection_mode": selection_mode,
+                "propensity": float(propensity),
+            },
+            "selected_behavior_payload": selected_payload,
+            "selected_behavior_payload_sha256": payload_sha256(selected_payload),
+            "outcome_window": {
+                "starts_at": now.isoformat(),
+                "ends_at": (now + timedelta(seconds=outcome_window_seconds)).isoformat(),
+                "timeout_outcome": "ignored",
+                "superseded_outcome": "censored",
+            },
+        }
+        return self.append_generic(
+            "learning_decision",
+            payload,
+            record_id=decision_id,
+            trace_id=trace_id,
+            causal_parent_id=causal_parent_id,
+            signal_stream=SignalStream.SYSTEM.value,
+        )
+
+    def append_learning_exposure(
+        self,
+        *,
+        decision: ReplayRecord,
+        rendered_candidate_ids: list[str],
+        surface: str,
+        rendered_at: datetime | None = None,
+    ) -> str:
+        if decision.record_type != "learning_decision":
+            raise ValueError("learning exposure parent is not a learning decision")
+        eligible = [str(row["candidate_id"]) for row in decision.payload.get("eligible_set", [])]
+        rendered = list(dict.fromkeys(str(value) for value in rendered_candidate_ids if str(value)))
+        if not rendered or not set(rendered).issubset(set(eligible)):
+            raise ValueError("rendered candidate set must be a non-empty subset of the eligible set")
+        now = rendered_at or datetime.now(timezone.utc)
+        identity = payload_sha256({"decision_id": decision.record_id, "surface": surface, "rendered": rendered})[:20]
+        exposure_id = f"learning_exposure:{identity}"
+        payload = {
+            "learning_evidence_event_schema_version": "learning_evidence_event.v1",
+            "event_type": "exposure",
+            "event_id": exposure_id,
+            "exposure_id": exposure_id,
+            "decision_id": decision.record_id,
+            "parent_event_id": decision.record_id,
+            "trace_id": decision.trace_id,
+            "rendered_at": now.isoformat(),
+            "surface": surface,
+            "eligible_candidate_ids": eligible,
+            "rendered_candidate_ids": rendered,
+        }
+        return self.append_generic(
+            "learning_exposure",
+            payload,
+            record_id=exposure_id,
+            trace_id=decision.trace_id,
+            causal_parent_id=decision.record_id,
+            signal_stream=SignalStream.SYSTEM.value,
+        )
+
+    def append_learning_outcome(
+        self,
+        *,
+        exposure: ReplayRecord,
+        candidate_id: str,
+        outcome: str,
+        reason: str = "",
+        censoring_reason: str | None = None,
+        observed_at: datetime | None = None,
+    ) -> str:
+        if exposure.record_type != "learning_exposure":
+            raise ValueError("learning outcome parent is not an exposure")
+        if candidate_id not in exposure.payload.get("rendered_candidate_ids", []):
+            raise ValueError("learning outcome candidate was not rendered")
+        if outcome not in {"accepted", "dismissed", "corrected", "ignored", "censored"}:
+            raise ValueError("unsupported learning outcome")
+        if outcome == "censored" and not censoring_reason:
+            raise ValueError("censored learning outcome requires a reason")
+        now = observed_at or datetime.now(timezone.utc)
+        outcome_id = f"learning_outcome:{payload_sha256({'exposure_id': exposure.record_id, 'candidate_id': candidate_id})[:20]}"
+        payload = {
+            "learning_evidence_event_schema_version": "learning_evidence_event.v1",
+            "event_type": "outcome",
+            "event_id": outcome_id,
+            "outcome_id": outcome_id,
+            "decision_id": str(exposure.payload["decision_id"]),
+            "exposure_id": exposure.record_id,
+            "parent_event_id": exposure.record_id,
+            "trace_id": exposure.trace_id,
+            "candidate_id": candidate_id,
+            "outcome": outcome,
+            "observed_at": now.isoformat(),
+            "reason": reason,
+            "censoring_reason": censoring_reason,
+        }
+        return self.append_generic(
+            "learning_outcome",
+            payload,
+            record_id=outcome_id,
+            trace_id=exposure.trace_id,
+            causal_parent_id=exposure.record_id,
+            signal_stream=SignalStream.ACTION.value,
+        )
 
     def append_provider_transaction(self, *, operation: str, transaction: dict[str, Any], trace_id: str, causal_parent_id: str | None = None) -> str:
         payload = dict(transaction)

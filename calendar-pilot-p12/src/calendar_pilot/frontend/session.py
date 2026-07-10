@@ -132,6 +132,7 @@ class DogfoodSessionState:
         self.provider = self._new_provider_for_mode()
         self._hydrate_provider_observation_if_available()
         self.replay = self.store.load_replay()
+        self.replay.source_session_id = self.session_id
         self._rebuild_runtime()
         atexit.register(self.close)
         if not self.persistence.restore_session_state():
@@ -249,7 +250,7 @@ class DogfoodSessionState:
         reset_provider = getattr(self.provider, "reset", None)
         if callable(reset_provider):
             reset_provider(self.observation)
-        self.replay = ReplayBuffer()
+        self.replay = ReplayBuffer(source_session_id=self.session_id)
         self.latest_plan = None
         self.latest_plan_observation_id = None
         self.latest_plan_observation_fingerprint = None
@@ -303,6 +304,7 @@ class DogfoodSessionState:
         ).grant_id
 
     def create_plan(self, goal: str, *, commit: bool = False, authority_tier: int | None = None) -> dict[str, Any]:
+        self._finalize_learning_outcomes(now=_now(), superseded=True)
         goal = (goal or "Make next week less chaotic").strip()
         self.authority_tier = int(authority_tier if authority_tier is not None else self.authority_tier)
         self.transcript_events.append({"kind": "user", "body": goal, "created_at": _now().isoformat()})
@@ -835,6 +837,95 @@ class DogfoodSessionState:
         })
         self.persist()
         return self.snapshot()
+
+    def learning_exposure(self, decision_id: str, rendered_candidate_ids: list[str], *, surface: str = "operate") -> dict[str, Any]:
+        decision = self._learning_record(decision_id, "learning_decision")
+        rendered = list(dict.fromkeys(str(value) for value in rendered_candidate_ids if str(value)))
+        for record in self.replay.records:
+            if record.record_type != "learning_exposure":
+                continue
+            if record.payload.get("decision_id") == decision_id and record.payload.get("surface") == surface and record.payload.get("rendered_candidate_ids") == rendered:
+                return {"decision": "pass", "decision_id": decision_id, "exposure_id": record.record_id, "duplicate": True}
+        exposure_id = self.replay.append_learning_exposure(
+            decision=decision,
+            rendered_candidate_ids=rendered,
+            surface=surface,
+            rendered_at=_now(),
+        )
+        self.persist()
+        return {"decision": "pass", "decision_id": decision_id, "exposure_id": exposure_id, "duplicate": False}
+
+    def learning_outcome(
+        self,
+        *,
+        decision_id: str,
+        exposure_id: str,
+        candidate_id: str,
+        outcome: str,
+        reason: str = "",
+    ) -> dict[str, Any]:
+        if outcome not in {"accepted", "dismissed", "corrected"}:
+            raise ValueError("the UI may record only explicit accepted, dismissed, or corrected outcomes")
+        exposure = self._learning_record(exposure_id, "learning_exposure")
+        if exposure.payload.get("decision_id") != decision_id:
+            raise ValueError("learning outcome does not match its decision")
+        existing = self._learning_outcome_for(exposure_id, candidate_id)
+        if existing is not None:
+            if existing.payload.get("outcome") != outcome:
+                raise ValueError("candidate already has a conflicting terminal outcome")
+            return {"decision": "pass", "outcome_id": existing.record_id, "duplicate": True}
+        outcome_id = self.replay.append_learning_outcome(
+            exposure=exposure,
+            candidate_id=candidate_id,
+            outcome=outcome,
+            reason=reason,
+            observed_at=_now(),
+        )
+        self.persist()
+        return {"decision": "pass", "outcome_id": outcome_id, "duplicate": False}
+
+    def _learning_record(self, record_id: str, expected_type: str):
+        record = next((row for row in self.replay.records if row.record_id == record_id), None)
+        if record is None or record.record_type != expected_type:
+            raise ValueError(f"unknown {expected_type}: {record_id}")
+        return record
+
+    def _learning_outcome_for(self, exposure_id: str, candidate_id: str):
+        return next((
+            row for row in self.replay.records
+            if row.record_type == "learning_outcome"
+            and row.payload.get("exposure_id") == exposure_id
+            and row.payload.get("candidate_id") == candidate_id
+        ), None)
+
+    def _finalize_learning_outcomes(self, *, now: datetime, superseded: bool) -> None:
+        decisions = {row.record_id: row for row in self.replay.records if row.record_type == "learning_decision"}
+        changed = False
+        exposures = [row for row in self.replay.records if row.record_type == "learning_exposure"]
+        for exposure in exposures:
+            decision = decisions.get(str(exposure.payload.get("decision_id")))
+            if decision is None:
+                continue
+            ends_at = datetime.fromisoformat(str(decision.payload["outcome_window"]["ends_at"]).replace("Z", "+00:00"))
+            if now < ends_at and not superseded:
+                continue
+            outcome = "ignored" if now >= ends_at else "censored"
+            censoring_reason = None if outcome == "ignored" else "superseded_by_new_decision"
+            for candidate_id in exposure.payload.get("rendered_candidate_ids", []):
+                candidate_id = str(candidate_id)
+                if self._learning_outcome_for(exposure.record_id, candidate_id) is not None:
+                    continue
+                self.replay.append_learning_outcome(
+                    exposure=exposure,
+                    candidate_id=candidate_id,
+                    outcome=outcome,
+                    reason="outcome window elapsed" if outcome == "ignored" else "a later planning decision superseded this exposure",
+                    censoring_reason=censoring_reason,
+                    observed_at=now,
+                )
+                changed = True
+        if changed:
+            self.persist()
 
     def propose_profile_patch(self, correction: str) -> dict[str, Any]:
         grant_id = self.latest_grant_id(confirmed=True)
@@ -1390,6 +1481,7 @@ class DogfoodSessionState:
 
 _MUTATING_SESSION_METHODS = {
     "reset", "issue_authority_grant", "create_plan", "candidate_action", "confirm_receipt", "undo", "feedback",
+    "learning_exposure", "learning_outcome",
     "propose_profile_patch", "apply_profile_patch", "explain_denial", "run_self_play", "update_authority",
     "set_runtime_mode", "start_codex_subscription_sign_in", "provider_permission_request", "rename_session", "archive_session",
 }

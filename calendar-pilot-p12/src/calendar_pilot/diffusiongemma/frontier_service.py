@@ -5,7 +5,7 @@ import inspect
 from typing import Any
 
 from calendar_pilot.environment.taxonomy import normalize_intent, taxonomy_health
-from calendar_pilot.replay import ReplayBuffer, observation_fingerprint
+from calendar_pilot.replay import ReplayBuffer, observation_content_sha256, observation_fingerprint
 from calendar_pilot.types import CandidateCalendarAction, RawCalendarObservation, UserBiography
 
 
@@ -115,7 +115,7 @@ class FrontierService:
         )
         if replay is not None:
             trace = trace_id or f"frontier:{observation.observation_id}"
-            replay.append_frontier_generation(
+            frontier_record_id = replay.append_frontier_generation(
                 trace_id=trace,
                 policy_backend=policy_backend,
                 candidates=candidates,
@@ -127,13 +127,31 @@ class FrontierService:
                 causal_parent_id=causal_parent_id,
             )
             fp = observation_fingerprint(observation)
+            learning_decision_id = None
+            if candidates:
+                learning_decision_id = replay.append_learning_decision(
+                    trace_id=trace,
+                    candidates=candidates,
+                    selected_candidate_id=candidates[0].candidate_id,
+                    policy_backend=policy_backend,
+                    policy_version=policy_backend,
+                    runtime_mode=runtime_mode,
+                    observation_id=observation.observation_id,
+                    pre_state_sha256=observation_content_sha256(observation),
+                    selection_mode="deterministic",
+                    propensity=1.0,
+                    causal_parent_id=frontier_record_id,
+                )
+                result.provenance["learning_decision_id"] = learning_decision_id
+                result.provenance["learning_selection_mode"] = "deterministic"
+                result.provenance["learning_selected_propensity"] = 1.0
             for rank, candidate in enumerate(candidates):
                 replay.append_decision(
                     candidate,
                     rank=rank,
                     policy_version=policy_backend,
                     trace_id=trace,
-                    causal_parent_id=causal_parent_id,
+                    causal_parent_id=learning_decision_id or causal_parent_id,
                     policy_metadata=metadata_by_candidate.get(candidate.candidate_id, {}) | provenance,
                     observation_id=observation.observation_id,
                     observation_fingerprint=fp,
