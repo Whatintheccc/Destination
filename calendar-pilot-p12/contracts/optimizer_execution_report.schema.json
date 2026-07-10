@@ -1,0 +1,53 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/optimizer_execution_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OptimizerExecutionReportV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "optimizer_execution_report_schema_version",
+    "executor_id",
+    "platform",
+    "boundary",
+    "profile_sha256",
+    "search_artifact_sha256",
+    "proposal",
+    "attempts",
+    "decision"
+  ],
+  "properties": {
+    "optimizer_execution_report_schema_version": {"const": "optimizer_execution_report.v1"},
+    "executor_id": {"type": "string", "minLength": 1},
+    "platform": {"type": "string", "minLength": 1},
+    "boundary": {"enum": ["macos-sandbox-exec"]},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "search_artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "write_succeeded"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "write_succeeded": {"const": true}
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "target", "operation", "outcome", "errno"],
+        "properties": {
+          "kind": {"enum": ["holdout", "forward_shadow", "evaluator", "manifest", "current", "effect_tcb"]},
+          "target": {"type": "string", "minLength": 1},
+          "operation": {"enum": ["read", "write"]},
+          "outcome": {"enum": ["denied", "succeeded"]},
+          "errno": {"type": ["integer", "null"]}
+        }
+      }
+    },
+    "decision": {"enum": ["pass", "fail", "hold"]}
+  }
+}

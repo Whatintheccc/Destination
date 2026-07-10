@@ -1,0 +1,65 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/learning_partition_manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LearningPartitionManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "learning_partition_manifest_schema_version",
+    "instrument_epoch",
+    "thresholds_sha256",
+    "search",
+    "holdout",
+    "forward_shadow",
+    "disjointness",
+    "manifest_sha256"
+  ],
+  "properties": {
+    "learning_partition_manifest_schema_version": {"const": "learning_partition_manifest.v1"},
+    "instrument_epoch": {"type": "string", "minLength": 1},
+    "thresholds_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "search": {"$ref": "#/$defs/searchPartition"},
+    "holdout": {"$ref": "#/$defs/sealedPartition"},
+    "forward_shadow": {"$ref": "#/$defs/sealedPartition"},
+    "disjointness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_hashes_distinct", "family_sets_pairwise_disjoint", "forward_shadow_starts_after_search"],
+      "properties": {
+        "artifact_hashes_distinct": {"const": true},
+        "family_sets_pairwise_disjoint": {"const": true},
+        "forward_shadow_starts_after_search": {"const": true}
+      }
+    },
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "basePartition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partition_id", "artifact_path", "artifact_sha256", "family_set_sha256", "row_count", "starts_at", "ends_at", "optimizer_access"],
+      "properties": {
+        "partition_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": "string", "minLength": 1},
+        "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "family_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "row_count": {"type": "integer", "minimum": 1},
+        "starts_at": {"type": "string", "format": "date-time"},
+        "ends_at": {"type": "string", "format": "date-time"},
+        "optimizer_access": {"type": "string"}
+      }
+    },
+    "searchPartition": {
+      "allOf": [
+        {"$ref": "#/$defs/basePartition"},
+        {"properties": {"optimizer_access": {"const": "read"}}}
+      ]
+    },
+    "sealedPartition": {
+      "allOf": [
+        {"$ref": "#/$defs/basePartition"},
+        {"properties": {"optimizer_access": {"const": "denied"}}}
+      ]
+    }
+  }
+}
