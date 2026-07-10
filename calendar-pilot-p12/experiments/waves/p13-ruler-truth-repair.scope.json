@@ -10,6 +10,7 @@
     "calendar-pilot-p12/contracts/**",
     "calendar-pilot-p12/evals/architecture/**",
     "calendar-pilot-p12/experiments/templates/experiment_record_v2.template.json",
+    "calendar-pilot-p12/experiments/waves/p13-wave-harness-v3.scope.json",
     "calendar-pilot-p12/scripts/make_experiment_record.py",
     "calendar-pilot-p12/scripts/make_reward_head_report.py",
     "calendar-pilot-p12/scripts/promote_policy.py",
