@@ -1,0 +1,65 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/README.md",
+    "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
+    "calendar-pilot-p12/configs/p13_ownership_map.json",
+    "calendar-pilot-p12/experiments/configs/b_migrate_create_prep_block_p13_1.json",
+    "calendar-pilot-p12/scripts/produce_b_migrate_p13_1_old.py",
+    "calendar-pilot-p12/scripts/produce_b_migrate_p13_1_new.py",
+    "calendar-pilot-p12/scripts/run_p13_wave_gate.py",
+    "calendar-pilot-p12/tests/test_p13_no_effect_vertical.py",
+    "calendar-pilot-p12/tests/test_wave_harness_v2.py"
+  ],
+  "declared": {
+    "actions": [
+      "*"
+    ],
+    "backends": [
+      "*"
+    ],
+    "surfaces": [
+      "app_access",
+      "configuration",
+      "docs",
+      "experiment_configuration",
+      "ruler_scripts",
+      "tests"
+    ],
+    "instruments": [
+      "access_point_docs",
+      "configuration",
+      "experiment_configuration",
+      "release_and_wave_ruler",
+      "tests",
+      "wave_gate"
+    ],
+    "control_planes": [
+      "effect_tcb",
+      "evaluator",
+      "optimizer"
+    ]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
+    "target.binding_manifest_signature",
+    "target.instrument_mutation_rejection",
+    "target.promotion_override_rejection"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
