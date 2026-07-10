@@ -17,6 +17,8 @@ from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrum
 from evals.architecture.predicates.p13 import (
     EVENTKIT_CASE_EXPECTATIONS,
     EVENTKIT_EQUALITY_REQUIREMENTS,
+    MANAGED_EVENTKIT_RETIREMENT_CASE_EXPECTATIONS,
+    MANAGED_EVENTKIT_RETIREMENT_EQUALITY_REQUIREMENTS,
     RETIREMENT_CASE_EXPECTATIONS,
     SANDBOX_CASE_EXPECTATIONS,
     SANDBOX_EQUALITY_REQUIREMENTS,
@@ -25,6 +27,7 @@ from evals.architecture.predicates.p13 import (
     product_core_no_effect_reachability,
     reducer_determinism,
     eventkit_sandbox_contract,
+    managed_eventkit_retirement_contract,
     sandbox_effect_contract,
     vertical_retirement_contract,
 )
@@ -74,6 +77,14 @@ P13_5_TARGETS = {
     "target.retirement_runtime_commit",
     "target.retirement_runtime_undo",
     "target.retirement_restart_rollback",
+}
+P13_5_EVENTKIT_TARGETS = {
+    "target.eventkit_managed_binding_state",
+    "target.eventkit_managed_ownership",
+    "target.eventkit_managed_runtime_commit",
+    "target.eventkit_managed_runtime_undo",
+    "target.eventkit_managed_durable_owner",
+    "target.eventkit_managed_live_contract",
 }
 
 
@@ -397,6 +408,80 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
                 scope_escape = deepcopy(evidence)
                 scope_escape["unaffected_eventkit_owner"] = "effect_kernel"
                 self.assertEqual(vertical_retirement_contract({"vertical_retirement": scope_escape})["status"], "fail")
+
+    def test_eventkit_retirement_targets_use_frozen_predicate_before_implementation(self):
+        scenario_set = load_scenario_set(P13_SCENARIOS)
+        by_id = {row["scenario_id"]: row for row in scenario_set["scenarios"]}
+        self.assertTrue(
+            all(
+                by_id[scenario_id]["predicate_id"] == "managed_eventkit_retirement_contract"
+                for scenario_id in P13_5_EVENTKIT_TARGETS
+            )
+        )
+
+    def test_eventkit_retirement_predicate_accepts_raw_facts_and_rejects_counterexamples(self):
+        universal = {
+            "retirement_profile": "owner_controlled_eventkit_binding_retirement",
+            "authorizes_production": False,
+            "retired_action_family": "create_prep_block",
+            "retired_backend": "apple_eventkit",
+            "retirement_scope": "binding_id@epoch",
+            "normal_owner": "effect_kernel",
+            "unaffected_other_calendar_owner": "incumbent",
+            "unaffected_other_action_owner": "incumbent",
+            "caller_owner_override_available": False,
+            "invalid_managed_fallback_available": False,
+            "one_event_per_ticket": True,
+        }
+        for case, expected in MANAGED_EVENTKIT_RETIREMENT_CASE_EXPECTATIONS.items():
+            with self.subTest(case=case):
+                evidence = {"case": case, **universal, **deepcopy(expected)}
+                for left, right in MANAGED_EVENTKIT_RETIREMENT_EQUALITY_REQUIREMENTS.get(case, ()):
+                    evidence[left] = evidence[right] = {"case": case, "binding_id": "opaque", "epoch": 1}
+                self.assertEqual(
+                    managed_eventkit_retirement_contract({"managed_eventkit_retirement": evidence})["status"],
+                    "pass",
+                )
+
+                key = next(iter(expected))
+                planted = deepcopy(evidence)
+                value = planted[key]
+                if isinstance(value, bool):
+                    planted[key] = not value
+                elif isinstance(value, int):
+                    planted[key] = value + 1
+                elif isinstance(value, list):
+                    planted[key] = [*value, "planted-counterexample"]
+                else:
+                    planted[key] = f"wrong:{value}"
+                self.assertEqual(
+                    managed_eventkit_retirement_contract({"managed_eventkit_retirement": planted})["status"],
+                    "fail",
+                )
+
+                escaped = deepcopy(evidence)
+                escaped["invalid_managed_fallback_available"] = True
+                self.assertEqual(
+                    managed_eventkit_retirement_contract({"managed_eventkit_retirement": escaped})["status"],
+                    "fail",
+                )
+
+    def test_required_eventkit_retirement_targets_hold_before_product_edits(self):
+        with tempfile.TemporaryDirectory(dir=APP_ROOT / "runs") as td:
+            root = Path(td)
+            manifest_path, public_key = self._binding(root, required_targets=P13_5_EVENTKIT_TARGETS)
+            report = build_report(
+                scenario_set_path=P13_SCENARIOS,
+                binding_manifest_path=manifest_path,
+                verification_key=public_key,
+                binding_changed_paths=[],
+                artifact_root=root / "artifacts",
+                out=root / "latest.json",
+            )
+            by_id = {row["scenario_id"]: row for row in report["scenarios"]}
+            self.assertEqual(report["decision"], "hold")
+            self.assertTrue(all(by_id[scenario_id]["gate_mode"] == "required" for scenario_id in P13_5_EVENTKIT_TARGETS))
+            self.assertTrue(all(by_id[scenario_id]["status"] == "not_reached" for scenario_id in P13_5_EVENTKIT_TARGETS))
 
 
 if __name__ == "__main__":

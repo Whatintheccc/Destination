@@ -628,13 +628,32 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                     }
                 },
             ),
+            "managed_eventkit_binding_falls_back": (
+                "managed_eventkit_retirement_contract",
+                {
+                    "managed_eventkit_retirement": {
+                        "case": "eventkit_managed_ownership",
+                        "retirement_profile": "owner_controlled_eventkit_binding_retirement",
+                        "authorizes_production": False,
+                        "retired_action_family": "create_prep_block",
+                        "retired_backend": "apple_eventkit",
+                        "retirement_scope": "binding_id@epoch",
+                        "normal_owner": "effect_kernel",
+                        "unaffected_other_calendar_owner": "incumbent",
+                        "unaffected_other_action_owner": "incumbent",
+                        "caller_owner_override_available": False,
+                        "invalid_managed_fallback_available": True,
+                        "one_event_per_ticket": True,
+                    }
+                },
+            ),
             "p13_target_claim_without_evidence": (
                 "p13_target_not_implemented",
                 {"target_capability": {"reached": True}},
             ),
         }
 
-        self.assertEqual(len(planted), 33)
+        self.assertEqual(len(planted), 34)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():
