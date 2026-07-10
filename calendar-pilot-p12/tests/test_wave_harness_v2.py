@@ -35,6 +35,7 @@ from evals.p13_ruler.wave import (
 )
 from scripts.make_reward_head_report import build_report as build_reward_report
 from scripts.run_b_migrate_dual_run_v2 import _assertions_path
+from scripts.run_p13_wave_gate import uses_fixed_reward_fixture
 
 
 def _manifest() -> dict:
@@ -598,6 +599,7 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             )
             Draft202012Validator(schema).validate(record)
             self.assertTrue(is_owner_controlled_vertical_retirement_wave(manifest, verification, architecture))
+            self.assertTrue(uses_fixed_reward_fixture(manifest, verification, architecture))
             self.assertEqual(record["decision"], "pass")
             self.assertEqual(record["candidate"]["evidence_class"], "owner_controlled_vertical_retirement")
             self.assertEqual(record["rollback"]["proof_artifact"]["mode"], "owner_frozen_selector")
