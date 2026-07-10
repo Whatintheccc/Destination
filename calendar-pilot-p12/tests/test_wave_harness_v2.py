@@ -19,12 +19,14 @@ if str(ROOT / "src") not in sys.path:
 from evals.p13_ruler.core import canonical_json_bytes, sha256_bytes, sha256_file
 from evals.p13_ruler.wave import (
     P13_3_SANDBOX_SCENARIOS,
+    P13_4_EVENTKIT_SCENARIOS,
     build_b_migrate_artifact,
     build_cvar_frontier_set,
     build_experiment_record,
     b_migrate_assertions_path,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
+    is_owner_controlled_eventkit_sandbox_wave,
     is_owner_controlled_sandbox_wave,
     is_structurally_no_effect_wave,
     verify_root_list,
@@ -212,7 +214,7 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
                     "reason": {"basis": "unavailable", "detail": "sandbox unavailable"},
                     "artifact": {"path": str(artifact), "sha256": __import__("hashlib").sha256(b"{}").hexdigest()},
                     "owner": "provider owner",
-                    "sign_off": "external reviewer",
+                    "sign_off": "owner-frozen affected leg",
                     "affected_by_wave": True,
                     "expires_at": (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
                     "next_unblock_action": "run the sandbox leg",
@@ -221,6 +223,7 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             expired = verify_root_list(manifest)
             self.assertEqual(expired["decision"], "hold")
             self.assertEqual(expired["hold_reasons"][0]["code"], "root_list_expired")
+            self.assertIn("affected_live_leg_not_run", {row["code"] for row in expired["hold_reasons"]})
 
     def test_v2_experiment_contract_names_the_eight_evidence_fields(self):
         schema = json.loads((ROOT / "contracts/experiment_record_v2.schema.json").read_text(encoding="utf-8"))
@@ -429,6 +432,90 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             broadened = deepcopy(verification)
             broadened["derived_affectedness"]["backends"] = ["deterministic_sandbox", "eventkit"]
             self.assertFalse(is_owner_controlled_sandbox_wave(manifest, broadened, architecture))
+
+    def test_eventkit_sandbox_record_uses_manifest_complete_incumbent_selector_rollback(self):
+        schema = json.loads((ROOT / "contracts/experiment_record_v2.schema.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+
+            def write(name: str, payload: dict) -> Path:
+                path = root / name
+                path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+                return path
+
+            changed = [
+                "calendar-pilot-p12/src/calendar_pilot/effect_kernel/kernel.py",
+                "calendar-pilot-p12/scripts/run_live_eventkit_e2e.py",
+                "calendar-pilot-p12/tests/test_p13_eventkit_sandbox.py",
+            ]
+            manifest = {
+                "manifest_id": "p13-eventkit:test",
+                "wave": "p13-eventkit-test",
+                "change_class": "migration",
+                "base_repository": {"git_sha": "base-sha", "app_tree_sha": "base-app-tree"},
+                "instrument_bundle": {"bundle_sha256": "bundle", "file_sha256": "bundle-file"},
+                "required_scenarios": sorted(P13_4_EVENTKIT_SCENARIOS),
+            }
+            verification = {
+                "decision": "pass",
+                "changed_paths": [{"path": path} for path in changed],
+                "derived_affectedness": {
+                    "actions": ["create_prep_block"],
+                    "backends": ["deterministic_sandbox"],
+                    "surfaces": ["authority_gate", "effect_gateway", "provider", "ruler_scripts", "tests"],
+                    "instruments": ["release_and_wave_ruler", "tests"],
+                    "control_planes": ["effect_tcb", "evaluator", "optimizer"],
+                },
+            }
+            architecture = {
+                "decision": "pass",
+                "rails": {"preservation": {"status_counts": {"pass": 11}}},
+                "scenarios": [
+                    {"scenario_id": scenario_id, "gate_mode": "required", "status": "pass"}
+                    for scenario_id in sorted(P13_4_EVENTKIT_SCENARIOS)
+                ],
+            }
+            cvar = {
+                "decision": "pass",
+                "compared_rows": [{"seed_id": "seed:one", "delta_top_reward": 0.0}],
+                "promotion_decisions": {"before": "promote", "after": "promote"},
+                "bootstrap": {"mean_delta": 0.0, "ci95": [0.0, 0.0], "variance": 0.0},
+                "borderline": {"flip_rate": 0.0},
+                "thresholds": {"values": {"max_delta_variance": 0.0025}},
+                "before_artifact": {"path": "before.json", "sha256": "before"},
+            }
+            b_migrate = {
+                "decision": "pass",
+                "assertions": [{"name": "verified_normal_outcome", "status": "pass"}],
+                "before_artifact": {"path": "old.json", "sha256": "old"},
+            }
+            reward = {
+                "decision": "pass",
+                "reward_head_deltas": {},
+                "reward_evidence": {"consumed_reward_rows": [], "declared_source_classification": {}},
+            }
+            paths = {
+                "manifest_path": write("manifest.json", manifest),
+                "binding_verification_path": write("binding.json", verification),
+                "architecture_report_path": write("architecture.json", architecture),
+                "cvar_report_path": write("cvar.json", cvar),
+                "b_migrate_report_path": write("b_migrate.json", b_migrate),
+                "release_report_path": write("release.json", {"decision": "pass"}),
+                "reward_report_path": write("reward.json", reward),
+                "root_list_report_path": write("root_list.json", {"decision": "pass"}),
+                "loc_report_path": write("loc.json", {"decision": "pass", "delta": {"delta_lines": 800}}),
+            }
+            record = build_experiment_record(
+                **paths,
+                candidate_repository={"git_sha": "candidate", "app_tree_sha": "candidate-tree"},
+                git_delta=[{"status": "M", "path": path} for path in changed],
+            )
+            Draft202012Validator(schema).validate(record)
+            self.assertTrue(is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture))
+            self.assertEqual(record["decision"], "pass")
+            self.assertEqual(record["candidate"]["evidence_class"], "owner_controlled_eventkit_sandbox")
+            self.assertEqual(record["rollback"]["proof_artifact"]["mode"], "incumbent_effect_selector")
+            self.assertEqual(record["outcomes"]["outcome_window"], "bounded_owner_controlled_eventkit_probe")
 
     def test_reward_rows_gain_occurrence_identity_and_declared_source_class(self):
         with tempfile.TemporaryDirectory() as td:

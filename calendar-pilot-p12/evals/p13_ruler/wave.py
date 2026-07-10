@@ -548,6 +548,11 @@ def verify_root_list(manifest: dict[str, Any], *, now: datetime | None = None) -
         if status == "root-listed":
             if reason.get("basis") == "unaffected" and entry.get("affected_by_wave") is not False:
                 row_failures.append("unaffected root-list entries must set affected_by_wave false")
+            if entry.get("affected_by_wave") is True:
+                holds.append({
+                    "code": "affected_live_leg_not_run",
+                    "detail": str(entry.get("leg")),
+                })
         if row_failures:
             failures.append({"code": "root_list_entry", "detail": f"{entry.get('leg')}: {'; '.join(row_failures)}"})
         checked.append({"entry": entry, "status": "fail" if row_failures else "pass", "failures": row_failures})
@@ -639,6 +644,16 @@ P13_3_SANDBOX_SCENARIOS = {
     "target.no_learning_effect_path",
 }
 
+P13_4_EVENTKIT_SCENARIOS = {
+    "target.eventkit_identity_target_binding",
+    "target.eventkit_ticket_binding",
+    "target.eventkit_effect_lifecycle",
+    "target.eventkit_revoke_claim_race",
+    "target.eventkit_compensation_binding",
+    "target.eventkit_compensation_conflict_hold",
+    "target.eventkit_no_learning_effect_path",
+}
+
 
 def is_owner_controlled_sandbox_wave(
     manifest: dict[str, Any],
@@ -653,6 +668,22 @@ def is_owner_controlled_sandbox_wave(
         and set(affected.get("backends", [])) == {"deterministic_sandbox"}
         and set(affected.get("control_planes", [])) == {"effect_tcb", "evaluator"}
         and all(_selected_scenario_passes(manifest, architecture, scenario_id) for scenario_id in P13_3_SANDBOX_SCENARIOS)
+    )
+
+
+def is_owner_controlled_eventkit_sandbox_wave(
+    manifest: dict[str, Any],
+    verification: dict[str, Any],
+    architecture: dict[str, Any],
+) -> bool:
+    affected = verification.get("derived_affectedness", {})
+    return bool(
+        manifest.get("change_class") == "migration"
+        and verification.get("decision") == "pass"
+        and set(affected.get("actions", [])) == {"create_prep_block"}
+        and set(affected.get("backends", [])) == {"deterministic_sandbox"}
+        and set(affected.get("control_planes", [])) == {"effect_tcb", "evaluator", "optimizer"}
+        and all(_selected_scenario_passes(manifest, architecture, scenario_id) for scenario_id in P13_4_EVENTKIT_SCENARIOS)
     )
 
 
@@ -700,7 +731,8 @@ def build_experiment_record(
             git_delta = []
     structural_no_effect = is_structurally_no_effect_wave(manifest, verification, architecture)
     sandbox_effect = is_owner_controlled_sandbox_wave(manifest, verification, architecture)
-    bounded_development = structural_no_effect or sandbox_effect
+    eventkit_effect = is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture)
+    bounded_development = structural_no_effect or sandbox_effect or eventkit_effect
     delta_paths = [str(row.get("path")) for row in git_delta]
     exact_additive_rollback = bool(
         bounded_development
@@ -713,13 +745,21 @@ def build_experiment_record(
         and _selected_scenario_passes(manifest, architecture, "target.cited_read_side_cutover")
         and b_migrate.get("decision") == "pass"
     )
+    eventkit_selector_rollback = bool(
+        eventkit_effect
+        and git_delta
+        and set(delta_paths) == set(changed_paths)
+        and _selected_scenario_passes(manifest, architecture, "target.eventkit_identity_target_binding")
+        and _selected_scenario_passes(manifest, architecture, "target.eventkit_no_learning_effect_path")
+        and b_migrate.get("decision") == "pass"
+    )
     compared_seed_ids = [str(row.get("seed_id")) for row in cvar.get("compared_rows", [])]
     compared_assertions = [str(row.get("name")) for row in b_migrate.get("assertions", [])]
     deltas = [float(row.get("delta_top_reward", 0.0)) for row in cvar.get("compared_rows", [])]
     worst_delta = min(deltas) if deltas else None
     ablation_stable = bool(bounded_development and b_migrate.get("decision") == "pass")
     rollback_restored = bool(
-        (exact_additive_rollback or cited_read_side_rollback)
+        (exact_additive_rollback or cited_read_side_rollback or eventkit_selector_rollback)
         and verification.get("decision") == "pass"
         and architecture.get("decision") == "pass"
         and cvar.get("decision") == "pass"
@@ -810,6 +850,7 @@ def build_experiment_record(
                     "mode": (
                         "incumbent_read_selector"
                         if cited_read_side_rollback
+                        else "incumbent_effect_selector" if eventkit_selector_rollback
                         else "exact_additive_sandbox_revert" if sandbox_effect
                         else "exact_additive_revert"
                     ),
@@ -819,7 +860,7 @@ def build_experiment_record(
                     "candidate_app_tree_sha": candidate_repository.get("app_tree_sha"),
                     "git_delta": git_delta,
                     "binding_verification": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
-                    "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect) else None,
+                    "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect or eventkit_effect) else None,
                 }
                 if bounded_development
                 else None
@@ -833,9 +874,13 @@ def build_experiment_record(
                         "The independent incumbent projection remains executable and equivalent behind the compatibility selector."
                         if cited_read_side_rollback
                         else (
-                            "The incumbent remains the default effect owner; removing the additive sandbox delta restores the signed base tree."
-                            if sandbox_effect
-                            else "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                            "The incumbent remains the default effect owner; the manifest-complete candidate delta is the rollback unit."
+                            if eventkit_selector_rollback
+                            else (
+                                "The incumbent remains the default effect owner; removing the additive sandbox delta restores the signed base tree."
+                                if sandbox_effect
+                                else "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                            )
                         )
                     )
                     if rollback_restored
@@ -852,6 +897,7 @@ def build_experiment_record(
                 "structurally_no_effect"
                 if structural_no_effect
                 else "owner_controlled_sandbox" if sandbox_effect
+                else "owner_controlled_eventkit_sandbox" if eventkit_effect
                 else "behavior_evidence_incomplete"
             ),
         },
@@ -866,6 +912,7 @@ def build_experiment_record(
                 "not_applicable_structurally_no_effect"
                 if structural_no_effect
                 else "not_applicable_non_authorizing_sandbox" if sandbox_effect
+                else "bounded_owner_controlled_eventkit_probe" if eventkit_effect
                 else None
             ),
         },
@@ -884,7 +931,11 @@ def build_experiment_record(
                     (
                         "The claim is limited to deterministic sandbox lifecycle semantics and protected-observable equivalence; no real-provider, production, or human-outcome effect is claimed."
                         if sandbox_effect
-                        else "The claim is limited to structural non-reachability and protected-observable equivalence; no human-outcome effect is claimed."
+                        else (
+                            "The claim is limited to one app-bundled sandbox EventKit probe, verified compensation/cleanup, and protected-observable equivalence; no production or human-outcome improvement is claimed."
+                            if eventkit_effect
+                            else "The claim is limited to structural non-reachability and protected-observable equivalence; no human-outcome effect is claimed."
+                        )
                     )
                     if behavior_evidence_complete
                     else "Behavior evidence is incomplete until candidate, ablation, and rollback attestations are attached"
