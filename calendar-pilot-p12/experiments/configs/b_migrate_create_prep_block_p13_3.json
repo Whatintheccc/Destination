@@ -1,0 +1,29 @@
+{
+  "b_migrate_assertion_schema_version": "b_migrate_assertions.v2",
+  "assertion_set_id": "create_prep_block_deterministic_sandbox_p13_3",
+  "description": "Protected normal-outcome comparison between the incumbent deterministic commit path and the non-authorizing P13.3 sandbox EffectKernel path.",
+  "protected_observables": [
+    "intent",
+    "projection",
+    "verified_normal_outcome",
+    "evidence",
+    "effect_cardinality",
+    "compensation_availability",
+    "production_non_authority"
+  ],
+  "assertions": [
+    {"name": "action_family", "mode": "equal", "before_path": "action_family", "after_path": "action_family"},
+    {"name": "candidate_id", "mode": "equal", "before_path": "candidate_id", "after_path": "candidate_id"},
+    {"name": "projection_title", "mode": "equal", "before_path": "projection.title", "after_path": "projection.title"},
+    {"name": "projection_start", "mode": "equal", "before_path": "projection.start", "after_path": "projection.start"},
+    {"name": "projection_end", "mode": "equal", "before_path": "projection.end", "after_path": "projection.end"},
+    {"name": "projection_calendar", "mode": "equal", "before_path": "projection.calendar_id", "after_path": "projection.calendar_id"},
+    {"name": "projection_explanation", "mode": "equal", "before_path": "projection.explanation", "after_path": "projection.explanation"},
+    {"name": "verified_normal_outcome", "mode": "equal", "before_path": "outcome.phase", "after_path": "outcome.phase"},
+    {"name": "single_effect", "mode": "equal", "before_path": "outcome.effect_count", "after_path": "outcome.effect_count"},
+    {"name": "compensation_available", "mode": "equal", "before_path": "outcome.compensation_available", "after_path": "outcome.compensation_available"},
+    {"name": "evidence_rows", "mode": "equal_set", "before_path": "evidence.row_ids[]", "after_path": "evidence.row_ids[]"},
+    {"name": "no_production_authority", "mode": "equal", "before_path": "safety.authorizes_production", "after_path": "safety.authorizes_production"},
+    {"name": "no_real_provider", "mode": "equal", "before_path": "safety.real_provider_effect", "after_path": "safety.real_provider_effect"}
+  ]
+}
