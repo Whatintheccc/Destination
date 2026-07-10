@@ -21,6 +21,7 @@ from evals.p13_ruler.core import (
 from .p12_current import P12CurrentAdapter
 from .p13_effect_scenarios import P13_3_CASES, collect_sandbox_effect_case
 from .p13_eventkit_scenarios import P13_4_CASES, collect_eventkit_effect_case
+from .p13_eventkit_retirement_scenarios import P13_5_EVENTKIT_CASES, collect_managed_eventkit_retirement_case
 from .p13_retirement_scenarios import P13_5_CASES, collect_retirement_case
 
 
@@ -272,6 +273,14 @@ class P13CurrentAdapter:
         path = self._write(scenario_dir / f"{case}.json", evidence)
         return {"vertical_retirement": evidence}, [(f"vertical_retirement_{case}", path)]
 
+    def _managed_eventkit_retirement_evidence(self, case: str, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
+        evidence = collect_managed_eventkit_retirement_case(case, scenario_dir=scenario_dir, root=self.root)
+        if evidence is None:
+            blocker, required = DEBT_EVIDENCE[case]
+            return {"target_capability": {"reached": False, "blocker": blocker, "required_evidence": required}}, []
+        path = self._write(scenario_dir / f"{case}.json", evidence)
+        return {"managed_eventkit_retirement": evidence}, [(f"managed_eventkit_retirement_{case}", path)]
+
     def _promotion_freeze_evidence(self, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
         current = self.root / "experiments/promoted/CURRENT.json"
         current_before = current.read_bytes()
@@ -373,6 +382,8 @@ class P13CurrentAdapter:
             return self._eventkit_effect_evidence(case, scenario_dir)
         if case in P13_5_CASES:
             return self._retirement_evidence(case, scenario_dir)
+        if case in P13_5_EVENTKIT_CASES:
+            return self._managed_eventkit_retirement_evidence(case, scenario_dir)
         if case in DEBT_EVIDENCE:
             blocker, required = DEBT_EVIDENCE[case]
             return {"target_capability": {"reached": False, "blocker": blocker, "required_evidence": required}}, []

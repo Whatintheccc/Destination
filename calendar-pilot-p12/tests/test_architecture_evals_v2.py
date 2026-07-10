@@ -13,6 +13,7 @@ from evals.architecture.run_architecture_evals import (
     build_report,
     load_scenario_set,
 )
+from evals.architecture.adapters.p13_eventkit_retirement_scenarios import P13_5_EVENTKIT_CASES
 from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrument_bundle
 from evals.architecture.predicates.p13 import (
     EVENTKIT_CASE_EXPECTATIONS,
@@ -417,6 +418,10 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
                 by_id[scenario_id]["predicate_id"] == "managed_eventkit_retirement_contract"
                 for scenario_id in P13_5_EVENTKIT_TARGETS
             )
+        )
+        self.assertEqual(
+            {scenario_id.removeprefix("target.") for scenario_id in P13_5_EVENTKIT_TARGETS},
+            P13_5_EVENTKIT_CASES,
         )
 
     def test_eventkit_retirement_predicate_accepts_raw_facts_and_rejects_counterexamples(self):
