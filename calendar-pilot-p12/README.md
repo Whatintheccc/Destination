@@ -194,13 +194,19 @@ Both `hold` and `fail` return a nonzero shell status. Behavior-bearing waves mus
 clean pre-wave C-VAR artifact with `CVAR_BEFORE=<path>`; the harness will not regenerate
 their baseline after candidate work.
 
-These commands are development/ruler access points only. Their key paths are caller
-inputs, the checked-in root workflow is defined to generate an ephemeral key inside the
-candidate job if it runs, evaluator code runs from the candidate checkout, and reports
-are ignored local artifacts. They cannot authorize a P13.1
-or other TCB migration. The required external operator authorization, reviewer attestation,
-and isolated evaluator receipt are specified in
-[`../compression-roadmap.md`](../compression-roadmap.md), §8.5.1.
+These commands are development/ruler access points only. Local key paths are caller
+inputs and local reports are ignored artifacts. The checked-in root workflow runs the
+deterministic Python ruler with an explicit stub kernel on pull requests and protected
+`main`, generates an ephemeral development key inside the candidate job, and uploads a
+fixed checksummed evidence bundle for 90 days. [Run 29076097058](https://github.com/Whatintheccc/Destination/actions/runs/29076097058)
+is the exact-main hosted replay for implementation commit
+`def14738de5befff611b14c8371b29a47677b59c`; its retained evidence and limitations are
+recorded in [`../compression-roadmap.md`](../compression-roadmap.md), §8.5. Swift remains
+a separate access point and is not implied by this Linux Python replay. Because evaluator
+code and the development key remain candidate-controlled, neither the hosted run nor a
+local result can authorize a P13.1 or other TCB migration. The required external operator
+authorization, reviewer attestation, and isolated evaluator receipt are specified in
+§8.5.1 of that roadmap.
 
 The attestation scaffold is intentionally non-authorizing. It verifies the internal
 consistency of an externally located, self-declared `scaffold_only` policy, evaluator

@@ -276,6 +276,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability | the rest of the wave decision |
 | `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's separately named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.1+ action/backend comparison vector until that wave declares it |
 | `make wave-harness WAVE=… P13_VERIFY_KEY=…` | development/ruler evidence composition over manifest affectedness, v2 architecture, C-VAR, `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | migration authorization, independent review, isolated evaluator execution, authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
+| `.github/workflows/p13-ruler.yml` (`deterministic-ruler`) | an exact GitHub-hosted, candidate-controlled replay on pull requests and `main`; fresh report generation, report/input identity coherence, fixed artifact inventory, checksums, run context, and 90-day retention | evaluator independence, external key custody, migration authority, or bit-for-bit reproducibility after mutable runner/dependency state changes |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and a fresh non-overwriting per-run report directory | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 | `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
@@ -309,9 +310,10 @@ exclusion.
 
 Those stronger properties exist only when an externally held pre-wave authorization
 pins the candidate and instrument, an isolated evaluator runs the fixed verifier and
-instrument, and a protected consumer accepts only the resulting receipt. A key generated
-inside the candidate-controlled root workflow, if and when that workflow runs, proves
-cryptographic mechanics only and cannot authorize migration.
+instrument, and a protected consumer accepts only the resulting receipt. The protected
+root workflow now runs and retains hosted replay evidence, but its key is generated
+inside the candidate-controlled job. It proves cryptographic and reproducibility
+mechanics only and cannot authorize migration.
 
 P13.0 installs one creation and one verification access point:
 
@@ -330,12 +332,12 @@ validates their schemas and decisions, and returns nonzero for both hold and fai
 behavior-bearing wave must pass `CVAR_BEFORE=<frozen-clean-artifact>`; the harness
 refuses to regenerate that baseline after candidate work.
 
-The current access points are a ruler, not the final authorization boundary: their key
-paths are caller inputs, the checked-in root workflow is defined to create development
-keys inside the same candidate job if it runs, the evaluator runs from the candidate
-checkout, and reports live under ignored `runs/`.
-They can demonstrate fail-closed mechanics, but no local report, caller-supplied key, or
-same-checkout evaluator result can admit P13.1.
+The current access points are a ruler, not the final authorization boundary. Local key
+paths are caller inputs and local reports live under ignored `runs/`. The root workflow
+creates a development key inside the candidate job, evaluates the candidate checkout,
+and uploads a fixed, checksummed, expiring evidence bundle. These paths demonstrate
+fail-closed mechanics and one exact hosted replay, but no local report, caller-supplied
+or job-generated key, or same-checkout evaluator result can admit P13.1.
 
 The ruler truth-repair wave records 11/11 preservation passes, five binding ruler
 target passes, and 21 nonbinding `not_reached` target debts. Adding target scenarios has
@@ -1134,7 +1136,7 @@ starts until all of these are true:
 ```text
 [x] The workspace Makefile delegates to calendar-pilot-p12, or is removed as an access point.
 [x] A candidate-controlled workflow definition exists at the actual git root and declares the deterministic baseline plus report-decision assertions.
-[ ] That exact workflow definition is present on the remote default branch and has an externally observed provenance-bound successful run for the exact commit/workflow identity with retained logs and report hashes. This proves remote reproducibility only, not evaluator independence or migration authority.
+[x] That exact workflow definition is present on the remote default branch and has an externally observed provenance-bound successful run for the exact commit/workflow identity with retained logs and report hashes. This proves remote reproducibility only, not evaluator independence or migration authority.
 [x] A clean-tree development manifest proves InstrumentBundle@sha, active-app subtree pinning, signing, expiry, and verification mechanics.
 [ ] The release verification root is durable, operator-held, and outside the repository and candidate workspace; a manifest signed only by an ephemeral development key cannot authorize migration.
 [x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
@@ -1161,6 +1163,13 @@ starts until all of these are true:
 [ ] Stable issuer/event identity, authenticated and resolved causal provenance, duplicate-conflict handling, and transitive simulator noninterference are binding at reward ingress.
 [ ] Every certificate has a planted counterexample that produces fail or hold.
 ```
+
+Remote execution-evidence record (2026-07-10):
+
+- The implementation entered protected `main` through [PR #1](https://github.com/Whatintheccc/Destination/pull/1) at merge commit `def14738de5befff611b14c8371b29a47677b59c` (tree `b719e11e1ed6143e59b05f41c50dc8950cf00e2a`; app subtree `db22ff60cdca663617b27db42e7c5eb6776c2e9d`). The workflow file hash was `9ebef866599e8a38187ffdf6677e7c33540a3c7259a1ce2fead9a0598deddb62`; the signed scope hash was `f6d5c47d849525a977bd01b95087302e537dbb03eb4bc409adbd5fe55ba4a22e`.
+- [GitHub Actions run 29076097058](https://github.com/Whatintheccc/Destination/actions/runs/29076097058) succeeded on that exact `main` commit with the required `deterministic-ruler` job. Its fixed 26-file [artifact 8220780401](https://github.com/Whatintheccc/Destination/actions/runs/29076097058/artifacts/8220780401), `p13-remote-reproducibility-def14738de5befff611b14c8371b29a47677b59c-29076097058-1`, had API digest `sha256:974f79d7094fbe63c1af2b64e3adeb2193f78447e43c568bd405664739796086`, size 128147 bytes, and expiry `2026-10-08T07:14:48Z`. A clean download passed its complete `SHA256SUMS` inventory.
+- The premerge PR run `29075942760` passed at exact candidate `7397754e4a99793d0374047dea466f521e6dd8af`. Ruleset `18760046` (`P13 protected main`) now has no bypass actors; it requires an up-to-date GitHub Actions `deterministic-ruler` check, pull requests, resolved review threads, linear history, and forbids deletion and force updates. Repository Actions require full commit-SHA action pins.
+- This is one observed hosted replay on a mutable GitHub runner with an expiring, deletable artifact. The workflow, evaluator, and development key remained candidate-controlled; there was no approval or independent reviewer, external signing custody, isolated evaluator, `WaveAuthorization`, or `EvaluationReceipt`. The record therefore closes the remote-reproducibility checklist item only.
 
 The following are P13.6 learning-promotion prerequisites, not blockers for the first
 operational shadow. `lab-promote` remains frozen until every item passes:
@@ -1627,8 +1636,9 @@ Use this checklist for every proposed wave.
 Retired by Step E (evidence: [P12 Record §6](P12-RECORD.md)): the original
 deterministic-only P12 reach, the three original pass-by-construction placebo reports,
 and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
-compression-wave mechanics and access-point plumbing; the durable signer and
-independent-review boundaries in §8.5 remain the migration blockers.
+compression-wave mechanics, a protected root access point, and exact-main hosted replay
+evidence. The durable signer, independent-review, and isolated-evaluation boundaries in
+§8.5 remain the migration blockers.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
@@ -1717,10 +1727,11 @@ small effect TCB is surrounded by increasingly capable but untrusted proposal ma
 The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
 `explain` contracts are shipped ([P12 Record](P12-RECORD.md)). P13.0 now has fail-closed
 local development verification access points, scenario-set v2, affectedness, separately
-materialized comparison certificates with alias/self-derivation rejection, and a
-promotion freeze. Its honest remaining boundary is organizational, cryptographic, and
-execution-isolation: install the externally governed authorization, independent review,
-and isolated-evaluation chain in §8.5.1 before any product skeleton. Then migrate one
+materialized comparison certificates with alias/self-derivation rejection, a promotion
+freeze, and one protected exact-main hosted replay with a checksummed evidence bundle.
+Its honest remaining boundary is organizational, cryptographic, and execution-isolation:
+install the externally governed authorization, independent review, and isolated-evaluation
+chain in §8.5.1 before any product skeleton. Then migrate one
 complete `create_prep_block` vertical through no-effect,
 read-side,
 deterministic-effect, and app-bundled EventKit barriers before generalizing (P13).
