@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` no-effect, cited-read, deterministic-sandbox, and app-bundled EventKit-sandbox verticals passed their owner-signed composite waves. P13.5 is next: retire old truth only for the proven `create_prep_block` backend under a new owner-frozen ruler wave. No production, deployment, or promotion authority has been conferred; the incumbent remains the default and production effect owner until that separate retirement wave passes.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. The first P13.5 retirement also passed: `create_prep_block × deterministic_sandbox` now has one normal EffectKernel owner and no normal legacy mutation route. The next P13.5 wave is the separately bound EventKit retirement. No production, deployment, or promotion authority has been conferred; EventKit and every production mode remain incumbent-owned until an exact target-calendar policy and live retirement certificate pass.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1351,6 +1351,28 @@ runtime commit/undo access points, and cleanup evidence. Until that wave passes,
 `create_prep_block × apple_eventkit` and all production modes remain incumbent-owned.
 No deterministic result can authorize the EventKit retirement.
 
+The first P13.5 retirement closed on candidate
+`bbfa3889cd599f0badc70193e20f9de835d797e4` against signed base
+`8198cc482fcf3f5116ec4001f4092602475eccce`, InstrumentBundle
+`04a150fbd9a695db2d9f7b7222d683e4b10437b8fc4324a537e4ded69ba1f7ff`, and
+manifest `p13-create-prep-block-deterministic-retirement:8198cc482fcf:20260710T165534Z`.
+The same `CodexToolRuntime.REQUEST_COMMIT` and `REQUEST_UNDO` access points used by the
+application exercised the new route. Commit produced one ticket, claim, dispatch, and
+verified mutation with zero legacy kernel/provider commit calls. Undo used a separate
+compensation ticket, verified absence, and made zero legacy kernel/provider undo calls.
+Restart reconciled `applying_unknown` to `verified` without redispatch; ordinary callers
+could not select the incumbent, while the owner-frozen rollback selector restored exactly
+one incumbent owner.
+
+Composite evidence passed binding, architecture, C-VAR, independent `B_migrate`, P12
+release, reward screening, root-list verification, LOC, `ExperimentRecord.v2`, and schema
+validation. Architecture run `architecture-evals-20260710T165546607125Z-c7e83ac2`
+recorded 11/11 preservation passes, 34 target passes, and only six later nonbinding
+`not_reached` debts. The exact candidate's full Python suite passed 268 tests with 10
+skips. Every deterministic-retirement artifact states `authorizes_production: false`;
+EventKit selection, its app/bridge/permission/target identities, and production ownership
+were unchanged.
+
 ---
 
 ## 9. Phase Architecture
@@ -1740,10 +1762,12 @@ deterministic-only P12 reach, the three original pass-by-construction placebo re
 and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
 compression-wave mechanics, a protected root access point, and exact-main hosted replay
 evidence. P13.1 no-effect construction, P13.2 cited read-side cutover, and the bounded
-P13.3 owner-controlled deterministic sandbox and P13.4 app-bundled EventKit sandbox are
-complete. P13.5 is next: bind retirement narrowly to `create_prep_block` plus the proven
-backend, preserve the incumbent rollback path until the retirement certificate passes,
-and keep production ownership and learning promotion unchanged.
+P13.3 owner-controlled deterministic sandbox, P13.4 app-bundled EventKit sandbox, and the
+first P13.5 `create_prep_block × deterministic_sandbox` retirement are complete. The next
+binding decision is the EventKit retirement's exact target-calendar policy. P13.4 proved
+only a dedicated one-probe sandbox and cannot silently confer normal or production
+ownership; the incumbent remains the EventKit rollback/default until that separate live
+certificate passes. Learning promotion remains unchanged.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
@@ -1811,18 +1835,24 @@ and keep production ownership and learning promotion unchanged.
    compensation, cleanup, and every affected live leg. Keep the incumbent default and
    retire old truth only in a later proven wave; repeat per vertical.
 
-8. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
+8. Retire old truth one proven action/backend pair at a time.
+   `create_prep_block × deterministic_sandbox` — DONE. The real runtime commit/undo
+   access points use Gate/Gateway by default for that pair, reject caller owner override,
+   and retain one owner-frozen rollback selector. EventKit retirement remains pending its
+   exact target-calendar policy and separately bound live certificate.
+
+9. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
    Replace the frozen promoter with a signed, owner-gated path; separate search/holdout/live evidence; simulator never
    supplies positive promotion credit; sign PromotionRecord before CURRENT changes.
 
-9. Contract duplicated architecture under certificates.
+10. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.
 
-10. Harvest to the emergent floor.
+11. Harvest to the emergent floor.
    Stop at the first protected monitor, calibration, reconciliation, evidence,
    or traceability constraint. Report the binding constraint.
 
-11. Do not begin recursive meta-optimization in P13-P17.
+12. Do not begin recursive meta-optimization in P13-P17.
     A later phase may be proposed only after isolation attacks, rejected-bad/accepted-good payloads,
     atomic rollback, and a forward no-effect shadow are proven with a fixed base model.
 ```
@@ -1849,8 +1879,11 @@ ticket/Gateway semantics only in the owner-controlled deterministic sandbox, who
 artifacts cannot authorize production. P13.4 has repeated that certificate through the
 exact app-bundled EventKit identity and sandbox target, including explicit opt-in,
 restart reconciliation, separate compensation, verified cleanup, and the affected live
-leg. P13.5 now owns the narrow retirement decision; the incumbent remains the default and
-production owner until that separately bound wave passes. Learning becomes frozen proposal
+leg. The first P13.5 retirement now makes EffectKernel the sole normal owner for
+`create_prep_block × deterministic_sandbox`, with the legacy route unreachable from
+visible commit/undo and retained only as an owner-frozen rollback selector. EventKit and
+production remain incumbent-owned pending their separately bound target policy and live
+retirement certificate. Learning becomes frozen proposal
 payloads plus signed promotion records only after that operational path is stable;
 meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
 line count falls as a consequence. The floor is where the next subtraction would blind
