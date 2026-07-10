@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), and P13.0 is complete for single-owner development: the ruler, protected remote replay, affectedness, comparison certificates, and promotion freeze are binding. P13.1 is the active phase. No-effect and read-side work may proceed under the protected owner-controlled ruler; effect-capable handoff, old-truth retirement, and learning promotion remain blocked on their later authorization barriers.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1 `create_prep_block` no-effect vertical passed its signed composite wave at candidate `ef2071c`. P13.2 cited read-side cutover is the active phase. Effect-capable handoff, old-truth retirement, and learning promotion remain blocked on their later authorization barriers.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1180,7 +1180,8 @@ starts until all of these are true:
 [x] C-VAR consumes frozen pre-wave outputs and separately generated post-wave outputs.
 [x] C-VAR fails when before and after artifacts are the same; behavior-changing waves additionally require a clean frozen base and changed post-wave source/tuning identity.
 [x] B_migrate invokes separately named producer commands and rejects identical, aliased, or self-derived artifacts using planted old/new producers.
-[ ] Each P13.1+ manifest binds the actual old/new commands and comparison vector for intents, projections, admission/refinement, reward, evidence, reconciliation, and compensation.
+[x] The P13.1 manifest binds independent old/new commands and the phase-appropriate `create_prep_block` intent, projection, admission, evidence, and zero-effect vector.
+[ ] Each later effect-capable manifest extends that vector with the affected reward, reconciliation, and compensation observables before handoff.
 [x] Reward screening reports content-addressed occurrence identity, declared human/simulator source classes, causal-reference shape checks, and direct simulator-positive-credit rejection without claiming authentication.
 [ ] Stable issuer/event identity, authenticated and resolved causal provenance, duplicate-conflict handling, and transitive simulator noninterference are binding at reward ingress.
 [ ] Every certificate has a planted counterexample that produces fail or hold.
@@ -1447,6 +1448,18 @@ proof, not only a zero-call observation. It forces stale/forged input, denial,
 projection, and explanation cases while the incumbent alone mutates. No queues,
 services, schedulers, or new effect abstractions land in this skeleton.
 
+P13.1 closed on candidate `ef2071c7acbf05f93ad92f55d8273831bfaa27a5`
+against signed base `7223c353c7f29160e465ecda3bca4bce29b8593a` and manifest
+`p13-create-prep-block-no-effect:7223c353c7f2:20260710T084713Z`. Every
+composite gate passed: binding, 11/11 preservation and all three selected P13.1
+targets, C-VAR, independent `B_migrate`, P12 release, fixed unaffected reward-screen
+fixture, live-leg ledger, LOC, `ExperimentRecord.v2`, and schema validation. The
+record identifies the claim narrowly as structural non-reachability plus protected
+equivalence, proves the incumbent producer as the ablation, and proves exact rollback
+because the candidate consists of three additive ProductCore files. The full Python
+suite passed 236 tests with 10 skips. No live model or mutating EventKit leg ran; all
+three were signed as unaffected. This evidence does not authorize P13.3.
+
 P13.3 is the first valid ticket claim/dispatch. Its isolated deterministic effect suite
 forces duplicate delivery,
 crash before/after claim and dispatch, verify ambiguity, revoke/claim race, restart
@@ -1684,7 +1697,8 @@ Retired by Step E (evidence: [P12 Record §6](P12-RECORD.md)): the original
 deterministic-only P12 reach, the three original pass-by-construction placebo reports,
 and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
 compression-wave mechanics, a protected root access point, and exact-main hosted replay
-evidence. P13.1 no-effect construction is now active. The durable signer,
+evidence. P13.1 no-effect construction is complete and P13.2 cited read-side cutover is
+now active. The durable signer,
 independent-review, and isolated-evaluation profile in §8.5.1 remains the blocker for
 effect-capable handoff, old-truth retirement, and production learning promotion.
 
@@ -1735,7 +1749,7 @@ effect-capable handoff, old-truth retirement, and production learning promotion.
    zero credential, ticket, EffectAttempt, dispatch, provider-mutation, retirement,
    and promotion reachability.
 
-4. Build the no-effect create_prep_block walking skeleton end to end.
+4. Build the no-effect create_prep_block walking skeleton end to end. — DONE
    ProductCore append/reduce/cited projection, structurally non-dispatchable
    AdmissionPreview, and proof of zero new effect attempts or provider mutations;
    incumbent remains the only visible and effect-capable path.
@@ -1781,9 +1795,9 @@ The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
 local development verification access points, scenario-set v2, affectedness, separately
 materialized comparison certificates with alias/self-derivation rejection, a promotion
 freeze, and one protected exact-main hosted replay with a checksummed evidence bundle.
-That closes P13.0 for single-owner development. P13.1 now migrates one complete
+That closes P13.0 for single-owner development. P13.1 has migrated one bounded
 `create_prep_block` vertical through a structurally no-effect ProductCore and
-`AdmissionPreview`; P13.2 may cut over cited read-side projections while the incumbent
+`AdmissionPreview`; P13.2 now cuts over cited read-side projections while the incumbent
 remains the sole effect owner. The organizational, cryptographic, and execution-isolation
 profile in §8.5.1 becomes binding before P13.3 deterministic-effect handoff, retirement,
 production deployment, or P13.6 promotion. App-bundled EventKit follows only after the
