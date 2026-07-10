@@ -143,8 +143,11 @@ jobs:
           copy_subject() {
             source="$1"
             destination="$2"
+            target="$bundle_dir/$destination"
             test -f "$source"
-            install -D -m 0644 "$source" "$bundle_dir/$destination"
+            mkdir -p "$(dirname "$target")"
+            cp "$source" "$target"
+            chmod 0644 "$target"
           }
 
           copy_subject .github/workflows/p13-ruler.yml workflow/p13-ruler.yml
@@ -268,7 +271,6 @@ jobs:
 
           mkdir -p "$bundle_dir/environment"
           python -m pip freeze --all | LC_ALL=C sort > "$bundle_dir/environment/python-packages.txt"
-          copy_subject /etc/os-release environment/os-release
 
           (
             cd "$bundle_dir"
