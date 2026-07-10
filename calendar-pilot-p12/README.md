@@ -238,9 +238,31 @@ crash/restart, unknown-outcome reconciliation, revocation races, and compensatio
 conflict. Its adapter has no credentials or external-I/O capability, the selector
 defaults to the incumbent outside an explicit sandbox invocation, and every artifact
 states `authorizes_production: false`. It cannot authorize EventKit, deployment,
-retirement, or promotion. P13.4 binds EventKit separately through the canonical app
-bundle, exact sandbox calendar, explicit opt-in, reconciliation, verified compensation,
-cleanup, and affected live legs in §8.5.1.
+retirement, or promotion.
+
+The closed P13.4 EventKit sandbox certificate has one focused deterministic access point:
+
+```bash
+make p13-eventkit-sandbox-test
+```
+
+Its live access point remains explicit and app-bundled:
+
+```bash
+CALENDAR_PILOT_EVENTKIT_BRIDGE="$PWD/dist/CalendarPilot.app/Contents/Resources/app/bin/CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge" \
+CALENDAR_PILOT_EVENTKIT_SANDBOX_CALENDAR_ID=<exact-calendar-id> \
+CALENDAR_PILOT_P13_EVENTKIT_SANDBOX=1 \
+CALENDAR_PILOT_EVENTKIT_MUTATION=1 \
+CALENDAR_PILOT_REQUIRE_EVENTKIT=1 \
+make live-eventkit-e2e
+```
+
+The recorded exact-candidate run used full EventKit access and calendar
+`09B50C6A-826E-4030-9908-D25DC900AC59`; one probe reconciled from
+`applying_unknown` to `verified`, a separately ticketed compensation verified, and
+cleanup proved the calendar empty. The selector still defaults to the incumbent and
+every report states `authorizes_production: false`. P13.5 is the separate retirement
+wave; P13.4 did not retire, deploy, promote, or transfer production ownership.
 
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
