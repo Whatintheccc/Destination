@@ -264,6 +264,20 @@ cleanup proved the calendar empty. The selector still defaults to the incumbent 
 every report states `authorizes_production: false`. P13.5 is the separate retirement
 wave; P13.4 did not retire, deploy, promote, or transfer production ownership.
 
+The first P13.5 retirement has one focused access point:
+
+```bash
+make p13-deterministic-retirement-test
+```
+
+For `create_prep_block × deterministic_sandbox`, the normal
+`CodexToolRuntime.REQUEST_COMMIT` and `REQUEST_UNDO` routes now use EffectKernel
+Gate/Gateway. The focused certificate proves one effect owner, zero legacy mutation
+calls, a separately ticketed compensation, restart reconciliation without redispatch,
+and an owner-frozen rollback selector. This backend remains non-production. EventKit,
+all production modes, and every other action/backend pair remain incumbent-owned until
+their own signed retirement waves pass.
+
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
 writes and leave `CURRENT` byte-identical. P13.6 may
