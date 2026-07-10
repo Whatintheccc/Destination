@@ -623,6 +623,39 @@ def is_structurally_no_effect_wave(
     )
 
 
+P13_3_SANDBOX_SCENARIOS = {
+    "target.trusted_ingress_forgery",
+    "target.effect_ticket_binding",
+    "target.compensation_ticket_binding",
+    "target.ticket_single_claim",
+    "target.duplicate_delivery",
+    "target.crash_before_claim",
+    "target.crash_after_claim",
+    "target.crash_after_dispatch",
+    "target.verify_ambiguity_reconcile",
+    "target.revoke_claim_race",
+    "target.restart_reconciliation",
+    "target.compensation_conflict_hold",
+    "target.no_learning_effect_path",
+}
+
+
+def is_owner_controlled_sandbox_wave(
+    manifest: dict[str, Any],
+    verification: dict[str, Any],
+    architecture: dict[str, Any],
+) -> bool:
+    affected = verification.get("derived_affectedness", {})
+    return bool(
+        manifest.get("change_class") == "migration"
+        and verification.get("decision") == "pass"
+        and set(affected.get("actions", [])) == {"create_prep_block"}
+        and set(affected.get("backends", [])) == {"deterministic_sandbox"}
+        and set(affected.get("control_planes", [])) == {"effect_tcb", "evaluator"}
+        and all(_selected_scenario_passes(manifest, architecture, scenario_id) for scenario_id in P13_3_SANDBOX_SCENARIOS)
+    )
+
+
 def build_experiment_record(
     *,
     manifest_path: Path,
@@ -666,9 +699,11 @@ def build_experiment_record(
         except (RuntimeError, ValueError):
             git_delta = []
     structural_no_effect = is_structurally_no_effect_wave(manifest, verification, architecture)
+    sandbox_effect = is_owner_controlled_sandbox_wave(manifest, verification, architecture)
+    bounded_development = structural_no_effect or sandbox_effect
     delta_paths = [str(row.get("path")) for row in git_delta]
     exact_additive_rollback = bool(
-        structural_no_effect
+        bounded_development
         and git_delta
         and all(row.get("status") == "A" and row.get("path") for row in git_delta)
         and set(delta_paths) == set(changed_paths)
@@ -682,7 +717,7 @@ def build_experiment_record(
     compared_assertions = [str(row.get("name")) for row in b_migrate.get("assertions", [])]
     deltas = [float(row.get("delta_top_reward", 0.0)) for row in cvar.get("compared_rows", [])]
     worst_delta = min(deltas) if deltas else None
-    ablation_stable = bool(structural_no_effect and b_migrate.get("decision") == "pass")
+    ablation_stable = bool(bounded_development and b_migrate.get("decision") == "pass")
     rollback_restored = bool(
         (exact_additive_rollback or cited_read_side_rollback)
         and verification.get("decision") == "pass"
@@ -691,7 +726,7 @@ def build_experiment_record(
         and b_migrate.get("decision") == "pass"
         and release.get("decision") == "pass"
     )
-    behavior_evidence_complete = bool(structural_no_effect and ablation_stable and rollback_restored)
+    behavior_evidence_complete = bool(bounded_development and ablation_stable and rollback_restored)
     decision = "pass" if all(value == "pass" for value in decisions.values()) and (ruler or behavior_evidence_complete) else "hold"
     record = {
         "experiment_record_schema_version": "experiment_record.v2",
@@ -754,14 +789,14 @@ def build_experiment_record(
         },
         "ablation": {
             "applicable": not ruler,
-            "method": None if ruler else ("independent incumbent B_migrate producer" if structural_no_effect else "declared organ disabled or stubbed"),
-            "artifact": artifact_ref(b_migrate_report_path, decision=str(b_migrate.get("decision"))) if structural_no_effect else None,
+            "method": None if ruler else ("independent incumbent B_migrate producer" if bounded_development else "declared organ disabled or stubbed"),
+            "artifact": artifact_ref(b_migrate_report_path, decision=str(b_migrate.get("decision"))) if bounded_development else None,
             "decision_stable": None if ruler else ablation_stable,
             "reason": (
                 "No product organ changed"
                 if ruler
                 else (
-                    "The independent incumbent path is the ablated ProductCore variant and preserves the signed comparison vector."
+                    "The independent incumbent path is the ablation and preserves the signed comparison vector."
                     if ablation_stable
                     else "A behavior-bearing wave must attach a passing ablation artifact before promotion"
                 )
@@ -772,18 +807,21 @@ def build_experiment_record(
             "revert_sha": None if ruler else manifest.get("base_repository", {}).get("git_sha"),
             "proof_artifact": (
                 {
-                    "mode": "incumbent_read_selector" if cited_read_side_rollback else "exact_additive_revert",
+                    "mode": (
+                        "incumbent_read_selector"
+                        if cited_read_side_rollback
+                        else "exact_additive_sandbox_revert" if sandbox_effect
+                        else "exact_additive_revert"
+                    ),
                     "base_git_sha": manifest.get("base_repository", {}).get("git_sha"),
                     "base_app_tree_sha": manifest.get("base_repository", {}).get("app_tree_sha"),
                     "candidate_git_sha": candidate_repository.get("git_sha"),
                     "candidate_app_tree_sha": candidate_repository.get("app_tree_sha"),
                     "git_delta": git_delta,
                     "binding_verification": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
-                    "incumbent_projection": (
-                        b_migrate.get("before_artifact") if cited_read_side_rollback else None
-                    ),
+                    "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect) else None,
                 }
-                if structural_no_effect
+                if bounded_development
                 else None
             ),
             "baseline_restored": None if ruler else rollback_restored,
@@ -794,7 +832,11 @@ def build_experiment_record(
                     (
                         "The independent incumbent projection remains executable and equivalent behind the compatibility selector."
                         if cited_read_side_rollback
-                        else "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                        else (
+                            "The incumbent remains the default effect owner; removing the additive sandbox delta restores the signed base tree."
+                            if sandbox_effect
+                            else "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                        )
                     )
                     if rollback_restored
                     else "A behavior-bearing wave must attach exact rollback proof before promotion"
@@ -806,7 +848,12 @@ def build_experiment_record(
             "app_tree_sha": candidate_repository.get("app_tree_sha"),
             "base_git_sha": manifest.get("base_repository", {}).get("git_sha"),
             "changed_paths": changed_paths,
-            "evidence_class": "structurally_no_effect" if structural_no_effect else "behavior_evidence_incomplete",
+            "evidence_class": (
+                "structurally_no_effect"
+                if structural_no_effect
+                else "owner_controlled_sandbox" if sandbox_effect
+                else "behavior_evidence_incomplete"
+            ),
         },
         "outcomes": {
             "reward_vector": reward.get("reward_head_deltas"),
@@ -815,7 +862,12 @@ def build_experiment_record(
                 "occurrences": reward.get("reward_evidence", {}).get("consumed_reward_rows"),
             },
             "provenance": reward.get("reward_evidence", {}).get("declared_source_classification"),
-            "outcome_window": "not_applicable_structurally_no_effect" if structural_no_effect else None,
+            "outcome_window": (
+                "not_applicable_structurally_no_effect"
+                if structural_no_effect
+                else "not_applicable_non_authorizing_sandbox" if sandbox_effect
+                else None
+            ),
         },
         "statistics": {
             "estimand": "no product effect" if ruler else "protected behavior equivalence",
@@ -829,7 +881,11 @@ def build_experiment_record(
                 "Ruler-only wave makes no product-effect claim"
                 if ruler
                 else (
-                    "The claim is limited to structural non-reachability and protected-observable equivalence; no human-outcome effect is claimed."
+                    (
+                        "The claim is limited to deterministic sandbox lifecycle semantics and protected-observable equivalence; no real-provider, production, or human-outcome effect is claimed."
+                        if sandbox_effect
+                        else "The claim is limited to structural non-reachability and protected-observable equivalence; no human-outcome effect is claimed."
+                    )
                     if behavior_evidence_complete
                     else "Behavior evidence is incomplete until candidate, ablation, and rollback attestations are attached"
                 )
