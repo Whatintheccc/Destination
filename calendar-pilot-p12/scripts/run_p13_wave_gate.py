@@ -17,9 +17,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 from calendar_pilot.environment.fsio import atomic_write_json
-from evals.p13_ruler.core import build_loc_report, sha256_file, verify_binding_manifest
+from evals.p13_ruler.core import build_loc_report, verify_binding_manifest
 from evals.p13_ruler.wave import (
     build_experiment_record,
+    b_migrate_assertions_path,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
     is_structurally_no_effect_wave,
@@ -35,22 +36,6 @@ def _producer_command(manifest: dict[str, Any], side: str, family: str) -> list[
     if not isinstance(command, list) or not command or not all(isinstance(value, str) and value for value in command):
         raise ValueError(f"BindingManifest has no valid {side} {family} command")
     return list(command)
-
-
-def _b_migrate_assertions_path(manifest: dict[str, Any]) -> Path:
-    default = ROOT / "experiments/configs/b_migrate_frontend_view_state_v2.json"
-    old = manifest.get("old_producer", {}).get("b_migrate", {}).get("assertion_set")
-    new = manifest.get("new_producer", {}).get("b_migrate", {}).get("assertion_set")
-    if old is None and new is None:
-        return default
-    if not isinstance(old, dict) or not isinstance(new, dict) or old != new:
-        raise ValueError("old/new B_migrate producers must bind the same assertion set")
-    if set(old) != {"path", "sha256"}:
-        raise ValueError("B_migrate assertion binding requires exactly path and sha256")
-    path = resolve(str(old["path"]))
-    if not path.is_file() or sha256_file(path) != old["sha256"]:
-        raise ValueError("B_migrate assertion set is missing or changed after binding")
-    return path
 
 
 def _run(command: list[str], *, artifact: Path | None = None, env: dict[str, str] | None = None) -> dict[str, Any]:
@@ -159,7 +144,7 @@ def main() -> None:
     b_migrate = compare_b_migrate_artifacts(
         before_path=b_old,
         after_path=b_new,
-        assertions_path=_b_migrate_assertions_path(manifest),
+        assertions_path=b_migrate_assertions_path(manifest),
         manifest=manifest,
     )
     b_migrate_path = artifacts / "b_migrate_report_v2.json"
