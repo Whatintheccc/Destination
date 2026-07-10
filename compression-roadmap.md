@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.3 `create_prep_block` no-effect, cited-read, and owner-controlled deterministic-sandbox verticals passed their signed composite waves. P13.4 is active: repeat the certificate through the app-bundled sandbox EventKit identity under the owner-frozen ruler and explicit live-effect controls in §4.9 and §8.5.1. No production, retirement, deployment, or promotion authority has been conferred.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` no-effect, cited-read, deterministic-sandbox, and app-bundled EventKit-sandbox verticals passed their owner-signed composite waves. P13.5 is next: retire old truth only for the proven `create_prep_block` backend under a new owner-frozen ruler wave. No production, deployment, or promotion authority has been conferred; the incumbent remains the default and production effect owner until that separate retirement wave passes.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1295,6 +1295,23 @@ for deterministic reproducibility but never substitutes for the app-bundled live
 P13.4 does not retire the incumbent, select the new path by default, deploy production
 ownership, or unfreeze learning promotion; those are later, separately bound waves.
 
+P13.4 closed on candidate `6553ce0c3ea6fc5f4a55cc22e69696660b4b65cf`
+against signed base `dfbe682f799bf052c56d7713ff85b3072ff7de14`, InstrumentBundle
+`6d40cecea311ec4425b7a95667e996e6fcdec23fd1ac0af3883d92da503a52a9`, and
+manifest `p13-create-prep-block-eventkit-sandbox:dfbe682f799b:20260710T161426Z:live-complete`.
+The exact-candidate live leg used the canonical app-bundled bridge with full EventKit
+access and the dedicated calendar `09B50C6A-826E-4030-9908-D25DC900AC59`. It bound app
+hash `9677b1b6a6b40d822b255d2613f9dbe61c9ff01459ee0a79a4509e744d3626f8`
+and bridge hash `67085b866a09331e501d49437f33618e697c3a59f857f09479123121d51d5759`,
+created exactly one probe, observed `applying_unknown`, restarted and reconciled to
+`verified`, used a separate compensation ticket, and proved `verified_absent` cleanup.
+The final composite passed binding, architecture, C-VAR, independent `B_migrate`, P12
+release, reward screening, root-list verification, LOC, `ExperimentRecord.v2`, and schema
+validation. Architecture evidence recorded 11/11 preservation passes, 29 target passes,
+and six later nonbinding `not_reached` debts. The full Python suite passed 260 tests with
+10 skips; Swift passed 17 tests, Swift IPC passed 9, the macOS app built, and dogfood
+release reported `ok: true`. Every P13.4 artifact remains non-authorizing for production.
+
 ---
 
 ## 9. Phase Architecture
@@ -1446,8 +1463,8 @@ the claim narrowly as deterministic sandbox lifecycle equivalence with an exact 
 rollback to the default incumbent selector. The full Python suite passed 252 tests with
 10 skips. Dogfood release reported `ok: true` across Python, Swift, Swift IPC, browser,
 app build/sanity, launch/port ownership, artifacts, and secret scans; mutating EventKit
-remained skipped. This closes P13.3 and leaves P13.4 ready for its separately bound,
-explicitly opted-in app-bundled EventKit wave.
+remained skipped. This closed P13.3; the separately bound P13.4 app-bundled EventKit
+wave subsequently closed with the evidence recorded in §8.5.1.
 
 During P13.2, only controls already proven on the incumbent may render as actionable;
 they route through one compatibility selector to the incumbent effect path and their
@@ -1684,9 +1701,10 @@ deterministic-only P12 reach, the three original pass-by-construction placebo re
 and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
 compression-wave mechanics, a protected root access point, and exact-main hosted replay
 evidence. P13.1 no-effect construction, P13.2 cited read-side cutover, and the bounded
-P13.3 owner-controlled deterministic sandbox are complete. P13.4 is active; its next
-binding work is the owner-frozen EventKit manifest and the exact app-bundled sandbox
-certificate in §8.5.1.
+P13.3 owner-controlled deterministic sandbox and P13.4 app-bundled EventKit sandbox are
+complete. P13.5 is next: bind retirement narrowly to `create_prep_block` plus the proven
+backend, preserve the incumbent rollback path until the retirement certificate passes,
+and keep production ownership and learning promotion unchanged.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
@@ -1748,7 +1766,7 @@ certificate in §8.5.1.
    non-authorizing. At the sole Gateway selector prove effect and compensation tickets,
    claim/outbox, stale/duplicate/crash, unknown/revoke/restart/reconciled-absent cases.
 
-7. Repeat the effect-capable vertical through app-bundled sandbox EventKit.
+7. Repeat the effect-capable vertical through app-bundled sandbox EventKit. — DONE
    Freeze the owner-signed P13.4 manifest first; bind the canonical app identity, exact
    sandbox calendar, explicit opt-in, one-probe budget, reconciliation, verified
    compensation, cleanup, and every affected live leg. Keep the incumbent default and
@@ -1789,10 +1807,12 @@ That closes P13.0 for single-owner development. P13.1 and P13.2 have migrated on
 `AdmissionPreview`, then cut over its cited read-side projection while the incumbent
 remains the sole non-sandbox and production effect owner. P13.3 now exercises
 ticket/Gateway semantics only in the owner-controlled deterministic sandbox, whose
-artifacts cannot authorize production. P13.4 is now active under the single-owner effect
-handoff in §8.5.1: the exact app-bundled identity, sandbox target, explicit opt-in,
-reconciliation, compensation, cleanup, and affected live legs are its binding evidence.
-Learning becomes frozen proposal payloads plus signed promotion records only after that operational path is stable;
+artifacts cannot authorize production. P13.4 has repeated that certificate through the
+exact app-bundled EventKit identity and sandbox target, including explicit opt-in,
+restart reconciliation, separate compensation, verified cleanup, and the affected live
+leg. P13.5 now owns the narrow retirement decision; the incumbent remains the default and
+production owner until that separately bound wave passes. Learning becomes frozen proposal
+payloads plus signed promotion records only after that operational path is stable;
 meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
 line count falls as a consequence. The floor is where the next subtraction would blind
 the system, weaken compensation/control, thin evidence, or corrupt evaluation.
