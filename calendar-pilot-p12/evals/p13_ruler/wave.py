@@ -776,6 +776,18 @@ P13_6_LEARNING_BASELINE_SCENARIOS = {
     "target.reward_identity_provenance",
 }
 
+P13_6_LEARNING_EVIDENCE_RUNTIME_PATHS = {
+    "calendar-pilot-p12/experiments/waves/p13-learning-evidence-runtime.scope.json",
+    "calendar-pilot-p12/frontend/static/js/components/cards.js",
+    "calendar-pilot-p12/frontend/static/js/main.js",
+    "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/frontier_service.py",
+    "calendar-pilot-p12/src/calendar_pilot/environment/signal_streams.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/server.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session_snapshot.py",
+    "calendar-pilot-p12/src/calendar_pilot/replay.py",
+}
+
 
 def is_owner_controlled_sandbox_wave(
     manifest: dict[str, Any],
@@ -875,6 +887,20 @@ def is_learning_baseline_migration_wave(
     )
 
 
+def is_learning_evidence_plumbing_wave(
+    manifest: dict[str, Any],
+    verification: dict[str, Any],
+    architecture: dict[str, Any],
+) -> bool:
+    changed = {str(row.get("path")) for row in verification.get("changed_paths", [])}
+    return bool(
+        manifest.get("change_class") == "learning"
+        and verification.get("decision") == "pass"
+        and changed == P13_6_LEARNING_EVIDENCE_RUNTIME_PATHS
+        and _selected_scenario_passes(manifest, architecture, "target.learning_evidence_chain")
+    )
+
+
 def learning_baseline_rollback_evidence() -> tuple[bool, dict[str, Any] | None]:
     from scripts.p13_learning_control import (
         load_current_policy_payload,
@@ -965,7 +991,8 @@ def build_experiment_record(
     vertical_retirement = is_owner_controlled_vertical_retirement_wave(manifest, verification, architecture)
     eventkit_retirement = is_owner_controlled_eventkit_retirement_wave(manifest, verification, architecture)
     learning_baseline = is_learning_baseline_migration_wave(manifest, verification, architecture)
-    bounded_development = structural_no_effect or sandbox_effect or eventkit_effect or vertical_retirement or eventkit_retirement or learning_baseline
+    learning_evidence = is_learning_evidence_plumbing_wave(manifest, verification, architecture)
+    bounded_development = structural_no_effect or sandbox_effect or eventkit_effect or vertical_retirement or eventkit_retirement or learning_baseline or learning_evidence
     delta_paths = [str(row.get("path")) for row in git_delta]
     exact_additive_rollback = bool(
         bounded_development
@@ -1003,13 +1030,20 @@ def build_experiment_record(
         and b_migrate.get("decision") == "pass"
     )
     learning_rollback, learning_rollback_artifact = learning_baseline_rollback_evidence() if learning_baseline else (False, None)
+    learning_evidence_rollback = bool(
+        learning_evidence
+        and git_delta
+        and set(delta_paths) == set(changed_paths)
+        and _selected_scenario_passes(manifest, architecture, "target.learning_evidence_chain")
+        and b_migrate.get("decision") == "pass"
+    )
     compared_seed_ids = [str(row.get("seed_id")) for row in cvar.get("compared_rows", [])]
     compared_assertions = [str(row.get("name")) for row in b_migrate.get("assertions", [])]
     deltas = [float(row.get("delta_top_reward", 0.0)) for row in cvar.get("compared_rows", [])]
     worst_delta = min(deltas) if deltas else None
     ablation_stable = bool(bounded_development and b_migrate.get("decision") == "pass")
     rollback_restored = bool(
-        (exact_additive_rollback or cited_read_side_rollback or eventkit_selector_rollback or retirement_selector_rollback or eventkit_retirement_selector_rollback or learning_rollback)
+        (exact_additive_rollback or cited_read_side_rollback or eventkit_selector_rollback or retirement_selector_rollback or eventkit_retirement_selector_rollback or learning_rollback or learning_evidence_rollback)
         and verification.get("decision") == "pass"
         and architecture.get("decision") == "pass"
         and cvar.get("decision") == "pass"
@@ -1101,6 +1135,7 @@ def build_experiment_record(
                         "incumbent_read_selector"
                         if cited_read_side_rollback
                         else "signed_policy_pointer" if learning_rollback
+                        else "exact_learning_evidence_revert" if learning_evidence_rollback
                         else "owner_frozen_binding_selector" if eventkit_retirement_selector_rollback
                         else "owner_frozen_selector" if retirement_selector_rollback
                         else "incumbent_effect_selector" if eventkit_selector_rollback
@@ -1113,7 +1148,7 @@ def build_experiment_record(
                     "candidate_app_tree_sha": candidate_repository.get("app_tree_sha"),
                     "git_delta": git_delta,
                     "binding_verification": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
-                    "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect or eventkit_effect or vertical_retirement or eventkit_retirement) else None,
+                    "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect or eventkit_effect or vertical_retirement or eventkit_retirement or learning_evidence) else None,
                     "signed_policy_rollback": learning_rollback_artifact,
                 }
                 if bounded_development
@@ -1128,6 +1163,7 @@ def build_experiment_record(
                         "The independent incumbent projection remains executable and equivalent behind the compatibility selector."
                         if cited_read_side_rollback
                         else "The separately signed rollback record restored the exact baseline CURRENT pointer and verified payload." if learning_rollback
+                        else "Reverting the manifest-complete evidence-only runtime delta restores the signed base; the independent incumbent projection remains equivalent." if learning_evidence_rollback
                         else (
                             "The owner-frozen selector restores the incumbent with one active owner for the exact retired pair."
                             if retirement_selector_rollback
@@ -1163,6 +1199,7 @@ def build_experiment_record(
                 else "owner_controlled_eventkit_sandbox" if eventkit_effect
                 else "owner_controlled_vertical_retirement" if vertical_retirement
                 else "owner_controlled_eventkit_binding_retirement" if eventkit_retirement
+                else "learning_evidence_plumbing" if learning_evidence
                 else "behavior_evidence_incomplete"
             ),
         },
@@ -1180,11 +1217,12 @@ def build_experiment_record(
                 else "bounded_owner_controlled_eventkit_probe" if eventkit_effect
                 else "bounded_deterministic_runtime_retirement" if vertical_retirement
                 else "bounded_eventkit_binding_retirement" if eventkit_retirement
+                else "pre_epoch_recommendation_evidence_only" if learning_evidence
                 else None
             ),
         },
         "statistics": {
-            "estimand": "no product effect" if ruler else "protected behavior equivalence",
+            "estimand": "no product effect" if ruler else ("causal evidence-chain conformance with protected behavior equivalence" if learning_evidence else "protected behavior equivalence"),
             "uncertainty_method": "seed bootstrap",
             "equivalence_margin": cvar.get("thresholds", {}).get("values", {}).get("max_delta_variance"),
             "protected_slices": compared_seed_ids,
@@ -1204,6 +1242,7 @@ def build_experiment_record(
                             else (
                                 "The claim is limited to one person-confirmed managed EventKit binding, receipt-owned compensation, and protected-observable equivalence; no global production or human-outcome improvement is claimed."
                                 if eventkit_retirement
+                                else "The claim is limited to causal decision/exposure/outcome capture and protected-observable equivalence; pre-epoch rows remain search-only and no human-outcome improvement is claimed." if learning_evidence
                                 else "The claim is limited to structural non-reachability and protected-observable equivalence; no human-outcome effect is claimed."
                             )
                         )

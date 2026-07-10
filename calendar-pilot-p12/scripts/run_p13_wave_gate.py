@@ -28,6 +28,7 @@ from evals.p13_ruler.wave import (
     is_owner_controlled_sandbox_wave,
     is_owner_controlled_vertical_retirement_wave,
     is_learning_baseline_migration_wave,
+    is_learning_evidence_plumbing_wave,
     is_structurally_no_effect_wave,
     load_json,
     resolve,
@@ -48,6 +49,7 @@ def uses_fixed_reward_fixture(
         or is_owner_controlled_vertical_retirement_wave(manifest, verification, architecture)
         or is_owner_controlled_eventkit_retirement_wave(manifest, verification, architecture)
         or is_learning_baseline_migration_wave(manifest, verification, architecture)
+        or is_learning_evidence_plumbing_wave(manifest, verification, architecture)
     )
 
 
