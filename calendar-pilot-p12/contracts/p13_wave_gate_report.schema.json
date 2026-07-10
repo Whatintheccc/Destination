@@ -18,7 +18,7 @@
     "gates": {
       "type": "object",
       "additionalProperties": {"enum": ["pass", "hold", "fail"]},
-      "required": ["binding_manifest", "architecture", "cvar", "b_migrate", "p12_release", "reward_identity", "root_list", "loc", "experiment_record", "schema_validation"]
+      "required": ["binding_manifest", "architecture", "cvar", "b_migrate", "p12_release", "reward_screen", "root_list", "loc", "experiment_record", "schema_validation"]
     },
     "schema_checks": {"type": "array", "minItems": 5},
     "producer_runs": {"type": "object"},

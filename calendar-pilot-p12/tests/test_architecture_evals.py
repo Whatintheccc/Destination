@@ -550,9 +550,13 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                 "instrument_mutation_rejection",
                 {"ruler": {"baseline_valid": True, "tampered_rejected": False, "tampered_reason": ""}},
             ),
-            "optimizer_tcb_write_accepted": (
-                "optimizer_write_boundary",
+            "manifest_protected_path_accepted": (
+                "binding_manifest_protected_path_rejection",
                 {"ruler": {"protected_path_decision": "pass", "protected_failure_codes": []}},
+            ),
+            "promotion_override_accepted": (
+                "promotion_override_rejection",
+                {"promotion": {"forced_returncode": 0, "automatic_returncode": 0, "forced_decision": "pass", "automatic_decision": "pass", "current_unchanged": False, "promotion_trees_unchanged": False, "promotion_artifact_writes": 1}},
             ),
             "p13_target_claim_without_evidence": (
                 "p13_target_not_implemented",
@@ -560,7 +564,7 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
             ),
         }
 
-        self.assertEqual(len(planted), 25)
+        self.assertEqual(len(planted), 26)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():

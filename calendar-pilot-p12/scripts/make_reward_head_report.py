@@ -73,7 +73,7 @@ def _summarize_source(path: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | None = None, require_authenticated_provenance: bool = False) -> dict[str, Any]:
+def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | None = None, require_source_shape: bool = False) -> dict[str, Any]:
     paths=replay_paths or ([replay_path] if replay_path is not None else [])
     rows=[]
     source_summaries=[]
@@ -91,7 +91,7 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
     non_action_stream_rows=0
     malformed_rows=[]
     consumed_reward_rows=[]
-    unauthenticated_reward_rows=[]
+    invalid_source_shape_rows=[]
     human_row_ids=[]
     simulator_row_ids=[]
     simulator_positive_credit_violations=[]
@@ -121,7 +121,7 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
             continue
         consumed_action_ids.append(row_id)
         source=row.get('_p13_source') if isinstance(row.get('_p13_source'),dict) else {}
-        global_row_id='rewardrow:'+hashlib.sha256(json.dumps({
+        occurrence_id='rewardoccurrence:'+hashlib.sha256(json.dumps({
             'source_sha256':source.get('sha256'),
             'line_no':source.get('line_no'),
             'record_id':row_id,
@@ -132,15 +132,15 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
         reward_event_id=str(reward.get('reward_event_id') or '')
         if provenance=='human_ui':
             source_class='human'
-            authenticated=bool(reward_event_id and trace_id and causal_parent_id.startswith('feedback:'))
+            source_shape_valid=bool(reward_event_id and trace_id and causal_parent_id.startswith('feedback:'))
         elif provenance in {'self_play_simulator','simulator'}:
             source_class='simulator'
-            authenticated=bool(reward_event_id and trace_id.startswith('self_play:') and causal_parent_id)
+            source_shape_valid=bool(reward_event_id and trace_id.startswith('self_play:') and causal_parent_id)
         else:
             source_class='unknown'
-            authenticated=False
+            source_shape_valid=False
         identity={
-            'global_row_id':global_row_id,
+            'occurrence_id':occurrence_id,
             'record_id':row_id,
             'source_artifact_sha256':source.get('sha256'),
             'source_line_no':source.get('line_no'),
@@ -149,23 +149,30 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
             'causal_parent_id':causal_parent_id or None,
             'provenance':provenance,
             'source_class':source_class,
-            'source_authenticated':authenticated,
-            'authentication_basis':'human_feedback_causal_parent' if authenticated and source_class=='human' else 'self_play_trace_and_receipt' if authenticated else None,
-            'positive_human_utility_credit_eligible':source_class=='human' and authenticated,
+            'source_shape_valid':source_shape_valid,
+            'classification_basis':'declared_human_feedback_reference_shape' if source_shape_valid and source_class=='human' else 'declared_self_play_reference_shape' if source_shape_valid else None,
+            'declared_human_shape_valid':source_class=='human' and source_shape_valid,
         }
         consumed_reward_rows.append(identity)
-        if not authenticated:
-            unauthenticated_reward_rows.append(global_row_id)
+        if not source_shape_valid:
+            invalid_source_shape_rows.append(occurrence_id)
         elif source_class=='human':
-            human_row_ids.append(global_row_id)
+            human_row_ids.append(occurrence_id)
         elif source_class=='simulator':
-            simulator_row_ids.append(global_row_id)
+            simulator_row_ids.append(occurrence_id)
+        if require_source_shape and source_class=='simulator':
+            try:
+                total_reward=float(reward.get('total_reward', 0.0) or 0.0)
+            except (TypeError, ValueError):
+                total_reward=0.0
+            if total_reward > 0.0:
+                simulator_positive_credit_violations.append({'occurrence_id':occurrence_id,'head':'total_reward','attempted_credit':total_reward})
         for head, field in REWARD_FIELDS.items():
             try:
                 value=float(reward.get(field, 0.0) or 0.0)
-                if require_authenticated_provenance and source_class=='simulator' and head in {'utility','acceptance','engagement'}:
+                if require_source_shape and source_class=='simulator' and head in {'utility','acceptance','engagement'}:
                     if value > 0.0:
-                        simulator_positive_credit_violations.append({'global_row_id':global_row_id,'head':head,'attempted_credit':value})
+                        simulator_positive_credit_violations.append({'occurrence_id':occurrence_id,'head':head,'attempted_credit':value})
                     value=0.0
                 values[head].append(value)
             except (TypeError, ValueError):
@@ -189,9 +196,9 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
             all(deltas[f'{head}_delta'] <= 0.0 for head in HEADS if head!='engagement')
         ),
         'reward_purity':not reward_purity_violations,
-        'global_row_identity':len({row['global_row_id'] for row in consumed_reward_rows})==len(consumed_reward_rows),
-        'source_authenticated_provenance':not require_authenticated_provenance or not unauthenticated_reward_rows,
-        'simulator_no_positive_human_utility_credit':not simulator_positive_credit_violations,
+        'occurrence_identity_unique':len({row['occurrence_id'] for row in consumed_reward_rows})==len(consumed_reward_rows),
+        'declared_source_shape':not require_source_shape or not invalid_source_shape_rows,
+        'direct_simulator_credit_screen':not simulator_positive_credit_violations,
     }
     hold_reasons=[]
     if not consumed_action_ids:
@@ -207,12 +214,12 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
             'owner':'instrument owner',
             'next_unblock_action':'repair replay JSONL before using reward heads for promotion',
         })
-    if require_authenticated_provenance and unauthenticated_reward_rows:
+    if require_source_shape and invalid_source_shape_rows:
         hold_reasons.append({
-            'reason':'one or more reward rows lack source-authenticated human/simulator provenance',
-            'global_row_ids':unauthenticated_reward_rows,
+            'reason':'one or more reward rows lack the declared human/simulator causal-reference shape',
+            'occurrence_ids':invalid_source_shape_rows,
             'owner':'reward ingress owner',
-            'next_unblock_action':'supply explicit causal human-feedback or self-play provenance at reward ingress',
+            'next_unblock_action':'supply explicit causal references; a later ingress contract must authenticate and resolve them',
         })
     if reward_purity_violations:
         decision='fail'
@@ -228,7 +235,7 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
             'next_unblock_action':'inspect reward_head_deltas and replay evidence rows',
         })
     return {
-        'reward_head_report_schema_version':'reward_head_report.v2' if require_authenticated_provenance else 'reward_head_report.v1',
+        'reward_head_report_schema_version':'reward_head_report.v3' if require_source_shape else 'reward_head_report.v1',
         'reward_head_deltas':deltas,
         'reward_evidence':{
             'source_replay':str(paths[0]) if paths else '',
@@ -244,17 +251,17 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
             'consumed_action_row_ids':consumed_action_ids,
             'non_action_stream_reward_rows':non_action_reward_rows,
             'reward_purity_violations':reward_purity_violations,
-            'global_identity_scheme':'sha256(source_artifact_sha256,line_no,record_id)',
+            'occurrence_identity_scheme':'sha256(source_artifact_sha256,line_no,record_id)',
             'consumed_reward_rows':consumed_reward_rows,
-            'global_row_ids_unique':len({row['global_row_id'] for row in consumed_reward_rows})==len(consumed_reward_rows),
-            'provenance_separation':{
-                'human_global_row_ids':human_row_ids,
-                'simulator_global_row_ids':simulator_row_ids,
-                'unauthenticated_global_row_ids':unauthenticated_reward_rows,
-                'simulator_positive_human_utility_credit':'forbidden',
+            'occurrence_ids_unique':len({row['occurrence_id'] for row in consumed_reward_rows})==len(consumed_reward_rows),
+            'declared_source_classification':{
+                'human_occurrence_ids':human_row_ids,
+                'simulator_occurrence_ids':simulator_row_ids,
+                'invalid_source_shape_occurrence_ids':invalid_source_shape_rows,
+                'direct_simulator_positive_credit':'screened',
                 'simulator_positive_credit_violations':simulator_positive_credit_violations,
             },
-            'authenticated_provenance_required':require_authenticated_provenance,
+            'source_shape_required':require_source_shape,
         },
         'gates':gates,
         'hold_reasons':hold_reasons,
@@ -263,9 +270,9 @@ def build_report(*, replay_path: Path | None = None, replay_paths: list[Path] | 
 
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--replay',action='append',default=None); ap.add_argument('--require-authenticated-provenance',action='store_true'); ap.add_argument('--out',default='runs/p12_reward_head_report.json'); args=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument('--replay',action='append',default=None); ap.add_argument('--require-source-shape',action='store_true'); ap.add_argument('--out',default='runs/p12_reward_head_report.json'); args=ap.parse_args()
     replay_args=args.replay or ['tests/fixtures/replay_golden.jsonl']
-    payload=build_report(replay_paths=[_resolve(p) for p in replay_args],require_authenticated_provenance=args.require_authenticated_provenance)
+    payload=build_report(replay_paths=[_resolve(p) for p in replay_args],require_source_shape=args.require_source_shape)
     out=Path(args.out); out=out if out.is_absolute() else ROOT/out; atomic_write_json(out,payload); print(json.dumps({'ok':payload['decision']=='pass','decision':payload['decision'],'out':str(out)},indent=2))
-    raise SystemExit(1 if payload['decision']=='fail' or (args.require_authenticated_provenance and payload['decision']!='pass') else 0)
+    raise SystemExit(1 if payload['decision']=='fail' or (args.require_source_shape and payload['decision']!='pass') else 0)
 if __name__=='__main__': main()

@@ -29,7 +29,7 @@
     "outcomes": {"type": "object", "required": ["reward_vector", "source_identity", "provenance", "outcome_window"]},
     "statistics": {"type": "object", "required": ["estimand", "uncertainty_method", "equivalence_margin", "protected_slices"]},
     "identifiability": {"type": "object", "required": ["status", "reason"], "properties": {"status": {"enum": ["identified", "not_identifiable", "not_applicable"]}}},
-    "attestations": {"type": "object", "required": ["binding_manifest", "architecture", "cvar", "b_migrate", "p12_release", "reward_identity", "root_list", "loc"]},
+    "attestations": {"type": "object", "required": ["binding_manifest", "architecture", "cvar", "b_migrate", "p12_release", "reward_screen", "root_list", "loc"]},
     "decision": {"enum": ["pass", "hold", "fail"]}
   },
   "allOf": [

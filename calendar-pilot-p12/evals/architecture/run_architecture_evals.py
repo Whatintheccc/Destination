@@ -77,6 +77,7 @@ REQUIRED_V2_TARGET_SCENARIO_IDS = {
     "target.frontier_safety_vector_v2",
     "target.binding_manifest_signature",
     "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
     "target.instrument_mutation_rejection",
     "target.optimizer_write_boundary",
     "target.holdout_non_exposure",

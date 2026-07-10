@@ -19,8 +19,9 @@ from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrum
 RULER_TARGETS = {
     "target.binding_manifest_signature",
     "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
     "target.instrument_mutation_rejection",
-    "target.optimizer_write_boundary",
+    "target.promotion_override_rejection",
 }
 
 
@@ -147,6 +148,11 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
             self.assertEqual(by_id["target.effect_ticket_binding"]["gate_mode"], "required")
             self.assertEqual(by_id["target.effect_ticket_binding"]["status"], "not_reached")
             self.assertEqual(report["decision"], "hold")
+
+    def test_optimizer_boundary_remains_explicit_debt(self):
+        scenario_set = load_scenario_set(P13_SCENARIOS)
+        row = next(row for row in scenario_set["scenarios"] if row["scenario_id"] == "target.optimizer_write_boundary")
+        self.assertEqual(row["predicate_id"], "p13_target_not_implemented")
 
 
 if __name__ == "__main__":

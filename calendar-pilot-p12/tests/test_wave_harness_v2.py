@@ -206,7 +206,7 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
         broken["change_class"] = "compression"
         self.assertTrue(list(Draft202012Validator(schema).iter_errors(broken)))
 
-    def test_reward_rows_gain_global_identity_and_authenticated_source_class(self):
+    def test_reward_rows_gain_occurrence_identity_and_declared_source_class(self):
         with tempfile.TemporaryDirectory() as td:
             replay = Path(td) / "rewards.jsonl"
             rows = [
@@ -230,23 +230,32 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
                 },
             ]
             replay.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
-            report = build_reward_report(replay_path=replay, require_authenticated_provenance=True)
+            report = build_reward_report(replay_path=replay, require_source_shape=True)
             self.assertEqual(report["decision"], "pass")
             evidence = report["reward_evidence"]
-            self.assertTrue(evidence["global_row_ids_unique"])
-            self.assertEqual(len(evidence["provenance_separation"]["human_global_row_ids"]), 1)
-            self.assertEqual(len(evidence["provenance_separation"]["simulator_global_row_ids"]), 1)
+            self.assertTrue(evidence["occurrence_ids_unique"])
+            self.assertEqual(len(evidence["declared_source_classification"]["human_occurrence_ids"]), 1)
+            self.assertEqual(len(evidence["declared_source_classification"]["simulator_occurrence_ids"]), 1)
             rows[0]["causal_parent_id"] = "forged"
             replay.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
-            planted = build_reward_report(replay_path=replay, require_authenticated_provenance=True)
+            planted = build_reward_report(replay_path=replay, require_source_shape=True)
             self.assertEqual(planted["decision"], "hold")
-            self.assertFalse(planted["gates"]["source_authenticated_provenance"])
+            self.assertFalse(planted["gates"]["declared_source_shape"])
             rows[0]["causal_parent_id"] = "feedback:event-1"
             rows[1]["payload"]["reward"]["utility_reward"] = 1.0
             replay.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
-            credit_attack = build_reward_report(replay_path=replay, require_authenticated_provenance=True)
+            credit_attack = build_reward_report(replay_path=replay, require_source_shape=True)
             self.assertEqual(credit_attack["decision"], "hold")
-            self.assertFalse(credit_attack["gates"]["simulator_no_positive_human_utility_credit"])
+            self.assertFalse(credit_attack["gates"]["direct_simulator_credit_screen"])
+            rows[1]["payload"]["reward"]["utility_reward"] = 0.0
+            rows[1]["payload"]["reward"]["total_reward"] = 1.0
+            replay.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+            aggregate_attack = build_reward_report(replay_path=replay, require_source_shape=True)
+            self.assertEqual(aggregate_attack["decision"], "hold")
+            self.assertIn(
+                "total_reward",
+                {row["head"] for row in aggregate_attack["reward_evidence"]["declared_source_classification"]["simulator_positive_credit_violations"]},
+            )
 
 
 if __name__ == "__main__":

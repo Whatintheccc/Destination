@@ -572,7 +572,7 @@ def build_experiment_record(
         "cvar": cvar.get("decision"),
         "b_migrate": b_migrate.get("decision"),
         "p12_release": release.get("decision"),
-        "reward_identity": reward.get("decision"),
+        "reward_screen": reward.get("decision"),
         "root_list": root_list.get("decision"),
         "loc": loc.get("decision"),
     }
@@ -659,8 +659,11 @@ def build_experiment_record(
         "candidate": None,
         "outcomes": {
             "reward_vector": reward.get("reward_head_deltas"),
-            "source_identity": reward.get("reward_evidence", {}).get("consumed_reward_rows"),
-            "provenance": reward.get("reward_evidence", {}).get("provenance_separation"),
+            "source_identity": {
+                "status": "not_established",
+                "occurrences": reward.get("reward_evidence", {}).get("consumed_reward_rows"),
+            },
+            "provenance": reward.get("reward_evidence", {}).get("declared_source_classification"),
             "outcome_window": None,
         },
         "statistics": {
@@ -679,7 +682,7 @@ def build_experiment_record(
             "cvar": artifact_ref(cvar_report_path, decision=str(cvar.get("decision"))),
             "b_migrate": artifact_ref(b_migrate_report_path, decision=str(b_migrate.get("decision"))),
             "p12_release": artifact_ref(release_report_path, decision=str(release.get("decision"))),
-            "reward_identity": artifact_ref(reward_report_path, decision=str(reward.get("decision"))),
+            "reward_screen": artifact_ref(reward_report_path, decision=str(reward.get("decision"))),
             "root_list": artifact_ref(root_list_report_path, decision=str(root_list.get("decision"))),
             "loc": artifact_ref(loc_report_path, decision=str(loc.get("decision"))),
         },

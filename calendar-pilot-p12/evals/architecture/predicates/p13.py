@@ -50,14 +50,37 @@ def instrument_mutation_rejection(vector: dict[str, Any]) -> PredicateResult:
     return _result("pass", "InstrumentBundle validation rejects a content-addressed artifact mutation.", reason=ruler.get("tampered_reason"))
 
 
-def optimizer_write_boundary(vector: dict[str, Any]) -> PredicateResult:
+def binding_manifest_protected_path_rejection(vector: dict[str, Any]) -> PredicateResult:
     ruler = _ruler(vector)
     codes = {str(value) for value in ruler.get("protected_failure_codes", [])}
     if ruler.get("protected_path_decision") is None:
-        return _result("hold", "Optimizer write-boundary evidence is incomplete.", ruler=ruler)
+        return _result("hold", "Protected-path affectedness evidence is incomplete.", ruler=ruler)
     if ruler.get("protected_path_decision") != "fail" or not {"undeclared_path", "undeclared_affectedness"}.issubset(codes):
-        return _result("fail", "A protected effect-TCB path escaped the declared optimizer scope.", ruler=ruler)
-    return _result("pass", "A protected effect-TCB path outside optimizer scope is rejected.", failure_codes=sorted(codes))
+        return _result("fail", "A protected effect-TCB path escaped the signed manifest scope.", ruler=ruler)
+    return _result("pass", "A protected effect-TCB path outside the signed scope is rejected.", failure_codes=sorted(codes))
+
+
+def promotion_override_rejection(vector: dict[str, Any]) -> PredicateResult:
+    promotion = vector.get("promotion")
+    promotion = promotion if isinstance(promotion, dict) else {}
+    required = {
+        "forced_returncode", "automatic_returncode", "forced_decision", "automatic_decision",
+        "current_unchanged", "promotion_trees_unchanged", "promotion_artifact_writes",
+    }
+    if not required.issubset(promotion):
+        return _result("hold", "Frozen-promotion evidence is incomplete.", promotion=promotion)
+    ok = (
+        int(promotion["forced_returncode"]) != 0
+        and int(promotion["automatic_returncode"]) != 0
+        and promotion["forced_decision"] == "hold"
+        and promotion["automatic_decision"] == "hold"
+        and promotion["current_unchanged"] is True
+        and promotion["promotion_trees_unchanged"] is True
+        and int(promotion["promotion_artifact_writes"]) == 0
+    )
+    if not ok:
+        return _result("fail", "Forced or automatic promotion retained a writable aperture.", promotion=promotion)
+    return _result("pass", "Forced and automatic promotion are held before any promotion/report artifact write; CURRENT is unchanged.", promotion=promotion)
 
 
 def p13_target_not_implemented(vector: dict[str, Any]) -> PredicateResult:
@@ -83,6 +106,7 @@ P13_PREDICATES: dict[str, Predicate] = {
     "binding_manifest_signature": binding_manifest_signature,
     "binding_manifest_affectedness": binding_manifest_affectedness,
     "instrument_mutation_rejection": instrument_mutation_rejection,
-    "optimizer_write_boundary": optimizer_write_boundary,
+    "binding_manifest_protected_path_rejection": binding_manifest_protected_path_rejection,
+    "promotion_override_rejection": promotion_override_rejection,
     "p13_target_not_implemented": p13_target_not_implemented,
 }

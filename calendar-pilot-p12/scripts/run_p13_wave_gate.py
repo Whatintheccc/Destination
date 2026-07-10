@@ -153,14 +153,14 @@ def main() -> None:
     if manifest.get("change_class") == "ruler" and not release_env.get("CALENDAR_PILOT_REWARD_REPLAY"):
         release_env["CALENDAR_PILOT_REWARD_REPLAY"] = "tests/fixtures/p13_action_rewards.jsonl"
     release_run = _run([sys.executable, "scripts/run_p12_release.py"], artifact=release_path, env=release_env)
-    reward_path = artifacts / "reward_identity_report.json"
+    reward_path = artifacts / "reward_screen_report.json"
     reward_run = _run(
         [
             sys.executable,
             "scripts/make_reward_head_report.py",
             "--replay",
             "runs/p12_release/action_reward_replay.jsonl",
-            "--require-authenticated-provenance",
+            "--require-source-shape",
             "--out",
             str(reward_path),
         ],
@@ -197,7 +197,7 @@ def main() -> None:
         _schema_status(load_json(b_new), "b_migrate_artifact.schema.json"),
         _schema_status(b_migrate, "b_migrate_report_v2.schema.json"),
         _schema_status(root_list, "p13_root_list_verification.schema.json"),
-        _schema_status(load_json(reward_path), "reward_head_report_v2.schema.json"),
+        _schema_status(load_json(reward_path), "reward_head_report_v3.schema.json"),
         _schema_status(experiment, "experiment_record_v2.schema.json"),
     ]
     gates = {
@@ -206,7 +206,7 @@ def main() -> None:
         "cvar": cvar.get("decision", "fail"),
         "b_migrate": b_migrate.get("decision", "fail"),
         "p12_release": _artifact_decision(release_path),
-        "reward_identity": _artifact_decision(reward_path),
+        "reward_screen": _artifact_decision(reward_path),
         "root_list": root_list.get("decision", "fail"),
         "loc": loc.get("decision", "fail"),
         "experiment_record": experiment.get("decision", "fail"),
@@ -223,14 +223,14 @@ def main() -> None:
         "gates": gates,
         "schema_checks": schema_checks,
         "producer_runs": producer_runs,
-        "subprocesses": {"architecture": architecture_run, "p12_release": release_run, "reward_identity": reward_run},
+        "subprocesses": {"architecture": architecture_run, "p12_release": release_run, "reward_screen": reward_run},
         "artifacts": {
             "binding_verification": str(verification_path),
             "architecture": str(architecture_path),
             "cvar": str(cvar_path),
             "b_migrate": str(b_migrate_path),
             "p12_release": str(release_path),
-            "reward_identity": str(reward_path),
+            "reward_screen": str(reward_path),
             "root_list": str(root_list_path),
             "loc": str(loc_path),
             "experiment_record": str(experiment_path),

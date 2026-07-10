@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -35,7 +36,7 @@ DEBT_EVIDENCE: dict[str, tuple[str, list[str]]] = {
     "no_learning_effect_path": ("Learning/meta write isolation is not machine-enforced end to end.", ["no ticket minting", "no Gateway reachability"]),
     "frontier_safety_vector_v2": ("Four-role Frontier port has not landed.", ["respondent", "provenance", "failure", "variance", "cost", "latency"]),
     "holdout_non_exposure": ("Sealed learning holdout is a P13.6 prerequisite.", ["optimizer-denied cases/traces/per-case scores"]),
-    "promotion_override_rejection": ("Current lab promotion still accepts a force-promote argument.", ["failed hard gate cannot update CURRENT"]),
+    "optimizer_write_boundary": ("No isolated optimizer executor or denied-syscall/mount-profile evidence exists.", ["declared candidate writes succeed", "evaluator/manifest/TCB/CURRENT writes are denied by the execution boundary"]),
     "reward_identity_provenance": ("Global reward identity and transitive simulator separation are incomplete.", ["source-authenticated global row id", "human/simulator decision role"]),
     "monitor_counterexample_detectability": ("V2 monitor identity has not landed.", ["planted counterexample", "detection latency", "resulting hold"]),
     "executable_explanation_controls_v2": ("Four-role executable control routes have not landed.", ["route", "authority", "artifact", "receipt"]),
@@ -70,6 +71,55 @@ class P13CurrentAdapter:
             stderr=subprocess.DEVNULL,
         )
         return private_key, public_key
+
+    def _promotion_tree_digest(self) -> str:
+        digest = hashlib.sha256()
+        for root in [self.root / "experiments/promoted", self.root / "experiments/reports"]:
+            if not root.exists():
+                continue
+            for path in sorted(value for value in root.rglob("*") if value.is_file()):
+                digest.update(path.relative_to(self.root).as_posix().encode("utf-8"))
+                digest.update(b"\0")
+                digest.update(path.read_bytes())
+                digest.update(b"\0")
+        return digest.hexdigest()
+
+    def _promotion_freeze_evidence(self, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
+        current = self.root / "experiments/promoted/CURRENT.json"
+        current_before = current.read_bytes()
+        tree_before = self._promotion_tree_digest()
+
+        def invoke(*extra: str) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
+            process = subprocess.run(
+                ["python3", "scripts/promote_policy.py", "--batch", "architecture-eval-freeze", *extra],
+                cwd=self.root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            try:
+                payload = json.loads(process.stdout)
+            except json.JSONDecodeError:
+                payload = {}
+            return process, payload
+
+        forced, forced_payload = invoke("--decide", "promote")
+        automatic, automatic_payload = invoke()
+        evidence = {
+            "forced_returncode": forced.returncode,
+            "automatic_returncode": automatic.returncode,
+            "forced_decision": forced_payload.get("decision"),
+            "automatic_decision": automatic_payload.get("decision"),
+            "current_unchanged": current.read_bytes() == current_before,
+            "promotion_trees_unchanged": self._promotion_tree_digest() == tree_before,
+            "promotion_artifact_writes": max(
+                int(forced_payload.get("promotion_artifact_writes", -1)),
+                int(automatic_payload.get("promotion_artifact_writes", -1)),
+            ),
+        }
+        evidence_path = self._write(scenario_dir / "promotion_freeze_evidence.json", evidence)
+        return {"promotion": evidence}, [("promotion_freeze_evidence", evidence_path)]
 
     def _ruler_fixture(self, scenario_dir: Path, *, scope_kind: str = "frontend") -> tuple[dict[str, Any], list[tuple[str, Path]]]:
         private_key, public_key = self._keys(scenario_dir)
@@ -130,11 +180,15 @@ class P13CurrentAdapter:
             return {"target_capability": {"reached": False, "blocker": blocker, "required_evidence": required}}, []
         if case not in {
             "binding_manifest_signature", "binding_manifest_affectedness",
-            "instrument_mutation_rejection", "optimizer_write_boundary",
+            "instrument_mutation_rejection", "binding_manifest_protected_path_rejection",
+            "promotion_override_rejection",
         }:
             return self.p12.collect(case, scenario_dir)
 
-        if case == "optimizer_write_boundary":
+        if case == "promotion_override_rejection":
+            return self._promotion_freeze_evidence(scenario_dir)
+
+        if case == "binding_manifest_protected_path_rejection":
             fixture, artifacts = self._ruler_fixture(scenario_dir, scope_kind="optimizer")
             protected = verify_binding_manifest(
                 fixture["manifest"],

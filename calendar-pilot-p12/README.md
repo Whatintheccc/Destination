@@ -178,12 +178,20 @@ Any undeclared path/category or changed instrument artifact fails closed.
 
 The binding wave harness verifies the manifest, runs scenario-set v2, compares two
 independently materialized C-VAR frontier artifacts, invokes the manifest's separately
-named old/new `B_migrate` producer commands, runs P12 release, verifies global reward-row
-identity and human/simulator source provenance, validates signed live-leg/root-list
-entries and expiry, writes `experiment_record.v2`, and then reads every JSON decision.
+named old/new `B_migrate` producer commands, runs P12 release, verifies content-addressed
+reward-occurrence identity, declared source/reference shape, and direct simulator-credit
+screening, validates signed live-leg/root-list entries and expiry, writes
+`experiment_record.v2`, and then reads every JSON decision. This screen does not claim
+authenticated ingress or transitive simulator noninterference; those remain target debt.
 Both `hold` and `fail` return a nonzero shell status. Behavior-bearing waves must pass a
 clean pre-wave C-VAR artifact with `CVAR_BEFORE=<path>`; the harness will not regenerate
 their baseline after candidate work.
+
+`make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
+`--decide promote` invocations return blocking hold before promotion/report artifact
+writes and leave `CURRENT` byte-identical. P13.6 may
+replace that refusal only after immutable `PolicyPayload`, signed `PromotionRecord`,
+isolated evaluator/holdout, and atomic `CURRENT` rollback contracts are binding.
 
 `make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
 only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live
