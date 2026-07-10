@@ -1438,6 +1438,14 @@ nonbinding: its crash occurred after local external-ID persistence and its live 
 was not semantically validated. It cannot close this wave and must be replaced by an
 exact-final-candidate run satisfying the stronger certificate above.
 
+The subsequent exact-app candidate `71b770f6c4c99a889043d078ae49633a783ec617`
+satisfied that stronger live certificate, but its composite correctly held because the
+release wrapper omitted the managed EventKit retirement classifier when selecting the
+frozen reward fixture. That run is also nonbinding. The wrapper repair belongs to the
+frozen pre-product instrument; the candidate and live certificate must therefore be
+regenerated from a new signed base rather than bypassing the hold with an ambient
+environment override.
+
 The pre-edit certificate consolidates rather than duplicates the existing P13.3/P13.4
 state-machine cases. Its binding scenarios are:
 

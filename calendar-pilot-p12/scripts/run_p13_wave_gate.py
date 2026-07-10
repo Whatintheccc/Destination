@@ -23,6 +23,7 @@ from evals.p13_ruler.wave import (
     b_migrate_assertions_path,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
+    is_owner_controlled_eventkit_retirement_wave,
     is_owner_controlled_eventkit_sandbox_wave,
     is_owner_controlled_sandbox_wave,
     is_owner_controlled_vertical_retirement_wave,
@@ -44,6 +45,7 @@ def uses_fixed_reward_fixture(
         or is_owner_controlled_sandbox_wave(manifest, verification, architecture)
         or is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture)
         or is_owner_controlled_vertical_retirement_wave(manifest, verification, architecture)
+        or is_owner_controlled_eventkit_retirement_wave(manifest, verification, architecture)
     )
 
 
