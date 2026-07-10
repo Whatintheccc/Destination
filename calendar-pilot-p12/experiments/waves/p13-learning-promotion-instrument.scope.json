@@ -21,8 +21,12 @@
     "compression-roadmap.md"
   ],
   "declared": {
-    "actions": [],
-    "backends": [],
+    "actions": [
+      "*"
+    ],
+    "backends": [
+      "*"
+    ],
     "surfaces": [
       "app_access",
       "architecture_docs",
@@ -44,6 +48,7 @@
       "wave_gate"
     ],
     "control_planes": [
+      "effect_tcb",
       "evaluator",
       "optimizer"
     ]
