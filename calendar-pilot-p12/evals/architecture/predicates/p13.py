@@ -83,6 +83,117 @@ def promotion_override_rejection(vector: dict[str, Any]) -> PredicateResult:
     return _result("pass", "Forced and automatic promotion are held before any promotion/report artifact write; CURRENT is unchanged.", promotion=promotion)
 
 
+def _target_debt(vector: dict[str, Any]) -> PredicateResult | None:
+    capability = vector.get("target_capability")
+    capability = capability if isinstance(capability, dict) else {}
+    blocker = capability.get("blocker")
+    required_evidence = capability.get("required_evidence")
+    if capability.get("reached") is False and isinstance(blocker, str) and blocker and isinstance(required_evidence, list) and required_evidence:
+        return _result(
+            "not_reached",
+            "The target contract is explicit but has no independently graded implementation evidence.",
+            blocker=blocker,
+            required_evidence=required_evidence,
+        )
+    return None
+
+
+def optimizer_write_boundary(vector: dict[str, Any]) -> PredicateResult:
+    debt = _target_debt(vector)
+    if debt is not None:
+        return debt
+    evidence = vector.get("optimizer_execution")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    proposal = evidence.get("proposal") if isinstance(evidence.get("proposal"), dict) else {}
+    attempts = evidence.get("attempts") if isinstance(evidence.get("attempts"), list) else []
+    denied = {
+        (str(row.get("kind")), str(row.get("operation")))
+        for row in attempts
+        if isinstance(row, dict) and row.get("outcome") == "denied" and row.get("errno") in {1, 13}
+    }
+    required = {
+        ("evaluator", "write"),
+        ("manifest", "write"),
+        ("current", "write"),
+        ("effect_tcb", "write"),
+    }
+    if evidence.get("boundary") != "macos-sandbox-exec" or not evidence.get("profile_sha256"):
+        return _result("hold", "A real optimizer process boundary and content-addressed profile are required.", optimizer_execution=evidence)
+    if proposal.get("write_succeeded") is not True or not required.issubset(denied):
+        return _result("fail", "The optimizer could not write its proposal or a protected control-plane write escaped the OS boundary.", denied=sorted(denied), proposal=proposal)
+    return _result("pass", "The OS boundary permits immutable proposal output and denies evaluator, manifest, CURRENT, and effect-TCB writes.", denied=sorted(denied), proposal=proposal)
+
+
+def holdout_non_exposure(vector: dict[str, Any]) -> PredicateResult:
+    debt = _target_debt(vector)
+    if debt is not None:
+        return debt
+    partitions = vector.get("learning_partitions")
+    partitions = partitions if isinstance(partitions, dict) else {}
+    execution = vector.get("optimizer_execution")
+    execution = execution if isinstance(execution, dict) else {}
+    attempts = execution.get("attempts") if isinstance(execution.get("attempts"), list) else []
+    denied_reads = {
+        str(row.get("kind"))
+        for row in attempts
+        if isinstance(row, dict) and row.get("operation") == "read" and row.get("outcome") == "denied" and row.get("errno") in {1, 13}
+    }
+    hashes = [partitions.get(role, {}).get("artifact_sha256") for role in ("search", "holdout", "forward_shadow")]
+    disjointness = partitions.get("disjointness") if isinstance(partitions.get("disjointness"), dict) else {}
+    if None in hashes or len(set(hashes)) != 3:
+        return _result("hold", "Three distinct content-addressed learning partitions are required.", learning_partitions=partitions)
+    if not all(disjointness.get(key) is True for key in ("artifact_hashes_distinct", "family_sets_pairwise_disjoint", "forward_shadow_starts_after_search")):
+        return _result("fail", "Learning partitions are aliased, family-overlapping, or temporally invalid.", disjointness=disjointness)
+    if not {"holdout", "forward_shadow"}.issubset(denied_reads):
+        return _result("fail", "The optimizer process could read sealed holdout or forward-shadow evidence.", denied_reads=sorted(denied_reads))
+    return _result("pass", "Search, family-disjoint holdout, and forward-time shadow are distinct; sealed cases are denied by the optimizer process boundary.", partition_hashes=hashes, denied_reads=sorted(denied_reads))
+
+
+def signed_policy_promotion(vector: dict[str, Any]) -> PredicateResult:
+    debt = _target_debt(vector)
+    if debt is not None:
+        return debt
+    evidence = vector.get("policy_promotion")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    required_true = {
+        "payload_hash_verified",
+        "record_signature_verified",
+        "instrument_epoch_verified",
+        "binding_manifest_verified",
+        "all_attestations_passed",
+        "tampered_payload_rejected",
+        "bad_record_left_current_unchanged",
+        "valid_record_promoted_atomically",
+        "signed_rollback_restored_pointer",
+        "runtime_loaded_exact_payload_hash",
+    }
+    missing = sorted(key for key in required_true if evidence.get(key) is not True)
+    if missing:
+        return _result("fail" if evidence else "hold", "Signed policy promotion or rollback evidence is incomplete.", missing=missing, policy_promotion=evidence)
+    return _result("pass", "A content-addressed payload promotes only through a signed pass record; tampering is rejected and signed rollback restores the exact pointer.", policy_promotion=evidence)
+
+
+def reward_identity_provenance(vector: dict[str, Any]) -> PredicateResult:
+    debt = _target_debt(vector)
+    if debt is not None:
+        return debt
+    evidence = vector.get("reward_ingress")
+    evidence = evidence if isinstance(evidence, dict) else {}
+    required_true = {
+        "issuer_signatures_verified",
+        "global_occurrence_ids_unique",
+        "duplicate_conflict_rejected",
+        "source_class_from_registry",
+        "simulator_direct_positive_credit_rejected",
+        "simulator_transitive_positive_credit_rejected",
+        "synthetic_program_a_credit_rejected",
+    }
+    missing = sorted(key for key in required_true if evidence.get(key) is not True)
+    if missing:
+        return _result("fail" if evidence else "hold", "Authenticated reward identity or simulator noninterference is incomplete.", missing=missing, reward_ingress=evidence)
+    return _result("pass", "Signed issuer identity fixes global occurrence and source class; direct and transitive simulator-positive credit is rejected.", reward_ingress=evidence)
+
+
 def reducer_determinism(vector: dict[str, Any]) -> PredicateResult:
     evidence = vector.get("product_core")
     evidence = evidence if isinstance(evidence, dict) else {}
@@ -718,6 +829,10 @@ P13_PREDICATES: dict[str, Predicate] = {
     "instrument_mutation_rejection": instrument_mutation_rejection,
     "binding_manifest_protected_path_rejection": binding_manifest_protected_path_rejection,
     "promotion_override_rejection": promotion_override_rejection,
+    "optimizer_write_boundary": optimizer_write_boundary,
+    "holdout_non_exposure": holdout_non_exposure,
+    "signed_policy_promotion": signed_policy_promotion,
+    "reward_identity_provenance": reward_identity_provenance,
     "reducer_determinism": reducer_determinism,
     "cited_required_projection": cited_required_projection,
     "product_core_no_effect_reachability": product_core_no_effect_reachability,

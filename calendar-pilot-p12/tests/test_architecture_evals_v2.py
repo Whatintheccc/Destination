@@ -290,10 +290,19 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
         }})
         self.assertEqual(planted["status"], "fail")
 
-    def test_optimizer_boundary_remains_explicit_debt(self):
+    def test_p13_6_targets_have_specific_predicates_but_remain_explicit_debt(self):
         scenario_set = load_scenario_set(P13_SCENARIOS)
-        row = next(row for row in scenario_set["scenarios"] if row["scenario_id"] == "target.optimizer_write_boundary")
-        self.assertEqual(row["predicate_id"], "p13_target_not_implemented")
+        by_id = {row["scenario_id"]: row for row in scenario_set["scenarios"]}
+        expected = {
+            "target.optimizer_write_boundary": "optimizer_write_boundary",
+            "target.holdout_non_exposure": "holdout_non_exposure",
+            "target.signed_policy_promotion": "signed_policy_promotion",
+            "target.reward_identity_provenance": "reward_identity_provenance",
+        }
+        self.assertEqual(
+            {scenario_id: by_id[scenario_id]["predicate_id"] for scenario_id in expected},
+            expected,
+        )
 
     def test_p13_3_targets_use_frozen_evidence_predicate_before_implementation(self):
         scenario_set = load_scenario_set(P13_SCENARIOS)

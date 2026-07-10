@@ -53,6 +53,7 @@ DEBT_EVIDENCE: dict[str, tuple[str, list[str]]] = {
     "frontier_safety_vector_v2": ("Four-role Frontier port has not landed.", ["respondent", "provenance", "failure", "variance", "cost", "latency"]),
     "holdout_non_exposure": ("Sealed learning holdout is a P13.6 prerequisite.", ["optimizer-denied cases/traces/per-case scores"]),
     "optimizer_write_boundary": ("No isolated optimizer executor or denied-syscall/mount-profile evidence exists.", ["declared candidate writes succeed", "evaluator/manifest/TCB/CURRENT writes are denied by the execution boundary"]),
+    "signed_policy_promotion": ("The signed PolicyPayload/PromotionRecord transition and rollback drill have not landed.", ["content-addressed immutable payload", "signed pass record", "atomic CURRENT transition", "bad-payload rejection", "signed rollback"]),
     "reward_identity_provenance": ("Global reward identity and transitive simulator separation are incomplete.", ["source-authenticated global row id", "human/simulator decision role"]),
     "monitor_counterexample_detectability": ("V2 monitor identity has not landed.", ["planted counterexample", "detection latency", "resulting hold"]),
     "executable_explanation_controls_v2": ("Four-role executable control routes have not landed.", ["route", "authority", "artifact", "receipt"]),

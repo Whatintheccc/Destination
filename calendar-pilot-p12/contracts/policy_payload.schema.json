@@ -1,0 +1,67 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/policy_payload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PolicyPayloadV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_payload_schema_version",
+    "payload_id",
+    "parent_payload_id",
+    "policy_parameters",
+    "respondents",
+    "prompts",
+    "compatibility",
+    "training",
+    "resources",
+    "content_sha256"
+  ],
+  "properties": {
+    "policy_payload_schema_version": {"const": "policy_payload.v1"},
+    "payload_id": {"type": "string", "minLength": 1},
+    "parent_payload_id": {"type": ["string", "null"]},
+    "policy_parameters": {"type": "object", "minProperties": 1},
+    "respondents": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "prompts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reducer_versions", "schema_versions"],
+      "properties": {
+        "reducer_versions": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "schema_versions": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "training": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partition_id", "row_count", "row_set_sha256"],
+      "properties": {
+        "partition_id": {"type": "string", "minLength": 1},
+        "row_count": {"type": "integer", "minimum": 0},
+        "row_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed_set_sha256", "max_candidates", "max_compute_seconds"],
+      "properties": {
+        "seed_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "max_candidates": {"type": "integer", "minimum": 1},
+        "max_compute_seconds": {"type": "integer", "minimum": 1}
+      }
+    },
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

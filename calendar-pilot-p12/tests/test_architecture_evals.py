@@ -558,6 +558,22 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                 "promotion_override_rejection",
                 {"promotion": {"forced_returncode": 0, "automatic_returncode": 0, "forced_decision": "pass", "automatic_decision": "pass", "current_unchanged": False, "promotion_trees_unchanged": False, "promotion_artifact_writes": 1}},
             ),
+            "optimizer_boundary_missing": (
+                "optimizer_write_boundary",
+                {"optimizer_execution": {}},
+            ),
+            "holdout_exposed": (
+                "holdout_non_exposure",
+                {"learning_partitions": {}, "optimizer_execution": {}},
+            ),
+            "signed_promotion_incomplete": (
+                "signed_policy_promotion",
+                {"policy_promotion": {}},
+            ),
+            "reward_provenance_unauthenticated": (
+                "reward_identity_provenance",
+                {"reward_ingress": {}},
+            ),
             "nondeterministic_product_core": (
                 "reducer_determinism",
                 {"product_core": {"first_sha256": "a", "second_sha256": "b", "reducer_version": "v1", "event_types": []}},
@@ -653,7 +669,7 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
             ),
         }
 
-        self.assertEqual(len(planted), 34)
+        self.assertEqual(len(planted), 38)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():

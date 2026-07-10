@@ -313,11 +313,12 @@ normal receipt-owned `REQUEST_UNDO` path, and verifies exact-calendar absence. T
 remains `authorizes_production: false`; every other EventKit scope and production mode
 stays incumbent-owned.
 
-`make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
-`--decide promote` invocations return blocking hold before promotion/report artifact
-writes and leave `CURRENT` byte-identical. P13.6 may
-replace that refusal only after immutable `PolicyPayload`, signed `PromotionRecord`,
-sealed holdout, and atomic `CURRENT` rollback contracts are binding.
+`make lab-promote` remains frozen while the P13.6 ruler is installed. Direct, automatic,
+and `--decide promote` invocations return blocking hold before promotion/report artifact
+writes and leave `CURRENT` byte-identical. Run `make p13-learning-ruler-test` for the
+immutable payload, partition, process-boundary, provenance, and signed-transition
+contract checks. P13.6 may replace the refusal only after the corresponding implementation
+and atomic `CURRENT` rollback evidence are binding.
 
 `make test` is Python + Swift only. `make ml-ladder` is deterministic ML smoke
 only. `make p12-release` does not run browser, app-bundle, Swift IPC, or live

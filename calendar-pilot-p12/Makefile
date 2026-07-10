@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-attestation-scaffold-test p13-no-effect-test p13-cited-read-side-test p13-deterministic-sandbox-test p13-eventkit-sandbox-test p13-deterministic-retirement-test p13-eventkit-retirement-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-learning-ruler-test p13-attestation-scaffold-test p13-no-effect-test p13-cited-read-side-test p13-deterministic-sandbox-test p13-eventkit-sandbox-test p13-deterministic-retirement-test p13-eventkit-retirement-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
 .NOTPARALLEL: wave-harness
 
 py-test:
@@ -76,6 +76,9 @@ architecture-evals-v2:
 
 p13-ruler-test:
 	PYTHONPATH=src:tests python3 -m unittest test_p13_ruler
+
+p13-learning-ruler-test:
+	PYTHONPATH=src:tests python3 -m unittest test_p13_learning_promotion
 
 p13-attestation-scaffold-test:
 	PYTHONPATH=src:tests python3 -m unittest test_p13_attestation_scaffold

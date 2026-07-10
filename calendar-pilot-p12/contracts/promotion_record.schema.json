@@ -1,0 +1,107 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/promotion_record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PromotionRecordV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "promotion_record_schema_version",
+    "record_id",
+    "transition",
+    "created_at",
+    "payload",
+    "previous_current_sha256",
+    "instrument_bundle",
+    "binding_manifest",
+    "partition_manifest",
+    "attestations",
+    "reward_evidence",
+    "decision",
+    "signer",
+    "payload_sha256",
+    "signature"
+  ],
+  "properties": {
+    "promotion_record_schema_version": {"const": "promotion_record.v1"},
+    "record_id": {"type": "string", "minLength": 1},
+    "transition": {"enum": ["bootstrap", "promote", "rollback"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "payload": {"$ref": "#/$defs/artifact"},
+    "previous_current_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "instrument_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "file_sha256", "bundle_sha256", "instrument_epoch"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "file_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "instrument_epoch": {"type": "string", "minLength": 1}
+      }
+    },
+    "binding_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "manifest_id"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "manifest_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "partition_manifest": {"$ref": "#/$defs/artifact"},
+    "attestations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["search", "holdout", "forward_shadow"],
+      "properties": {
+        "search": {"$ref": "#/$defs/decisionArtifact"},
+        "holdout": {"$ref": "#/$defs/decisionArtifact"},
+        "forward_shadow": {"$ref": "#/$defs/decisionArtifact"}
+      }
+    },
+    "reward_evidence": {"anyOf": [{"$ref": "#/$defs/decisionArtifact"}, {"type": "null"}]},
+    "decision": {"const": "pass"},
+    "signer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "algorithm", "public_key_sha256"],
+      "properties": {
+        "role": {"const": "promoter"},
+        "algorithm": {"const": "rsa-sha256"},
+        "public_key_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value_base64"],
+      "properties": {
+        "algorithm": {"const": "rsa-sha256"},
+        "value_base64": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "decisionArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "decision"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "decision": {"const": "pass"}
+      }
+    }
+  }
+}
