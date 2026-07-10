@@ -1,0 +1,18 @@
+{
+  "decision": "pass",
+  "learning_attestation_schema_version": "learning_attestation.v1",
+  "optimizer_report_sha256": "28a1cf8d310d5efbf201cc6281e1afd56d93ce257902ec4560ca65bdb8c0b0e5",
+  "partition_sha256": "6fc15d66e447f67a5479090e89c56fdd613da29e84ec1ddba267a2fd282aedc5",
+  "payload_sha256": "46589c80e5f122913078fd6c9881e4e3b1f5aea10262f8157396b5620259515a",
+  "restore_current_pointer": {
+    "current_policy_pointer_schema_version": "current_policy_pointer.v1",
+    "payload_sha256": "fcf0450ddd259bc8fda10643023e60b650c8b43e6ee2fd2999db460ecdf9a932",
+    "promotion_record": {
+      "path": "experiments/learning/promoter/bootstrap/promotion_record.json",
+      "sha256": "412d5bc793e001594622dee68f4de62ba62f3329aa735e259739df7ebcdf59ed"
+    },
+    "transition": "bootstrap"
+  },
+  "restore_current_pointer_sha256": "2acfcbcbfe76e8f1fe5c28331cd34756c5a6716e24b64a5be9a4867f96fa9290",
+  "role": "search"
+}

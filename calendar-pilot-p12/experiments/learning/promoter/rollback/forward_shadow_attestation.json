@@ -1,0 +1,8 @@
+{
+  "claim": "no_effect_boundary_bootstrap_only",
+  "decision": "pass",
+  "forward_time": true,
+  "learning_attestation_schema_version": "learning_attestation.v1",
+  "partition_sha256": "d9094f3cba0d876ece8f01b73ec28c0d6e536e6a94d1aef92c6fb5cb99b85ee6",
+  "role": "forward_shadow"
+}

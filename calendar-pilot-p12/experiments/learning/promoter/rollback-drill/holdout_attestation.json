@@ -1,0 +1,8 @@
+{
+  "claim": "boundary_bootstrap_only",
+  "decision": "pass",
+  "family_disjoint": true,
+  "learning_attestation_schema_version": "learning_attestation.v1",
+  "partition_sha256": "bb9bcb49941ad451c1319a5a7420e9af48cd49a4fffb022714c0ec9e9465c590",
+  "role": "holdout"
+}
