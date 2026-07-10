@@ -11,6 +11,22 @@ from .journal import EvidenceJournal, JournalEvent, canonical_json_bytes
 
 
 REDUCER_VERSION = "product_core.create_prep_block.v1"
+CITED_CARD_PROJECTION_VERSION = "product_core.cited_candidate_card.v1"
+PROTECTED_CANDIDATE_CARD_FIELDS = {
+    "candidate_id", "control_notes", "intent", "model_story", "rank",
+    "required_authority_tier", "reward_breakdown", "right_moment_decision",
+    "status_hint", "subtitle", "title", "type",
+}
+CITED_CANDIDATE_CARD_FIELDS = {
+    "citation.event_ids", "citation.evidence_refs", "citation.projection_version",
+    "citation.reducer_version", "projection.calendar_id", "projection.end",
+    "projection.explanation", "projection.start", "projection.title",
+}
+INCUMBENT_CONTROLS = (
+    ("simulate", "/api/candidates/{candidate_id}/simulate", "simulation_receipt"),
+    ("stage", "/api/candidates/{candidate_id}/stage", "swift_stage_receipt"),
+    ("commit", "/api/candidates/{candidate_id}/commit", "verified_incumbent_provider_receipt"),
+)
 
 
 @dataclass(frozen=True)
@@ -166,12 +182,15 @@ def run_create_prep_block_vertical(
     source_authenticated: bool,
     received_at: datetime,
     max_observation_age_seconds: int = 300,
+    rank: int | None = None,
+    journal_scope_id: str | None = None,
 ) -> CreatePrepBlockResult:
     if max_observation_age_seconds < 0:
         raise ValueError("max_observation_age_seconds must be nonnegative")
     journal = EvidenceJournal()
-    observation_row_id = f"observation:{observation.observation_id}"
-    proposal_row_id = f"proposal:{candidate.candidate_id}"
+    prefix = f"{journal_scope_id}:" if journal_scope_id else ""
+    observation_row_id = f"{prefix}observation:{observation.observation_id}"
+    proposal_row_id = f"{prefix}proposal:{candidate.candidate_id}"
     journal.append(
         row_id=observation_row_id,
         event_type="authenticated_observation",
@@ -188,7 +207,7 @@ def run_create_prep_block_vertical(
         row_id=proposal_row_id,
         event_type="frontier_proposal",
         occurred_at=received_at.isoformat(),
-        payload={"candidate": to_jsonable(candidate)},
+        payload={"candidate": to_jsonable(candidate), "rank": rank},
         causal_parent_ids=(observation_row_id,),
     )
     reduced = _reduce_create_prep_block(
@@ -233,3 +252,75 @@ def run_create_prep_block_vertical(
         events=journal.events,
         input_evidence_row_ids=reduced.evidence_row_ids,
     )
+
+
+def project_cited_candidate_card(events: tuple[JournalEvent, ...]) -> dict[str, Any]:
+    proposals = [event for event in events if event.event_type == "frontier_proposal"]
+    if len(proposals) != 1:
+        raise ValueError("cited candidate card requires one frontier proposal")
+    proposal = proposals[0]
+    reduced = _reduce_create_prep_block(
+        events,
+        received_at=_parse_time(proposal.occurred_at),
+        max_observation_age_seconds=300,
+    )
+    if reduced.denial_reasons or reduced.projection is None:
+        raise ValueError("denied ProductCore input cannot produce a cited candidate card")
+    candidate = proposal.payload.get("candidate")
+    if not isinstance(candidate, dict):
+        raise ValueError("frontier proposal candidate is missing")
+    projection = reduced.projection
+    candidate_id = reduced.candidate_id
+    controls = [
+        {
+            "control_id": control_id,
+            "route_template": route_template,
+            "route": route_template.format(candidate_id=candidate_id),
+            "method": "POST",
+            "authority_source": "incumbent_swift_gate",
+            "effect_owner": "incumbent",
+            "expected_artifact": expected_artifact,
+        }
+        for control_id, route_template, expected_artifact in INCUMBENT_CONTROLS
+    ]
+    card = {
+        "type": "candidate",
+        "candidate_id": candidate_id,
+        "title": "Create Prep Block",
+        "subtitle": (
+            f"Reward {candidate.get('expected_reward', 0)} · "
+            f"Regret {candidate.get('predicted_regret', 0)} · "
+            f"Right moment {candidate.get('right_moment_score', 0)}"
+        ),
+        "intent": reduced.action_family,
+        "rank": proposal.payload.get("rank"),
+        "model_story": list(candidate.get("model_story", []))[:3],
+        "control_notes": list(candidate.get("control_notes", []))[:6],
+        "reward_breakdown": dict(candidate.get("reward_breakdown", {})),
+        "required_authority_tier": candidate.get("required_authority_tier"),
+        "right_moment_decision": candidate.get("right_moment_decision"),
+        "status_hint": "ready_to_simulate",
+        "projection": {
+            "title": projection.title,
+            "start": projection.start,
+            "end": projection.end,
+            "calendar_id": projection.calendar_id,
+            "explanation": projection.explanation,
+        },
+        "citation": {
+            "event_ids": list(reduced.evidence_row_ids),
+            "evidence_refs": [],
+            "reducer_version": REDUCER_VERSION,
+            "projection_version": CITED_CARD_PROJECTION_VERSION,
+        },
+        "controls": controls,
+        "new_effect_counts": {
+            "effect_attempts": 0,
+            "claims": 0,
+            "dispatches": 0,
+            "provider_mutations": 0,
+        },
+    }
+    if not PROTECTED_CANDIDATE_CARD_FIELDS.issubset(card):
+        raise ValueError("protected candidate-card field is missing")
+    return card

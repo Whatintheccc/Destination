@@ -32,6 +32,7 @@ from calendar_pilot.frontend.session_conversation import (
 from calendar_pilot.frontend.session_persistence import SessionPersistenceController
 from calendar_pilot.frontend.session_snapshot import SessionSnapshotBuilder
 from calendar_pilot.replay import ReplayBuffer, observation_fingerprint
+from calendar_pilot.product_core import run_create_prep_block_vertical
 from calendar_pilot.swift_bridge import SwiftKernelIPCClient, SwiftKernelStub
 from calendar_pilot.swift_bridge.protocol import CalendarKernelProtocol
 from calendar_pilot.types import (
@@ -328,6 +329,7 @@ class DogfoodSessionState:
         self.latest_plan_observation_id = self.observation.observation_id
         self.latest_plan_observation_fingerprint = observation_fingerprint(self.observation)
         self._record_frontier_rejections_from_plan(plan)
+        self._record_product_core_read_side(plan)
         self._emit_trace(plan.plan_id, "planner", "planner_started", payload={"planner_backend": getattr(plan, "planner_backend", "unknown")})
         self._emit_trace(plan.plan_id, "frontier_service", "frontier_generated", payload=self._frontier_trace_payload(plan))
         conversation_receipts = []
@@ -478,6 +480,46 @@ class DogfoodSessionState:
             for rejection in validation.get("rejections", []) or []:
                 if isinstance(rejection, dict):
                     self.replay.append_model_generation_rejection(rejection, trace_id=receipt.correlation_id or receipt.tool_call_id)
+
+    def _record_product_core_read_side(self, plan: Any) -> None:
+        candidates: list[dict[str, Any]] = []
+        ranking: list[dict[str, Any]] = []
+        for receipt in getattr(plan, "receipts", []):
+            output = receipt.output if isinstance(receipt.output, dict) else {}
+            if getattr(receipt, "tool_name", None) == CodexToolName.GENERATE_CANDIDATE_FRONTIER:
+                rows = output.get("candidates")
+                if isinstance(rows, list):
+                    candidates.extend(row for row in rows if isinstance(row, dict))
+            elif getattr(receipt, "tool_name", None) == CodexToolName.COMPARE_CANDIDATES:
+                rows = output.get("ranking")
+                if isinstance(rows, list):
+                    ranking = [row for row in rows if isinstance(row, dict)]
+        ranks = {str(row.get("candidate_id")): index + 1 for index, row in enumerate(ranking)}
+        journal_scope_id = f"{self.session_id}:{self.state_version}:{plan.plan_id}"
+        for payload in candidates:
+            candidate = CandidateCalendarAction.from_dict(payload)
+            if candidate.intent != "create_prep_block":
+                continue
+            result = run_create_prep_block_vertical(
+                self.observation,
+                candidate,
+                source_authenticated=True,
+                received_at=self.observation.observed_at,
+                rank=ranks.get(candidate.candidate_id),
+                journal_scope_id=journal_scope_id,
+            )
+            for event in result.events:
+                self.replay.append_generic(
+                    "product_core_journal_event",
+                    {
+                        "journal_scope_id": journal_scope_id,
+                        "plan_id": plan.plan_id,
+                        "journal_event": event.to_dict(),
+                    },
+                    record_id=f"product_core_journal_event:{event.row_id}",
+                    trace_id=plan.plan_id,
+                    causal_parent_id=event.causal_parent_ids[0] if event.causal_parent_ids else None,
+                )
 
     def _frontier_trace_payload(self, plan: Any) -> dict[str, Any]:
         candidates: list[dict[str, Any]] = []
