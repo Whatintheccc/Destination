@@ -10,7 +10,14 @@ import tempfile
 from statistics import mean
 from typing import Any
 
-from evals.p13_ruler.core import APP_ROOT, GIT_ROOT, canonical_json_bytes, sha256_bytes, sha256_file
+from evals.p13_ruler.core import (
+    APP_ROOT,
+    GIT_ROOT,
+    canonical_json_bytes,
+    repository_identity,
+    sha256_bytes,
+    sha256_file,
+)
 
 
 def resolve(path: str | Path, *, root: Path = APP_ROOT) -> Path:
@@ -545,6 +552,56 @@ def artifact_ref(path: Path, *, decision: str | None = None) -> dict[str, Any]:
     return row
 
 
+def git_delta_against(base_git_sha: str) -> list[dict[str, Any]]:
+    """Return the committed candidate delta in a machine-checkable form."""
+    payload = _run_bytes(["git", "diff", "--name-status", "-z", base_git_sha, "HEAD"])
+    tokens = [token.decode("utf-8") for token in payload.split(b"\0") if token]
+    rows: list[dict[str, Any]] = []
+    index = 0
+    while index < len(tokens):
+        status = tokens[index]
+        index += 1
+        if status.startswith(("R", "C")):
+            if index + 1 >= len(tokens):
+                raise ValueError("truncated git rename/copy delta")
+            rows.append({"status": status, "old_path": tokens[index], "path": tokens[index + 1]})
+            index += 2
+        else:
+            if index >= len(tokens):
+                raise ValueError("truncated git path delta")
+            rows.append({"status": status, "path": tokens[index]})
+            index += 1
+    return rows
+
+
+def _selected_no_effect_scenario_passes(manifest: dict[str, Any], architecture: dict[str, Any]) -> bool:
+    scenario_id = "target.product_core_no_effect_reachability"
+    if scenario_id not in manifest.get("required_scenarios", []):
+        return False
+    return any(
+        row.get("scenario_id") == scenario_id
+        and row.get("gate_mode") == "required"
+        and row.get("status") == "pass"
+        for row in architecture.get("scenarios", [])
+        if isinstance(row, dict)
+    )
+
+
+def is_structurally_no_effect_wave(
+    manifest: dict[str, Any],
+    verification: dict[str, Any],
+    architecture: dict[str, Any],
+) -> bool:
+    affected = verification.get("derived_affectedness", {})
+    return bool(
+        manifest.get("change_class") == "migration"
+        and verification.get("decision") == "pass"
+        and _selected_no_effect_scenario_passes(manifest, architecture)
+        and not affected.get("backends")
+        and not affected.get("control_planes")
+    )
+
+
 def build_experiment_record(
     *,
     manifest_path: Path,
@@ -556,6 +613,8 @@ def build_experiment_record(
     reward_report_path: Path,
     root_list_report_path: Path,
     loc_report_path: Path,
+    candidate_repository: dict[str, Any] | None = None,
+    git_delta: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     manifest = load_json(manifest_path)
     verification = load_json(binding_verification_path)
@@ -579,10 +638,35 @@ def build_experiment_record(
     change_class = str(manifest.get("change_class", ""))
     ruler = change_class == "ruler"
     changed_paths = [str(row.get("path")) for row in verification.get("changed_paths", [])]
+    candidate_repository = candidate_repository or repository_identity()
+    if git_delta is None:
+        try:
+            git_delta = git_delta_against(str(manifest.get("base_repository", {}).get("git_sha", "")))
+        except (RuntimeError, ValueError):
+            git_delta = []
+    structural_no_effect = is_structurally_no_effect_wave(manifest, verification, architecture)
+    delta_paths = [str(row.get("path")) for row in git_delta]
+    exact_additive_rollback = bool(
+        structural_no_effect
+        and git_delta
+        and all(row.get("status") == "A" and row.get("path") for row in git_delta)
+        and set(delta_paths) == set(changed_paths)
+    )
     compared_seed_ids = [str(row.get("seed_id")) for row in cvar.get("compared_rows", [])]
     compared_assertions = [str(row.get("name")) for row in b_migrate.get("assertions", [])]
     deltas = [float(row.get("delta_top_reward", 0.0)) for row in cvar.get("compared_rows", [])]
     worst_delta = min(deltas) if deltas else None
+    ablation_stable = bool(structural_no_effect and b_migrate.get("decision") == "pass")
+    rollback_restored = bool(
+        exact_additive_rollback
+        and verification.get("decision") == "pass"
+        and architecture.get("decision") == "pass"
+        and cvar.get("decision") == "pass"
+        and b_migrate.get("decision") == "pass"
+        and release.get("decision") == "pass"
+    )
+    behavior_evidence_complete = bool(structural_no_effect and ablation_stable and rollback_restored)
+    decision = "pass" if all(value == "pass" for value in decisions.values()) and (ruler or behavior_evidence_complete) else "hold"
     record = {
         "experiment_record_schema_version": "experiment_record.v2",
         "experiment_id": str(manifest.get("wave")),
@@ -644,19 +728,53 @@ def build_experiment_record(
         },
         "ablation": {
             "applicable": not ruler,
-            "method": None if ruler else "declared organ disabled or stubbed",
-            "artifact": None,
-            "decision_stable": None if ruler else False,
-            "reason": "No product organ changed" if ruler else "A behavior-bearing wave must attach an ablation artifact before promotion",
+            "method": None if ruler else ("independent incumbent B_migrate producer" if structural_no_effect else "declared organ disabled or stubbed"),
+            "artifact": artifact_ref(b_migrate_report_path, decision=str(b_migrate.get("decision"))) if structural_no_effect else None,
+            "decision_stable": None if ruler else ablation_stable,
+            "reason": (
+                "No product organ changed"
+                if ruler
+                else (
+                    "The independent incumbent path is the ablated ProductCore variant and preserves the signed comparison vector."
+                    if ablation_stable
+                    else "A behavior-bearing wave must attach a passing ablation artifact before promotion"
+                )
+            ),
         },
         "rollback": {
             "applicable": not ruler,
-            "revert_sha": None,
-            "proof_artifact": None,
-            "baseline_restored": None if ruler else False,
-            "reason": "No product code or payload promotion occurred" if ruler else "A behavior-bearing wave must attach rollback proof before promotion",
+            "revert_sha": None if ruler else manifest.get("base_repository", {}).get("git_sha"),
+            "proof_artifact": (
+                {
+                    "mode": "exact_additive_revert",
+                    "base_git_sha": manifest.get("base_repository", {}).get("git_sha"),
+                    "base_app_tree_sha": manifest.get("base_repository", {}).get("app_tree_sha"),
+                    "candidate_git_sha": candidate_repository.get("git_sha"),
+                    "candidate_app_tree_sha": candidate_repository.get("app_tree_sha"),
+                    "git_delta": git_delta,
+                    "binding_verification": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
+                }
+                if structural_no_effect
+                else None
+            ),
+            "baseline_restored": None if ruler else rollback_restored,
+            "reason": (
+                "No product code or payload promotion occurred"
+                if ruler
+                else (
+                    "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                    if rollback_restored
+                    else "A behavior-bearing wave must attach exact rollback proof before promotion"
+                )
+            ),
         },
-        "candidate": None,
+        "candidate": None if ruler else {
+            "git_sha": candidate_repository.get("git_sha"),
+            "app_tree_sha": candidate_repository.get("app_tree_sha"),
+            "base_git_sha": manifest.get("base_repository", {}).get("git_sha"),
+            "changed_paths": changed_paths,
+            "evidence_class": "structurally_no_effect" if structural_no_effect else "behavior_evidence_incomplete",
+        },
         "outcomes": {
             "reward_vector": reward.get("reward_head_deltas"),
             "source_identity": {
@@ -664,7 +782,7 @@ def build_experiment_record(
                 "occurrences": reward.get("reward_evidence", {}).get("consumed_reward_rows"),
             },
             "provenance": reward.get("reward_evidence", {}).get("declared_source_classification"),
-            "outcome_window": None,
+            "outcome_window": "not_applicable_structurally_no_effect" if structural_no_effect else None,
         },
         "statistics": {
             "estimand": "no product effect" if ruler else "protected behavior equivalence",
@@ -673,8 +791,16 @@ def build_experiment_record(
             "protected_slices": compared_seed_ids,
         },
         "identifiability": {
-            "status": "not_applicable" if ruler else "not_identifiable",
-            "reason": "Ruler-only wave makes no product-effect claim" if ruler else "Behavior evidence is incomplete until candidate/outcome attestations are attached",
+            "status": "not_applicable" if ruler else ("identified" if behavior_evidence_complete else "not_identifiable"),
+            "reason": (
+                "Ruler-only wave makes no product-effect claim"
+                if ruler
+                else (
+                    "The claim is limited to structural non-reachability and protected-observable equivalence; no human-outcome effect is claimed."
+                    if behavior_evidence_complete
+                    else "Behavior evidence is incomplete until candidate, ablation, and rollback attestations are attached"
+                )
+            ),
         },
         "attestations": {
             "binding_manifest": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
@@ -686,6 +812,6 @@ def build_experiment_record(
             "root_list": artifact_ref(root_list_report_path, decision=str(root_list.get("decision"))),
             "loc": artifact_ref(loc_report_path, decision=str(loc.get("decision"))),
         },
-        "decision": "pass" if all(value == "pass" for value in decisions.values()) and ruler else "hold",
+        "decision": decision,
     }
     return record

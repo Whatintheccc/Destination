@@ -46,8 +46,24 @@
       "else": {
         "properties": {
           "candidate": {"type": "object"},
-          "ablation": {"properties": {"applicable": {"const": true}, "decision_stable": {"const": true}}},
-          "rollback": {"properties": {"applicable": {"const": true}, "baseline_restored": {"const": true}}}
+          "ablation": {"properties": {"applicable": {"const": true}}},
+          "rollback": {"properties": {"applicable": {"const": true}}}
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["change_class", "decision"],
+        "properties": {
+          "change_class": {"not": {"const": "ruler"}},
+          "decision": {"const": "pass"}
+        }
+      },
+      "then": {
+        "properties": {
+          "ablation": {"properties": {"decision_stable": {"const": true}}},
+          "rollback": {"properties": {"baseline_restored": {"const": true}}},
+          "identifiability": {"properties": {"status": {"const": "identified"}}}
         }
       }
     }
