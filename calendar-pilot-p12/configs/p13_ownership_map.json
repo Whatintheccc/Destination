@@ -122,6 +122,14 @@
       "control_planes": ["optimizer"]
     },
     {
+      "pattern": "calendar-pilot-p12/src/calendar_pilot/product_core/**",
+      "surfaces": ["journal", "projection", "reducer"],
+      "actions": ["create_prep_block"],
+      "backends": [],
+      "instruments": [],
+      "control_planes": []
+    },
+    {
       "pattern": "calendar-pilot-p12/src/calendar_pilot/environment/**",
       "surfaces": ["journal", "operational_runtime", "reducer"],
       "actions": ["*"],

@@ -1,0 +1,98 @@
+{
+  "b_migrate_assertion_schema_version": "b_migrate_assertions.v2",
+  "assertion_set_id": "create_prep_block_no_effect_p13_1",
+  "description": "Protected no-effect comparison between the incumbent Swift preview path and the P13.1 ProductCore AdmissionPreview path.",
+  "protected_observables": [
+    "intent",
+    "projection",
+    "admission",
+    "evidence",
+    "effect_nonreachability"
+  ],
+  "assertions": [
+    {
+      "name": "action_family",
+      "mode": "equal",
+      "before_path": "action_family",
+      "after_path": "action_family"
+    },
+    {
+      "name": "candidate_id",
+      "mode": "equal",
+      "before_path": "candidate_id",
+      "after_path": "candidate_id"
+    },
+    {
+      "name": "projection_title",
+      "mode": "equal",
+      "before_path": "projection.title",
+      "after_path": "projection.title"
+    },
+    {
+      "name": "projection_start",
+      "mode": "equal",
+      "before_path": "projection.start",
+      "after_path": "projection.start"
+    },
+    {
+      "name": "projection_end",
+      "mode": "equal",
+      "before_path": "projection.end",
+      "after_path": "projection.end"
+    },
+    {
+      "name": "projection_calendar",
+      "mode": "equal",
+      "before_path": "projection.calendar_id",
+      "after_path": "projection.calendar_id"
+    },
+    {
+      "name": "projection_explanation",
+      "mode": "equal",
+      "before_path": "projection.explanation",
+      "after_path": "projection.explanation"
+    },
+    {
+      "name": "admission_status",
+      "mode": "equal",
+      "before_path": "admission.status",
+      "after_path": "admission.status"
+    },
+    {
+      "name": "cannot_dispatch",
+      "mode": "equal",
+      "before_path": "admission.can_dispatch",
+      "after_path": "admission.can_dispatch"
+    },
+    {
+      "name": "evidence_rows",
+      "mode": "equal_set",
+      "before_path": "evidence.row_ids[]",
+      "after_path": "evidence.row_ids[]"
+    },
+    {
+      "name": "effect_attempts",
+      "mode": "equal",
+      "before_path": "effects.effect_attempts",
+      "after_path": "effects.effect_attempts"
+    },
+    {
+      "name": "claims",
+      "mode": "equal",
+      "before_path": "effects.claims",
+      "after_path": "effects.claims"
+    },
+    {
+      "name": "dispatches",
+      "mode": "equal",
+      "before_path": "effects.dispatches",
+      "after_path": "effects.dispatches"
+    },
+    {
+      "name": "provider_mutations",
+      "mode": "equal",
+      "before_path": "effects.provider_mutations",
+      "after_path": "effects.provider_mutations"
+    }
+  ]
+}

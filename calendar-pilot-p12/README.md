@@ -227,6 +227,17 @@ read; this is file-handling hygiene, not proof of external custody. It remains d
 from `wave-harness`, CI promotion assertions, and `promote_policy.py` until external
 governance and isolated evaluation exist.
 
+The P13.1 no-effect vertical has one focused root access point:
+
+```bash
+make p13-no-effect-test
+```
+
+It proves the `create_prep_block` ProductCore path is deterministic, cited, independently
+comparable to the incumbent preview, and structurally unable to construct tickets,
+`EffectAttempt`s, dispatches, or provider mutations. It does not cut over the frontend or
+authorize an effect.
+
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
 writes and leave `CURRENT` byte-identical. P13.6 may
