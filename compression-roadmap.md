@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1 `create_prep_block` no-effect vertical passed its signed composite wave at candidate `ef2071c`. P13.2 cited read-side cutover is the active phase. Effect-capable handoff, old-truth retirement, and learning promotion remain blocked on their later authorization barriers.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1/P13.2 `create_prep_block` no-effect and cited-read verticals passed their signed composite waves. P13.3 is the next phase and is intentionally blocked before implementation on the external effect/production authorization boundary in §8.5.1. Old-truth retirement and learning promotion remain blocked on their later barriers.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -1460,6 +1460,23 @@ because the candidate consists of three additive ProductCore files. The full Pyt
 suite passed 236 tests with 10 skips. No live model or mutating EventKit leg ran; all
 three were signed as unaffected. This evidence does not authorize P13.3.
 
+P13.2 closed on candidate `6f67be40849850f3bb8ee5c6330a64a48b1f7d55`
+against signed base `ebcaa413a72aeef17609a64c0c44bd137831d3a5` and manifest
+`p13-create-prep-block-cited-read-side:ebcaa413a72a:20260710T092100Z`.
+The versioned required-field manifest pins all 12 incumbent candidate-card fields,
+nine cited projection fields, and the three executable incumbent control routes.
+ProductCore Journal rows are persisted, content-hash checked, reduced into the visible
+card, and restored identically after restart; tampering produces a visible read-side
+hold and the incumbent compatibility projection remains the rollback path. The
+manifest-bound standalone and composite `B_migrate` paths both used the four P13.2
+assertions after repairing the stale focused access point. Every composite gate passed,
+including 11/11 preservation and all four selected P13.1/P13.2 targets. The full Python
+suite passed 242 tests with 10 skips, browser CDP E2E passed, and the dogfood release
+report recorded `ok: true` across Python, Swift, Swift IPC, browser, app build, fixture
+and Swift-IPC app sanity, launch/port ownership, artifacts, and secret scans. Mutating
+EventKit remained opt-in and did not run. The incumbent Swift path remains the sole
+effect owner.
+
 P13.3 is the first valid ticket claim/dispatch. Its isolated deterministic effect suite
 forces duplicate delivery,
 crash before/after claim and dispatch, verify ambiguity, revoke/claim race, restart
@@ -1697,10 +1714,11 @@ Retired by Step E (evidence: [P12 Record §6](P12-RECORD.md)): the original
 deterministic-only P12 reach, the three original pass-by-construction placebo reports,
 and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
 compression-wave mechanics, a protected root access point, and exact-main hosted replay
-evidence. P13.1 no-effect construction is complete and P13.2 cited read-side cutover is
-now active. The durable signer,
-independent-review, and isolated-evaluation profile in §8.5.1 remains the blocker for
-effect-capable handoff, old-truth retirement, and production learning promotion.
+evidence. P13.1 no-effect construction and P13.2 cited read-side cutover are complete.
+P13.3 is blocked before ticket or Gateway implementation; the durable-signer,
+independent-review, and isolated-evaluation profile in §8.5.1 is now the blocker for
+effect-capable handoff and remains required for old-truth retirement and production
+learning promotion.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
@@ -1754,7 +1772,7 @@ effect-capable handoff, old-truth retirement, and production learning promotion.
    AdmissionPreview, and proof of zero new effect attempts or provider mutations;
    incumbent remains the only visible and effect-capable path.
 
-5. Cut over its cited read side while the incumbent remains the sole effect owner.
+5. Cut over its cited read side while the incumbent remains the sole effect owner. — DONE
 
 6. Before deterministic effects, cross the fixed §8.5.1 authorization boundary.
    The isolated evaluator and independent reviewer produce the packet, review, and
@@ -1795,11 +1813,11 @@ The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
 local development verification access points, scenario-set v2, affectedness, separately
 materialized comparison certificates with alias/self-derivation rejection, a promotion
 freeze, and one protected exact-main hosted replay with a checksummed evidence bundle.
-That closes P13.0 for single-owner development. P13.1 has migrated one bounded
+That closes P13.0 for single-owner development. P13.1 and P13.2 have migrated one bounded
 `create_prep_block` vertical through a structurally no-effect ProductCore and
-`AdmissionPreview`; P13.2 now cuts over cited read-side projections while the incumbent
+`AdmissionPreview`, then cut over its cited read-side projection while the incumbent
 remains the sole effect owner. The organizational, cryptographic, and execution-isolation
-profile in §8.5.1 becomes binding before P13.3 deterministic-effect handoff, retirement,
+profile in §8.5.1 is now the binding blocker before P13.3 deterministic-effect handoff, retirement,
 production deployment, or P13.6 promotion. App-bundled EventKit follows only after the
 deterministic effect barrier passes.
 Learning becomes frozen proposal payloads plus signed promotion records only after that operational path is stable;
