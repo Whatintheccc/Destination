@@ -1,0 +1,80 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "Makefile",
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/README.md",
+    "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
+    "calendar-pilot-p12/contracts/VERSIONS.json",
+    "calendar-pilot-p12/contracts/required_field_manifest.schema.json",
+    "calendar-pilot-p12/evals/architecture/adapters/p13_current.py",
+    "calendar-pilot-p12/evals/architecture/predicates/p13.py",
+    "calendar-pilot-p12/evals/architecture/scenarios/p13_v2.json",
+    "calendar-pilot-p12/evals/p13_ruler/wave.py",
+    "calendar-pilot-p12/experiments/configs/b_migrate_create_prep_block_read_side_p13_2.json",
+    "calendar-pilot-p12/experiments/configs/create_prep_block_required_fields_v1.json",
+    "calendar-pilot-p12/experiments/waves/p13-cited-read-side-instrument.scope.json",
+    "calendar-pilot-p12/scripts/produce_b_migrate_p13_2_new.py",
+    "calendar-pilot-p12/scripts/produce_b_migrate_p13_2_old.py",
+    "calendar-pilot-p12/tests/test_architecture_evals.py",
+    "calendar-pilot-p12/tests/test_architecture_evals_v2.py",
+    "calendar-pilot-p12/tests/test_p13_cited_read_side.py",
+    "calendar-pilot-p12/tests/test_wave_harness_v2.py"
+  ],
+  "declared": {
+    "actions": [
+      "*"
+    ],
+    "backends": [
+      "*"
+    ],
+    "surfaces": [
+      "app_access",
+      "configuration",
+      "contracts",
+      "evaluation",
+      "experiment_configuration",
+      "ruler_scripts",
+      "tests",
+      "wave_scope",
+      "workspace_access"
+    ],
+    "instruments": [
+      "architecture_eval",
+      "binding_manifest",
+      "configuration",
+      "contract_schemas",
+      "experiment_configuration",
+      "release_and_wave_ruler",
+      "root_ci",
+      "tests",
+      "wave_gate"
+    ],
+    "control_planes": [
+      "effect_tcb",
+      "evaluator",
+      "optimizer"
+    ]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
+    "target.binding_manifest_signature",
+    "target.instrument_mutation_rejection",
+    "target.promotion_override_rejection"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
