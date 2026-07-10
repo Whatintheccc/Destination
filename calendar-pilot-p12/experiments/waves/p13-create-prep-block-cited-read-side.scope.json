@@ -1,0 +1,141 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/src/calendar_pilot/frontend/projector.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session.py",
+    "calendar-pilot-p12/src/calendar_pilot/product_core/**"
+  ],
+  "declared": {
+    "actions": [
+      "*",
+      "create_prep_block"
+    ],
+    "backends": [],
+    "surfaces": [
+      "frontend",
+      "journal",
+      "projection",
+      "reducer"
+    ],
+    "instruments": [],
+    "control_planes": []
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.cited_read_side_cutover",
+    "target.cited_required_projection",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism"
+  ],
+  "old_producer": {
+    "cvar": {
+      "producer_id": "cvar.before.current",
+      "command": [
+        "python3",
+        "scripts/produce_cvar_frontier.py",
+        "--role",
+        "before",
+        "--current",
+        "experiments/promoted/CURRENT.json"
+      ]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.old.incumbent_candidate_card.create_prep_block",
+      "command": [
+        "python3",
+        "scripts/produce_b_migrate_p13_2_old.py"
+      ],
+      "assertion_set": {
+        "path": "experiments/configs/b_migrate_create_prep_block_read_side_p13_2.json",
+        "sha256": "f68215c3ecf1eebaaabff43426b56066dca0ba3504aecc273db058c1e96c1d10"
+      }
+    }
+  },
+  "new_producer": {
+    "cvar": {
+      "producer_id": "cvar.after.current",
+      "command": [
+        "python3",
+        "scripts/produce_cvar_frontier.py",
+        "--role",
+        "after",
+        "--current",
+        "experiments/promoted/CURRENT.json"
+      ]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.new.cited_product_core_candidate_card.create_prep_block",
+      "command": [
+        "python3",
+        "scripts/produce_b_migrate_p13_2_new.py"
+      ],
+      "assertion_set": {
+        "path": "experiments/configs/b_migrate_create_prep_block_read_side_p13_2.json",
+        "sha256": "f68215c3ecf1eebaaabff43426b56066dca0ba3504aecc273db058c1e96c1d10"
+      }
+    }
+  },
+  "live_legs": [
+    {
+      "leg": "live-codex-e2e",
+      "status": "root-listed",
+      "reason": {
+        "basis": "unaffected",
+        "detail": "P13.2 consumes the existing frontier proposal and does not modify the Codex respondent or live access point."
+      },
+      "artifact": {
+        "path": "P12-RECORD.md",
+        "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"
+      },
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live Codex unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-codex-e2e before any wave changes the Codex respondent or live path."
+    },
+    {
+      "leg": "live-diffusiongemma-e2e",
+      "status": "root-listed",
+      "reason": {
+        "basis": "unaffected",
+        "detail": "P13.2 does not modify DiffusionGemma, NIM normalization, frontier scoring, or candidate generation."
+      },
+      "artifact": {
+        "path": "P12-RECORD.md",
+        "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"
+      },
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live NIM unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-diffusiongemma-e2e before any wave changes the NIM respondent or frontier."
+    },
+    {
+      "leg": "live-eventkit-e2e",
+      "status": "root-listed",
+      "reason": {
+        "basis": "unaffected",
+        "detail": "P13.2 changes only the cited read projection; every actionable control remains routed to the incumbent Swift path and ProductCore has no provider reachability."
+      },
+      "artifact": {
+        "path": "P12-RECORD.md",
+        "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"
+      },
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; EventKit effect path unchanged",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run the app-bundled EventKit leg only after the separately authorized effect-capable handoff scope."
+    }
+  ]
+}
