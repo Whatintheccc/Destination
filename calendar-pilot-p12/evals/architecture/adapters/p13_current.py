@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -19,8 +20,6 @@ from .p12_current import P12CurrentAdapter
 
 
 DEBT_EVIDENCE: dict[str, tuple[str, list[str]]] = {
-    "reducer_determinism": ("Pure Reducer has not landed.", ["identical prefix/version/command produces byte-identical state and intents"]),
-    "cited_required_projection": ("The versioned durable-field manifest and cited projection have not landed.", ["field-level event/evidence ids", "Reducer version"]),
     "trusted_ingress_forgery": ("Source-authenticated Journal/Gate ingress has not landed.", ["forged source rejection", "fresh provider precondition"]),
     "effect_ticket_binding": ("One-use EffectTicket has not landed.", ["exact intent hash", "pre-state hash", "nonce/epoch"]),
     "compensation_ticket_binding": ("One-use CompensationTicket has not landed.", ["target effect receipt hash", "fresh-state hash", "separate claim"]),
@@ -83,6 +82,96 @@ class P13CurrentAdapter:
                 digest.update(path.read_bytes())
                 digest.update(b"\0")
         return digest.hexdigest()
+
+    def _product_core_fixture(self) -> Any:
+        from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
+        from calendar_pilot.product_core import run_create_prep_block_vertical
+        from calendar_pilot.types import RawCalendarObservation, UserBiography
+
+        observation = RawCalendarObservation.from_dict(
+            json.loads((self.root / "data/sample_calendar.json").read_text(encoding="utf-8"))
+        )
+        biography = UserBiography.from_dict(
+            json.loads((self.root / "data/sample_profile.json").read_text(encoding="utf-8"))
+        )
+        candidate = next(
+            row
+            for row in DiffusionGemmaPolicy().generate_candidates(observation, biography)
+            if row.intent == "create_prep_block"
+        )
+        return run_create_prep_block_vertical(
+            observation,
+            candidate,
+            source_authenticated=True,
+            received_at=observation.observed_at,
+        )
+
+    def _product_core_evidence(self, case: str, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
+        first = self._product_core_fixture()
+        second = self._product_core_fixture()
+        observable = first.to_observable()
+        projection = first.preview.projection
+        if case == "reducer_determinism":
+            evidence = {
+                "first_sha256": sha256_bytes(canonical_json_bytes(observable)),
+                "second_sha256": sha256_bytes(canonical_json_bytes(second.to_observable())),
+                "reducer_version": first.preview.reducer_version,
+                "event_types": [event.event_type for event in first.events],
+            }
+        elif case == "cited_required_projection":
+            row_ids = {event.row_id for event in first.events}
+            evidence_ids = list(projection.evidence_row_ids) if projection is not None else []
+            evidence = {
+                "status": first.preview.status,
+                "reducer_version": first.preview.reducer_version,
+                "required_fields_present": bool(
+                    projection
+                    and projection.title
+                    and projection.start
+                    and projection.end
+                    and projection.calendar_id
+                    and projection.explanation
+                ),
+                "evidence_row_ids": evidence_ids,
+                "all_evidence_rows_exist": bool(evidence_ids) and set(evidence_ids).issubset(row_ids),
+            }
+        else:
+            package_root = self.root / "src/calendar_pilot/product_core"
+            forbidden_roots = {
+                "calendar_pilot.providers",
+                "calendar_pilot.swift_bridge",
+                "calendar_pilot.environment.action_lifecycle",
+                "subprocess",
+                "socket",
+                "urllib",
+                "http",
+            }
+            imports: set[str] = set()
+            for path in package_root.glob("*.py"):
+                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        imports.update(alias.name for alias in node.names)
+                    elif isinstance(node, ast.ImportFrom) and node.module:
+                        imports.add(node.module)
+            forbidden_imports = sorted(
+                name
+                for name in imports
+                if any(name == root or name.startswith(root + ".") for root in forbidden_roots)
+            )
+            preview_fields = set(first.preview.__dataclass_fields__)
+            effect_fields = {
+                "ticket", "ticket_id", "signature", "nonce", "grant", "provider",
+                "credential", "idempotency_key",
+            }
+            evidence = {
+                "can_dispatch": first.preview.can_dispatch,
+                "forbidden_imports": forbidden_imports,
+                "forbidden_preview_fields": sorted(preview_fields & effect_fields),
+                "effect_counts": observable["effects"],
+            }
+        path = self._write(scenario_dir / f"{case}.json", evidence)
+        return {"product_core": evidence}, [(f"product_core_{case}", path)]
 
     def _promotion_freeze_evidence(self, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
         current = self.root / "experiments/promoted/CURRENT.json"
@@ -175,6 +264,8 @@ class P13CurrentAdapter:
         ]
 
     def collect(self, case: str, scenario_dir: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
+        if case in {"reducer_determinism", "cited_required_projection", "product_core_no_effect_reachability"}:
+            return self._product_core_evidence(case, scenario_dir)
         if case in DEBT_EVIDENCE:
             blocker, required = DEBT_EVIDENCE[case]
             return {"target_capability": {"reached": False, "blocker": blocker, "required_evidence": required}}, []
