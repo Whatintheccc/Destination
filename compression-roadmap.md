@@ -1397,15 +1397,46 @@ missing/corrupt ledger or signing state blocks rather than creating a fresh auth
 universe.
 
 Setup/rebind confirmation binds the next epoch and complete target policy. Every apply
-separately binds the operation, `binding_id@epoch`, exact candidate/intent/pre-state,
-start/end/timezone/content, grant epoch, nonce, and idempotency key. Every undo separately
-binds the creating receipt and external event identifier. Historical fingerprints are
+confirmation separately binds a canonical digest of the visible candidate content and
+`binding_id@epoch`; the Gate then binds that digest to the exact intent/pre-state, grant
+epoch, nonce, idempotency key, and expanded target vector. Candidate identity alone is
+never confirmation: reusing an identifier with changed fields denies before bridge
+dispatch. Every undo separately binds the creating receipt and external event identifier. Historical fingerprints are
 retained only so a fresh compensation ticket may reach its creating owner; old-epoch undo
 is allowed only when the bridge still resolves the exact original event under the exact
 original store/calendar/source fingerprint and current permission/writability pass. It
 never redirects into the current binding. Identity drift or ambiguous marker/event
 recovery is a visible manual hold. Voluntary rebind blocks while any ticket is claimed,
 unknown, or otherwise nonterminal.
+
+The idempotency marker is correlation, never authority. Candidate-controlled notes may
+not contain its reserved prefix, and the bridge accepts only one well-formed marker line
+per managed event. Reconciliation observes the uncollapsed match cardinality: zero exact
+matches is `not_applied`; one marker plus projection-equal calendar/title/start/end may
+repair a save/local-state crash; duplicate markers, malformed markers, content mismatch,
+or a different remote identifier than an already durable identifier hold without
+selection or deletion. Before emitting `verified`, recovery durably records the actual
+EventKit event identifier and the receipt post-state hash commits to it. Calendar and
+provider receipts expose that identifier—not the idempotency key.
+
+Gateway persists `dispatch + unknown` before calling EventKit. Startup, under the sole
+process lease, reconciles every claimed/unknown ticket before serving work. Each binding
+epoch reconstructs its own identifier-bound driver, so restart and historical undo never
+reuse the current calendar driver. Initialization is create-once and refuses any existing
+registry, epoch ledger, or signing state; only explicit rebind advances the lineage.
+
+The affected live leg is never root-listable. It must be a fresh `ran` artifact whose
+versioned contract and semantics are checked by the wave gate: exact repository/app/
+bridge/binding identities, save-before-local-ID crash, startup recovery, actual-ID
+equality across ledger and visible receipts, creating-receipt compensation, strict marker
+cardinality, zero legacy mutations, and final absence. A correct artifact hash with false
+or incomplete contents fails.
+
+The preliminary exact-app run at repository `75d0f63e901281c4e20e6b68e985d220bde0f5cd`
+proved permission, mutation, restart, undo, and cleanup reachability but is explicitly
+nonbinding: its crash occurred after local external-ID persistence and its live artifact
+was not semantically validated. It cannot close this wave and must be replaced by an
+exact-final-candidate run satisfying the stronger certificate above.
 
 The pre-edit certificate consolidates rather than duplicates the existing P13.3/P13.4
 state-machine cases. Its binding scenarios are:
@@ -1415,8 +1446,8 @@ state-machine cases. Its binding scenarios are:
 2  one total expanded-target ownership classifier, including omission and mixed-target attacks
 3  normal REQUEST_COMMIT liveness, two sequential tickets, replay, inner-TOCTOU, and post-save unknown
 4  receipt-routed REQUEST_UNDO/restart, exact old-epoch compensation, and drift hold
-5  durable ledger, single-owner process lease, crash/reconcile, and zero managed legacy calls
-6  exact-candidate app-bundled live bind/create/verify/restart/remove/verify certificate
+5  create-once durable state, per-epoch drivers, sole process lease, startup reconcile, and zero legacy calls
+6  exact-candidate app-bundled save/local-ID crash, recovery, replay, remove, semantic-artifact certificate
 ```
 
 Generic ticket, revoke, three crash-window, reconciliation, conflict, and learning-path

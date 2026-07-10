@@ -278,6 +278,41 @@ and an owner-frozen rollback selector. This backend remains non-production. Even
 all production modes, and every other action/backend pair remain incumbent-owned until
 their own signed retirement waves pass.
 
+The separately bound managed EventKit retirement has one focused deterministic access
+point:
+
+```bash
+make p13-eventkit-retirement-test
+```
+
+Its ownership unit is exactly
+`create_prep_block × apple_eventkit × binding_id@epoch`. An opaque setup binding captures
+the exact EventKit store/calendar/source fingerprint and canonical app/bridge identities;
+title is a drift tripwire, never a locator. Any binding reference or expanded action that
+targets the managed calendar is classified as managed. Missing metadata, mixed targets,
+permission loss, identity drift, or corrupt/missing durable state holds inside
+EffectKernel without incumbent fallback. Every normal commit and undo requires exact
+person-confirmation provenance, and historical undo routes to its creating receipt and
+epoch.
+
+The affected live certificate remains explicit and app-bundled:
+
+```bash
+CALENDAR_PILOT_EVENTKIT_BRIDGE="$PWD/dist/CalendarPilot.app/Contents/Resources/app/bin/CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge" \
+CALENDAR_PILOT_MANAGED_EVENTKIT_CALENDAR_ID=<exact-calendar-id> \
+CALENDAR_PILOT_MANAGED_EVENTKIT_SETUP_CONFIRM=1 \
+CALENDAR_PILOT_P13_EVENTKIT_RETIREMENT=1 \
+CALENDAR_PILOT_EVENTKIT_MUTATION=1 \
+CALENDAR_PILOT_REQUIRE_EVENTKIT=1 \
+make live-eventkit-e2e
+```
+
+The live run creates a new binding lineage, calls the normal `REQUEST_COMMIT` path,
+restarts and reconciles an injected post-dispatch unknown without redispatch, calls the
+normal receipt-owned `REQUEST_UNDO` path, and verifies exact-calendar absence. This wave
+remains `authorizes_production: false`; every other EventKit scope and production mode
+stays incumbent-owned.
+
 `make lab-promote` is intentionally frozen through P13.5. Direct, automatic, and
 `--decide promote` invocations return blocking hold before promotion/report artifact
 writes and leave `CURRENT` byte-identical. P13.6 may
