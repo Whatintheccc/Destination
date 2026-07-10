@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E is complete and P12 is closed (run `20260706T220150Z-step-e-complete`); P13.0 ruler and non-authorizing attestation-scaffold mechanics are implemented, but they are not a migration authorization boundary—product migration is blocked on externally governed operator authorization, independent TCB review, and isolated evaluation
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), and P13.0 is complete for single-owner development: the ruler, protected remote replay, affectedness, comparison certificates, and promotion freeze are binding. P13.1 is the active phase. No-effect and read-side work may proceed under the protected owner-controlled ruler; effect-capable handoff, old-truth retirement, and learning promotion remain blocked on their later authorization barriers.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -310,10 +310,12 @@ exclusion.
 
 Those stronger properties exist only when an externally held pre-wave authorization
 pins the candidate and instrument, an isolated evaluator runs the fixed verifier and
-instrument, and a protected consumer accepts only the resulting receipt. The protected
-root workflow now runs and retains hosted replay evidence, but its key is generated
-inside the candidate-controlled job. It proves cryptographic and reproducibility
-mechanics only and cannot authorize migration.
+instrument, and a protected consumer accepts only the resulting receipt. They are a
+production/effect-handoff profile, not a prerequisite for structurally no-effect P13.1
+or read-side P13.2 work in this single-owner repository. The protected root workflow
+runs and retains hosted replay evidence, but its key is generated inside the
+candidate-controlled job. It proves cryptographic and reproducibility mechanics only;
+it cannot authorize an effect-capable handoff, retirement, or learning promotion.
 
 P13.0 installs one creation and one verification access point:
 
@@ -322,9 +324,11 @@ make wave-bind WAVE="$WAVE" CHANGE_CLASS="$CHANGE_CLASS"
 make wave-harness WAVE="$WAVE" P13_VERIFY_KEY="$P13_VERIFY_KEY"
 ```
 
-For a migration authorization, `wave-bind` is run and signed by the external operator
-before candidate edits. A development-key invocation tests the same payload mechanics but
-does not authorize a candidate.
+For P13.1 and P13.2, the owner freezes scope before candidate edits and uses a development
+key to bind that scope to the protected ruler. This is an explicit single-owner development
+decision, not independent evaluation. For an effect-capable handoff or production
+promotion, `wave-bind` is instead run and signed by the external operator described in
+§8.5.1.
 `binding-manifest-verify` checks signature, expiry, hashes, and locally derived
 affectedness; `architecture-evals-v2` applies the selected required predicates. The
 local fail-closed `wave-harness` composes those checks with the evidence certificates,
@@ -336,8 +340,10 @@ The current access points are a ruler, not the final authorization boundary. Loc
 paths are caller inputs and local reports live under ignored `runs/`. The root workflow
 creates a development key inside the candidate job, evaluates the candidate checkout,
 and uploads a fixed, checksummed, expiring evidence bundle. These paths demonstrate
-fail-closed mechanics and one exact hosted replay, but no local report, caller-supplied
-or job-generated key, or same-checkout evaluator result can admit P13.1.
+fail-closed mechanics and one exact hosted replay. They are sufficient to grade bounded,
+structurally no-effect and read-side development waves; no local report, caller-supplied
+or job-generated key, or same-checkout evaluator result can admit P13.3 effect handoff,
+old-truth retirement, or P13.6 learning promotion.
 
 The ruler truth-repair wave records 11/11 preservation passes, five binding ruler
 target passes, and 21 nonbinding `not_reached` target debts. Adding target scenarios has
@@ -1122,13 +1128,20 @@ deterministic and live/sandbox certificates pass.
 | `C-VAR` | reducer/promotion-sensitive changes | independent pre/post outputs; compression equivalence intervals and borderline flip rate stay inside preregistered bounds |
 | `C-B6` | estimator changes | simulator and human calibration remain separate at one estimator version; protected human slices do not regress |
 
-### 8.5 P13.0 — Make The Wave Harness Binding
+### 8.5 P13.0 — Binding Wave Harness — COMPLETE FOR SINGLE-OWNER DEVELOPMENT
 
 The versioned `InstrumentBundle` pins evaluator and reward-reducer code, scenario
 generators, change-class evidence partitions, thresholds/equivalence margins, resource
 and time budgets, runtime/compiler/fixture/model identities, report schemas, planted
 counterexamples, the ownership/affectedness map, and the manifest signer verification
 root. Changing any member starts a new instrument epoch before candidate work.
+
+P13.0 is complete for the repository's current single-owner development mode. The
+checked ruler mechanics below permit P13.1 no-effect and P13.2 read-side waves only when
+their manifest declares every touched path and their structural tests prove that the new
+path has no credential, ticket, `EffectAttempt`, dispatch, provider-mutation, retirement,
+or promotion reachability. Unchecked downstream rows bind when their affected surface is
+first touched; they are not blanket blockers on the no-effect skeleton.
 
 No authority handoff, vertical retirement, behavior-bearing consolidation, or deletion
 starts until all of these are true:
@@ -1138,7 +1151,6 @@ starts until all of these are true:
 [x] A candidate-controlled workflow definition exists at the actual git root and declares the deterministic baseline plus report-decision assertions.
 [x] That exact workflow definition is present on the remote default branch and has an externally observed provenance-bound successful run for the exact commit/workflow identity with retained logs and report hashes. This proves remote reproducibility only, not evaluator independence or migration authority.
 [x] A clean-tree development manifest proves InstrumentBundle@sha, active-app subtree pinning, signing, expiry, and verification mechanics.
-[ ] The release verification root is durable, operator-held, and outside the repository and candidate workspace; a manifest signed only by an ephemeral development key cannot authorize migration.
 [x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
 [x] pass is required for promotion; hold returns a blocking status from the wave gate.
 [x] root-list format, signature, owner/sign-off, hash, affectedness, and expiry mechanics are versioned and exercised with development keys.
@@ -1146,11 +1158,6 @@ starts until all of these are true:
 [x] `make wave-bind` and manifest verification prove signature and undeclared-affectedness mechanics with development keys.
 [x] Automatic and forced promotion return blocking hold before promotion/report artifact writes and leave `CURRENT` byte-identical through P13.5.
 [x] A separate `scaffold.v1` verifier checks an externally located but explicitly unanchored scaffold-only policy, evaluator-signed packet with typed TCB entries, and reviewer-signed exact-packet/TCB binding; its report permits only hold/fail and fixes both `authorizes_migration: false` and `policy_provenance_verified: false`.
-[ ] An externally governed `WaveAuthorization` pins origin, base commit/tree/app-tree, scope, ownership map, instrument, evaluator image/entrypoint, allowed producers, frozen-before receipt, policy id/key epoch, and expiry before candidate work.
-[ ] An isolated evaluator produces a signed `EvaluationPacket` over the exact candidate identity, sealed inputs, evaluator execution identity, raw result-artifact hashes, and evaluator-derived affectedness before review.
-[ ] An engineering wave that changes TCB code has an independent `TCBReviewAttestation` over the exact candidate commit/tree/binary diff, evaluator-derived TCB path set and blobs, `EvaluationPacket`, reviewer policy/key id, decision, and expiry.
-[ ] The isolated evaluator rechecks the candidate and produces a signed `EvaluationReceipt` over the authorization, packet, review, exact candidate identity, sealed inputs, execution identity, report hashes, post-run tree hash, and decision. The promoter later consumes this receipt, not a mutable checkout or arbitrary JSON path.
-[ ] Trust policy, operator/reviewer key custody, reviewer replacement/revocation, and protected merge/deployment enforcement are external to the candidate repository and workspace. Distinct key fingerprints can prove role separation, not human or organizational independence.
 [x] Instrument mutation, manifest downgrade, scope under-declaration, and protected-path affectedness attacks are planted failures.
 [x] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
 [x] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
@@ -1162,6 +1169,19 @@ starts until all of these are true:
 [x] Reward screening reports content-addressed occurrence identity, declared human/simulator source classes, causal-reference shape checks, and direct simulator-positive-credit rejection without claiming authentication.
 [ ] Stable issuer/event identity, authenticated and resolved causal provenance, duplicate-conflict handling, and transitive simulator noninterference are binding at reward ingress.
 [ ] Every certificate has a planted counterexample that produces fail or hold.
+```
+
+The following high-assurance profile is deferred. It becomes binding before the first
+P13.3 effect-capable handoff, P13.5 old-truth retirement, production deployment, or P13.6
+learning promotion—not before P13.1/P13.2:
+
+```text
+[ ] The release verification root is durable, operator-held, and outside the repository and candidate workspace; a manifest signed only by an ephemeral development key cannot authorize an effect handoff or production promotion.
+[ ] An externally governed `WaveAuthorization` pins origin, base commit/tree/app-tree, scope, ownership map, instrument, evaluator image/entrypoint, allowed producers, frozen-before receipt, policy id/key epoch, and expiry before candidate work.
+[ ] An isolated evaluator produces a signed `EvaluationPacket` over the exact candidate identity, sealed inputs, evaluator execution identity, raw result-artifact hashes, and evaluator-derived affectedness before review.
+[ ] An engineering wave that changes the effect TCB has an independent `TCBReviewAttestation` over the exact candidate commit/tree/binary diff, evaluator-derived TCB path set and blobs, `EvaluationPacket`, reviewer policy/key id, decision, and expiry.
+[ ] The isolated evaluator rechecks the candidate and produces a signed `EvaluationReceipt` over the authorization, packet, review, exact candidate identity, sealed inputs, execution identity, report hashes, post-run tree hash, and decision. The promoter later consumes this receipt, not a mutable checkout or arbitrary JSON path.
+[ ] Trust policy, operator/reviewer key custody, reviewer replacement/revocation, and protected merge/deployment enforcement are external to the candidate repository and workspace. Distinct key fingerprints can prove role separation, not human or organizational independence.
 ```
 
 Remote execution-evidence record (2026-07-10):
@@ -1228,10 +1248,14 @@ P13.0 may change only the ruler, access-point plumbing, and their tests. It prod
 product behavior change and no compression credit. Its exit bundle follows §4.8 and
 contains one demonstrated failing fixture for each protected decision surface.
 
-#### 8.5.1 The Authorization Boundary That Does Not Yet Exist
+#### 8.5.1 Deferred Effect/Production Authorization Boundary
 
-Do not solve this by adding an approval service, queue, database, or a local “reviewed”
-flag. The smallest valid topology has four signed records and one fixed verifier:
+This boundary does not block P13.1 no-effect construction or P13.2 read-side cutover.
+It becomes mandatory before any new path can mint or consume a ticket, claim or dispatch
+an effect, retire incumbent truth, deploy as the production effect owner, or promote a
+learned policy. Do not solve it by adding an approval service, queue, database, or a local
+“reviewed” flag. When it becomes binding, the smallest valid topology has four signed
+records and one fixed verifier:
 
 ```text
 operator-held external root
@@ -1274,8 +1298,9 @@ ambient-import, submodule, symlink, or post-review changes unless explicitly rep
 candidate identity. This order avoids a signature hash cycle: evaluator packet, reviewer
 attestation, then final evaluator receipt.
 
-Review is required whenever evaluator-derived affectedness includes `effect_tcb`; candidate
-scope may not suppress it. A reviewer key must be distinct from the operator, evaluator,
+Review is required before an effect-capable or retiring wave whenever evaluator-derived
+affectedness includes `effect_tcb`; candidate scope may not suppress it. A reviewer key
+must be distinct from the operator, evaluator,
 and protected candidate-author/co-author principals named by external policy; a commit or
 tree hash is not a signing identity. Technical key separation is not proof of human
 independence. The independent policy, custody, revocation, artifact location, and protected
@@ -1284,7 +1309,9 @@ the authorizing `WaveAuthorization.v1`, `EvaluationReceipt.v1`, and fixed extern
 remain intentionally unimplemented: a local generic approval mechanism would create the
 appearance of authorization without its source.
 
-One deliberately inert seam is implemented now:
+One deliberately inert seam is implemented as future contract reference and planted
+counterexample coverage. It is not a P13.1/P13.2 phase gate and must never be counted as
+authorization:
 
 ```text
 externally located, self-declared P13ScaffoldingTrustPolicy.v1 (always scaffold_only)
@@ -1356,21 +1383,24 @@ candidate-controlled root workflow definition must be present. An externally obs
 exact-commit run with retained evidence must establish remote reproducibility. Local
 report-decision mechanics, separately materialized before/after artifacts with
 alias/self-derivation rejection, root-list expiry, and the actual experiment record must
-remain fail-closed. Only the externally authorized evaluation/receipt and protected
-consumption in §8.5.1 bind a behavior migration.
+remain fail-closed. In single-owner development those controls bind structurally no-effect
+P13.1 and read-side P13.2 waves. Only the externally authorized evaluation/receipt and
+protected consumption in §8.5.1 bind an effect-capable handoff, old-truth retirement, or
+production learning promotion.
 The new P13 baseline then pins the post-documentation commit, active-app subtree, exact
 LOC vector, deterministic reports, and affected live/app evidence.
 
-P13.1 additionally requires the external authorization boundary in §8.5.1. A clean
-development manifest, local report, or candidate-job development key is evidence about
-ruler mechanics, not permission to create the walking skeleton.
+P13.1 requires a clean owner-frozen development manifest, protected CI, and explicit
+structural proof that the new package cannot reach credentials, tickets, `EffectAttempt`,
+the Gateway, or a mutating Provider. This permits the walking skeleton; it does not confer
+independent evaluation or permission for an effect-capable cutover.
 
 The first unit is `create_prep_block`, not a shared framework or an organ. Contract
 design and shadow plumbing are one vertical learning exercise: contracts emerge only
 when the walking skeleton needs them. Execute these barriers in order:
 
 ```text
-P13.0  bind ruler mechanics; freeze promotion; install durable signer/reviewer boundary
+P13.0  bind ruler mechanics; freeze promotion; close the single-owner development baseline
 P13.1  no-effect create_prep_block walking skeleton through ProductCore -> AdmissionPreview
 P13.2  cut over cited UI/explain read-side; observe while incumbent still owns effects
 P13.3  introduce EffectAttempt tickets and switch deterministic effects at one EffectKernel selector
@@ -1414,10 +1444,11 @@ receipts return to the Journal. New-only revoke/reconcile/compensation controls 
 truthfully unavailable until their Gate/Gateway routes cut over atomically in P13.3.
 No control can choose old versus new authority ad hoc.
 
-Any change whose causal impact can alter trusted ingress, admission, ticket fields,
+Any change whose causal impact can alter trusted ingress, effect admission, ticket fields,
 claim/revoke linearization, dispatch capability, verification, reconciliation, or
-compensation is a TCB change regardless of file location. It requires the exact-path
-manifest declaration and independent reviewer attestation before merge.
+compensation is an effect-TCB change regardless of file location. P13.1/P13.2 code must be
+structurally outside that set. An effect-TCB handoff or retirement requires the exact-path
+manifest declaration and the §8.5.1 authorization profile before merge.
 
 `DogfoodSessionState`, static snapshots, and hidden frontend truth retire only durable,
 semantic, safety-, explanation-, and decision-bearing field by field after the required
@@ -1565,7 +1596,7 @@ Use this checklist for every proposed wave.
 [ ] Behavior is classified as role, port/adapter, event, projection, command, or control-plane function.
 [ ] The exact action family/backend vertical and old/new invocation identities are named.
 [ ] The candidate write aperture is explicit and allowlisted.
-[ ] Any engineering TCB edit is manifest-declared, isolated, externally evaluated, and independently reviewed.
+[ ] P13.1/P13.2 product code proves it is structurally outside the effect TCB; any later effect-TCB handoff or retirement edit is manifest-declared and satisfies §8.5.1.
 [ ] Every durable semantic, safety-, explanation-, and decision-bearing field is in the Journal + Reducer manifest; ephemeral UI state owns no product truth.
 ```
 
@@ -1573,8 +1604,9 @@ Use this checklist for every proposed wave.
 
 ```text
 [ ] Old/new may both compute; exactly one path is user-visible and effect-capable.
-[ ] StandingGrant plus one-use effect/compensation ticket semantics conform v2 and refine legacy authority without broadening effects.
-[ ] Stale, duplicate, crash-before/after-claim, unknown, revoke-race, reconciled-absent, restart, and compensation-conflict cases pass.
+[ ] For P13.1/P13.2, the new path has zero credential, ticket, EffectAttempt, dispatch, and provider-mutation reachability.
+[ ] For effect-capable waves, StandingGrant plus one-use effect/compensation ticket semantics conform v2 and refine legacy authority without broadening effects.
+[ ] For effect-capable waves, stale, duplicate, crash-before/after-claim, unknown, revoke-race, reconciled-absent, restart, and compensation-conflict cases pass.
 [ ] Reward provenance is source-authenticated; simulator contributes zero positive promotion credit.
 [ ] Provenance is preserved or expanded.
 [ ] Reconciliation plus conflict-aware compensation/hold path exists.
@@ -1637,17 +1669,18 @@ Retired by Step E (evidence: [P12 Record §6](P12-RECORD.md)): the original
 deterministic-only P12 reach, the three original pass-by-construction placebo reports,
 and the missing `Belief`/`explain` contract. P13.0 now has fail-closed local
 compression-wave mechanics, a protected root access point, and exact-main hosted replay
-evidence. The durable signer, independent-review, and isolated-evaluation boundaries in
-§8.5 remain the migration blockers.
+evidence. P13.1 no-effect construction is now active. The durable signer,
+independent-review, and isolated-evaluation profile in §8.5.1 remains the blocker for
+effect-capable handoff, old-truth retirement, and production learning promotion.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
-| local workflow YAML or a candidate-job green is mistaken for independent evaluation | the candidate can change the workflow/verifier that appears to grade it; remote execution alone can become an authority placebo | bind exact candidate/workflow identity and retain externally observed run evidence for reproducibility; require isolated evaluation and protected receipt consumption for authority |
+| local workflow YAML or a candidate-job green is mistaken for independent evaluation | the candidate can change the workflow/verifier that appears to grade it; remote execution alone can become an authority placebo | label single-owner development evidence honestly; bind exact candidate/workflow identity and retain remote evidence; require isolated evaluation and protected receipt consumption only before effect/production authority |
 | C-VAR and `B_migrate` defaults are self-derived | a behavior-changing wave can compare the new implementation to itself | separately materialized frozen-before and generated-after paths with alias/self-derivation rejection; external isolation before migration |
 | report hold can return shell success | Make/CI can continue after a non-promotable result | promotion wrapper requires JSON `decision: pass` and exits nonzero otherwise |
 | static signed root-list entries do not enforce expiry | old live evidence can silently certify a touched path | versioned ledger with hashes, affectedness, sign-off, and enforced expiry |
-| v1 target `binding_trigger` is inert prose | all nine target debts can remain `observe/not_reached` while the top-level gate passes | v2 plus an externally authorized pre-wave BindingManifest before migration |
-| BindingManifest can under-declare the diff | a signed but incomplete scope can omit binding cases | fixed verifier derives affectedness from full diff + ownership map and fails every undeclared touch; isolated evaluator reruns it before receipt |
+| v1 target `binding_trigger` is inert prose | all nine target debts can remain `observe/not_reached` while the top-level gate passes | v2 plus an owner-frozen pre-wave BindingManifest for P13.1/P13.2; external authorization before effect/production handoff |
+| BindingManifest can under-declare the diff | a signed but incomplete scope can omit binding cases | protected verifier derives affectedness from full diff + ownership map and fails every undeclared touch; isolated evaluator reruns it before an effect/production receipt |
 | a promotion implementation could regain a writable override | a human/agent could write `CURRENT` after a hard failure | access point is frozen before writes through P13.5; P13.6 must admit only signed payloads after external gates; a new threshold means a new instrument epoch |
 | training and evaluation reuse lab runs/seeds | autonomous search can optimize its evaluator | disjoint search, family-disjoint sealed holdout, and frozen forward live shadow |
 | simulator reward has positive training weight | policy can learn to please its model of the user | separate ledgers; simulator can veto/train failure detector but has zero positive promotion credit |
@@ -1676,41 +1709,45 @@ evidence. The durable signer, independent-review, and isolated-evaluation bounda
 
 2. Complete P13.0 before the first product walking skeleton.
    Canonical access point, root workflow definition, externally observed exact-commit
-   run evidence, protected consumption, scenario-set v2, externally authorized
-   BindingManifest, manifest affectedness, real experiment record, separately materialized
-   C-VAR/B_migrate evidence, validated live-leg ledger, durable operator signer,
-   independent TCB reviewer.
+   run evidence, scenario-set v2, owner-frozen development BindingManifest, manifest
+   affectedness, real experiment record, separately materialized C-VAR/B_migrate
+   evidence, validated live-leg ledger, and frozen promotion. — DONE for single-owner
+   development.
 
-3. Compose local wave evidence, then cross the fixed external authorization boundary.
+3. Bind each P13.1/P13.2 wave with the owner-controlled protected ruler.
    The local harness records change class, evidence hashes, baseline, uncertainty,
-   slices, ablation, rollback, and the §4.7 gate union. The isolated evaluator and
-   independent reviewer produce the packet, review, and final receipt; only a future
-   promoter consumes that receipt.
+   slices, ablation, rollback, and the §4.7 gate union. Structural tests must prove
+   zero credential, ticket, EffectAttempt, dispatch, provider-mutation, retirement,
+   and promotion reachability.
 
 4. Build the no-effect create_prep_block walking skeleton end to end.
    ProductCore append/reduce/cited projection, structurally non-dispatchable
    AdmissionPreview, and proof of zero new effect attempts or provider mutations;
    incumbent remains the only visible and effect-capable path.
 
-5. Cut over its read side, then deterministic effects at the sole Gateway selector.
-   Prove effect and compensation tickets, claim/outbox, stale/duplicate/crash,
-   unknown/revoke/restart/reconciled-absent cases.
+5. Cut over its cited read side while the incumbent remains the sole effect owner.
 
-6. Repeat the same vertical through app-bundled sandbox EventKit.
+6. Before deterministic effects, cross the fixed §8.5.1 authorization boundary.
+   The isolated evaluator and independent reviewer produce the packet, review, and
+   final receipt; only the protected consumer accepts that receipt. Then switch effects
+   at the sole Gateway selector and prove effect and compensation tickets, claim/outbox,
+   stale/duplicate/crash, unknown/revoke/restart/reconciled-absent cases.
+
+7. Repeat the same effect-capable vertical through app-bundled sandbox EventKit.
    Retire old truth only for the proven action/backend; repeat per vertical.
 
-7. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
+8. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
    Replace the frozen promoter with a signed, externally gated path; separate search/holdout/live evidence; simulator never
    supplies positive promotion credit; sign PromotionRecord before CURRENT changes.
 
-8. Contract duplicated architecture under certificates.
+9. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.
 
-9. Harvest to the emergent floor.
+10. Harvest to the emergent floor.
    Stop at the first protected monitor, calibration, reconciliation, evidence,
    or traceability constraint. Report the binding constraint.
 
-10. Do not begin recursive meta-optimization in P13-P17.
+11. Do not begin recursive meta-optimization in P13-P17.
     A later phase may be proposed only after isolation attacks, rejected-bad/accepted-good payloads,
     atomic rollback, and a forward no-effect shadow are proven with a fixed base model.
 ```
@@ -1729,12 +1766,13 @@ The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
 local development verification access points, scenario-set v2, affectedness, separately
 materialized comparison certificates with alias/self-derivation rejection, a promotion
 freeze, and one protected exact-main hosted replay with a checksummed evidence bundle.
-Its honest remaining boundary is organizational, cryptographic, and execution-isolation:
-install the externally governed authorization, independent review, and isolated-evaluation
-chain in §8.5.1 before any product skeleton. Then migrate one
-complete `create_prep_block` vertical through no-effect,
-read-side,
-deterministic-effect, and app-bundled EventKit barriers before generalizing (P13).
+That closes P13.0 for single-owner development. P13.1 now migrates one complete
+`create_prep_block` vertical through a structurally no-effect ProductCore and
+`AdmissionPreview`; P13.2 may cut over cited read-side projections while the incumbent
+remains the sole effect owner. The organizational, cryptographic, and execution-isolation
+profile in §8.5.1 becomes binding before P13.3 deterministic-effect handoff, retirement,
+production deployment, or P13.6 promotion. App-bundled EventKit follows only after the
+deterministic effect barrier passes.
 Learning becomes frozen proposal payloads plus signed promotion records only after that operational path is stable;
 meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
 line count falls as a consequence. The floor is where the next subtraction would blind
