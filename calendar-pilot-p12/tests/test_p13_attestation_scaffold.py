@@ -38,6 +38,7 @@ from evals.p13_ruler.attestation_scaffold import (
 
 NOW = datetime(2026, 7, 10, 1, 0, tzinfo=timezone.utc)
 CURRENT = ROOT / "experiments/promoted/CURRENT.json"
+EXTERNAL_TMP_ROOT = Path(tempfile.gettempdir()).resolve()
 
 
 def _iso(value: datetime) -> str:
@@ -218,7 +219,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         return report
 
     def test_valid_distinct_scaffold_is_permanently_non_authorizing(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             report = self._verify(self._fixture(Path(td)))
         self.assertEqual(report["decision"], "hold")
         self.assertTrue(report["mechanics_valid"])
@@ -232,7 +233,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertNotIn("pass", schema["properties"]["decision"]["enum"])
 
     def test_missing_external_inputs_hold(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             fixture = self._fixture(Path(td))
             missing_policy = verify_attestation_scaffold(policy_path=None, packet_path=None, review_path=None, now=NOW)
             missing_review = verify_attestation_scaffold(
@@ -261,7 +262,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("review_missing", {row["code"] for row in unavailable_parent["hold_reasons"]})
 
     def test_role_key_and_reviewer_author_collisions_fail(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             collision = deepcopy(fixture["policy"])
@@ -281,7 +282,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("reviewer_author_collision", {row["code"] for row in reviewer_collision["failures"]})
 
     def test_signature_payload_candidate_and_tcb_tamper_fail(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             packet = deepcopy(fixture["packet"])
@@ -307,7 +308,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("review_tcb_blob_mismatch", {row["code"] for row in tcb_replay["failures"]})
 
     def test_expired_policy_packet_and_review_fail(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             policy = deepcopy(fixture["policy"])
@@ -333,7 +334,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("review_time_order", {row["code"] for row in review_expired["failures"]})
 
     def test_reviewer_hold_holds_and_reject_fails(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             hold_report = self._verify(self._fixture(root, review_decision="hold"))
             reject_report = self._verify(self._fixture(root, review_decision="reject"))
@@ -345,7 +346,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("review_rejected", {row["code"] for row in reject_report["failures"]})
 
     def test_repository_local_and_symlink_inputs_fail(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             with tempfile.TemporaryDirectory(dir=ROOT / "runs") as local_td:
@@ -368,7 +369,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("input_path_symlink", {row["code"] for row in symlink_report["failures"]})
 
     def test_hardlink_and_git_worktree_inputs_fail(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             with tempfile.TemporaryDirectory(dir=ROOT / "runs") as local_td:
@@ -384,7 +385,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
 
             worktree = root / "linked-worktree"
             worktree.mkdir()
-            (worktree / ".git").write_text("gitdir: /private/tmp/nonexistent\n", encoding="utf-8")
+            (worktree / ".git").write_text(f"gitdir: {EXTERNAL_TMP_ROOT / 'nonexistent'}\n", encoding="utf-8")
             worktree_policy = self._write(worktree / "policy.json", fixture["policy"])
             worktree_report = verify_attestation_scaffold(
                 policy_path=worktree_policy,
@@ -396,7 +397,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("input_inside_git_worktree", {row["code"] for row in worktree_report["failures"]})
 
     def test_parent_symlinks_cannot_redirect_input_or_output(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             actual = root / "actual"
@@ -417,7 +418,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertFalse(output_exists)
 
     def test_verifier_ignores_path_shadowed_openssl(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             shadow = root / "shadow"
@@ -434,7 +435,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertFalse(shadow_ran)
 
     def test_strict_json_rejects_duplicates_unknowns_nonfinite_and_commands(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             encoded = json.dumps(fixture["policy"], sort_keys=True)
@@ -456,7 +457,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
                 strict_load_json(nonfinite, POLICY_SCHEMA)
 
     def test_wrong_role_revocation_and_reference_replay_fail(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             packet = deepcopy(fixture["packet"])
@@ -481,7 +482,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("review_packet_mismatch", {row["code"] for row in replay["failures"]})
 
     def test_tcb_entries_are_reviewable_and_hash_bound(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             fixture = self._fixture(root)
             packet = deepcopy(fixture["packet"])
@@ -498,7 +499,7 @@ class P13AttestationScaffoldTests(unittest.TestCase):
         self.assertIn("effect_tcb_blob_hash_mismatch", {row["code"] for row in report["failures"]})
 
     def test_cli_never_exits_success_or_mutates_candidate_state(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as td:
+        with tempfile.TemporaryDirectory(dir=EXTERNAL_TMP_ROOT) as td:
             root = Path(td)
             live_now = datetime.now(timezone.utc)
             fixture = self._fixture(root, now=live_now)

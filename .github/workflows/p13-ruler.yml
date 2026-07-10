@@ -12,6 +12,8 @@ jobs:
     name: deterministic-ruler
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      CALENDAR_PILOT_KERNEL_BACKEND: stub
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -46,22 +48,22 @@ jobs:
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/p13-signing-private.pem"
           openssl pkey -in "$RUNNER_TEMP/p13-signing-private.pem" -pubout -out "$RUNNER_TEMP/p13-signing-public.pem"
           make p13-instrument P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make wave-bind WAVE=p13-remote-reproducibility CHANGE_CLASS=ruler P13_SIGNING_KEY="$RUNNER_TEMP/p13-signing-private.pem" P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make binding-manifest-verify WAVE=p13-remote-reproducibility P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make architecture-evals-v2 WAVE=p13-remote-reproducibility P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
-          make wave-harness WAVE=p13-remote-reproducibility P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make wave-bind WAVE=p13-remote-reproducibility-v2 CHANGE_CLASS=ruler P13_SIGNING_KEY="$RUNNER_TEMP/p13-signing-private.pem" P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make binding-manifest-verify WAVE=p13-remote-reproducibility-v2 P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make architecture-evals-v2 WAVE=p13-remote-reproducibility-v2 P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
+          make wave-harness WAVE=p13-remote-reproducibility-v2 P13_VERIFY_KEY="$RUNNER_TEMP/p13-signing-public.pem"
       - name: Assert report decisions
         run: |
           set -euo pipefail
           jq -e '.decision == "pass" and .file_count > 0 and .total_lines > 0' calendar-pilot-p12/runs/p13_loc_report.json
           jq -e '.p13_instrument_bundle_schema_version == "p13_instrument_bundle.v1" and (.artifacts | length) > 0' calendar-pilot-p12/runs/p13_instrument_bundle.json
-          jq -e '.decision == "pass" and (.changed_paths | length) == 0 and (.failures | length) == 0' calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.verification.json
+          jq -e '.decision == "pass" and (.changed_paths | length) == 0 and (.failures | length) == 0' calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility-v2.verification.json
           jq -e '.decision == "pass" and .rails.preservation.decision == "pass" and .rails.preservation.scenario_count == 11' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json
-          jq -e '.architecture_eval_report_schema_version == "architecture_eval_report.v2" and .decision == "pass" and .rails.preservation.decision == "pass" and (.binding.manifest.path | endswith("/p13-remote-reproducibility.json")) and ([.scenarios[] | select(.rail == "target_conformance" and .gate_mode == "required" and .status != "pass")] | length) == 0' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json
+          jq -e '.architecture_eval_report_schema_version == "architecture_eval_report.v2" and .decision == "pass" and .rails.preservation.decision == "pass" and (.binding.manifest.path | endswith("/p13-remote-reproducibility-v2.json")) and ([.scenarios[] | select(.rail == "target_conformance" and .gate_mode == "required" and .status != "pass")] | length) == 0' calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json
           jq -e '.decision == "pass" and .ok == true' calendar-pilot-p12/runs/p12_release/p12_release_report.json
           jq -e '.decision == "pass" and .ok == true and ([.gates[] | select(. != "pass")] | length) == 0' calendar-pilot-p12/runs/p13_wave_gate_report.json
-          jq -e '.experiment_record_schema_version == "experiment_record.v2" and .phase == "P13" and .decision == "pass"' calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/experiment_record.json
-          jq -e '.reward_head_report_schema_version == "reward_head_report.v3" and .decision == "pass" and .reward_evidence.occurrence_ids_unique == true' calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/reward_screen_report.json
+          jq -e '.experiment_record_schema_version == "experiment_record.v2" and .phase == "P13" and .decision == "pass"' calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility-v2/experiment_record.json
+          jq -e '.reward_head_report_schema_version == "reward_head_report.v3" and .decision == "pass" and .reward_evidence.occurrence_ids_unique == true' calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility-v2/reward_screen_report.json
       - name: Verify exact-commit evidence coherence
         run: |
           set -euo pipefail
@@ -74,19 +76,19 @@ jobs:
             calendar-pilot-p12/runs/p13_instrument_bundle.json \
             calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json \
             calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json \
-            calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/architecture_eval_report_v2.json \
-            calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/loc_report.json
+            calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility-v2/architecture_eval_report_v2.json \
+            calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility-v2/loc_report.json
           do
             jq -e --arg git_sha "$head_sha" --arg app_tree "$app_tree" \
               '.repository.git_sha == $git_sha and .repository.app_tree_sha == $app_tree and .repository.dirty == false' \
               "$report"
           done
 
-          manifest="calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.json"
-          verification="calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.verification.json"
+          manifest="calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility-v2.json"
+          verification="calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility-v2.verification.json"
           instrument="calendar-pilot-p12/runs/p13_instrument_bundle.json"
           top_gate="calendar-pilot-p12/runs/p13_wave_gate_report.json"
-          wave_dir="calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility"
+          wave_dir="calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility-v2"
           experiment="$wave_dir/experiment_record.json"
 
           jq -e --arg git_sha "$head_sha" --arg app_tree "$app_tree" \
@@ -151,12 +153,12 @@ jobs:
           }
 
           copy_subject .github/workflows/p13-ruler.yml workflow/p13-ruler.yml
-          copy_subject calendar-pilot-p12/experiments/waves/p13-remote-reproducibility.scope.json scope/p13-remote-reproducibility.scope.json
+          copy_subject calendar-pilot-p12/experiments/waves/p13-remote-reproducibility-v2.scope.json scope/p13-remote-reproducibility-v2.scope.json
           copy_subject "$RUNNER_TEMP/p13-signing-public.pem" verification/development-signing-public.pem
           copy_subject calendar-pilot-p12/runs/p13_loc_report.json reports/p13_loc_report.json
           copy_subject calendar-pilot-p12/runs/p13_instrument_bundle.json reports/p13_instrument_bundle.json
-          copy_subject calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.json reports/p13_manifests/p13-remote-reproducibility.json
-          copy_subject calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility.verification.json reports/p13_manifests/p13-remote-reproducibility.verification.json
+          copy_subject calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility-v2.json reports/p13_manifests/p13-remote-reproducibility-v2.json
+          copy_subject calendar-pilot-p12/runs/p13_manifests/p13-remote-reproducibility-v2.verification.json reports/p13_manifests/p13-remote-reproducibility-v2.verification.json
           copy_subject calendar-pilot-p12/runs/architecture_evals/architecture_eval_report.json reports/architecture_evals/architecture_eval_report.json
           copy_subject calendar-pilot-p12/runs/architecture_evals/architecture_eval_report_v2.json reports/architecture_evals/architecture_eval_report_v2.json
           copy_subject calendar-pilot-p12/runs/p12_release/p12_release_report.json reports/p12_release/p12_release_report.json
@@ -176,7 +178,7 @@ jobs:
             loc_report.json \
             experiment_record.json
           do
-            copy_subject "calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility/$subject" "reports/p13_wave_gate/p13-remote-reproducibility/$subject"
+            copy_subject "calendar-pilot-p12/runs/p13_wave_gate/p13-remote-reproducibility-v2/$subject" "reports/p13_wave_gate/p13-remote-reproducibility-v2/$subject"
           done
 
           python_version="$(python --version 2>&1)"
@@ -187,7 +189,7 @@ jobs:
           checkout_tree="$(git rev-parse HEAD^{tree})"
           app_tree="$(git rev-parse HEAD:calendar-pilot-p12)"
           workflow_sha256="$(sha256sum .github/workflows/p13-ruler.yml | cut -d ' ' -f 1)"
-          scope_sha256="$(sha256sum calendar-pilot-p12/experiments/waves/p13-remote-reproducibility.scope.json | cut -d ' ' -f 1)"
+          scope_sha256="$(sha256sum calendar-pilot-p12/experiments/waves/p13-remote-reproducibility-v2.scope.json | cut -d ' ' -f 1)"
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
           jq -n \
@@ -221,6 +223,7 @@ jobs:
             --arg pip "$pip_version" \
             --arg openssl "$openssl_version" \
             --arg git "$git_version" \
+            --arg kernel_backend "$CALENDAR_PILOT_KERNEL_BACKEND" \
             '{
               kind: "p13_remote_reproducibility_run_context",
               semantics: {
@@ -265,7 +268,8 @@ jobs:
                 python: $python,
                 pip: $pip,
                 openssl: $openssl,
-                git: $git
+                git: $git,
+                deterministic_kernel_backend: $kernel_backend
               }
             }' > "$bundle_dir/run-context.json"
 
