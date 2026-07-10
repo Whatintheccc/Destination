@@ -21,13 +21,14 @@ from evals.p13_ruler.wave import (
     build_b_migrate_artifact,
     build_cvar_frontier_set,
     build_experiment_record,
+    b_migrate_assertions_path,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
     is_structurally_no_effect_wave,
     verify_root_list,
 )
 from scripts.make_reward_head_report import build_report as build_reward_report
-from scripts.run_p13_wave_gate import _b_migrate_assertions_path
+from scripts.run_b_migrate_dual_run_v2 import _assertions_path
 
 
 def _manifest() -> dict:
@@ -175,7 +176,7 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
     def test_b_migrate_assertion_set_is_manifest_bound(self):
         manifest = _manifest()
         self.assertEqual(
-            _b_migrate_assertions_path(manifest),
+            b_migrate_assertions_path(manifest),
             ROOT / "experiments/configs/b_migrate_frontend_view_state_v2.json",
         )
         with tempfile.TemporaryDirectory() as td:
@@ -184,10 +185,15 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             binding = {"path": str(assertions), "sha256": sha256_file(assertions)}
             manifest["old_producer"]["b_migrate"]["assertion_set"] = binding
             manifest["new_producer"]["b_migrate"]["assertion_set"] = deepcopy(binding)
-            self.assertEqual(_b_migrate_assertions_path(manifest), assertions)
+            self.assertEqual(b_migrate_assertions_path(manifest), assertions)
+            self.assertEqual(_assertions_path(manifest), assertions)
+            other = Path(td) / "other.json"
+            other.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "cannot override"):
+                _assertions_path(manifest, str(other))
             manifest["new_producer"]["b_migrate"]["assertion_set"]["sha256"] = "0" * 64
             with self.assertRaisesRegex(ValueError, "same assertion set"):
-                _b_migrate_assertions_path(manifest)
+                b_migrate_assertions_path(manifest)
 
     def test_root_list_expiry_and_missing_behavior_coverage_hold(self):
         manifest = _manifest()

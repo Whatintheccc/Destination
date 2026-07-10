@@ -33,6 +33,24 @@ def load_json(path: str | Path) -> dict[str, Any]:
     return payload
 
 
+def b_migrate_assertions_path(
+    manifest: dict[str, Any], *, fallback: Path | None = None
+) -> Path:
+    fallback = fallback or APP_ROOT / "experiments/configs/b_migrate_frontend_view_state_v2.json"
+    old = manifest.get("old_producer", {}).get("b_migrate", {}).get("assertion_set")
+    new = manifest.get("new_producer", {}).get("b_migrate", {}).get("assertion_set")
+    if old is None and new is None:
+        return Path(fallback)
+    if not isinstance(old, dict) or not isinstance(new, dict) or old != new:
+        raise ValueError("old/new B_migrate producers must bind the same assertion set")
+    if set(old) != {"path", "sha256"}:
+        raise ValueError("B_migrate assertion binding requires exactly path and sha256")
+    path = resolve(str(old["path"]))
+    if not path.is_file() or sha256_file(path) != old["sha256"]:
+        raise ValueError("B_migrate assertion set is missing or changed after binding")
+    return path
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
