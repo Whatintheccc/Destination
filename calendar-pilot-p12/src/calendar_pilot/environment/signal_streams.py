@@ -26,6 +26,7 @@ RECORD_TYPE_TO_STREAM: dict[str, str] = {
     # Stream A: interpretable human/app actions. This is the only reward truth.
     "reward": SignalStream.ACTION.value,
     "human_feedback_event": SignalStream.ACTION.value,
+    "learning_outcome": SignalStream.ACTION.value,
     "label_activation": SignalStream.ACTION.value,
     # Stream B: provider/calendar world facts.
     "raw_calendar_observation": SignalStream.WORLD.value,
@@ -42,6 +43,8 @@ RECORD_TYPE_TO_STREAM: dict[str, str] = {
     "belief": SignalStream.DERIVED.value,
     # Everything else is system/meta unless payload content says otherwise.
     "decision": SignalStream.SYSTEM.value,
+    "learning_decision": SignalStream.SYSTEM.value,
+    "learning_exposure": SignalStream.SYSTEM.value,
     "receipt": SignalStream.SYSTEM.value,
     "candidate_receipt": SignalStream.SYSTEM.value,
     "self_play_episode": SignalStream.SYSTEM.value,

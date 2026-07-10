@@ -9,6 +9,7 @@ const store = createStore();
 let activeSurface = 'operate';
 let pending = false;
 let polling = false;
+const exposurePromises = new Map();
 const $ = (sel) => document.querySelector(sel);
 
 function sessionId() { return store.view?.session?.session_id || ''; }
@@ -64,6 +65,53 @@ function renderOperate(root, view) {
   if (!hasCandidate) (view.frontier?.candidates || []).slice(0, 4).forEach(card => root.append(candidateCard(card)));
   const hasReceipt = root.querySelector('[data-testid="receipt-card"]');
   if (!hasReceipt) (view.conversation?.receipt_cards || []).forEach(card => root.append(receiptCard(card)));
+  queueMicrotask(() => ensureExposure(view, root).catch(err => showToast(err.message)));
+}
+
+function learningDecision(view) { return view.learning?.evidence?.latest_decision || null; }
+
+async function ensureExposure(view, root = $('#primary-surface')) {
+  const decision = learningDecision(view);
+  if (!decision?.decision_id || !root) return '';
+  const eligible = new Set((decision.eligible_set || []).map(row => row.candidate_id));
+  const rendered = [...new Set([...root.querySelectorAll('[data-testid="candidate-card"]')]
+    .map(node => node.dataset.candidateId).filter(candidateId => candidateId && eligible.has(candidateId)))];
+  if (!rendered.length) return '';
+  const latest = view.learning?.evidence?.latest_exposure;
+  if (latest?.decision_id === decision.decision_id && JSON.stringify(latest.rendered_candidate_ids || []) === JSON.stringify(rendered)) return latest.exposure_id;
+  const key = `${decision.decision_id}|${rendered.join(',')}`;
+  if (!exposurePromises.has(key)) {
+    exposurePromises.set(key, api('/api/learning/exposure', {method: 'POST', body: {
+      decision_id: decision.decision_id,
+      rendered_candidate_ids: rendered,
+      surface: activeSurface,
+    }}, sessionId()).then(result => result.exposure_id));
+  }
+  return exposurePromises.get(key);
+}
+
+async function recordCandidateOutcome(candidateId, outcome) {
+  setPending(true);
+  try {
+    const view = store.view || {};
+    const decision = learningDecision(view);
+    if (!decision?.decision_id) throw new Error('No learning decision is attached to this candidate set.');
+    const exposureId = await ensureExposure(view);
+    if (!exposureId) throw new Error('The candidate was not recorded as rendered.');
+    await api('/api/learning/outcome', {method: 'POST', body: {
+      decision_id: decision.decision_id,
+      exposure_id: exposureId,
+      candidate_id: candidateId,
+      outcome,
+      reason: 'explicit candidate-card feedback',
+    }}, sessionId());
+    showToast(`Recorded ${outcome}.`);
+    await refresh();
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    setPending(false);
+  }
 }
 
 function messageNode(message) {
@@ -183,6 +231,9 @@ document.addEventListener('click', event => {
   if (target.classList.contains('simulate-btn')) return postAndRefresh(`/api/candidates/${candidateId}/simulate`);
   if (target.classList.contains('stage-btn')) return postAndRefresh(`/api/candidates/${candidateId}/stage`);
   if (target.classList.contains('commit-btn')) return postAndRefresh(`/api/candidates/${candidateId}/commit`, {confirmed: true});
+  if (target.classList.contains('candidate-accepted')) return recordCandidateOutcome(candidateId, 'accepted');
+  if (target.classList.contains('candidate-dismissed')) return recordCandidateOutcome(candidateId, 'dismissed');
+  if (target.classList.contains('candidate-corrected')) return recordCandidateOutcome(candidateId, 'corrected');
   if (target.classList.contains('undo-btn')) return postAndRefresh('/api/undo', {rollback_handle_id: target.dataset.rollback});
   if (target.classList.contains('feedback-useful')) return postAndRefresh('/api/feedback', {receipt_id: target.dataset.receiptId, feedback: 'useful'});
   if (target.classList.contains('feedback-wrong')) return postAndRefresh('/api/feedback', {receipt_id: target.dataset.receiptId, feedback: 'wrong'});

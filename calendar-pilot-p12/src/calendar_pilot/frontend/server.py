@@ -227,6 +227,23 @@ def serve(static_dir: str | Path = STATIC_DIR, host: str = "127.0.0.1", port: in
                 return decorate_state(session.update_authority(tier=tier, scopes=scopes if isinstance(scopes, list) else None, confirmed=body_bool(body.get("confirmed"), default=True)))
             if path == "/api/feedback":
                 return decorate_state(session.feedback(str(body.get("receipt_id", "")), str(body.get("feedback", "useful")), reason=str(body.get("reason", ""))))
+            if path == "/api/learning/exposure":
+                rendered = body.get("rendered_candidate_ids")
+                if not isinstance(rendered, list):
+                    raise ValueError("rendered_candidate_ids must be a list")
+                return session.learning_exposure(
+                    str(body.get("decision_id", "")),
+                    [str(value) for value in rendered],
+                    surface=str(body.get("surface", "operate")),
+                )
+            if path == "/api/learning/outcome":
+                return session.learning_outcome(
+                    decision_id=str(body.get("decision_id", "")),
+                    exposure_id=str(body.get("exposure_id", "")),
+                    candidate_id=str(body.get("candidate_id", "")),
+                    outcome=str(body.get("outcome", "")),
+                    reason=str(body.get("reason", "")),
+                )
             if path == "/api/runtime":
                 state = session.set_runtime_mode(str(body.get("runtime_mode", "")))
                 _SESSION_MANAGER.refresh_active_launch_manifest(session, _CURRENT_LAUNCH)
