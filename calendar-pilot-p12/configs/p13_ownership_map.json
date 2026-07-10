@@ -133,7 +133,7 @@
       "pattern": "calendar-pilot-p12/src/calendar_pilot/effect_kernel/**",
       "surfaces": ["authority_gate", "effect_gateway", "provider"],
       "actions": ["create_prep_block"],
-      "backends": ["deterministic_sandbox"],
+      "backends": ["apple_eventkit", "deterministic_sandbox"],
       "instruments": [],
       "control_planes": ["effect_tcb"]
     },
