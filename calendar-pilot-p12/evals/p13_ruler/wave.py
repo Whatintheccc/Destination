@@ -777,7 +777,6 @@ P13_6_LEARNING_BASELINE_SCENARIOS = {
 }
 
 P13_6_LEARNING_EVIDENCE_RUNTIME_PATHS = {
-    "calendar-pilot-p12/experiments/waves/p13-learning-evidence-runtime.scope.json",
     "calendar-pilot-p12/frontend/static/js/components/cards.js",
     "calendar-pilot-p12/frontend/static/js/main.js",
     "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/frontier_service.py",

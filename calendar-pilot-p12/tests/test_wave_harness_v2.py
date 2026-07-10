@@ -193,6 +193,9 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
         }]}
         self.assertTrue(is_learning_evidence_plumbing_wave(manifest, verification, architecture))
         self.assertTrue(uses_fixed_reward_fixture(manifest, verification, architecture))
+        scope_in_delta = deepcopy(verification)
+        scope_in_delta["changed_paths"].append({"path": "calendar-pilot-p12/experiments/waves/p13-learning-evidence-runtime.scope.json"})
+        self.assertFalse(is_learning_evidence_plumbing_wave(manifest, scope_in_delta, architecture))
         broadened = deepcopy(verification)
         broadened["changed_paths"].append({"path": "calendar-pilot-p12/experiments/promoted/CURRENT.json"})
         self.assertFalse(is_learning_evidence_plumbing_wave(manifest, broadened, architecture))
