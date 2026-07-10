@@ -32,7 +32,76 @@ P13_6_CASES = {
     "holdout_non_exposure",
     "signed_policy_promotion",
     "reward_identity_provenance",
+    "learning_evidence_chain",
 }
+
+
+def _learning_evidence_fixture(root: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
+    from calendar_pilot.frontend.session import DogfoodSessionState
+
+    session = DogfoodSessionState(run_dir=root / "dogfood")
+    try:
+        session.create_plan("Make next week less chaotic")
+        decision = next(row for row in session.replay.records if row.record_type == "learning_decision")
+        eligible = [str(row["candidate_id"]) for row in decision.payload["eligible_set"]]
+        rendered = eligible[: min(2, len(eligible))]
+        exposure_result = session.learning_exposure(decision.record_id, rendered, surface="architecture_eval")
+        exposure = session._learning_record(exposure_result["exposure_id"], "learning_exposure")
+        outcome_result = session.learning_outcome(
+            decision_id=decision.record_id,
+            exposure_id=exposure.record_id,
+            candidate_id=rendered[0],
+            outcome="accepted",
+            reason="architecture fixture",
+        )
+        outcome = session._learning_record(outcome_result["outcome_id"], "learning_outcome")
+
+        missing_exposure_rejected = False
+        unrendered_outcome_rejected = False
+        conflicting_outcome_rejected = False
+        try:
+            session.learning_outcome(
+                decision_id=decision.record_id,
+                exposure_id="missing-exposure",
+                candidate_id=rendered[0],
+                outcome="accepted",
+            )
+        except ValueError:
+            missing_exposure_rejected = True
+        try:
+            session.learning_outcome(
+                decision_id=decision.record_id,
+                exposure_id=exposure.record_id,
+                candidate_id=next((value for value in eligible if value not in rendered), "forged"),
+                outcome="dismissed",
+            )
+        except ValueError:
+            unrendered_outcome_rejected = True
+        try:
+            session.learning_outcome(
+                decision_id=decision.record_id,
+                exposure_id=exposure.record_id,
+                candidate_id=rendered[0],
+                outcome="dismissed",
+            )
+        except ValueError:
+            conflicting_outcome_rejected = True
+
+        evidence = {
+            "decision": decision.envelope(),
+            "exposure": exposure.envelope(),
+            "outcome": outcome.envelope(),
+            "missing_exposure_rejected": missing_exposure_rejected,
+            "unrendered_outcome_rejected": unrendered_outcome_rejected,
+            "conflicting_outcome_rejected": conflicting_outcome_rejected,
+            "formal_epoch_bound": False,
+            "promotion_use": "search_only_until_pre_search_epoch_freezes",
+        }
+        path = root / "learning-evidence-chain.json"
+        atomic_write_json(path, evidence)
+        return evidence, [("learning_evidence_chain", path)]
+    finally:
+        session.close()
 
 
 def _keys(root: Path, name: str) -> tuple[Path, Path]:
@@ -259,4 +328,7 @@ def collect_learning_evidence(case: str, scenario_dir: Path) -> tuple[dict[str, 
     if case == "signed_policy_promotion":
         evidence, artifacts = _promotion_fixture(root)
         return {"policy_promotion": evidence}, artifacts
+    if case == "learning_evidence_chain":
+        evidence, artifacts = _learning_evidence_fixture(root)
+        return {"learning_evidence": evidence}, artifacts
     raise KeyError(case)

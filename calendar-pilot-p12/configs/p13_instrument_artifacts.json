@@ -35,6 +35,7 @@
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/experiment_record.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/experiment_record_v2.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/learning_partition_manifest.schema.json"},
+    {"kind": "contract", "path": "calendar-pilot-p12/contracts/learning_evidence_event.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/p13_attestation_scaffold_report.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/p13_binding_manifest.schema.json"},
     {"kind": "contract", "path": "calendar-pilot-p12/contracts/p13_binding_manifest_verification.schema.json"},
@@ -110,6 +111,7 @@
     {"kind": "test", "path": "calendar-pilot-p12/tests/test_p13_ruler.py"},
     {"kind": "test", "path": "calendar-pilot-p12/tests/test_p13_promotion_freeze.py"},
     {"kind": "test", "path": "calendar-pilot-p12/tests/test_p13_learning_promotion.py"},
+    {"kind": "test", "path": "calendar-pilot-p12/tests/test_p13_learning_evidence.py"},
     {"kind": "test", "path": "calendar-pilot-p12/tests/test_step_e_instrument_reports.py"},
     {"kind": "test", "path": "calendar-pilot-p12/tests/test_wave_harness.py"},
     {"kind": "test", "path": "calendar-pilot-p12/tests/test_wave_harness_v2.py"}

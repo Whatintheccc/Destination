@@ -387,6 +387,8 @@ class P13CurrentAdapter:
             return self._retirement_evidence(case, scenario_dir)
         if case in P13_5_EVENTKIT_CASES:
             return self._managed_eventkit_retirement_evidence(case, scenario_dir)
+        if case == "learning_evidence_chain":
+            return collect_learning_evidence(case, scenario_dir)
         if case in P13_6_CASES and os.environ.get("CALENDAR_PILOT_ARCH_P13_6") == "1":
             return collect_learning_evidence(case, scenario_dir)
         if case in DEBT_EVIDENCE:

@@ -290,7 +290,7 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
         }})
         self.assertEqual(planted["status"], "fail")
 
-    def test_p13_6_targets_have_specific_predicates_but_remain_explicit_debt(self):
+    def test_p13_6_targets_have_specific_predicates(self):
         scenario_set = load_scenario_set(P13_SCENARIOS)
         by_id = {row["scenario_id"]: row for row in scenario_set["scenarios"]}
         expected = {
@@ -298,6 +298,7 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
             "target.holdout_non_exposure": "holdout_non_exposure",
             "target.signed_policy_promotion": "signed_policy_promotion",
             "target.reward_identity_provenance": "reward_identity_provenance",
+            "target.learning_evidence_chain": "learning_evidence_chain",
         }
         self.assertEqual(
             {scenario_id: by_id[scenario_id]["predicate_id"] for scenario_id in expected},
