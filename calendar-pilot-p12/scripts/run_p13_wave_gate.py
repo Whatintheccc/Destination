@@ -23,6 +23,7 @@ from evals.p13_ruler.wave import (
     b_migrate_assertions_path,
     compare_b_migrate_artifacts,
     compare_cvar_frontier_sets,
+    is_owner_controlled_eventkit_sandbox_wave,
     is_owner_controlled_sandbox_wave,
     is_structurally_no_effect_wave,
     load_json,
@@ -158,6 +159,7 @@ def main() -> None:
         manifest.get("change_class") == "ruler"
         or is_structurally_no_effect_wave(manifest, verification, architecture)
         or is_owner_controlled_sandbox_wave(manifest, verification, architecture)
+        or is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture)
     )
     if fixed_reward_fixture:
         release_env["CALENDAR_PILOT_REWARD_REPLAY"] = "tests/fixtures/p13_action_rewards.jsonl"
