@@ -704,8 +704,8 @@ def is_owner_controlled_vertical_retirement_wave(
     return bool(
         manifest.get("change_class") == "migration"
         and verification.get("decision") == "pass"
-        and set(affected.get("actions", [])) == {"create_prep_block"}
-        and set(affected.get("backends", [])) == {"deterministic_sandbox"}
+        and set(affected.get("actions", [])) == {"*", "create_prep_block"}
+        and set(affected.get("backends", [])) == {"codex", "deterministic_sandbox"}
         and set(affected.get("control_planes", [])) == {"effect_tcb", "evaluator", "optimizer"}
         and all(_selected_scenario_passes(manifest, architecture, scenario_id) for scenario_id in P13_5_RETIREMENT_SCENARIOS)
     )
