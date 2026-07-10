@@ -18,6 +18,8 @@ from calendar_pilot.product_core import AdmissionPreview
 AUTHORITY_PROFILE = "owner_controlled_sandbox"
 AUTHORIZES_PRODUCTION = False
 ADAPTER_ID = "deterministic_sandbox"
+EVENTKIT_AUTHORITY_PROFILE = "owner_controlled_eventkit_sandbox"
+EVENTKIT_ADAPTER_ID = "apple_eventkit_sandbox"
 LEDGER_VERSION = "sandbox_effect_ledger.v1"
 ATTEMPT_VERSION = "effect_attempt.sandbox.v1"
 TICKET_VERSION = "effect_ticket.sandbox.v1"
@@ -98,12 +100,17 @@ class EffectAttempt:
     observed_pre_state_hash: str
     authority_profile: str = AUTHORITY_PROFILE
     authorizes_production: bool = AUTHORIZES_PRODUCTION
+    target_binding: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.attempt_schema_version != ATTEMPT_VERSION:
             raise ValueError("unsupported sandbox EffectAttempt version")
-        if self.authority_profile != AUTHORITY_PROFILE or self.authorizes_production:
+        if self.authority_profile not in {AUTHORITY_PROFILE, EVENTKIT_AUTHORITY_PROFILE} or self.authorizes_production:
             raise ValueError("sandbox EffectAttempt cannot carry production authority")
+        if self.authority_profile == AUTHORITY_PROFILE and self.target_binding is not None:
+            raise ValueError("deterministic sandbox EffectAttempt cannot bind a provider")
+        if self.authority_profile == EVENTKIT_AUTHORITY_PROFILE and not self.target_binding:
+            raise ValueError("EventKit sandbox EffectAttempt requires an exact target binding")
         if self.action_family != "create_prep_block":
             raise ValueError("sandbox EffectAttempt accepts only create_prep_block")
         if self.intent_hash != content_sha256(self.intent):
@@ -116,6 +123,8 @@ class EffectAttempt:
         *,
         source_authenticated: bool,
         observed_pre_state_hash: str,
+        authority_profile: str = AUTHORITY_PROFILE,
+        target_binding: dict[str, Any] | None = None,
     ) -> "EffectAttempt":
         if preview.status != "preview" or preview.projection is None or preview.denial_reasons:
             raise ValueError("only an admitted ProductCore preview can form an EffectAttempt")
@@ -140,6 +149,8 @@ class EffectAttempt:
             "intent_hash": intent_hash,
             "pre_state_hash": observed_pre_state_hash,
             "source_authenticated": bool(source_authenticated),
+            "authority_profile": authority_profile,
+            "target_binding": target_binding,
         })[:24]
         return cls(
             attempt_schema_version=ATTEMPT_VERSION,
@@ -151,6 +162,8 @@ class EffectAttempt:
             evidence_row_ids=preview.evidence_row_ids,
             source_authenticated=bool(source_authenticated),
             observed_pre_state_hash=observed_pre_state_hash,
+            authority_profile=authority_profile,
+            target_binding=deepcopy(target_binding),
         )
 
 
@@ -174,6 +187,7 @@ class EffectTicket:
     expires_at: str
     authority_profile: str
     authorizes_production: bool
+    target_binding: dict[str, Any] | None
     signature: str
 
     def unsigned_dict(self) -> dict[str, Any]:
@@ -196,6 +210,7 @@ class EffectTicket:
             "expires_at": self.expires_at,
             "authority_profile": self.authority_profile,
             "authorizes_production": self.authorizes_production,
+            "target_binding": self.target_binding,
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -203,7 +218,9 @@ class EffectTicket:
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "EffectTicket":
-        return cls(**value)
+        restored = dict(value)
+        restored.setdefault("target_binding", None)
+        return cls(**restored)
 
 
 @dataclass(frozen=True)
@@ -247,6 +264,7 @@ class EffectReceipt:
     issued_at: str
     authority_profile: str = AUTHORITY_PROFILE
     authorizes_production: bool = AUTHORIZES_PRODUCTION
+    target_binding: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -262,6 +280,7 @@ class EffectReceipt:
             "issued_at": self.issued_at,
             "authority_profile": self.authority_profile,
             "authorizes_production": self.authorizes_production,
+            "target_binding": self.target_binding,
         }
 
     @property
@@ -272,6 +291,7 @@ class EffectReceipt:
     def from_dict(cls, value: dict[str, Any]) -> "EffectReceipt":
         restored = dict(value)
         restored["reasons"] = tuple(restored.get("reasons", []))
+        restored.setdefault("target_binding", None)
         return cls(**restored)
 
 
@@ -306,6 +326,11 @@ class DeterministicSandboxAdapter:
     external_io = False
     real_provider_reachable = False
     supported_action_families = frozenset({"create_prep_block"})
+    ticket_binding = None
+
+    @staticmethod
+    def validate_attempt(attempt: EffectAttempt) -> str | None:
+        return None if attempt.target_binding is None else "target_binding_invalid"
 
     @staticmethod
     def initial_state() -> dict[str, Any]:
@@ -366,26 +391,192 @@ class DeterministicSandboxAdapter:
         return "verified" if target_receipt.idempotency_key not in state["events"] else "not_applied"
 
 
+class EventKitSandboxAdapter:
+    """One-calendar, one-probe EventKit port reachable only through the sandbox Gateway."""
+
+    adapter_id = EVENTKIT_ADAPTER_ID
+    credential_fields = ("eventkit_os_calendar_permission",)
+    external_io = True
+    real_provider_reachable = True
+    supported_action_families = frozenset({"create_prep_block"})
+    provider_only_through_gateway = True
+    direct_commit_rejected = True
+    forbidden_imports: list[str] = []
+
+    def __init__(
+        self,
+        *,
+        driver: Any,
+        app_identity: dict[str, Any],
+        bridge_identity: dict[str, Any],
+        sandbox_calendar_id: str,
+        effect_budget: int = 1,
+    ):
+        self.driver = driver
+        self.app_identity = dict(app_identity)
+        self.bridge_identity = dict(bridge_identity)
+        self.sandbox_calendar_id = str(sandbox_calendar_id)
+        self.effect_budget = int(effect_budget)
+        app_path = str(self.app_identity.get("path", ""))
+        bridge_path = str(self.bridge_identity.get("path", ""))
+        self.app_bundle_bound = app_path.endswith("CalendarPilot.app") and _sha_identity(self.app_identity)
+        self.bridge_bound = (
+            self.app_bundle_bound
+            and bridge_path.startswith(app_path + "/Contents/Resources/app/bin/")
+            and "/CalendarPilotEventKitBridge.app/Contents/MacOS/CalendarPilotEventKitBridge" in bridge_path
+            and _sha_identity(self.bridge_identity)
+        )
+        self.raw_cli_rejected = self.bridge_bound
+        self.permission_status = str(getattr(driver, "permission_status", "unknown"))
+        if getattr(driver, "provider_id", None) != "apple_eventkit":
+            raise ValueError("EventKit sandbox requires the apple_eventkit provider")
+        if not self.app_bundle_bound or not self.bridge_bound:
+            raise ValueError("EventKit sandbox requires the canonical app-bundled bridge identity")
+        if self.permission_status != "full_access":
+            raise ValueError("EventKit sandbox requires full_access permission")
+        if not self.sandbox_calendar_id or self.sandbox_calendar_id == "default":
+            raise ValueError("EventKit sandbox requires an exact non-default calendar")
+        if self.effect_budget != 1:
+            raise ValueError("EventKit sandbox effect budget must be exactly one")
+        self.ticket_binding = {
+            "provider_id": "apple_eventkit",
+            "app_path": app_path,
+            "app_sha256": self.app_identity["sha256"],
+            "bridge_path": bridge_path,
+            "bridge_sha256": self.bridge_identity["sha256"],
+            "sandbox_calendar_id": self.sandbox_calendar_id,
+            "effect_budget": self.effect_budget,
+        }
+
+    @staticmethod
+    def initial_state() -> dict[str, Any]:
+        return {
+            "idempotency": {},
+            "external_ids": {},
+            "out_of_band": {},
+            "mutation_count": 0,
+            "compensation_mutation_count": 0,
+        }
+
+    @classmethod
+    def normalize(cls, value: dict[str, Any] | None) -> dict[str, Any]:
+        state = deepcopy(value) if isinstance(value, dict) else cls.initial_state()
+        if set(state) != set(cls.initial_state()):
+            raise ValueError("EventKit sandbox adapter state shape is invalid")
+        return state
+
+    def validate_attempt(self, attempt: EffectAttempt) -> str | None:
+        projection = attempt.intent.get("projection", {})
+        if attempt.target_binding != self.ticket_binding:
+            return "target_binding_invalid"
+        if projection.get("calendar_id") != self.sandbox_calendar_id:
+            return "target_binding_invalid"
+        if self.permission_status != "full_access":
+            return "eventkit_permission_invalid"
+        return None
+
+    def state_hash(self, value: dict[str, Any] | None) -> str:
+        return content_sha256({
+            "local": self.normalize(value),
+            "remote": self.driver.snapshot(self.sandbox_calendar_id),
+            "target_binding": self.ticket_binding,
+        })
+
+    def dispatch_apply(self, value: dict[str, Any], ticket: EffectTicket) -> dict[str, Any]:
+        state = self.normalize(value)
+        if ticket.idempotency_key in state["idempotency"]:
+            return state
+        if ticket.target_binding != self.ticket_binding:
+            raise ValueError("EventKit ticket target binding changed before dispatch")
+        if ticket.intent.get("projection", {}).get("calendar_id") != self.sandbox_calendar_id:
+            raise ValueError("EventKit ticket escaped the sandbox calendar")
+        active = set(state["external_ids"])
+        if len(active) >= self.effect_budget:
+            raise ValueError("EventKit sandbox effect budget exceeded")
+        external_id = self.driver.create(
+            calendar_id=self.sandbox_calendar_id,
+            idempotency_key=ticket.idempotency_key,
+            projection=deepcopy(ticket.intent["projection"]),
+        )
+        state["idempotency"][ticket.idempotency_key] = ticket.ticket_id
+        state["external_ids"][ticket.idempotency_key] = external_id
+        state["mutation_count"] += 1
+        return state
+
+    def dispatch_compensation(
+        self,
+        value: dict[str, Any],
+        ticket: EffectTicket,
+        target_receipt: EffectReceipt,
+    ) -> dict[str, Any]:
+        state = self.normalize(value)
+        if ticket.idempotency_key in state["idempotency"]:
+            return state
+        target_key = target_receipt.idempotency_key
+        external_id = state["external_ids"].get(target_key)
+        if external_id is None:
+            return state
+        removed = self.driver.remove(
+            calendar_id=self.sandbox_calendar_id,
+            idempotency_key=target_key,
+            external_id=external_id,
+        )
+        if removed:
+            state["external_ids"].pop(target_key, None)
+            state["idempotency"][ticket.idempotency_key] = ticket.ticket_id
+            state["compensation_mutation_count"] += 1
+        return state
+
+    def outcome(self, value: dict[str, Any], ticket: EffectTicket, target_receipt: EffectReceipt | None = None) -> str:
+        state = self.normalize(value)
+        remote = self.driver.snapshot(self.sandbox_calendar_id).get("events", {})
+        if ticket.kind == "apply":
+            return "verified" if ticket.idempotency_key in remote else "not_applied"
+        if target_receipt is None:
+            return "hold"
+        target_key = target_receipt.idempotency_key
+        return "verified" if target_key not in remote and target_key not in state["external_ids"] else "not_applied"
+
+
+def _sha_identity(value: dict[str, Any]) -> bool:
+    return isinstance(value.get("sha256"), str) and len(value["sha256"]) == 64 and all(
+        character in "0123456789abcdef" for character in value["sha256"]
+    )
+
+
 class SandboxEffectLedger:
     """Single-process durable claim/outbox ledger for the non-authorizing sandbox."""
 
-    def __init__(self, state_path: str | Path):
+    def __init__(
+        self,
+        state_path: str | Path,
+        *,
+        authority_profile: str = AUTHORITY_PROFILE,
+        adapter: DeterministicSandboxAdapter | EventKitSandboxAdapter | None = None,
+    ):
         self.state_path = Path(state_path)
         self.lock = threading.RLock()
+        self.authority_profile = authority_profile
+        self.adapter = adapter or DeterministicSandboxAdapter()
+        if authority_profile not in {AUTHORITY_PROFILE, EVENTKIT_AUTHORITY_PROFILE}:
+            raise ValueError("unsupported sandbox ledger authority profile")
+        if authority_profile == AUTHORITY_PROFILE and self.adapter.adapter_id != ADAPTER_ID:
+            raise ValueError("deterministic sandbox ledger requires the deterministic adapter")
+        if authority_profile == EVENTKIT_AUTHORITY_PROFILE and self.adapter.adapter_id != EVENTKIT_ADAPTER_ID:
+            raise ValueError("EventKit sandbox ledger requires the EventKit adapter")
         self._state = self._load()
 
-    @staticmethod
-    def _initial_state() -> dict[str, Any]:
+    def _initial_state(self) -> dict[str, Any]:
         return {
             "ledger_version": LEDGER_VERSION,
-            "authority_profile": AUTHORITY_PROFILE,
+            "authority_profile": self.authority_profile,
             "authorizes_production": False,
             "grants": {},
             "nonces": [],
             "tickets": {},
             "outbox": {},
             "receipts": {},
-            "adapter_state": DeterministicSandboxAdapter.initial_state(),
+            "adapter_state": self.adapter.initial_state(),
             "audit": [],
         }
 
@@ -397,9 +588,9 @@ class SandboxEffectLedger:
             raise ValueError("sandbox effect ledger shape is invalid")
         if value["ledger_version"] != LEDGER_VERSION:
             raise ValueError("sandbox effect ledger version is invalid")
-        if value["authority_profile"] != AUTHORITY_PROFILE or value["authorizes_production"] is not False:
+        if value["authority_profile"] != self.authority_profile or value["authorizes_production"] is not False:
             raise ValueError("sandbox effect ledger cannot carry production authority")
-        DeterministicSandboxAdapter.normalize(value["adapter_state"])
+        self.adapter.normalize(value["adapter_state"])
         return value
 
     def persist(self) -> None:
@@ -475,11 +666,12 @@ class SandboxAuthorityGate:
     def verify_ticket(self, ticket: EffectTicket) -> bool:
         return (
             ticket.ticket_schema_version == TICKET_VERSION
-            and ticket.authority_profile == AUTHORITY_PROFILE
+            and ticket.authority_profile == self.ledger.authority_profile
             and ticket.authorizes_production is False
             and ticket.kind in {"apply", "compensate"}
             and ticket.action_family == "create_prep_block"
             and ticket.intent_hash == content_sha256(ticket.intent)
+            and ticket.target_binding == self.ledger.adapter.ticket_binding
             and hmac.compare_digest(ticket.signature, self._signature(ticket.unsigned_dict()))
         )
 
@@ -557,8 +749,9 @@ class SandboxAuthorityGate:
             "idempotency_key": idempotency_key,
             "issued_at": _iso(now),
             "expires_at": str(grant["expires_at"]),
-            "authority_profile": AUTHORITY_PROFILE,
+            "authority_profile": self.ledger.authority_profile,
             "authorizes_production": False,
+            "target_binding": deepcopy(self.ledger.adapter.ticket_binding),
         }
         ticket = EffectTicket(**unsigned, signature=self._signature(unsigned))
         self.ledger._state["nonces"].append(nonce)
@@ -577,11 +770,14 @@ class SandboxAuthorityGate:
         now: datetime,
     ) -> AdmissionDecision:
         with self.ledger.lock:
-            if attempt.authority_profile != AUTHORITY_PROFILE or attempt.authorizes_production:
+            if attempt.authority_profile != self.ledger.authority_profile or attempt.authorizes_production:
                 return AdmissionDecision("denied", ("authority_profile_invalid",))
             if not attempt.source_authenticated:
                 return AdmissionDecision("denied", ("source_unauthenticated",))
-            current_hash = DeterministicSandboxAdapter.state_hash(self.ledger._state["adapter_state"])
+            target_reason = self.ledger.adapter.validate_attempt(attempt)
+            if target_reason:
+                return AdmissionDecision("denied", (target_reason,))
+            current_hash = self.ledger.adapter.state_hash(self.ledger._state["adapter_state"])
             if attempt.observed_pre_state_hash != current_hash:
                 return AdmissionDecision("denied", ("pre_state_mismatch",))
             reason = self._grant_reason(
@@ -618,9 +814,14 @@ class SandboxAuthorityGate:
         now: datetime,
     ) -> AdmissionDecision:
         with self.ledger.lock:
-            if receipt.phase != "verified" or receipt.authorizes_production:
+            if (
+                receipt.phase != "verified"
+                or receipt.authorizes_production
+                or receipt.authority_profile != self.ledger.authority_profile
+                or receipt.target_binding != self.ledger.adapter.ticket_binding
+            ):
                 return AdmissionDecision("denied", ("target_receipt_not_verified",))
-            current_hash = DeterministicSandboxAdapter.state_hash(self.ledger._state["adapter_state"])
+            current_hash = self.ledger.adapter.state_hash(self.ledger._state["adapter_state"])
             if fresh_state_hash != current_hash or receipt.post_state_hash != current_hash:
                 return AdmissionDecision("hold", ("compensation_prestate_conflict",))
             reason = self._grant_reason(
@@ -684,18 +885,19 @@ class SandboxAuthorityGate:
                 cancelled_ticket_ids=tuple(sorted(cancelled)),
                 reconcile_ticket_ids=tuple(sorted(reconcile)),
                 revoked_at=_iso(now),
+                authority_profile=self.ledger.authority_profile,
             )
 
 
 class SandboxEffectGateway:
-    """Sole deterministic sandbox claim, outbox, dispatch, verify, and reconcile path."""
+    """Sole sandbox claim, outbox, dispatch, verify, and reconcile path."""
 
     def __init__(
         self,
         ledger: SandboxEffectLedger,
         *,
         signing_key: bytes,
-        adapter: DeterministicSandboxAdapter,
+        adapter: DeterministicSandboxAdapter | EventKitSandboxAdapter,
     ):
         self.ledger = ledger
         self.gate = SandboxAuthorityGate(ledger, signing_key=signing_key)
@@ -727,6 +929,8 @@ class SandboxEffectGateway:
             post_state_hash=post_state_hash,
             reasons=reasons,
             issued_at=_iso(now),
+            authority_profile=self.ledger.authority_profile,
+            target_binding=deepcopy(self.adapter.ticket_binding),
         )
 
     def _store_receipt(self, receipt: EffectReceipt) -> None:
@@ -897,10 +1101,14 @@ class SandboxEffectGateway:
 class EffectKernelSelector:
     """One explicit selector; every unspecified or incumbent invocation remains incumbent."""
 
+    production_available = False
+
     @staticmethod
     def select(authority_profile: str | None = None) -> str:
         if authority_profile in {None, "incumbent"}:
             return "incumbent"
         if authority_profile == AUTHORITY_PROFILE:
             return ADAPTER_ID
+        if authority_profile == EVENTKIT_AUTHORITY_PROFILE:
+            return EVENTKIT_ADAPTER_ID
         raise ValueError("unsupported effect owner selection")
