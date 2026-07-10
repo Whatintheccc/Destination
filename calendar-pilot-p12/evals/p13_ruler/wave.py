@@ -654,6 +654,14 @@ P13_4_EVENTKIT_SCENARIOS = {
     "target.eventkit_no_learning_effect_path",
 }
 
+P13_5_RETIREMENT_SCENARIOS = {
+    "target.retirement_scope_binding",
+    "target.retirement_single_owner",
+    "target.retirement_runtime_commit",
+    "target.retirement_runtime_undo",
+    "target.retirement_restart_rollback",
+}
+
 
 def is_owner_controlled_sandbox_wave(
     manifest: dict[str, Any],
@@ -684,6 +692,22 @@ def is_owner_controlled_eventkit_sandbox_wave(
         and set(affected.get("backends", [])) == {"deterministic_sandbox"}
         and set(affected.get("control_planes", [])) == {"effect_tcb", "evaluator", "optimizer"}
         and all(_selected_scenario_passes(manifest, architecture, scenario_id) for scenario_id in P13_4_EVENTKIT_SCENARIOS)
+    )
+
+
+def is_owner_controlled_vertical_retirement_wave(
+    manifest: dict[str, Any],
+    verification: dict[str, Any],
+    architecture: dict[str, Any],
+) -> bool:
+    affected = verification.get("derived_affectedness", {})
+    return bool(
+        manifest.get("change_class") == "migration"
+        and verification.get("decision") == "pass"
+        and set(affected.get("actions", [])) == {"create_prep_block"}
+        and set(affected.get("backends", [])) == {"deterministic_sandbox"}
+        and set(affected.get("control_planes", [])) == {"effect_tcb", "evaluator", "optimizer"}
+        and all(_selected_scenario_passes(manifest, architecture, scenario_id) for scenario_id in P13_5_RETIREMENT_SCENARIOS)
     )
 
 
@@ -732,7 +756,8 @@ def build_experiment_record(
     structural_no_effect = is_structurally_no_effect_wave(manifest, verification, architecture)
     sandbox_effect = is_owner_controlled_sandbox_wave(manifest, verification, architecture)
     eventkit_effect = is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture)
-    bounded_development = structural_no_effect or sandbox_effect or eventkit_effect
+    vertical_retirement = is_owner_controlled_vertical_retirement_wave(manifest, verification, architecture)
+    bounded_development = structural_no_effect or sandbox_effect or eventkit_effect or vertical_retirement
     delta_paths = [str(row.get("path")) for row in git_delta]
     exact_additive_rollback = bool(
         bounded_development
@@ -753,13 +778,21 @@ def build_experiment_record(
         and _selected_scenario_passes(manifest, architecture, "target.eventkit_no_learning_effect_path")
         and b_migrate.get("decision") == "pass"
     )
+    retirement_selector_rollback = bool(
+        vertical_retirement
+        and git_delta
+        and set(delta_paths) == set(changed_paths)
+        and _selected_scenario_passes(manifest, architecture, "target.retirement_scope_binding")
+        and _selected_scenario_passes(manifest, architecture, "target.retirement_restart_rollback")
+        and b_migrate.get("decision") == "pass"
+    )
     compared_seed_ids = [str(row.get("seed_id")) for row in cvar.get("compared_rows", [])]
     compared_assertions = [str(row.get("name")) for row in b_migrate.get("assertions", [])]
     deltas = [float(row.get("delta_top_reward", 0.0)) for row in cvar.get("compared_rows", [])]
     worst_delta = min(deltas) if deltas else None
     ablation_stable = bool(bounded_development and b_migrate.get("decision") == "pass")
     rollback_restored = bool(
-        (exact_additive_rollback or cited_read_side_rollback or eventkit_selector_rollback)
+        (exact_additive_rollback or cited_read_side_rollback or eventkit_selector_rollback or retirement_selector_rollback)
         and verification.get("decision") == "pass"
         and architecture.get("decision") == "pass"
         and cvar.get("decision") == "pass"
@@ -850,6 +883,7 @@ def build_experiment_record(
                     "mode": (
                         "incumbent_read_selector"
                         if cited_read_side_rollback
+                        else "owner_frozen_selector" if retirement_selector_rollback
                         else "incumbent_effect_selector" if eventkit_selector_rollback
                         else "exact_additive_sandbox_revert" if sandbox_effect
                         else "exact_additive_revert"
@@ -860,7 +894,7 @@ def build_experiment_record(
                     "candidate_app_tree_sha": candidate_repository.get("app_tree_sha"),
                     "git_delta": git_delta,
                     "binding_verification": artifact_ref(binding_verification_path, decision=str(verification.get("decision"))),
-                    "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect or eventkit_effect) else None,
+                    "incumbent_projection": b_migrate.get("before_artifact") if (cited_read_side_rollback or sandbox_effect or eventkit_effect or vertical_retirement) else None,
                 }
                 if bounded_development
                 else None
@@ -874,12 +908,16 @@ def build_experiment_record(
                         "The independent incumbent projection remains executable and equivalent behind the compatibility selector."
                         if cited_read_side_rollback
                         else (
-                            "The incumbent remains the default effect owner; the manifest-complete candidate delta is the rollback unit."
-                            if eventkit_selector_rollback
+                            "The owner-frozen selector restores the incumbent with one active owner for the exact retired pair."
+                            if retirement_selector_rollback
                             else (
-                                "The incumbent remains the default effect owner; removing the additive sandbox delta restores the signed base tree."
-                                if sandbox_effect
-                                else "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                                "The incumbent remains the default effect owner; the manifest-complete candidate delta is the rollback unit."
+                                if eventkit_selector_rollback
+                                else (
+                                    "The incumbent remains the default effect owner; removing the additive sandbox delta restores the signed base tree."
+                                    if sandbox_effect
+                                    else "Every candidate path is a new, manifest-declared no-effect file; removing the exact additive delta restores the signed base tree."
+                                )
                             )
                         )
                     )
@@ -898,6 +936,7 @@ def build_experiment_record(
                 if structural_no_effect
                 else "owner_controlled_sandbox" if sandbox_effect
                 else "owner_controlled_eventkit_sandbox" if eventkit_effect
+                else "owner_controlled_vertical_retirement" if vertical_retirement
                 else "behavior_evidence_incomplete"
             ),
         },
@@ -913,6 +952,7 @@ def build_experiment_record(
                 if structural_no_effect
                 else "not_applicable_non_authorizing_sandbox" if sandbox_effect
                 else "bounded_owner_controlled_eventkit_probe" if eventkit_effect
+                else "bounded_deterministic_runtime_retirement" if vertical_retirement
                 else None
             ),
         },
