@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
+
+from calendar_pilot.product_core import JournalEvent, project_cited_candidate_card
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -17,6 +20,7 @@ class FrontendProjector:
 
     def __init__(self, session: Any) -> None:
         self.session = session
+        self.read_side_mode = os.environ.get("CALENDAR_PILOT_PRODUCT_CORE_READ_SIDE", "cited").strip().lower()
 
     def view(self) -> dict[str, Any]:
         snapshot = self.session.snapshot()
@@ -37,7 +41,7 @@ class FrontendProjector:
             signals.update({k: v for k, v in p12.get("signals", {}).items() if k not in signals})
         authority = dict(inspector.get("authority", {}) or {})
         authority.update(p12.get("authority", {}))
-        return {
+        view = {
             "view_version": "view_state.v2",
             "state_version": snapshot.get("state_version", 0),
             "session": snapshot.get("session", {}),
@@ -58,6 +62,85 @@ class FrontendProjector:
             "signals": signals,
             "pipeline": snapshot.get("pipeline", {"turns": []}),
             "invariants": snapshot.get("invariants", {"violations": []}),
+        }
+        view["read_side"] = self._apply_product_core_read_side(view)
+        return view
+
+    def _apply_product_core_read_side(self, view: dict[str, Any]) -> dict[str, Any]:
+        if self.read_side_mode == "incumbent":
+            return {"mode": "incumbent", "status": "pass", "failures": []}
+        if self.read_side_mode != "cited":
+            return {
+                "mode": self.read_side_mode,
+                "status": "hold",
+                "failures": [f"unsupported ProductCore read-side mode: {self.read_side_mode}"],
+            }
+        legacy_cards = view.get("frontier", {}).get("candidates", [])
+        target_ids = {
+            str(card.get("candidate_id"))
+            for card in legacy_cards
+            if isinstance(card, dict) and card.get("intent") == "create_prep_block"
+        }
+        if not target_ids:
+            return {"mode": "cited", "status": "pass", "failures": [], "candidate_ids": []}
+        groups: dict[str, list[JournalEvent]] = {}
+        failures: list[str] = []
+        latest_plan_id = str(getattr(getattr(self.session, "latest_plan", None), "plan_id", ""))
+        for record in getattr(getattr(self.session, "replay", None), "records", []):
+            if getattr(record, "record_type", None) != "product_core_journal_event":
+                continue
+            payload = record.payload if isinstance(record.payload, dict) else {}
+            if str(payload.get("plan_id", "")) != latest_plan_id:
+                continue
+            scope_id = str(payload.get("journal_scope_id", ""))
+            try:
+                event_payload = payload.get("journal_event")
+                if not scope_id or not isinstance(event_payload, dict):
+                    raise ValueError("ProductCore Journal adapter row is incomplete")
+                groups.setdefault(scope_id, []).append(JournalEvent.from_dict(event_payload))
+            except ValueError as exc:
+                failures.append(str(exc))
+        cited_by_id: dict[str, dict[str, Any]] = {}
+        if not failures:
+            for events in groups.values():
+                try:
+                    card = project_cited_candidate_card(tuple(events))
+                except ValueError as exc:
+                    failures.append(str(exc))
+                    continue
+                candidate_id = str(card.get("candidate_id", ""))
+                event_ids = {event.row_id for event in events}
+                if not set(card.get("citation", {}).get("event_ids", [])).issubset(event_ids):
+                    failures.append(f"cited ProductCore row is missing: {candidate_id}")
+                    continue
+                cited_by_id[candidate_id] = card
+        missing = sorted(target_ids - set(cited_by_id))
+        if missing:
+            failures.append(f"cited ProductCore card unavailable: {','.join(missing)}")
+        if failures:
+            return {"mode": "cited", "status": "hold", "failures": failures, "candidate_ids": sorted(target_ids)}
+
+        def substitute(cards: Any) -> None:
+            if not isinstance(cards, list):
+                return
+            for index, card in enumerate(cards):
+                if not isinstance(card, dict):
+                    continue
+                replacement = cited_by_id.get(str(card.get("candidate_id", "")))
+                if replacement is not None:
+                    cards[index] = replacement
+
+        substitute(view.get("frontier", {}).get("candidates"))
+        conversation = view.get("conversation", {})
+        substitute(conversation.get("candidate_cards"))
+        for message in conversation.get("messages", []) if isinstance(conversation.get("messages"), list) else []:
+            if isinstance(message, dict):
+                substitute(message.get("cards"))
+        return {
+            "mode": "cited",
+            "status": "pass",
+            "failures": [],
+            "candidate_ids": sorted(cited_by_id),
         }
 
 
