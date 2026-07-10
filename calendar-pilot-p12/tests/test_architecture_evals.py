@@ -574,13 +574,31 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                 "cited_read_side_cutover",
                 {"read_side": {}},
             ),
+            "sandbox_claims_production_authority": (
+                "sandbox_effect_contract",
+                {
+                    "effect_kernel": {
+                        "case": "no_learning_effect_path",
+                        "authority_profile": "owner_controlled_sandbox",
+                        "authorizes_production": True,
+                        "adapter_id": "deterministic_sandbox",
+                        "adapter_credential_count": 0,
+                        "adapter_external_io": False,
+                        "forbidden_imports": [],
+                        "accepted_action_families": ["create_prep_block"],
+                        "default_selector": "incumbent",
+                        "explicit_selector": "deterministic_sandbox",
+                        "real_provider_reachable": False,
+                    }
+                },
+            ),
             "p13_target_claim_without_evidence": (
                 "p13_target_not_implemented",
                 {"target_capability": {"reached": True}},
             ),
         }
 
-        self.assertEqual(len(planted), 30)
+        self.assertEqual(len(planted), 31)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():

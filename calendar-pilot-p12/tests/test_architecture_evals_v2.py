@@ -166,7 +166,7 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
     def test_required_unimplemented_target_blocks_with_hold(self):
         with tempfile.TemporaryDirectory(dir=APP_ROOT / "runs") as td:
             root = Path(td)
-            manifest_path, public_key = self._binding(root, required_targets={"target.effect_ticket_binding"})
+            manifest_path, public_key = self._binding(root, required_targets={"target.frontier_safety_vector_v2"})
             report = build_report(
                 scenario_set_path=P13_SCENARIOS,
                 binding_manifest_path=manifest_path,
@@ -176,8 +176,8 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
                 out=root / "latest.json",
             )
             by_id = {row["scenario_id"]: row for row in report["scenarios"]}
-            self.assertEqual(by_id["target.effect_ticket_binding"]["gate_mode"], "required")
-            self.assertEqual(by_id["target.effect_ticket_binding"]["status"], "not_reached")
+            self.assertEqual(by_id["target.frontier_safety_vector_v2"]["gate_mode"], "required")
+            self.assertEqual(by_id["target.frontier_safety_vector_v2"]["status"], "not_reached")
             self.assertEqual(report["decision"], "hold")
 
     def test_manifest_selected_p13_1_targets_bind_and_pass(self):
