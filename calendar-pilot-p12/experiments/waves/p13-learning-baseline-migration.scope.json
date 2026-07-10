@@ -44,5 +44,39 @@
     "cvar": {"producer_id": "cvar.after.current", "command": ["python3", "scripts/produce_cvar_frontier.py", "--role", "after", "--current", "experiments/promoted/CURRENT.json"]},
     "b_migrate": {"producer_id": "b_migrate.new.frontend_projector", "command": ["python3", "scripts/produce_b_migrate_new.py"]}
   },
-  "live_legs": []
+  "live_legs": [
+    {
+      "leg": "live-codex-e2e",
+      "status": "root-listed",
+      "reason": {"basis": "unaffected", "detail": "The baseline pointer migration does not modify the Codex respondent, prompt, planner, or live access point."},
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live Codex unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-codex-e2e before changing the Codex respondent, prompt, planner, or live path."
+    },
+    {
+      "leg": "live-diffusiongemma-e2e",
+      "status": "root-listed",
+      "reason": {"basis": "unaffected", "detail": "The candidate wraps the byte-equivalent empty tuning and does not modify NIM, DiffusionGemma generation, normalization, or scoring."},
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; live NIM behavior unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run live-diffusiongemma-e2e before changing the respondent, prompt, normalization, scoring, or tuning values."
+    },
+    {
+      "leg": "live-eventkit-e2e",
+      "status": "root-listed",
+      "reason": {"basis": "unaffected", "detail": "Policy pointer data has no ticket, Gateway, provider, binding, or EventKit capability and the migrated payload is proposal-only."},
+      "artifact": {"path": "P12-RECORD.md", "sha256": "8120270a7e5e5f3d29afb9c7a1b7342593b3707d6dc1025d6b5a3aae17badd3f"},
+      "owner": "single-owner development",
+      "sign_off": "owner-frozen scope; EventKit effect path unaffected",
+      "affected_by_wave": false,
+      "expires_at": "2026-08-09T23:59:59Z",
+      "next_unblock_action": "Run the app-bundled EventKit leg before any wave changes effect admission, Gateway, provider, binding, or EventKit behavior."
+    }
+  ]
 }
