@@ -546,8 +546,8 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
                 "decision": "pass",
                 "changed_paths": [{"path": path} for path in changed],
                 "derived_affectedness": {
-                    "actions": ["create_prep_block"],
-                    "backends": ["deterministic_sandbox"],
+                    "actions": ["*", "create_prep_block"],
+                    "backends": ["codex", "deterministic_sandbox"],
                     "surfaces": ["authority_gate", "effect_gateway", "provider", "tests"],
                     "instruments": ["release_and_wave_ruler", "tests"],
                     "control_planes": ["effect_tcb", "evaluator", "optimizer"],
@@ -604,7 +604,7 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             self.assertEqual(record["outcomes"]["outcome_window"], "bounded_deterministic_runtime_retirement")
 
             broadened = deepcopy(verification)
-            broadened["derived_affectedness"]["backends"] = ["deterministic_sandbox", "apple_eventkit"]
+            broadened["derived_affectedness"]["backends"] = ["codex", "deterministic_sandbox", "apple_eventkit"]
             self.assertFalse(is_owner_controlled_vertical_retirement_wave(manifest, broadened, architecture))
 
     def test_reward_rows_gain_occurrence_identity_and_declared_source_class(self):
