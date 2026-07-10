@@ -13,7 +13,6 @@ from .kernel import (
     DeterministicSandboxAdapter,
     EventKitSandboxAdapter,
     EffectAttempt,
-    EffectKernelSelector,
     EffectReceipt,
     EffectTicket,
     InjectedCrash,
@@ -24,6 +23,14 @@ from .kernel import (
     canonical_json_bytes,
     content_sha256,
     derive_phase,
+)
+from .retirement import (
+    DeterministicRetirementProvider,
+    EffectKernelSelector,
+    RETIREMENT_BACKEND,
+    RETIREMENT_OWNER,
+    RETIREMENT_PROFILE,
+    RetirementActionResult,
 )
 
 
@@ -40,6 +47,7 @@ __all__ = [
     "AdmissionDecision",
     "AuthorityGrant",
     "DeterministicSandboxAdapter",
+    "DeterministicRetirementProvider",
     "EventKitSandboxAdapter",
     "EffectAttempt",
     "EffectKernelSelector",
@@ -53,4 +61,8 @@ __all__ = [
     "canonical_json_bytes",
     "content_sha256",
     "derive_phase",
+    "RETIREMENT_BACKEND",
+    "RETIREMENT_OWNER",
+    "RETIREMENT_PROFILE",
+    "RetirementActionResult",
 ]

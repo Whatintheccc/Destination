@@ -56,12 +56,14 @@ class CodexToolRuntime:
         replay: ReplayBuffer | None = None,
         biography_store: BiographyStore | None = None,
         provider: Any | None = None,
+        retirement_crash_at: str | None = None,
     ) -> None:
         self.policy = policy or DiffusionGemmaPolicy()
         self.kernel = kernel or SwiftKernelStub()
         self.replay = replay or ReplayBuffer()
         self.biography_store = biography_store or BiographyStore()
         self.provider = provider
+        self.retirement_crash_at = retirement_crash_at
         self.action_lifecycle = ActionLifecycle(
             kernel=self.kernel,
             replay=self.replay,
@@ -168,6 +170,27 @@ class CodexToolRuntime:
             autonomy_denial = self._autonomy_commit_denial(candidate, call.requested_authority_tier)
             if autonomy_denial:
                 return self._receipt(call, CodexToolStatus.DENIED, {"stage_state": StageState.DENIED.value, "candidate": candidate.to_dict(), "autonomy_matrix": autonomy_denial}, denied=autonomy_denial["denied_reason"], stage_state=StageState.DENIED, authority_grant=grant, correlation_id=call.correlation_id or candidate.candidate_id)
+            if self._uses_retired_vertical(candidate):
+                result = self.provider.commit_via_gateway(
+                    candidate,
+                    observation,
+                    grant,
+                    replay=self.replay,
+                    trace_id=call.correlation_id or candidate.candidate_id,
+                    causal_parent_id=call.tool_call_id,
+                    crash_at=self.retirement_crash_at,
+                )
+                status = CodexToolStatus.COMMITTED if result.phase == "verified" else CodexToolStatus.DENIED if result.phase == "denied" else CodexToolStatus.FAILED
+                return self._receipt(
+                    call,
+                    status,
+                    result.output_payload(candidate),
+                    swift_receipt_id=result.calendar_receipt.receipt_id,
+                    denied=result.denied_reason,
+                    stage_state=result.calendar_receipt.stage_state,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or candidate.candidate_id,
+                )
             result = self.action_lifecycle.commit(
                 candidate,
                 observation,
@@ -191,6 +214,29 @@ class CodexToolRuntime:
         if name == CodexToolName.REQUEST_UNDO:
             rollback_id = str(call.input.get("rollback_handle_id", ""))
             grant = self._resolve_grant(call)
+            owns_retired = callable(getattr(self.provider, "owns_rollback_handle", None)) and self.provider.owns_rollback_handle(rollback_id)
+            if owns_retired:
+                if grant is None:
+                    return self._receipt(call, CodexToolStatus.DENIED, {"stage_state": StageState.DENIED.value}, denied="missing Swift-issued authority grant for undo", stage_state=StageState.DENIED)
+                result = self.provider.undo_via_gateway(
+                    rollback_id,
+                    observation,
+                    grant,
+                    replay=self.replay,
+                    trace_id=call.correlation_id or rollback_id,
+                    causal_parent_id=call.tool_call_id,
+                )
+                status = CodexToolStatus.REVERTED if result.phase == "verified" else CodexToolStatus.DENIED if result.phase == "denied" else CodexToolStatus.FAILED
+                return self._receipt(
+                    call,
+                    status,
+                    result.output_payload(),
+                    swift_receipt_id=result.calendar_receipt.receipt_id,
+                    denied=result.denied_reason,
+                    stage_state=result.calendar_receipt.stage_state,
+                    authority_grant=grant,
+                    correlation_id=call.correlation_id or rollback_id,
+                )
             result = self.action_lifecycle.undo(
                 rollback_id,
                 observation,
@@ -252,6 +298,13 @@ class CodexToolRuntime:
         if name == CodexToolName.VALIDATE_MODEL_PLAN:
             return self._validate_model_plan(call)
         return self._receipt(call, CodexToolStatus.DENIED, {}, denied=f"unsupported tool {name.value}")
+
+    def _uses_retired_vertical(self, candidate: CandidateCalendarAction) -> bool:
+        return bool(
+            candidate.intent == "create_prep_block"
+            and getattr(self.provider, "provider_id", None) == "deterministic_sandbox"
+            and callable(getattr(self.provider, "commit_via_gateway", None))
+        )
 
     def _validate_model_plan(self, call: CodexToolCall) -> CodexToolReceipt:
         errors: list[str] = []
