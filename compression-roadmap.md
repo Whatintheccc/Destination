@@ -117,7 +117,7 @@ not a permission to delete monitors
 not a promise that 3,000 LOC is reachable
 not a replacement for per-wave evidence artifacts
 not permission for learning/meta candidates to edit the evaluator, Gate, or Gateway
-not a ban on explicitly manifested, human-reviewed engineering migrations of the TCB
+not a ban on explicitly manifested, owner-executed engineering migrations of the TCB
 not a claim that DiffusionGemma is a control primitive
 ```
 
@@ -501,7 +501,7 @@ cd "$GIT_ROOT/calendar-pilot-p12"
 export WAVE="${WAVE:-wave-name}"
 export RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-p13-$WAVE"
 export RUN_DIR="runs/p13_evidence/$RUN_ID"
-mkdir -p "$RUN_DIR"/{preflight,baseline,after,focused,live,release,review}
+mkdir -p "$RUN_DIR"/{preflight,baseline,after,focused,live,release,decision}
 
 pwd -P > "$RUN_DIR/preflight/cwd.txt"
 git -C "$GIT_ROOT" rev-parse HEAD > "$RUN_DIR/preflight/git_sha.txt"
@@ -521,7 +521,7 @@ Required order:
 5. independent old/new B_migrate + C-VAR after P13.0
 6. browser/app/live legs selected by §4.7
 7. release reports and explicit JSON decision assertions
-8. regression, ablation, rollback proof, and experiment-record review
+8. regression, ablation, rollback proof, and experiment-record validation
 ```
 
 Every command record contains:
@@ -1181,7 +1181,7 @@ Remote execution-evidence record (2026-07-10):
 
 - The implementation entered protected `main` through [PR #1](https://github.com/Whatintheccc/Destination/pull/1) at merge commit `def14738de5befff611b14c8371b29a47677b59c` (tree `b719e11e1ed6143e59b05f41c50dc8950cf00e2a`; app subtree `db22ff60cdca663617b27db42e7c5eb6776c2e9d`). The workflow file hash was `9ebef866599e8a38187ffdf6677e7c33540a3c7259a1ce2fead9a0598deddb62`; the signed scope hash was `f6d5c47d849525a977bd01b95087302e537dbb03eb4bc409adbd5fe55ba4a22e`.
 - [GitHub Actions run 29076097058](https://github.com/Whatintheccc/Destination/actions/runs/29076097058) succeeded on that exact `main` commit with the required `deterministic-ruler` job. Its fixed 26-file [artifact 8220780401](https://github.com/Whatintheccc/Destination/actions/runs/29076097058/artifacts/8220780401), `p13-remote-reproducibility-def14738de5befff611b14c8371b29a47677b59c-29076097058-1`, had API digest `sha256:974f79d7094fbe63c1af2b64e3adeb2193f78447e43c568bd405664739796086`, size 128147 bytes, and expiry `2026-10-08T07:14:48Z`. A clean download passed its complete `SHA256SUMS` inventory.
-- The premerge PR run `29075942760` passed at exact candidate `7397754e4a99793d0374047dea466f521e6dd8af`. Ruleset `18760046` (`P13 protected main`) now has no bypass actors; it requires an up-to-date GitHub Actions `deterministic-ruler` check, pull requests, resolved review threads, linear history, and forbids deletion and force updates. Repository Actions require full commit-SHA action pins.
+- The premerge PR run `29075942760` passed at exact candidate `7397754e4a99793d0374047dea466f521e6dd8af`. Ruleset `18760046` (`P13 protected main`) has no bypass actors or human gate; it requires an up-to-date GitHub Actions `deterministic-ruler` check, pull requests, and linear history while forbidding deletion and force updates. Repository Actions require full commit-SHA action pins.
 - This is one observed hosted replay on a mutable GitHub runner with an expiring, deletable artifact. It closes the remote-reproducibility checklist item. EventKit waves still require the separate app-bundled macOS procedure because the hosted Linux runner cannot prove app identity, Calendar permission, sandbox targeting, mutation, verification, or compensation.
 
 The following are P13.6 learning-promotion prerequisites, not blockers for the first
@@ -1247,7 +1247,7 @@ CalendarPilot's migration protocol is single-owner and machine-checked. Authoriz
 a property of one owner-frozen wave: exact base and candidate identity, signed scope,
 complete derived affectedness, pinned instruments, required live legs, a passing composite
 decision, and explicit opt-in to the named effect target. A failed or incomplete machine
-gate cannot be overridden by an approval flag.
+gate cannot be overridden by a manual flag.
 
 P13.3 establishes the state machine in an explicitly non-authorizing deterministic
 sandbox. It may mint and consume development-only tickets and exercise claim, dispatch,
@@ -1544,7 +1544,7 @@ Goodhart pressure this document rejects.
 | Point | Tracked `/src` Python LOC | Status / binding constraint |
 |---|---:|---|
 | C₁ historical audit | ~13,950 | historical only; [Record §8.4](P12-RECORD.md) |
-| review inventory, commit `5c2bee3` | 14,357 | interim scalar from §4.6; not the versioned P13 baseline |
+| interim inventory, commit `5c2bee3` | 14,357 | scalar from §4.6; not the versioned P13 baseline |
 | P13.0 freeze | report exactly | versioned reporter pins file list, exclusions, commit, subtree, per-file counts, total |
 | each vertical before/peak/after | report exactly | overlap is allowed; retirement requires the vertical certificate |
 | P16/P17 | report exactly | floor is discovered by the first failed protected subtraction |
