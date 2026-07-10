@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E is complete and P12 is closed (run `20260706T220150Z-step-e-complete`); the active phase is P13
+Position: Step E is complete and P12 is closed (run `20260706T220150Z-step-e-complete`); P13.0 ruler mechanics are implemented, but product migration is blocked on a durable operator signing root and independent TCB review
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -253,7 +253,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make lab-validate-seeds` | seed-corpus schema/content validation | a completed experiment |
 | `make lab-run SEED=… RUNTIME=…` | one explicitly selected lab cell | comparison or promotion |
 | `make lab-compare` | reindexes completed lab runs and writes the latest comparison | a release decision |
-| `make lab-promote BATCH=…` | **frozen for promotion**; the current script can force `--decide promote` after failed gates and evaluates tuning on source-run seeds | a valid promotion until the P13.6 learning prerequisites remove the override and separate search/holdout/live evidence |
+| `make lab-promote BATCH=…` | **frozen at the process boundary through P13.5**; automatic and forced promotion both return blocking hold before promotion/report artifact writes and leave `CURRENT` byte-identical | a valid promotion; P13.6 must add signed payload, disjoint evidence, and evaluator isolation before this access point can write again |
 | `make browser-e2e` | owned fixture server, API loop, restart/restore, rendered browser controls, screenshot, replay export | app-bundle identity or live backends |
 | `make mac-app-build` | app and bundled Swift executables build | launch ownership or functional dogfood |
 | `make dogfood-release` | Python, Swift, Swift IPC, fixture browser, app build/sanity, LaunchServices, occupied-port behavior, artifact checks, secret scans; optional EventKit sub-gate | live Codex or live NIM inference unless run separately |
@@ -267,8 +267,8 @@ The command name alone is never the claim. Use the scope and report below.
 | `make cvar-report` | historical P12 frozen-seed self-consistency with the current default invocation | pre-wave versus post-wave code equivalence; it is not accepted by the P13 gate |
 | `make b-migrate` | historical P12 current-session snapshot ↔ current-projector shape check | independent old-organ versus new-kernel equivalence; it is not accepted by the P13 gate |
 | `make cvar-report-v2 P13_MANIFEST=… CVAR_BEFORE=… CVAR_AFTER=…` | compares separately materialized, manifest-bound frontier artifacts; checks source/tuning identity, frozen seeds, bootstrap variance, borderline flips, and promotion-decision stability | the rest of the wave decision |
-| `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's independently named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.2+ action/backend comparison vector until that wave declares it |
-| `make wave-harness WAVE=… P13_VERIFY_KEY=…` | one fail-closed decision over manifest affectedness, v2 architecture, independent C-VAR, independent `B_migrate`, P12 release, reward identity/provenance, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | live legs absent from the signed manifest or any nonbinding target debt not selected by that manifest |
+| `make b-migrate-v2 P13_MANIFEST=…` | invokes the manifest's independently named old/new producer commands and compares the frozen protected projection vector; rejects identical, aliased, or self-derived artifacts | a complete P13.1+ action/backend comparison vector until that wave declares it |
+| `make wave-harness WAVE=… P13_VERIFY_KEY=…` | one fail-closed decision over manifest affectedness, v2 architecture, independent C-VAR, independent `B_migrate`, P12 release, reward occurrence/source-shape screening, live-leg ledger, LOC, schemas, and `ExperimentRecord.v2` | authenticated reward ingress, transitive simulator noninterference, live legs absent from the signed manifest, or any nonbinding target debt not selected by that manifest |
 | `make architecture-eval-test` | scenario coverage pins, fail-closed status semantics, one counterexample per predicate, repaired target vectors, safe path handling, report/schema/hash tamper rejection | current-product preservation or live/target conformance by itself |
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and immutable per-run evidence | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 | `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
@@ -276,8 +276,8 @@ The command name alone is never the claim. Use the scope and report below.
 | `make p13-instrument P13_VERIFY_KEY=…` | clean-tree, content-addressed evaluator/config/schema/test/toolchain identity and signer verification root | a signed wave scope or candidate pass |
 | `make wave-bind WAVE=… CHANGE_CLASS=…` | clean pre-wave scope, base commit, InstrumentBundle, ownership map, expiry, required scenarios, and external RSA signature | the post-change diff or scenario results |
 | `make binding-manifest-verify WAVE=…` | signature/expiry plus full committed, staged, unstaged, and untracked diff affectedness; undeclared paths/categories fail | architecture predicates by itself |
-| `make architecture-eval-v2-test` | scenario-set v2 additive coverage, manifest-only binding, required-debt hold, and four ruler counterexamples | the current wave's signed scope |
-| `make architecture-evals-v2 WAVE=… P13_VERIFY_KEY=…` | v1 preservation plus 25 four-role target families; only manifest-selected target IDs bind | live backends or any of the 21 currently `not_reached` operational/learning contracts |
+| `make architecture-eval-v2-test` | scenario-set v2 additive coverage, manifest-only binding, required-debt hold, and five ruler counterexamples | the current wave's signed scope |
+| `make architecture-evals-v2 WAVE=… P13_VERIFY_KEY=…` | v1 preservation plus 26 four-role target families; only manifest-selected target IDs bind | live backends or any of the 21 currently `not_reached` operational/learning contracts |
 
 Architecture evals use two explicit rails. The **preservation** rail is binding now:
 every scenario must report `pass`. `architecture_scenario_set.v1` remains historical
@@ -287,12 +287,15 @@ executable switches; all remain `gate_mode: observe`. They must not certify a P1
 migration. Their `not_reached` results remain visible debt and never contribute to a
 pass count.
 
-P13.0 now provides `architecture_scenario_set.v2` and an evaluator-owned, immutable
-pre-wave `BindingManifest`. The manifest—not candidate code and not prose—selects the
+P13.0 now provides `architecture_scenario_set.v2` and the contract for an
+evaluator-owned, immutable pre-wave `BindingManifest`. The manifest—not candidate code
+and not prose—selects the
 required target predicates before a wave begins. It records touched action families,
 backends, surfaces, old/new invocation identities, scenario/instrument hashes, live
-legs, signer, and expiry. Its signer and verification root live outside candidate
-control. The evaluator independently derives actual affectedness from the complete diff
+legs, signer, and expiry. A migration-authorizing manifest's signer and verification
+root must live outside candidate control. Current CI-generated keys prove only the
+cryptographic mechanics and cannot authorize migration. The evaluator independently
+derives actual affectedness from the complete diff
 (including new/untracked paths) plus a versioned ownership map and fails on every
 touched-but-undeclared action, backend, surface, instrument, TCB, or control-plane file.
 A candidate cannot edit, repin, downgrade, or select `observe`; any attempted mutation
@@ -313,7 +316,7 @@ their schemas and decisions, and returns nonzero for both hold and fail. A
 behavior-bearing wave must pass `CVAR_BEFORE=<frozen-clean-artifact>`; the harness
 refuses to regenerate that baseline after candidate work.
 
-The first bound v2 ruler wave records 11/11 preservation passes, four binding ruler
+The ruler truth-repair wave records 11/11 preservation passes, five binding ruler
 target passes, and 21 nonbinding `not_reached` target debts. Adding target scenarios has
 no fixed v2 count ceiling. A manifest-selected `not_reached` becomes a blocking hold.
 
@@ -611,6 +614,20 @@ make live-diffusiongemma-e2e
 | `AuthorityGate` | consent scope, standing grants, revocation epochs, exact admission | independently validate authenticated ingress and fresh provider preconditions; issue denial or one-use effect/compensation ticket | trust a model score/Belief as consent, reuse a ticket, accept stale pre-state |
 | `EffectGateway` | the sole external-effect lifecycle and durable claim/outbox state | claim a ticket once, dispatch idempotently, verify, reconcile ambiguity, require separately authorized compensation, append receipts | accept unticketed effects, retry an unknown effect as new work, call unverified work committed |
 
+These are four causal responsibilities, not four deployment units. The first vertical
+uses only two product packages:
+
+```text
+ProductCore   = EvidenceJournal + Reducer
+EffectKernel  = AuthorityGate + EffectGateway
+```
+
+The split follows failure authority: `ProductCore` can record and interpret but cannot
+cause an external effect; `EffectKernel` owns the smallest effect-capable TCB. Split
+either package only when an observed isolation, scaling, or release constraint requires
+it. Do not introduce services, queues, schedulers, or a second effect abstraction for
+the first walking skeleton.
+
 The Journal and Reducer are safety-relevant but not sufficient to authorize an effect.
 The effect-safety TCB is the trusted ingress/precondition path, Gate, revocation/nonce
 state, and the Gateway's verifier, durable claim/outbox state, and capability-confined
@@ -629,8 +646,9 @@ conclusion or the untrusted Journal.
 
 DiffusionGemma is an experimental, latency-oriented text-diffusion respondent. Its
 blockwise revisions, quality, variance, latency, and cost are observable proposal
-evidence. Its faster local generation and different decoding topology do not change
-the control topology, reward truth, authority, evaluator, or promotion rule.
+evidence. It is replaceable at the `Frontier` port and is neither the recursive
+optimizer nor a control primitive. Faster local generation and different decoding do
+not change the control topology, reward truth, authority, evaluator, or promotion rule.
 
 ### 5.3 Runtime And Control Planes
 
@@ -753,41 +771,48 @@ proof of an effect and must reconcile. If reconciliation finds no effect, it ter
 `not_applied`; any retry requires fresh preconditions and a new ticket. A verified
 present effect can change only through a separately admitted `CompensationTicket`.
 
-### 6.4 Effect Gateway State Machine
+### 6.4 One Effect-Attempt Ledger
+
+Application and compensation use the same durable mechanism; compensation is not a
+second state machine and is never fictional rollback:
 
 ```text
-staged -> denied | cancelled | authorized
-authorized -> cancelled | claimed(ticket_nonce, idempotency_key, durable_outbox)
-claimed -> dispatching | reconciling
-dispatching -> rejected_not_applied | applied_unverified | applying_unknown
-applied_unverified -> verified | applying_unknown
-applying_unknown -> reconciling
-reconciling -> not_applied | applied_unverified | verified | hold
+EffectAttempt{
+  attempt_id, kind{apply|compensate}, ticket_id, ticket_hash, intent_hash,
+  pre_state_hash, provider, nonce, idempotency_key,
+  claim_fact, dispatch_facts[], receipt_facts[], observation_facts[],
+  reconciliation_facts[]
+}
 
-verified -> compensation_requested
-compensation_requested -> compensation_denied | compensation_authorized(CompensationTicket)
-compensation_authorized -> compensation_claimed(ticket_nonce, idempotency_key, durable_outbox)
-compensation_claimed -> compensating
-compensating -> compensated | compensation_unknown | hold
-compensation_unknown -> reconcile -> compensated | effect_still_present | hold
+derive_phase(authenticated_attempt_correlated_facts) =
+  claimed | unknown | not_applied | verified | hold
 ```
 
-The durable `claimed` record is the ticket/revoke/duplicate linearization point and is
-written before provider dispatch. It carries the exact intent, pre-state, provider,
-nonce, and idempotency key needed for crash recovery without trusting the Journal.
-Expiry or revoke before claim cancels; after claim, recovery reconciles. A reconciled
-`Absent` result becomes `not_applied` and never silently dispatches old work. A provider
-rejection is likewise `rejected_not_applied`.
+`derived_phase` is a projection and is never stored as authoritative state. The
+EffectKernel atomically reads the grant epoch, proves nonce uniqueness, and appends the
+claim plus outbox in one transaction; that transaction is the ticket/revoke/duplicate
+linearization point and precedes provider dispatch. Dispatch is another durable fact,
+not a competing public state. The reducer deterministically derives the public phase
+from authenticated facts correlated to the exact attempt:
 
-`verified` is the only successful applied-effect state; `committed` may be displayed
-only as an alias for verified provider state. A crash after dispatch and before receipt
-enters `applying_unknown`. The same idempotency key may be reconciled; a fresh write is
-forbidden until outcome is known. Duplicate ticket or delivery cannot double-apply.
-Compensation is a new authorized external effect: the Gate compares fresh state, issues
-an exact one-use ticket or denial, and the Gateway claims it before dispatch. It never
-overwrites later human/provider edits. Conflict or unavailable proof is a visible hold
-with an executable resolution route; `effect_still_present` is such a hold, not success
-and not authority to mint a replacement ticket. Journal history remains append-only.
+```text
+valid ticket -> atomic claim/outbox -> claimed
+claimed -> dispatch fact -> verified | not_applied | unknown
+claimed | unknown -> reconcile -> verified | not_applied | hold
+verified apply -> fresh CompensationTicket -> new EffectAttempt(kind=compensate)
+```
+
+`not_applied` requires affirmative provider evidence of absence; timeout, missing
+receipt, crash, or an ambiguous rejection yields `unknown`, which blocks fresh dispatch.
+`unknown` may resolve only through reconciliation. Conflicting terminal evidence derives
+`hold`; it can never alternate between `verified` and `not_applied` based on arrival
+order. The fact-precedence table and its permutation tests are part of the P13.3
+contract.
+`verified` is the sole successful effect phase; `committed` may be displayed only as an
+alias. Expiry or revoke before claim denies the attempt; after claim, recovery
+reconciles. Compensation repeats the same claim/dispatch/reconcile protocol with fresh
+state and separately admitted authority. Conflict or unavailable proof is a visible
+hold with an executable resolution route. Journal history remains append-only.
 
 ### 6.5 Frontier And Provider Ports
 
@@ -1079,23 +1104,25 @@ starts until all of these are true:
 ```text
 [x] The workspace Makefile delegates to calendar-pilot-p12, or is removed as an access point.
 [x] CI exists at the actual git root and runs the deterministic baseline plus report-decision assertions.
-[x] A new P13 InstrumentBundle@sha and active-app subtree hash are pinned by an externally signed clean-tree manifest after the documentation/access-point pass.
+[x] A clean-tree development manifest proves InstrumentBundle@sha, active-app subtree pinning, signing, expiry, and verification mechanics.
+[ ] The release verification root is durable, operator-held, and outside the repository and candidate workspace; a manifest signed only by an ephemeral development key cannot authorize migration.
 [x] A versioned LOC reporter freezes tracked /src files, exclusions, per-file counts, total, commit, app subtree, and delta.
 [x] pass is required for promotion; hold returns a blocking status from the wave gate.
 [x] root-list entries are versioned, BindingManifest-signed artifacts with owner/sign-off, hashes, affected_by_wave, and enforced expiry.
 [x] architecture_scenario_set.v1 is frozen as history; v2 describes the four-role topology without a fixed scenario-count ceiling.
 [x] `make wave-bind` and manifest verification create/verify an externally signed BindingManifest and fail undeclared affectedness.
-[ ] Learning/meta optimizer write scope is allowlisted; TCB, evaluator, manifest, promoter, sealed archive history are read-only or unavailable.
+[x] Automatic and forced promotion return blocking hold before promotion/report artifact writes and leave `CURRENT` byte-identical through P13.5.
 [ ] An engineering wave that changes TCB code declares exact TCB paths, runs isolated, and requires external evaluation plus independent human review.
-[x] Evaluator mutation, manifest downgrade, and candidate write-boundary attacks are planted failures.
+[x] Instrument mutation, manifest downgrade, scope under-declaration, and protected-path affectedness attacks are planted failures.
 [x] ExperimentRecord requires delta, fixed, rows, baseline, effect, regressed, ablation, rollback.
 [x] ExperimentRecord carries change class and its conditional candidate/evidence hashes, outcome provenance, uncertainty, slices, and identifiability.
 [x] ExperimentRecord phase is P13 (then P16/P17 as applicable), not the Step E constant.
 [x] C-VAR consumes frozen pre-wave outputs and independently generated post-wave outputs.
 [x] C-VAR fails when before and after artifacts are the same; behavior-changing waves additionally require a clean frozen base and changed post-wave source/tuning identity.
 [x] B_migrate invokes independently named producer commands and rejects identical, aliased, or self-derived artifacts using planted old/new producers.
-[ ] Each P13.2+ manifest binds the actual old/new commands and comparison vector for intents, projections, admission/refinement, reward, evidence, reconciliation, and compensation.
-[x] Reward evidence reports content-addressed global row identity and enforces causal source authentication plus separate human-versus-simulator provenance classes.
+[ ] Each P13.1+ manifest binds the actual old/new commands and comparison vector for intents, projections, admission/refinement, reward, evidence, reconciliation, and compensation.
+[x] Reward screening reports content-addressed occurrence identity, declared human/simulator source classes, causal-reference shape checks, and direct simulator-positive-credit rejection without claiming authentication.
+[ ] Stable issuer/event identity, authenticated and resolved causal provenance, duplicate-conflict handling, and transitive simulator noninterference are binding at reward ingress.
 [ ] Every certificate has a planted counterexample that produces fail or hold.
 ```
 
@@ -1104,14 +1131,19 @@ operational shadow. `lab-promote` remains frozen until every item passes:
 
 ```text
 [ ] Search, family-disjoint sealed holdout, and forward-time no-effect live-shadow partitions are distinct and hashed in InstrumentBundle.
-[ ] Holdout access, promotion override, evaluator mutation, and optimizer write-boundary attacks are planted failures.
+[ ] Holdout access, evaluator mutation, and real optimizer executor write-boundary attacks are planted failures with denied syscall/mount-profile evidence.
 [ ] Simulator evidence has zero direct or transitive positive human-utility promotion credit; synthetic rows cannot count as Program A feedback.
-[ ] `lab-promote` cannot force promotion after a failed gate; changing thresholds requires a new pre-search instrument epoch.
+[ ] Re-enabling `lab-promote` requires signed PolicyPayload/PromotionRecord contracts; changing thresholds requires a new pre-search instrument epoch.
 [ ] Training/search rows are disjoint from sealed holdout; the tuning-loop control-note check is labeled plumbing, not improvement.
 [ ] Decision logs capture decision/event id, actual behavior payload/arm, eligible set, selected candidate/action id, selected-action propensity/determinism, exposure, context/pre-state hash, outcome window, censoring, and linked outcome row ids.
 [ ] Missing overlap/propensity reports `not_identifiable` and blocks an off-policy improvement claim.
 [ ] A deliberately bad PolicyPayload is rejected without changing CURRENT; a valid payload completes signed promotion and atomic rollback.
 ```
+
+No optimizer participates in P13.0–P13.5 wave or promotion decisions; existing learning
+code is inference/evidence-only and the promotion access point is frozen. This is a
+phase exclusion rule, not evidence of optimizer process isolation. The allowlisted
+write boundary and sealed holdout remain P13.6 work.
 
 An invisible no-effect live shadow proves distribution coverage, conformance, latency,
 and cost—not downstream human effect outcomes. With explicit consent, blinded exposure
@@ -1135,10 +1167,11 @@ revoke/claim race linearization, reconciled-absent `not_applied`, and invalid gr
 external edit before compensation and visible compensation hold
 no learning/meta effect path
 Frontier respondent provenance/failure/variance/cost/latency preservation
-optimizer write-boundary and evaluator/instrument mutation rejection
+BindingManifest protected-path rejection and evaluator/instrument mutation rejection
+real optimizer executor write-boundary rejection
 BindingManifest downgrade/scope-under-declaration and holdout-exposure rejection
 promotion-override rejection
-global reward identity and transitive human/simulator separation
+reward occurrence/source-shape screening; authenticated global identity and transitive human/simulator separation remain debt
 monitor counterexample detectability, detection latency, and resulting hold
 ```
 
@@ -1192,46 +1225,59 @@ expiry, and the actual experiment record must be binding before any behavior mig
 The new P13 baseline then pins the post-documentation commit, active-app subtree, exact
 LOC vector, deterministic reports, and affected live/app evidence.
 
-The first unit is `create_prep_block`, not a shared framework or an organ. Execute these
-barriers in order:
+The first unit is `create_prep_block`, not a shared framework or an organ. Contract
+design and shadow plumbing are one vertical learning exercise: contracts emerge only
+when the walking skeleton needs them. Execute these barriers in order:
 
 ```text
-P13.0  isolate evaluator/promoter; add BindingManifest and scenario-set v2; freeze instrument
-P13.1  define Journal vocabulary, pure Reducer, required-field manifest, and effect state machine
-P13.2  shadow deterministic create_prep_block end to end; incumbent remains visible/effect-capable
-P13.3a cut over cited UI/explain read-side; observe while incumbent still owns effects
-P13.3b introduce effect/compensation tickets and switch deterministic effects at one Gateway selector
+P13.0  bind ruler mechanics; freeze promotion; install durable signer/reviewer boundary
+P13.1  no-effect create_prep_block walking skeleton through ProductCore -> AdmissionPreview
+P13.2  cut over cited UI/explain read-side; observe while incumbent still owns effects
+P13.3  introduce EffectAttempt tickets and switch deterministic effects at one EffectKernel selector
 P13.4  repeat crash/race/reconcile/compensation certificate through app-bundled sandbox EventKit
 P13.5  retire old truth only for create_prep_block + proven backend; repeat per action/backend
 P13.6  migrate the preserved learning path to immutable proposal-only PolicyPayloads
 ```
 
-The P13.2 shadow includes the whole causal path:
+The P13.1 walking skeleton includes the whole no-effect causal path:
 
 ```text
 authenticated observation
 -> Frontier proposal
 -> Reducer intent/state
--> Gate denial or domain-separated non-consumable ShadowAdmissionDecision
--> Provider preview or cited projection of the incumbent receipt (no new dispatch)
+-> Gate denial or structurally non-dispatchable AdmissionPreview
+-> pure deterministic projection or cited projection of the incumbent receipt
 -> Journal comparison evidence
 -> required UI projection
 -> explanation and executable control route
 ```
 
-`ShadowAdmissionDecision` is cryptographically audience/domain separated and cannot be
-accepted by a production Gateway. P13.2 forces stale/forged input, denial, projection,
-and explanation cases while the incumbent alone mutates. P13.3b is the first valid
-ticket claim/dispatch; its isolated deterministic effect suite forces duplicate delivery,
+`AdmissionPreview` is not a ticket, has no ticket signature or nonce, has no
+deserialization route accepted by the EffectGateway, and does not satisfy the
+`EffectAttempt` constructor. The P13.1 exit test proves Journal append
+to pure cited reduction to `AdmissionPreview`, plus zero EffectAttempts, claims,
+dispatches, and provider mutations. The built walking skeleton has no reachable
+credential-bearing or mutating Provider capability; this is a structural reachability
+proof, not only a zero-call observation. It forces stale/forged input, denial,
+projection, and explanation cases while the incumbent alone mutates. No queues,
+services, schedulers, or new effect abstractions land in this skeleton.
+
+P13.3 is the first valid ticket claim/dispatch. Its isolated deterministic effect suite
+forces duplicate delivery,
 crash before/after claim and dispatch, verify ambiguity, revoke/claim race, restart
 reconciliation, reconciled absence, and an out-of-band edit before separately authorized
 compensation. Deterministic handoff does not authorize EventKit handoff.
 
-During P13.3a, only controls already proven on the incumbent may render as actionable;
+During P13.2, only controls already proven on the incumbent may render as actionable;
 they route through one compatibility selector to the incumbent effect path and their
 receipts return to the Journal. New-only revoke/reconcile/compensation controls remain
-truthfully unavailable until their Gate/Gateway routes cut over atomically in P13.3b.
+truthfully unavailable until their Gate/Gateway routes cut over atomically in P13.3.
 No control can choose old versus new authority ad hoc.
+
+Any change whose causal impact can alter trusted ingress, admission, ticket fields,
+claim/revoke linearization, dispatch capability, verification, reconciliation, or
+compensation is a TCB change regardless of file location. It requires the exact-path
+manifest declaration and independent reviewer attestation before merge.
 
 `DogfoodSessionState`, static snapshots, and hidden frontend truth retire only durable,
 semantic, safety-, explanation-, and decision-bearing field by field after the required
@@ -1449,8 +1495,9 @@ Use this checklist for every proposed wave.
 
 Retired by Step E (evidence: [P12 Record §6](P12-RECORD.md)): the original
 deterministic-only P12 reach, the three original pass-by-construction placebo reports,
-and the missing `Belief`/`explain` contract. P13.0 still has to make the newer
-compression-wave wrappers and access-point plumbing binding (§8.5).
+and the missing `Belief`/`explain` contract. P13.0 now has binding compression-wave
+wrappers and access-point plumbing; the durable signer and independent-review
+boundaries in §8.5 remain the migration blockers.
 
 | Risk | Why it matters | Required design answer |
 |---|---|---|
@@ -1460,7 +1507,7 @@ compression-wave wrappers and access-point plumbing binding (§8.5).
 | static signed root-list entries do not enforce expiry | old live evidence can silently certify a touched path | versioned ledger with hashes, affectedness, sign-off, and enforced expiry |
 | v1 target `binding_trigger` is inert prose | all nine target debts can remain `observe/not_reached` while the top-level gate passes | v2 plus evaluator-owned immutable BindingManifest before migration |
 | BindingManifest can under-declare the diff | a signed but incomplete scope can omit binding cases | evaluator derives affectedness from full diff + ownership map and fails every undeclared touch |
-| `lab-promote --decide promote` can bypass failed gates | a human/agent can write `CURRENT` after a hard failure | remove force-promote path; allow only veto/hold; new threshold means new instrument epoch |
+| a promotion implementation could regain a writable override | a human/agent could write `CURRENT` after a hard failure | access point is frozen before writes through P13.5; P13.6 must admit only signed payloads after external gates; a new threshold means a new instrument epoch |
 | training and evaluation reuse lab runs/seeds | autonomous search can optimize its evaluator | disjoint search, family-disjoint sealed holdout, and frozen forward live shadow |
 | simulator reward has positive training weight | policy can learn to please its model of the user | separate ledgers; simulator can veto/train failure detector but has zero positive promotion credit |
 | tuning control-note counts as effect | plumbing change can masquerade as improvement | label current loop bootstrap-only; require human-outcome uncertainty rule |
@@ -1486,17 +1533,18 @@ compression-wave wrappers and access-point plumbing binding (§8.5).
    The instrument is truthful and pinned, live-leg reachability is closed,
    Belief and explain are shipped. LOC rose as designed.
 
-2. Complete P13.0 before the first behavior-changing wave.
+2. Complete P13.0 before the first product walking skeleton.
    Canonical access point, root CI, scenario-set v2, immutable BindingManifest,
-   evaluator/write isolation, manifest affectedness, real experiment record,
-   independent C-VAR/B_migrate, validated live-leg ledger.
+   manifest affectedness, real experiment record, independent C-VAR/B_migrate,
+   validated live-leg ledger, durable operator signer, independent TCB reviewer.
 
 3. Route every wave through the binding promotion harness.
    Correct change class, conditional evidence hashes, baseline, uncertainty, slices,
    ablation, rollback, plus the change-to-gate union in §4.7.
 
-4. Shadow the deterministic create_prep_block vertical end to end.
-   Journal, Reducer, UI/explain, non-consumable admission decision, provider preview;
+4. Build the no-effect create_prep_block walking skeleton end to end.
+   ProductCore append/reduce/cited projection, structurally non-dispatchable
+   AdmissionPreview, and proof of zero new effect attempts or provider mutations;
    incumbent remains the only visible and effect-capable path.
 
 5. Cut over its read side, then deterministic effects at the sole Gateway selector.
@@ -1507,7 +1555,7 @@ compression-wave wrappers and access-point plumbing binding (§8.5).
    Retire old truth only for the proven action/backend; repeat per vertical.
 
 7. Migrate the preserved learning path to immutable proposal-only PolicyPayloads.
-   Repair promotion override; separate search/holdout/live evidence; simulator never
+   Replace the frozen promoter with a signed, externally gated path; separate search/holdout/live evidence; simulator never
    supplies positive promotion credit; sign PromotionRecord before CURRENT changes.
 
 8. Contract duplicated architecture under certificates.
@@ -1532,10 +1580,12 @@ replaceable; event tags remain tags; Belief/UI/explain remain cited projections.
 small effect TCB is surrounded by increasingly capable but untrusted proposal machinery.
 
 The P12 ruler is truthful for the scope that closed P12, and the `Belief` and
-`explain` contracts are shipped ([P12 Record](P12-RECORD.md)). The next correct action
-is P13.0: repair access-point identity, isolate evaluator/promoter from optimizer,
-replace inert v1 target prose with v2 + BindingManifest, and make the wave certificates
-binding. Then migrate one complete `create_prep_block` vertical through read-side,
+`explain` contracts are shipped ([P12 Record](P12-RECORD.md)). P13.0 now has binding
+access points, scenario-set v2, affectedness, independent comparison certificates, and
+a promotion freeze. Its honest remaining boundary is organizational and cryptographic:
+install the durable operator verification root and independent TCB reviewer before any
+product skeleton. Then migrate one complete `create_prep_block` vertical through no-effect,
+read-side,
 deterministic-effect, and app-bundled EventKit barriers before generalizing (P13).
 Learning becomes frozen proposal payloads plus signed promotion records only after that operational path is stable;
 meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
