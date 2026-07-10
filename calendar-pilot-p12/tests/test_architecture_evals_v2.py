@@ -15,12 +15,15 @@ from evals.architecture.run_architecture_evals import (
 )
 from evals.p13_ruler.core import APP_ROOT, build_binding_manifest, build_instrument_bundle
 from evals.architecture.predicates.p13 import (
+    EVENTKIT_CASE_EXPECTATIONS,
+    EVENTKIT_EQUALITY_REQUIREMENTS,
     SANDBOX_CASE_EXPECTATIONS,
     SANDBOX_EQUALITY_REQUIREMENTS,
     cited_read_side_cutover,
     cited_required_projection,
     product_core_no_effect_reachability,
     reducer_determinism,
+    eventkit_sandbox_contract,
     sandbox_effect_contract,
 )
 
@@ -53,6 +56,15 @@ P13_3_TARGETS = {
     "target.restart_reconciliation",
     "target.compensation_conflict_hold",
     "target.no_learning_effect_path",
+}
+P13_4_TARGETS = {
+    "target.eventkit_identity_target_binding",
+    "target.eventkit_ticket_binding",
+    "target.eventkit_effect_lifecycle",
+    "target.eventkit_revoke_claim_race",
+    "target.eventkit_compensation_binding",
+    "target.eventkit_compensation_conflict_hold",
+    "target.eventkit_no_learning_effect_path",
 }
 
 
@@ -298,6 +310,46 @@ class ArchitectureEvalV2Tests(unittest.TestCase):
                 production = deepcopy(evidence)
                 production["authorizes_production"] = True
                 self.assertEqual(sandbox_effect_contract({"effect_kernel": production})["status"], "fail")
+
+    def test_p13_4_targets_use_frozen_eventkit_predicate_before_implementation(self):
+        scenario_set = load_scenario_set(P13_SCENARIOS)
+        by_id = {row["scenario_id"]: row for row in scenario_set["scenarios"]}
+        self.assertTrue(all(by_id[scenario_id]["predicate_id"] == "eventkit_sandbox_contract" for scenario_id in P13_4_TARGETS))
+
+    def test_p13_4_predicate_accepts_complete_raw_facts_and_rejects_each_planted_counterexample(self):
+        universal = {
+            "authority_profile": "owner_controlled_eventkit_sandbox",
+            "authorizes_production": False,
+            "adapter_id": "apple_eventkit_sandbox",
+            "adapter_external_io": True,
+            "real_provider_reachable": True,
+            "action_family": "create_prep_block",
+            "default_selector": "incumbent",
+            "explicit_selector": "apple_eventkit_sandbox",
+        }
+        for case, expected in EVENTKIT_CASE_EXPECTATIONS.items():
+            with self.subTest(case=case):
+                evidence = {"case": case, **universal, **deepcopy(expected)}
+                for left, right in EVENTKIT_EQUALITY_REQUIREMENTS.get(case, ()):
+                    evidence[left] = evidence[right] = {"bound": case, "sha256": "a" * 64}
+                self.assertEqual(eventkit_sandbox_contract({"eventkit_effect_kernel": evidence})["status"], "pass")
+
+                key = next(iter(expected))
+                planted = deepcopy(evidence)
+                value = planted[key]
+                if isinstance(value, bool):
+                    planted[key] = not value
+                elif isinstance(value, int):
+                    planted[key] = value + 1
+                elif isinstance(value, list):
+                    planted[key] = [*value, "planted-counterexample"]
+                else:
+                    planted[key] = f"wrong:{value}"
+                self.assertEqual(eventkit_sandbox_contract({"eventkit_effect_kernel": planted})["status"], "fail")
+
+                target_escape = deepcopy(evidence)
+                target_escape["authorizes_production"] = True
+                self.assertEqual(eventkit_sandbox_contract({"eventkit_effect_kernel": target_escape})["status"], "fail")
 
 
 if __name__ == "__main__":
