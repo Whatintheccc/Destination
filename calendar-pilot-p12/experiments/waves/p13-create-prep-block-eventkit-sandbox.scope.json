@@ -9,10 +9,13 @@
   ],
   "declared": {
     "actions": [
-      "*"
+      "*",
+      "create_prep_block"
     ],
     "backends": [
-      "*"
+      "*",
+      "apple_eventkit",
+      "deterministic_sandbox"
     ],
     "surfaces": [
       "authority_gate",
