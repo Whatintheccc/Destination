@@ -1,0 +1,21 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "compression-roadmap.md"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": [],
+    "surfaces": [
+      "architecture_docs"
+    ],
+    "instruments": [
+      "architecture_spec"
+    ],
+    "control_planes": []
+  },
+  "required_scenarios": [],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
