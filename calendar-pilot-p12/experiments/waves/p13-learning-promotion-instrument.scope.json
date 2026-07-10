@@ -1,0 +1,110 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/README.md",
+    "calendar-pilot-p12/configs/p13_instrument_artifacts.json",
+    "calendar-pilot-p12/configs/p13_ownership_map.json",
+    "calendar-pilot-p12/contracts/VERSIONS.json",
+    "calendar-pilot-p12/contracts/learning_partition_manifest.schema.json",
+    "calendar-pilot-p12/contracts/optimizer_execution_report.schema.json",
+    "calendar-pilot-p12/contracts/policy_payload.schema.json",
+    "calendar-pilot-p12/contracts/promotion_record.schema.json",
+    "calendar-pilot-p12/evals/architecture/adapters/p13_current.py",
+    "calendar-pilot-p12/evals/architecture/adapters/p13_learning_scenarios.py",
+    "calendar-pilot-p12/evals/architecture/predicates/p13.py",
+    "calendar-pilot-p12/evals/architecture/scenarios/p13_v2.json",
+    "calendar-pilot-p12/experiments/waves/p13-learning-promotion-instrument.scope.json",
+    "calendar-pilot-p12/tests/test_architecture_evals.py",
+    "calendar-pilot-p12/tests/test_architecture_evals_v2.py",
+    "calendar-pilot-p12/tests/test_p13_learning_promotion.py",
+    "compression-roadmap.md"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": [],
+    "surfaces": [
+      "app_access",
+      "architecture_docs",
+      "configuration",
+      "contracts",
+      "docs",
+      "evaluation",
+      "tests",
+      "wave_scope"
+    ],
+    "instruments": [
+      "access_point_docs",
+      "architecture_eval",
+      "architecture_spec",
+      "binding_manifest",
+      "configuration",
+      "contract_schemas",
+      "tests",
+      "wave_gate"
+    ],
+    "control_planes": [
+      "evaluator",
+      "optimizer"
+    ]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
+    "target.binding_manifest_signature",
+    "target.instrument_mutation_rejection",
+    "target.promotion_override_rejection"
+  ],
+  "old_producer": {
+    "cvar": {
+      "producer_id": "cvar.before.current",
+      "command": [
+        "python3",
+        "scripts/produce_cvar_frontier.py",
+        "--role",
+        "before",
+        "--current",
+        "experiments/promoted/CURRENT.json"
+      ]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.old.frontend_snapshot",
+      "command": [
+        "python3",
+        "scripts/produce_b_migrate_old.py"
+      ]
+    }
+  },
+  "new_producer": {
+    "cvar": {
+      "producer_id": "cvar.after.current",
+      "command": [
+        "python3",
+        "scripts/produce_cvar_frontier.py",
+        "--role",
+        "after",
+        "--current",
+        "experiments/promoted/CURRENT.json"
+      ]
+    },
+    "b_migrate": {
+      "producer_id": "b_migrate.new.frontend_projector",
+      "command": [
+        "python3",
+        "scripts/produce_b_migrate_new.py"
+      ]
+    }
+  },
+  "live_legs": []
+}
