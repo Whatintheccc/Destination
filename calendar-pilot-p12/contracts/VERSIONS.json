@@ -41,6 +41,7 @@
   "policy_tuning.schema.json": "v1",
   "provider_capability_report.schema.json": "v1",
   "raw_calendar_observation.schema.json": "v2",
+  "required_field_manifest.schema.json": "v1",
   "replay_record.schema.json": "v1+p12-signals",
   "reward_event.schema.json": "v2",
   "reward_head_report_v2.schema.json": "v2",

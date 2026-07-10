@@ -318,6 +318,23 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             forged["decision"] = "pass"
             self.assertTrue(list(Draft202012Validator(schema).iter_errors(forged)))
 
+            manifest["required_scenarios"].append("target.cited_read_side_cutover")
+            architecture["scenarios"].append({
+                "scenario_id": "target.cited_read_side_cutover",
+                "gate_mode": "required",
+                "status": "pass",
+            })
+            paths["manifest_path"] = write("manifest.json", manifest)
+            paths["architecture_report_path"] = write("architecture.json", architecture)
+            read_side = build_experiment_record(
+                **paths,
+                candidate_repository=candidate,
+                git_delta=[{"status": "M", "path": additive[0]["path"]}],
+            )
+            Draft202012Validator(schema).validate(read_side)
+            self.assertEqual(read_side["decision"], "pass")
+            self.assertEqual(read_side["rollback"]["proof_artifact"]["mode"], "incumbent_read_selector")
+
     def test_reward_rows_gain_occurrence_identity_and_declared_source_class(self):
         with tempfile.TemporaryDirectory() as td:
             replay = Path(td) / "rewards.jsonl"
