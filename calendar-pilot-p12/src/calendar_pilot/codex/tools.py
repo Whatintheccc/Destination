@@ -300,6 +300,9 @@ class CodexToolRuntime:
         return self._receipt(call, CodexToolStatus.DENIED, {}, denied=f"unsupported tool {name.value}")
 
     def _uses_retired_vertical(self, candidate: CandidateCalendarAction) -> bool:
+        owns_candidate = getattr(self.provider, "owns_candidate", None)
+        if callable(owns_candidate):
+            return bool(owns_candidate(candidate))
         return bool(
             candidate.intent == "create_prep_block"
             and getattr(self.provider, "provider_id", None) == "deterministic_sandbox"
@@ -362,15 +365,17 @@ class CodexToolRuntime:
                 },
                 denied=str(exc),
             )
-        for candidate in result.candidates:
+        prepare_candidate = getattr(self.provider, "prepare_candidate", None)
+        candidates = [prepare_candidate(candidate) for candidate in result.candidates] if callable(prepare_candidate) else list(result.candidates)
+        for candidate in candidates:
             self.frontier[candidate.candidate_id] = candidate
         return self._receipt(
             call,
             CodexToolStatus.SUCCEEDED,
             {
-                "candidate_count": len(result.candidates),
-                "candidates": [c.to_dict() for c in result.candidates],
-                "frontier_ids": [c.candidate_id for c in result.candidates],
+                "candidate_count": len(candidates),
+                "candidates": [c.to_dict() for c in candidates],
+                "frontier_ids": [c.candidate_id for c in candidates],
                 "goal": goal,
                 "goal_routed_to_policy": result.goal_routed_to_policy,
                 "frontier_generation": result.provenance,

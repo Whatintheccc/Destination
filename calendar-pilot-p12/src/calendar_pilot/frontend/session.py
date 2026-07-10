@@ -18,6 +18,12 @@ from typing import Any
 from calendar_pilot.codex import CodexExecutivePlan, CodexToolPlanner, CodexToolRuntime, LiveCodexToolPlanner
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy, LiveDiffusionGemmaPolicy, SelfPlayRunner
 from calendar_pilot.providers import AppleEventKitProvider, DeterministicCalendarProvider
+from calendar_pilot.providers.apple_eventkit import AppleEventKitManagedDriver
+from calendar_pilot.effect_kernel import (
+    ManagedCalendarBinding,
+    ManagedEventKitRetirementProvider,
+    managed_commit_confirmation_provenance,
+)
 from calendar_pilot.environment.session_store import SessionStore
 from calendar_pilot.environment.invariants import check_replay
 from calendar_pilot.environment.router import KeywordRouter, ModelIntentRouter
@@ -184,14 +190,44 @@ class DogfoodSessionState:
         if self.runtime_mode == "auto" and not explicit:
             eventkit = AppleEventKitProvider(state_path=self.run_dir / "apple_eventkit_provider.json")
             if eventkit.health_status().get("configured"):
-                return eventkit
+                return self._managed_eventkit_provider(eventkit) or eventkit
             return DeterministicCalendarProvider(state_path=self.run_dir / "provider_state.json", seed_observation=self.observation)
         requested_provider = explicit or ("apple_eventkit" if self.runtime_mode in {"live_provider", "production"} else "deterministic")
         if requested_provider in {"stub", "local_stub", "none"}:
             return None
         if requested_provider in {"apple", "apple_eventkit", "ios_calendar", "macos_calendar", "eventkit"}:
-            return AppleEventKitProvider(state_path=self.run_dir / "apple_eventkit_provider.json")
+            eventkit = AppleEventKitProvider(state_path=self.run_dir / "apple_eventkit_provider.json")
+            return self._managed_eventkit_provider(eventkit) or eventkit
         return DeterministicCalendarProvider(state_path=self.run_dir / "provider_state.json", seed_observation=self.observation)
+
+    def _managed_eventkit_provider(self, incumbent: AppleEventKitProvider) -> ManagedEventKitRetirementProvider | None:
+        binding_file = os.environ.get("CALENDAR_PILOT_MANAGED_EVENTKIT_BINDING_FILE", "").strip()
+        if not binding_file or self.runtime_mode == "production":
+            return None
+        binding_path = Path(binding_file).expanduser().resolve()
+        payload = json.loads(binding_path.read_text(encoding="utf-8"))
+        binding = ManagedCalendarBinding.from_dict(payload)
+        state_root = Path(
+            os.environ.get("CALENDAR_PILOT_MANAGED_EVENTKIT_STATE_ROOT", str(binding_path.parent / "effect-state"))
+        ).expanduser().resolve()
+        initialize = os.environ.get("CALENDAR_PILOT_MANAGED_EVENTKIT_INITIALIZE", "") in {"1", "true", "TRUE", "yes"}
+        driver_factory = lambda row: AppleEventKitManagedDriver(
+            incumbent,
+            calendar_id=row.calendar_id,
+            expected_binding=row,
+        )
+        return ManagedEventKitRetirementProvider(
+            incumbent=incumbent,
+            driver=driver_factory(binding),
+            driver_factory=driver_factory,
+            binding=binding,
+            state_root=state_root,
+            signing_key_path=state_root / "signing.key",
+            lease_path=state_root / "owner.lock",
+            seed_observation=self.observation,
+            initialize=initialize,
+            acquire_lease=True,
+        )
 
     @staticmethod
     def _nim_credentials_available() -> bool:
@@ -201,6 +237,9 @@ class DogfoodSessionState:
         close = getattr(getattr(self, "kernel", None), "close", None)
         if callable(close):
             close()
+        close_provider = getattr(getattr(self, "provider", None), "close", None)
+        if callable(close_provider):
+            close_provider()
 
     def reset(self) -> dict[str, Any]:
         self._load_primitives()
@@ -686,7 +725,12 @@ class DogfoodSessionState:
         elif action == "commit":
             name = CodexToolName.REQUEST_COMMIT
             scopes = ["commit_private", "undo"]
-            grant_id = self.issue_authority_grant(confirmed=True, scopes=self.authority_scopes, reason=f"user_confirmed_commit:{candidate_id}").grant_id if confirmed else self.latest_grant_id(confirmed=True, scopes=scopes)
+            confirmation = (
+                managed_commit_confirmation_provenance(candidate, self.provider.binding)
+                if isinstance(self.provider, ManagedEventKitRetirementProvider) and self.provider.owns_candidate(candidate)
+                else f"user_confirmed_commit:{candidate_id}"
+            )
+            grant_id = self.issue_authority_grant(confirmed=True, scopes=self.authority_scopes, reason=confirmation).grant_id if confirmed else self.latest_grant_id(confirmed=True, scopes=scopes)
             reason = "Request Swift to commit the selected private/reversible action."
         else:
             raise ValueError(f"unsupported candidate action: {action}")
