@@ -608,13 +608,33 @@ class ArchitectureEvalPredicateTests(unittest.TestCase):
                     }
                 },
             ),
+            "retirement_escapes_exact_scope": (
+                "vertical_retirement_contract",
+                {
+                    "vertical_retirement": {
+                        "case": "retirement_scope_binding",
+                        "retirement_profile": "owner_controlled_vertical_retirement",
+                        "authorizes_production": False,
+                        "retired_action_family": "create_prep_block",
+                        "retired_backend": "deterministic_sandbox",
+                        "normal_owner": "effect_kernel",
+                        "unaffected_eventkit_owner": "effect_kernel",
+                        "unaffected_other_action_owner": "incumbent",
+                        "caller_owner_override_available": False,
+                        "normal_selector": "effect_kernel",
+                        "eventkit_selector": "incumbent",
+                        "other_action_selector": "incumbent",
+                        "retired_scope_cardinality": 1,
+                    }
+                },
+            ),
             "p13_target_claim_without_evidence": (
                 "p13_target_not_implemented",
                 {"target_capability": {"reached": True}},
             ),
         }
 
-        self.assertEqual(len(planted), 32)
+        self.assertEqual(len(planted), 33)
         self.assertEqual({predicate_id for predicate_id, _ in planted.values()}, set(PREDICATES))
 
         for name, (predicate_id, vector) in planted.items():
