@@ -1,0 +1,15 @@
+{
+  "optimizer_boundary_schema_version": "optimizer_boundary.v1",
+  "executor_id": "p13.6-policy-payload-proposer",
+  "mechanism": "macos-sandbox-exec",
+  "network_access": "denied",
+  "proposal_write_scope": "one caller-supplied directory",
+  "required_denied_attempts": [
+    {"kind": "holdout", "operation": "read"},
+    {"kind": "forward_shadow", "operation": "read"},
+    {"kind": "evaluator", "operation": "write"},
+    {"kind": "manifest", "operation": "write"},
+    {"kind": "current", "operation": "write"},
+    {"kind": "effect_tcb", "operation": "write"}
+  ]
+}

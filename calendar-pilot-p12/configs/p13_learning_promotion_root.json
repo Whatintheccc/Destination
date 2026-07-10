@@ -1,0 +1,9 @@
+{
+  "learning_promotion_root_schema_version": "learning_promotion_root.v1",
+  "algorithm": "rsa-sha256",
+  "public_key_path": "configs/p13_learning_promotion_public.pem",
+  "public_key_sha256": "22b5b6479ae70799f101caecef35a51db9e3c7c52ac317b925edc7de532ac9a2",
+  "allowed_instrument_epochs": [
+    "p13.6-control.1"
+  ]
+}

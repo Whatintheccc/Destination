@@ -34,6 +34,7 @@ from calendar_pilot.swift_bridge.client import SwiftKernelStub
 from calendar_pilot.swift_bridge.ipc import SwiftKernelIPCClient
 from calendar_pilot.types import CandidateCalendarAction, PolicyTuning, RawCalendarObservation, UserBiography, to_jsonable
 from scripts.lab_modules import build_diff, build_policy_report, build_scorecard, lint_seed
+from scripts.p13_learning_control import load_current_policy_payload
 
 
 LAB_SCHEMA_VERSION = "lab_v0.1"
@@ -137,6 +138,8 @@ def _default_tuning_path() -> Path | None:
         return current
     if isinstance(payload, dict) and payload.get("path"):
         return _resolve_path(str(payload["path"]))
+    if isinstance(payload, dict) and payload.get("current_policy_pointer_schema_version") == "current_policy_pointer.v1":
+        return current
     return current
 
 
@@ -145,7 +148,13 @@ def _load_tuning(path: Path | None) -> tuple[PolicyTuning, Path | None]:
         return PolicyTuning(tuning_id="empty"), None
     if not path.exists():
         raise FileNotFoundError(f"policy tuning not found: {path}")
-    return PolicyTuning.from_dict(_json_load(path)), path
+    payload = _json_load(path)
+    if payload.get("current_policy_pointer_schema_version") == "current_policy_pointer.v1":
+        policy_payload, _ = load_current_policy_payload(path)
+        parameters = policy_payload["policy_parameters"]
+        tuning_payload = parameters.get("policy_tuning") if isinstance(parameters.get("policy_tuning"), dict) else parameters
+        return PolicyTuning.from_dict(tuning_payload), path
+    return PolicyTuning.from_dict(payload), path
 
 
 def _seed_path(seed: str) -> Path:

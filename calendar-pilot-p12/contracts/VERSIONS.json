@@ -51,6 +51,7 @@
   "reward_event.schema.json": "v2",
   "reward_head_report_v2.schema.json": "v2",
   "reward_head_report_v3.schema.json": "v3",
+  "reward_ingress_ledger.schema.json": "v1",
   "semantic_signal.schema.json": "v1",
   "signal_estimator_report.schema.json": "v1"
 }

@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-learning-ruler-test p13-attestation-scaffold-test p13-no-effect-test p13-cited-read-side-test p13-deterministic-sandbox-test p13-eventkit-sandbox-test p13-deterministic-retirement-test p13-eventkit-retirement-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote learning-propose learning-evaluate architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-ruler-test p13-learning-ruler-test p13-attestation-scaffold-test p13-no-effect-test p13-cited-read-side-test p13-deterministic-sandbox-test p13-eventkit-sandbox-test p13-deterministic-retirement-test p13-eventkit-retirement-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
 .NOTPARALLEL: wave-harness
 
 py-test:
@@ -58,7 +58,28 @@ lab-compare:
 	PYTHONPATH=src python3 scripts/compare_lab_runs.py --reindex --out experiments/reports/comparison_latest.json
 
 lab-promote:
-	PYTHONPATH=src python3 scripts/promote_policy.py --batch $(BATCH)
+	PYTHONPATH=src:. python3 scripts/promote_policy.py $(if $(RECORD),--record "$(RECORD)",--batch "$(BATCH)") $(if $(CURRENT),--current "$(CURRENT)",)
+
+learning-propose:
+	@test -n "$(SEARCH)" || (echo "SEARCH is required" >&2; exit 2)
+	@test -n "$(HOLDOUT)" || (echo "HOLDOUT is required" >&2; exit 2)
+	@test -n "$(FORWARD_SHADOW)" || (echo "FORWARD_SHADOW is required" >&2; exit 2)
+	@test -n "$(PAYLOAD_ID)" || (echo "PAYLOAD_ID is required" >&2; exit 2)
+	@test -n "$(POLICY_PARAMETERS)" || (echo "POLICY_PARAMETERS is required" >&2; exit 2)
+	@test -n "$(PROPOSAL_DIR)" || (echo "PROPOSAL_DIR is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_policy_optimizer.py --search "$(SEARCH)" --holdout "$(HOLDOUT)" --forward-shadow "$(FORWARD_SHADOW)" --evaluator evals/architecture/predicates/p13.py --manifest "$(P13_MANIFEST)" --current experiments/promoted/CURRENT.json --effect-tcb src/calendar_pilot/effect_kernel/kernel.py --out-dir "$(PROPOSAL_DIR)" --payload-id "$(PAYLOAD_ID)" --policy-parameters "$(POLICY_PARAMETERS)"
+
+learning-evaluate:
+	@test -n "$(PAYLOAD)" || (echo "PAYLOAD is required" >&2; exit 2)
+	@test -n "$(OPTIMIZER_REPORT)" || (echo "OPTIMIZER_REPORT is required" >&2; exit 2)
+	@test -n "$(PARTITIONS)" || (echo "PARTITIONS is required" >&2; exit 2)
+	@test -n "$(P13_MANIFEST)" || (echo "P13_MANIFEST is required" >&2; exit 2)
+	@test -n "$(P13_INSTRUMENT)" || (echo "P13_INSTRUMENT is required" >&2; exit 2)
+	@test -n "$(P13_VERIFY_KEY)" || (echo "P13_VERIFY_KEY is required" >&2; exit 2)
+	@test -n "$(P13_SIGNING_KEY)" || (echo "P13_SIGNING_KEY is required" >&2; exit 2)
+	@test -n "$(TRANSITION)" || (echo "TRANSITION is required" >&2; exit 2)
+	@test -n "$(PROMOTER_OUT)" || (echo "PROMOTER_OUT is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/evaluate_policy_payload.py --payload "$(PAYLOAD)" --optimizer-report "$(OPTIMIZER_REPORT)" --partitions "$(PARTITIONS)" --binding-manifest "$(P13_MANIFEST)" --instrument-bundle "$(P13_INSTRUMENT)" --verification-key "$(P13_VERIFY_KEY)" --signing-key "$(P13_SIGNING_KEY)" --transition "$(TRANSITION)" --out-dir "$(PROMOTER_OUT)"
 
 architecture-evals:
 	CALENDAR_PILOT_ARCH_EVAL_ACCESS_POINT='make architecture-evals' PYTHONPATH=src python3 evals/architecture/run_architecture_evals.py

@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6 has begun with a pre-change ruler for immutable payloads, disjoint partitions, OS-enforced optimizer confinement, authenticated provenance, and signed atomic promotion/rollback; `lab-promote` remains frozen until the implementation wave passes that ruler. P16 contraction remains blocked until the relevant operational cutovers and monitor certificates exist.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, positive-learning promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6 now has a bound control plane for immutable payloads, OS-enforced optimizer confinement, authenticated provenance, and signed atomic bootstrap/rollback. Unsigned and positive-learning promotion remain hard holds, and the repository `CURRENT` has not migrated; the next wave must bind real disjoint partitions and perform the baseline pointer migration. P16 contraction remains blocked until the relevant operational cutovers and monitor certificates exist.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -260,7 +260,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make lab-validate-seeds` | seed-corpus schema/content validation | a completed experiment |
 | `make lab-run SEED=… RUNTIME=…` | one explicitly selected lab cell | comparison or promotion |
 | `make lab-compare` | reindexes completed lab runs and writes the latest comparison | a release decision |
-| `make lab-promote BATCH=…` | **still frozen while the P13.6 implementation is absent**; automatic and forced promotion both return blocking hold before promotion/report artifact writes and leave `CURRENT` byte-identical | a valid promotion; the bound P13.6 implementation must pass signed-payload, disjoint-evidence, OS-isolation, provenance, and atomic rollback scenarios before this access point can write again |
+| `make lab-promote BATCH=…` / `RECORD=…` | batch, automatic, forced, unsigned, and positive-learning paths hold before writes; `RECORD` admits only a pinned-signer, content-addressed `bootstrap` or `rollback` record with an exact previous-`CURRENT` precondition and passing evidence refs | a positive-learning improvement claim; the repository baseline pointer does not move until the separate P13.6 migration wave |
 | `make browser-e2e` | owned fixture server, API loop, restart/restore, rendered browser controls, screenshot, replay export | app-bundle identity or live backends |
 | `make mac-app-build` | app and bundled Swift executables build | launch ownership or functional dogfood |
 | `make dogfood-release` | Python, Swift, Swift IPC, fixture browser, app build/sanity, LaunchServices, occupied-port behavior, artifact checks, secret scans; optional EventKit sub-gate | live Codex or live NIM inference unless run separately |
@@ -281,6 +281,7 @@ The command name alone is never the claim. Use the scope and report below.
 | `make architecture-evals` | 20 deterministic scenarios over current P12 fixture evidence: 11 binding preservation predicates and 9 historical target predicates, with schema/semantic validation and a fresh non-overwriting per-run report directory | live access points, the new four-role topology, machine-binding migration triggers, or P13.0 completion |
 | `make p13-ruler-test` | LOC, InstrumentBundle, signature, expiry, tamper, scope, and affectedness counterexamples | product behavior or a wave decision by itself |
 | `make p13-learning-ruler-test` | Draft 2020-12 contracts and planted predicate counterexamples for immutable PolicyPayload, partition separation, optimizer confinement, signed promotion/rollback, and authenticated simulator noninterference | a running optimizer, sealed evidence, or permission to mutate `CURRENT` |
+| `CALENDAR_PILOT_ARCH_P13_6=1 make architecture-evals-v2 ...` | on an unsandboxed macOS host, executes the actual optimizer profile plus signed bootstrap/rollback and reward-provenance attack certificates; missing/nested `sandbox-exec` is hold | real search/holdout/forward-shadow product evidence or a positive-learning improvement claim |
 | `make p13-loc-report` | versioned tracked-`/src` Python file list, hashes, exclusions, total, repository/subtree identity, and optional before/after delta | conceptual mass or untracked source; untracked Python produces hold |
 | `make p13-instrument P13_VERIFY_KEY=…` | clean-tree, content-addressed evaluator/config/schema/test/toolchain identity and signer verification root | a signed wave scope or candidate pass |
 | `make wave-bind WAVE=… CHANGE_CLASS=…` | clean pre-wave scope, base commit, InstrumentBundle, ownership map, expiry, required scenarios, and owner-controlled RSA signature | the post-change diff or scenario results |
@@ -1190,14 +1191,25 @@ operational shadow. `lab-promote` remains frozen until every item passes:
 
 ```text
 [ ] Search, family-disjoint sealed holdout, and forward-time no-effect live-shadow partitions are distinct and hashed in InstrumentBundle.
-[ ] Holdout access, evaluator mutation, and real optimizer executor write-boundary attacks are planted failures with denied syscall/mount-profile evidence.
-[ ] Simulator evidence has zero direct or transitive positive human-utility promotion credit; synthetic rows cannot count as Program A feedback.
-[ ] Re-enabling `lab-promote` requires signed PolicyPayload/PromotionRecord contracts; changing thresholds requires a new pre-search instrument epoch.
+[x] Holdout access, evaluator mutation, and real optimizer executor write-boundary attacks are planted failures with denied syscall/profile evidence; the binding certificate ran through macOS `sandbox-exec`, not a Python permission convention.
+[x] Promotion ingress derives source class from a signed issuer registry, rejects duplicate conflicts, and rejects direct/transitive simulator-positive or synthetic Program A credit; positive-learning promotion remains closed.
+[x] The only writable `lab-promote` aperture requires a signed, content-addressed PolicyPayload/PromotionRecord transition; thresholds are instrument-bound and any change requires a new pre-search epoch.
 [ ] Training/search rows are disjoint from sealed holdout; the tuning-loop control-note check is labeled plumbing, not improvement.
 [ ] Decision logs capture decision/event id, actual behavior payload/arm, eligible set, selected candidate/action id, selected-action propensity/determinism, exposure, context/pre-state hash, outcome window, censoring, and linked outcome row ids.
 [ ] Missing overlap/propensity reports `not_identifiable` and blocks an off-policy improvement claim.
 [ ] A deliberately bad PolicyPayload is rejected without changing CURRENT; a valid payload completes signed promotion and atomic rollback.
 ```
+
+P13.6 control-plane status (2026-07-10): the pre-change ruler manifest
+`p13-learning-control-plane:854ac59278b2:20260710T203922Z` bound the implementation
+surface. Architecture run `architecture-evals-20260710T205423423130Z-db1d1268`
+executed outside the nested development sandbox and passed 11/11 preservation plus 44
+target scenarios; only the unrelated Frontier-vector, monitor-detectability, and
+executable-control debts remained `not_reached`. The certificate used temporary,
+content-addressed attack fixtures: it proves the macOS OS boundary, signed pointer
+transition/byte-exact rollback, and authenticated direct/transitive simulator rejection.
+It does not satisfy the unchecked real-data items above, move repository `CURRENT`, or
+authorize positive-learning promotion. Those remain the next migration wave.
 
 No optimizer participates in P13.0–P13.5 wave or promotion decisions; existing learning
 code is inference/evidence-only and the promotion access point is frozen. This is a
