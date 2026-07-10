@@ -778,6 +778,7 @@ class P13WaveHarnessV2Tests(unittest.TestCase):
             )
             Draft202012Validator(schema).validate(record)
             self.assertTrue(is_owner_controlled_eventkit_retirement_wave(manifest, verification, architecture))
+            self.assertTrue(uses_fixed_reward_fixture(manifest, verification, architecture))
             self.assertEqual(record["decision"], "pass")
             self.assertEqual(record["candidate"]["evidence_class"], "owner_controlled_eventkit_binding_retirement")
             self.assertEqual(record["rollback"]["proof_artifact"]["mode"], "owner_frozen_binding_selector")
