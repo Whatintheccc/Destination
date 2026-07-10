@@ -25,11 +25,26 @@ from evals.p13_ruler.wave import (
     compare_cvar_frontier_sets,
     is_owner_controlled_eventkit_sandbox_wave,
     is_owner_controlled_sandbox_wave,
+    is_owner_controlled_vertical_retirement_wave,
     is_structurally_no_effect_wave,
     load_json,
     resolve,
     verify_root_list,
 )
+
+
+def uses_fixed_reward_fixture(
+    manifest: dict[str, Any],
+    verification: dict[str, Any],
+    architecture: dict[str, Any],
+) -> bool:
+    return bool(
+        manifest.get("change_class") == "ruler"
+        or is_structurally_no_effect_wave(manifest, verification, architecture)
+        or is_owner_controlled_sandbox_wave(manifest, verification, architecture)
+        or is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture)
+        or is_owner_controlled_vertical_retirement_wave(manifest, verification, architecture)
+    )
 
 
 def _producer_command(manifest: dict[str, Any], side: str, family: str) -> list[str]:
@@ -155,12 +170,7 @@ def main() -> None:
     release_path = ROOT / "runs/p12_release/p12_release_report.json"
     release_env = {**os.environ, "PYTHONPATH": "src"}
     architecture = load_json(architecture_path)
-    fixed_reward_fixture = bool(
-        manifest.get("change_class") == "ruler"
-        or is_structurally_no_effect_wave(manifest, verification, architecture)
-        or is_owner_controlled_sandbox_wave(manifest, verification, architecture)
-        or is_owner_controlled_eventkit_sandbox_wave(manifest, verification, architecture)
-    )
+    fixed_reward_fixture = uses_fixed_reward_fixture(manifest, verification, architecture)
     if fixed_reward_fixture:
         release_env["CALENDAR_PILOT_REWARD_REPLAY"] = "tests/fixtures/p13_action_rewards.jsonl"
     release_run = _run([sys.executable, "scripts/run_p12_release.py"], artifact=release_path, env=release_env)
