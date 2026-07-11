@@ -777,6 +777,11 @@ Append newest entries first. Never rewrite a failed run after a fix.
   explicit staged draft under restored authority. `make p13-dogfood-d2` is the single
   proposed access point. Exact protected-main release, signed architecture binding,
   and the complete D2 transaction remain required before any D2 verdict.
+- The first exact-main D2 launch attempt (`20260711T175005Z-d2-swift_ipc-9c06a0e08815`)
+  reached a healthy Swift IPC app but aborted before scenario interaction because the
+  generalized browser driver still waited for the D1 literal `Fixture mode`. The
+  retained repair derives the expected runtime label from the manifest cell; the
+  aborted directory is access-point evidence, not a product result.
 
 ### 2026-07-11 — No-op closed; restart identity normalization selected
 
