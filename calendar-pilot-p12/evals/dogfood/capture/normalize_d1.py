@@ -214,11 +214,11 @@ def restart_digest(raw: dict[str, Any], label: str) -> dict[str, str]:
     replay = replay_rows(raw)
     components = {
         "conversation": view.get("conversation"),
-        "plan": view.get("plan") or view.get("pipeline"),
+        "plan": active_plan_identity(raw),
         "candidate": view.get("frontier", {}).get("candidates"),
         "receipt": view.get("conversation", {}).get("receipt_cards"),
         "outcome": [row for row in replay if row.get("record_type") == "learning_outcome"],
-        "runtime": view.get("runtime"),
+        "runtime": stable_runtime_identity(raw),
         "replay": replay,
     }
     return {f"{label}_{key}_digest": digest(value) for key, value in components.items()}
@@ -229,6 +229,24 @@ def active_plan_identity(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "generation_id": frontier.get("generation_id"),
         "goal": frontier.get("goal"),
+    }
+
+
+def stable_runtime_identity(raw: dict[str, Any]) -> dict[str, Any]:
+    runtime = raw.get("view", {}).get("runtime", {})
+    fixture_paths = runtime.get("fixture_paths", {})
+    return {
+        "build_id": runtime.get("build_id"),
+        "runtime_mode": runtime.get("runtime_mode"),
+        "requested_runtime_mode": runtime.get("requested_runtime_mode"),
+        "backends": runtime.get("backends"),
+        "fixture_mode": runtime.get("fixture_mode"),
+        "active_observation_id": fixture_paths.get("active_observation_id"),
+        "uses_sample_fixtures": fixture_paths.get("uses_sample_fixtures"),
+        "provider_observation_loaded": fixture_paths.get("provider_observation_loaded"),
+        "live_target": runtime.get("live_target"),
+        "production_target": runtime.get("production_target"),
+        "valid_runtime_mode": runtime.get("valid_runtime_mode"),
     }
 
 
