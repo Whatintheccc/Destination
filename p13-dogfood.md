@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **architecture and effect plumbing are advanced; the user-value loop is not MVP-ready**
+Current verdict: **the product-eval instrument candidate exists and rejects its planted lies; the user-value loop is not MVP-ready and has no binding baseline report yet**
 
 ---
 
@@ -90,7 +90,7 @@ provider truth.
 
 ### 2.1 Required contracts
 
-The next instrument wave must add these versioned contracts before product repairs:
+The instrument candidate now implements these versioned contracts before product repairs:
 
 ```text
 dogfood_run_manifest.v1
@@ -114,15 +114,21 @@ calendar-pilot-p12/contracts/
   dogfood_operator_truth.schema.json
 ```
 
-Required future access points, not yet implemented:
+Implemented access points:
 
 ```bash
 make p13-dogfood-eval-test
 make p13-dogfood-evals DOGFOOD_RUN=<content-addressed-run-dir>
 ```
 
-Until those targets land and the instrument is frozen, manual runs may discover defects
-but cannot claim a product-conformance score.
+`make p13-dogfood-eval-test` exercises the frozen scenario coverage, report derivation,
+and planted counterexamples. `make p13-dogfood-evals` requires `DOGFOOD_RUN` to name a
+preregistered run directory, validates the bound manifest/operator truth/instrument
+hashes, rejects missing, empty, cross-run, or mismatched-build evidence, derives all
+three rails, and writes `dogfood_eval_report.json` plus `SHA256SUMS`.
+
+Manual runs without those contracts may still discover defects but cannot claim a
+product-conformance score.
 
 ### 2.2 Instrument separation
 
@@ -582,7 +588,12 @@ Evidence:
 ~/Library/Application Support/CalendarPilot/sessions/session_20260702_143826_68deaa14bf/latest_session.json
 ```
 
-This is the baseline the frozen dogfood instrument must reproduce before product fixes.
+This is the diagnostic baseline the frozen dogfood instrument must reproduce before
+product fixes. It cannot be promoted into the first binding report: a 2026-07-10
+retention audit found that the named session directory had been relaunched in place and
+now identifies build `a83702c86401`, launch time `2026-07-11T00:47:12Z`, rather than the
+ground-zero build `a460991805a0`. The historical verdict above remains immutable, but
+the mutable source paths are now cross-build evidence and must be rejected.
 
 ---
 
@@ -608,12 +619,17 @@ floors are later eligibility to evaluate learning; they do not substitute for th
 
 ## 12. Next Work
 
-The next wave is instrument-only:
+The instrument-only implementation is complete in the current candidate. The next
+sequence is:
 
-1. Add the versioned dogfood contracts, scenario set, predicates, adapter, and runner.
-2. Add all planted counterexamples.
-3. Freeze hashes and thresholds before editing product behavior.
-4. Import or replay the ground-zero run and emit the first distance report.
+1. Land this candidate on clean protected main without changing product behavior.
+2. Build and release that exact commit, preregister a fresh D0 run, and prove complete
+   three-rail report generation from retained artifacts.
+3. Capture a fresh D1 baseline with the same frozen instrument. Do not reuse the mutable
+   ground-zero session directory.
+4. Stop at the first causal blocker and retain the report. The historical evidence
+   predicts `P-ACTION-VISIBLE`, followed by recommendation effect-ceiling and follow-up
+   continuity failures.
 5. Only then repair visible action projection, timezone handling, recommendation effect
    ceiling, follow-up continuity, and simulation output.
 6. Rerun the identical instrument from D1 upward; stop at the first blocking scenario.
@@ -627,6 +643,37 @@ conversation continuity.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-10 — Product-eval instrument candidate implemented
+
+- Added `dogfood_run_manifest.v1`, `dogfood_operator_truth.v1`, and
+  `dogfood_eval_report.v1` schemas and registered their versions.
+- Froze `p13_product_v1`: 15 causally ordered scenarios, the D0-D7 cell matrix, ten
+  fixture families, exact stimulus bytes, evidence-source requirements, artifact
+  requirements, performance budgets, and all 13 planted counterexamples.
+- Added a strict live-run adapter, pure product predicates, three-rail report derivation,
+  first-blocker selection, distance-vector output, architecture-report validation,
+  screenshot and artifact hash checks, build/process/run identity checks, and checksum
+  emission.
+- Added `make p13-dogfood-eval-test` and
+  `make p13-dogfood-evals DOGFOOD_RUN=<content-addressed-run-dir>`.
+- Candidate instrument hashes:
+
+  ```text
+  scenario set     bb6ec9ca76748bb60f2b9e3aea5b3ad392c1019167a6eabc8a08c2c44c142579
+  predicates       d6002a732390fd415498a5ba7365e20ca748c15b0a7a61aa514bc3dad50bad53
+  live adapter     19ab673ddb8ae063c5e2ba42e3e2371d9e071c1137a3d19f03e832c266ae1d99
+  runner           6fa79bba3e865e12059a2ac4c8064ba0ae387efdfcefceb24cbb67e2fc0ed4c0
+  run manifest     fc8e0d79826262ca40fba4c99f33d34c7e3120d33196ec2d8da63415b4414b0d
+  eval report      9ad6df08f4558259c08800ea241b9b846391ba4aa6be03ec4c534c31d9fd58a6
+  operator truth   7d85de8b89fe4d663660638c1fc54170de78f9662ab5333c7f6d7049521092da
+  ```
+
+- Verification: all 13 dogfood instrument tests pass; the full Python suite passes
+  318 tests with 11 platform/optional skips.
+- Audited the originally cited ground-zero paths and found they had been overwritten by
+  a later `a83702c86401` launch. No binding baseline report was fabricated from stale
+  evidence; a fresh clean-build D0/D1 capture is required.
 
 ### 2026-07-10 — Specification upgraded to binding eval design
 

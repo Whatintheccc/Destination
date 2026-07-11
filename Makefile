@@ -7,6 +7,7 @@ DELEGATED_TARGETS := \
 	check-invariants evidence-bundle \
 	lab-validate-seeds lab-run lab-compare lab-promote \
 	architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test \
+	p13-dogfood-eval-test p13-dogfood-evals \
 	p13-ruler-test p13-attestation-scaffold-test p13-no-effect-test p13-cited-read-side-test p13-loc-report \
 	p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness \
 	p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release \

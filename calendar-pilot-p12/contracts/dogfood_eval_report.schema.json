@@ -1,0 +1,32 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/dogfood_eval_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DogfoodEvalReportV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dogfood_eval_report_schema_version", "run_id", "generated_at", "decision", "first_blocking_scenario_id", "manifest", "scenario_set", "instrument_artifacts", "architecture_rails", "product_rail", "distance", "scenarios", "artifact_inventory"],
+  "properties": {
+    "dogfood_eval_report_schema_version": {"const": "dogfood_eval_report.v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "decision": {"enum": ["pass", "fail", "hold", "not_reached"]},
+    "first_blocking_scenario_id": {"type": ["string", "null"]},
+    "manifest": {"$ref": "#/$defs/artifact"},
+    "scenario_set": {"$ref": "#/$defs/artifact"},
+    "instrument_artifacts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/artifact"}},
+    "architecture_rails": {"type": "object", "additionalProperties": false, "required": ["preservation", "target_conformance"], "properties": {"preservation": {"$ref": "#/$defs/rail"}, "target_conformance": {"$ref": "#/$defs/rail"}}},
+    "product_rail": {"$ref": "#/$defs/rail"},
+    "distance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status_counts", "required_blocking_scenario_ids", "evidence_completeness_ratio", "internal_visible_projection_divergence", "requested_actual_effect_ceiling_divergence", "plan_continuity_violations", "provider_truth_divergence", "latency_cost_variance_resources", "unreached_capabilities"],
+      "properties": {"status_counts": {"type": "object"}, "required_blocking_scenario_ids": {"type": "array", "items": {"type": "string"}}, "evidence_completeness_ratio": {"type": "number", "minimum": 0, "maximum": 1}, "internal_visible_projection_divergence": {"type": "integer", "minimum": 0}, "requested_actual_effect_ceiling_divergence": {"type": "integer", "minimum": 0}, "plan_continuity_violations": {"type": "integer", "minimum": 0}, "provider_truth_divergence": {"type": "integer", "minimum": 0}, "latency_cost_variance_resources": {"type": "object"}, "unreached_capabilities": {"type": "array", "items": {"type": "string"}}}
+    },
+    "scenarios": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/scenario"}},
+    "artifact_inventory": {"type": "array", "items": {"$ref": "#/$defs/artifact"}}
+  },
+  "$defs": {
+    "artifact": {"type": "object", "additionalProperties": false, "required": ["kind", "path", "sha256"], "properties": {"kind": {"type": "string"}, "path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "rail": {"type": "object", "additionalProperties": false, "required": ["decision", "scenario_count", "status_counts", "blocking_scenario_ids"], "properties": {"decision": {"enum": ["pass", "fail", "hold", "not_reached"]}, "scenario_count": {"type": "integer", "minimum": 0}, "status_counts": {"type": "object"}, "blocking_scenario_ids": {"type": "array", "items": {"type": "string"}}}},
+    "scenario": {"type": "object", "additionalProperties": false, "required": ["scenario_id", "order", "status", "summary", "required_sources", "present_sources", "evidence", "metrics"], "properties": {"scenario_id": {"type": "string"}, "order": {"type": "integer", "minimum": 1}, "status": {"enum": ["pass", "fail", "hold", "not_reached"]}, "summary": {"type": "string"}, "required_sources": {"type": "array", "items": {"type": "string"}}, "present_sources": {"type": "array", "items": {"type": "string"}}, "evidence": {"type": "object"}, "metrics": {"type": "object"}}}
+  }
+}
