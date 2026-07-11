@@ -781,6 +781,11 @@ Append newest entries first. Never rewrite a failed run after a fix.
   hardcoded 15-second wait instead of the frozen `live_recommendation: 60` budget. No
   model error or fallback was recorded. The repair derives its timeout from the signed
   scenario set; the aborted directory is latency/access-point evidence, not a D3 verdict.
+- Complete D3 run `20260711T181819Z-d3-live_codex-435b0ba26ea5` passed 11/12 with
+  zero divergence outside restart. The only mismatch is a synthetic Acting controls
+  message whose projection assigned `created_at = now()` on every snapshot. The repair
+  derives that timestamp from the persisted last transcript event; no conversation
+  content or action state changes. Exact protected-main rerun remains binding.
 
 ### 2026-07-11 — Deterministic D1 complete; D2 Swift IPC access point selected
 
