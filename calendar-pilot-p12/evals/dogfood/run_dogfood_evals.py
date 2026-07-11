@@ -29,7 +29,7 @@ from evals.architecture.run_architecture_evals import validate_report as validat
 SCENARIO_SET = ROOT / "evals/dogfood/scenarios/p13_product_v2.json"
 MANIFEST_SCHEMA = ROOT / "contracts/dogfood_run_manifest.schema.json"
 TRUTH_SCHEMA = ROOT / "contracts/dogfood_operator_truth.schema.json"
-REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report_v3.schema.json"
+REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report_v4.schema.json"
 PREDICATE_PATH = ROOT / "evals/dogfood/predicates/product.py"
 ADAPTER_PATH = ROOT / "evals/dogfood/adapters/live_run.py"
 STATUSES = ("pass", "fail", "hold", "not_reached")
@@ -172,9 +172,19 @@ def _architecture_rails(run_dir: Path, manifest: dict[str, Any]) -> tuple[dict[s
     if repository.get("git_sha") != manifest["repository"]["git_sha"] or repository.get("app_tree_sha") != manifest["repository"]["app_tree_sha"]:
         raise ValueError("architecture report repository identity differs from dogfood manifest")
     rails: dict[str, Any] = {}
+    scenario_statuses = {
+        str(row.get("scenario_id")): str(row.get("status"))
+        for row in payload.get("scenarios", [])
+        if isinstance(row, dict)
+    }
     for name in ("preservation", "target_conformance"):
         source = payload.get("rails", {}).get(name, {})
-        rails[name] = {"decision": source.get("decision", "hold"), "scenario_count": source.get("scenario_count", 0), "status_counts": {status: source.get("status_counts", {}).get(status, 0) for status in STATUSES}, "blocking_scenario_ids": list(source.get("blocking_scenario_ids", []))}
+        blockers = list(source.get("blocking_scenario_ids", []))
+        decision = str(source.get("decision", "hold"))
+        if name == "target_conformance":
+            blocking_statuses = [scenario_statuses.get(scenario_id, "hold") for scenario_id in blockers]
+            decision = next((status for status in ("fail", "hold", "not_reached") if status in blocking_statuses), "pass")
+        rails[name] = {"decision": decision, "scenario_count": source.get("scenario_count", 0), "status_counts": {status: source.get("status_counts", {}).get(status, 0) for status in STATUSES}, "blocking_scenario_ids": blockers}
     return rails, [_artifact("architecture_eval_report", path)]
 
 
@@ -312,7 +322,7 @@ def build_report(*, run_dir: Path, scenario_set_path: Path = SCENARIO_SET, out: 
     first_blocker = _first_blocker(admissibility["status"], product, architecture)
     instrument_artifacts = [_artifact("dogfood_runner", Path(__file__)), _artifact("dogfood_predicates", PREDICATE_PATH), _artifact("dogfood_adapter", ADAPTER_PATH), _artifact("dogfood_report_schema", REPORT_SCHEMA), _artifact("dogfood_manifest_schema", MANIFEST_SCHEMA), _artifact("dogfood_operator_truth_schema", TRUTH_SCHEMA)]
     report = {
-        "dogfood_eval_report_schema_version": "dogfood_eval_report.v3",
+        "dogfood_eval_report_schema_version": "dogfood_eval_report.v4",
         "run_id": manifest["run_id"], "generated_at": datetime.now(timezone.utc).isoformat(),
         "decision": decision, "binding_eligible": admissibility["binding_eligible"],
         "first_blocking_scenario_id": first_blocker,

@@ -146,16 +146,21 @@ class DogfoodReportTests(unittest.TestCase):
                 (run_dir / name).write_text(json.dumps(payload), encoding="utf-8")
             bound_artifact = {"kind": "test_fixture", "path": str(SCENARIO_SET), "sha256": digest(SCENARIO_SET.read_text(encoding="utf-8"))}
             architecture_rail = {"decision": "pass", "scenario_count": 1, "status_counts": {"pass": 1, "fail": 0, "hold": 0, "not_reached": 0}, "blocking_scenario_ids": [], "unmet_scenario_ids": []}
-            def architecture_scenario(scenario_id: str, rail: str) -> dict:
-                return {"scenario_id": scenario_id, "rail": rail, "gate_mode": "required", "category": "test", "adapter_case": "test", "predicate_id": "test", "binding_trigger": "test", "status": "pass", "summary": "test", "observable_vector": {}, "predicate_evidence": {}, "artifacts": [bound_artifact]}
+            target_architecture_rail = {"decision": "not_reached", "scenario_count": 2, "status_counts": {"pass": 1, "fail": 0, "hold": 0, "not_reached": 1}, "blocking_scenario_ids": [], "unmet_scenario_ids": ["target.debt"]}
+            def architecture_scenario(scenario_id: str, rail: str, *, gate_mode: str = "required", status: str = "pass") -> dict:
+                return {"scenario_id": scenario_id, "rail": rail, "gate_mode": gate_mode, "category": "test", "adapter_case": "test", "predicate_id": "test", "binding_trigger": "test", "status": status, "summary": "test", "observable_vector": {}, "predicate_evidence": {}, "artifacts": [bound_artifact]}
             architecture = {
                 "architecture_eval_report_schema_version": "architecture_eval_report.v2", "run_id": "arch-test",
                 "generated_at": datetime.now(timezone.utc).isoformat(), "decision": "pass", "repository": manifest["repository"],
                 "instrument_artifacts": [bound_artifact], "report_paths": {},
                 "execution": {"report_decision": "pass", "exit_code": 0}, "scenario_set": {},
                 "binding": {"manifest": bound_artifact, "verification": bound_artifact, "required_scenario_ids": ["preservation.test", "target.test"]},
-                "artifact_root": str(run_dir), "rails": {"preservation": architecture_rail, "target_conformance": architecture_rail},
-                "scenarios": [architecture_scenario("preservation.test", "preservation"), architecture_scenario("target.test", "target_conformance")],
+                "artifact_root": str(run_dir), "rails": {"preservation": architecture_rail, "target_conformance": target_architecture_rail},
+                "scenarios": [
+                    architecture_scenario("preservation.test", "preservation"),
+                    architecture_scenario("target.test", "target_conformance"),
+                    architecture_scenario("target.debt", "target_conformance", gate_mode="observe", status="not_reached"),
+                ],
             }
             extra_json = {
                 "launch_state.after.json": {}, "process_snapshot.after.json": {},
@@ -164,9 +169,11 @@ class DogfoodReportTests(unittest.TestCase):
             for name, payload in extra_json.items():
                 (run_dir / name).write_text(json.dumps(payload), encoding="utf-8")
             report = build_report(run_dir=run_dir)
-            self.assertEqual(report["dogfood_eval_report_schema_version"], "dogfood_eval_report.v3")
+            self.assertEqual(report["dogfood_eval_report_schema_version"], "dogfood_eval_report.v4")
             self.assertEqual(report["product_rail"]["decision"], "pass")
             self.assertEqual(report["decision"], "pass")
+            self.assertEqual(report["architecture_rails"]["target_conformance"]["decision"], "pass")
+            self.assertEqual(report["architecture_rails"]["target_conformance"]["status_counts"]["not_reached"], 1)
             self.assertEqual(report["evidence_admissibility"]["status"], "pass")
             self.assertTrue(report["binding_eligible"])
             self.assertFalse(report["evidence_admissibility"]["checks"]["replay_parent_resolution"]["replay_required"])
