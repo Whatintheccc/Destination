@@ -776,6 +776,11 @@ Append newest entries first. Never rewrite a failed run after a fix.
   ceilings. `make p13-dogfood-d3` selects live Codex + deterministic policy; `make
   p13-dogfood-d4` selects deterministic Codex + live DiffusionGemma. Exact protected-main
   release, signing, and each complete component run remain required before closure.
+- First D3 attempt `20260711T181104Z-d3-live_codex-00c78016f6cf` reached the live
+  recommendation request and aborted before response because the browser driver used a
+  hardcoded 15-second wait instead of the frozen `live_recommendation: 60` budget. No
+  model error or fallback was recorded. The repair derives its timeout from the signed
+  scenario set; the aborted directory is latency/access-point evidence, not a D3 verdict.
 
 ### 2026-07-11 — Deterministic D1 complete; D2 Swift IPC access point selected
 
