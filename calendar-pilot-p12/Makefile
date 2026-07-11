@@ -96,7 +96,7 @@ architecture-evals-v2:
 	CALENDAR_PILOT_ARCH_EVAL_ACCESS_POINT='make architecture-evals-v2' PYTHONPATH=src python3 evals/architecture/run_architecture_evals.py --scenario-set evals/architecture/scenarios/p13_v2.json --binding-manifest "$(P13_MANIFEST)" --verification-key "$(P13_VERIFY_KEY)" --out runs/architecture_evals/architecture_eval_report_v2.json
 
 p13-dogfood-eval-test:
-	PYTHONPATH=src:tests:. python3 -m unittest test_dogfood_evals
+	PYTHONPATH=src:tests:. python3 -m unittest test_dogfood_evals test_dogfood_admissibility
 
 p13-dogfood-evals:
 	@test -n "$(DOGFOOD_RUN)" || (echo "DOGFOOD_RUN is required" >&2; exit 2)

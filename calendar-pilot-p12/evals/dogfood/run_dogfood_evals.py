@@ -20,6 +20,7 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
 from calendar_pilot.environment.fsio import atomic_write_json, atomic_write_text
+from evals.dogfood import admissibility as evidence_admissibility
 from evals.dogfood.adapters import LiveRunAdapter
 from evals.dogfood.predicates import evaluate_predicate
 from evals.architecture.run_architecture_evals import validate_report as validate_architecture_report
@@ -28,7 +29,7 @@ from evals.architecture.run_architecture_evals import validate_report as validat
 SCENARIO_SET = ROOT / "evals/dogfood/scenarios/p13_product_v1.json"
 MANIFEST_SCHEMA = ROOT / "contracts/dogfood_run_manifest.schema.json"
 TRUTH_SCHEMA = ROOT / "contracts/dogfood_operator_truth.schema.json"
-REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report.schema.json"
+REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report_v2.schema.json"
 PREDICATE_PATH = ROOT / "evals/dogfood/predicates/product.py"
 ADAPTER_PATH = ROOT / "evals/dogfood/adapters/live_run.py"
 STATUSES = ("pass", "fail", "hold", "not_reached")
@@ -179,12 +180,27 @@ def _architecture_rails(run_dir: Path, manifest: dict[str, Any]) -> tuple[dict[s
     return rails, [_artifact("architecture_eval_report", path)]
 
 
-def _overall_decision(product: dict[str, Any], architecture: dict[str, Any]) -> str:
-    decisions = [product["decision"], architecture["preservation"]["decision"], architecture["target_conformance"]["decision"]]
+def _overall_decision(admissibility_status: str, product: dict[str, Any], architecture: dict[str, Any]) -> str:
+    decisions = [admissibility_status, product["decision"], architecture["preservation"]["decision"], architecture["target_conformance"]["decision"]]
     for status in ("fail", "hold", "not_reached", "pass"):
         if status in decisions:
             return status
     return "hold"
+
+
+def _derived_admissibility_status(checks: dict[str, Any]) -> str:
+    statuses = [str(check.get("status")) for check in checks.values()]
+    if "fail" in statuses:
+        return "fail"
+    if "hold" in statuses:
+        return "hold"
+    return "pass"
+
+
+def _first_blocker(admissibility_status: str, product: dict[str, Any], architecture: dict[str, Any]) -> str | None:
+    if admissibility_status != "pass":
+        return evidence_admissibility.PREREQUISITE_ID
+    return (product["blocking_scenario_ids"] or architecture["preservation"]["blocking_scenario_ids"] or architecture["target_conformance"]["blocking_scenario_ids"] or [None])[0]
 
 
 def _inventory(run_dir: Path, required: list[str]) -> tuple[list[dict[str, str]], float]:
@@ -223,11 +239,23 @@ def validate_report(report: dict[str, Any]) -> None:
     expected_product = _summary(report["scenarios"])
     if report["product_rail"] != expected_product:
         raise ValueError("product rail is not derived from scenario results")
-    expected_decision = _overall_decision(expected_product, report["architecture_rails"])
+    admissibility = report["evidence_admissibility"]
+    expected_status = _derived_admissibility_status(admissibility["checks"])
+    if admissibility["status"] != expected_status:
+        raise ValueError("evidence admissibility status is not derived from its per-check evidence")
+    if admissibility["binding_eligible"] != (expected_status == "pass") or report["binding_eligible"] != admissibility["binding_eligible"]:
+        raise ValueError("binding eligibility is not derived from the admissibility prerequisite")
+    if list(admissibility["instrument"]["required_invariant_ids"]) != list(evidence_admissibility.REQUIRED_INVARIANT_IDS):
+        raise ValueError("admissibility does not bind the required replay invariant ids")
+    for name in ("replay_checker", "admissibility_module", "browser_capture"):
+        artifact = admissibility["instrument"][name]
+        path = Path(artifact["path"])
+        if not path.is_file() or _sha256(path) != artifact["sha256"]:
+            raise ValueError(f"admissibility instrument hash mismatch: {name}")
+    expected_decision = _overall_decision(expected_status, expected_product, report["architecture_rails"])
     if report["decision"] != expected_decision:
-        raise ValueError("dogfood decision is not derived from the three rails")
-    blockers = expected_product["blocking_scenario_ids"]
-    expected_first = blockers[0] if blockers else (report["architecture_rails"]["preservation"]["blocking_scenario_ids"] or report["architecture_rails"]["target_conformance"]["blocking_scenario_ids"] or [None])[0]
+        raise ValueError("dogfood decision is not derived from the admissibility prerequisite and three rails")
+    expected_first = _first_blocker(expected_status, expected_product, report["architecture_rails"])
     if report["first_blocking_scenario_id"] != expected_first:
         raise ValueError("first blocking scenario is not derived in causal order")
     distance = report["distance"]
@@ -281,19 +309,22 @@ def build_report(*, run_dir: Path, scenario_set_path: Path = SCENARIO_SET, out: 
     product = _summary(results)
     architecture, architecture_artifacts = _architecture_rails(run_dir, manifest)
     inventory, completeness = _inventory(run_dir, manifest["required_artifacts"])
-    decision = _overall_decision(product, architecture)
-    first_blocker = (product["blocking_scenario_ids"] or architecture["preservation"]["blocking_scenario_ids"] or architecture["target_conformance"]["blocking_scenario_ids"] or [None])[0]
+    admissibility = evidence_admissibility.derive_admissibility(run_dir, manifest, adapter.evidence_rows)
+    decision = _overall_decision(admissibility["status"], product, architecture)
+    first_blocker = _first_blocker(admissibility["status"], product, architecture)
     instrument_artifacts = [_artifact("dogfood_runner", Path(__file__)), _artifact("dogfood_predicates", PREDICATE_PATH), _artifact("dogfood_adapter", ADAPTER_PATH), _artifact("dogfood_report_schema", REPORT_SCHEMA), _artifact("dogfood_manifest_schema", MANIFEST_SCHEMA), _artifact("dogfood_operator_truth_schema", TRUTH_SCHEMA)]
     report = {
-        "dogfood_eval_report_schema_version": "dogfood_eval_report.v1",
+        "dogfood_eval_report_schema_version": "dogfood_eval_report.v2",
         "run_id": manifest["run_id"], "generated_at": datetime.now(timezone.utc).isoformat(),
-        "decision": decision, "first_blocking_scenario_id": first_blocker,
+        "decision": decision, "binding_eligible": admissibility["binding_eligible"],
+        "first_blocking_scenario_id": first_blocker,
         "manifest": _artifact("dogfood_run_manifest", manifest_path),
         "scenario_set": _artifact("dogfood_scenario_set", scenario_set_path),
         "instrument_artifacts": instrument_artifacts,
+        "evidence_admissibility": admissibility,
         "architecture_rails": architecture, "product_rail": product,
         "distance": _distance(results, completeness), "scenarios": results,
-        "artifact_inventory": sorted([*inventory, *architecture_artifacts, *adapter.artifacts], key=lambda row: (row["path"], row["kind"])),
+        "artifact_inventory": sorted([*inventory, *architecture_artifacts, *adapter.artifacts, *evidence_admissibility.capture_artifacts(run_dir)], key=lambda row: (row["path"], row["kind"])),
     }
     validate_report(report)
     atomic_write_json(out, report)
@@ -311,7 +342,7 @@ def main() -> None:
     if Path.cwd().resolve() != ROOT.resolve():
         raise SystemExit(f"dogfood evals must run from active app root: {ROOT}")
     report = build_report(run_dir=Path(args.run_dir), scenario_set_path=Path(args.scenario_set), out=Path(args.out) if args.out else None)
-    print(json.dumps({"decision": report["decision"], "first_blocking_scenario_id": report["first_blocking_scenario_id"], "product_rail": report["product_rail"], "distance": report["distance"]}, indent=2, sort_keys=True))
+    print(json.dumps({"decision": report["decision"], "binding_eligible": report["binding_eligible"], "first_blocking_scenario_id": report["first_blocking_scenario_id"], "evidence_admissibility_status": report["evidence_admissibility"]["status"], "product_rail": report["product_rail"], "distance": report["distance"]}, indent=2, sort_keys=True))
     raise SystemExit(0 if report["decision"] == "pass" else 1)
 
 
