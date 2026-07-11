@@ -731,7 +731,7 @@ scenario failures into independent tickets. Execute this order:
    ```text
    P-OBSERVE [closed on binding run 20260711T130433Z]
      cited read command; no frontier, plan, simulation, grant, or stage
-   P-RECOMMEND
+   P-RECOMMEND [closed on binding run 20260711T163138Z]
      requested recommendation ceiling makes staging structurally unreachable
    P-ACTION-VISIBLE + P-TIMEZONE
      exact candidate action and local-time truth project visibly
@@ -760,6 +760,22 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — P-RECOMMEND closed; action projection selected
+
+- Binding run `20260711T163138Z-d1-fixture-30c63723f5a1` closed
+  `P-RECOMMEND`: visible/selected candidate identity agrees, goal fit and no-op comparison
+  are card-local and true, and all stage/effect/provider counts are zero.
+- D1 now passes 4/11 with `P-ACTION-VISIBLE` as the first blocker and `P-TIMEZONE`
+  immediately behind it. Evidence completeness remains `1.0`; provider and effect-ceiling
+  divergence remain zero.
+- Candidate repair adds one canonical twelve-field visible action projection—local date,
+  timezone, start, end, duration, calendar, title, attendees, affected ids, conflicts,
+  reversibility, and authority need—and makes both action and timezone normalization
+  leading-card-local.
+- The same projection carries deterministic offset/duration/tomorrow proof plus explicit
+  spring-forward invalidity and fall-back ambiguity checks in the bound user timezone.
+  Exact protected-main D1 rerun remains required before closing the paired wave.
 
 ### 2026-07-11 — P-OBSERVE closed; P-RECOMMEND selected
 

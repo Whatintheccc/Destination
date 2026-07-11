@@ -1,5 +1,9 @@
 import {h, kv} from '../h.js';
 
+function actionField(label, testid, value) {
+  return h('div', {class: 'kv'}, h('div', {class: 'k'}, label), h('div', {class: 'v', 'data-testid': testid}, value ?? '—'));
+}
+
 export function observationCard(card) {
   const facts = (card.facts || []).map(fact => h('div', {
     class: 'inspector-card observation-fact',
@@ -19,6 +23,8 @@ export function observationCard(card) {
 
 export function candidateCard(card) {
   const candidateId = card.candidate_id || '';
+  const action = card.action || {};
+  const timezoneCheck = card.timezone_check || {};
   const story = (card.model_story || []).slice(0, 3).map(line => h('li', {}, line));
   const rewards = Object.entries(card.reward_breakdown || {}).slice(0, 5).map(([k, v]) => h('span', {class: 'badge'}, `${k} ${v}`));
   return h('div', {class: 'card candidate-card', 'data-testid': 'candidate-card', dataset: {candidateId}},
@@ -32,6 +38,24 @@ export function candidateCard(card) {
       h('div', {class: 'k'}, 'Compared with no change'),
       h('div', {'data-testid': 'candidate-compares-noop', class: 'v'}, card.rationale_compares_noop === true ? 'true' : 'false')),
     card.counterfactual ? h('p', {class: 'muted'}, card.counterfactual) : null,
+    h('div', {class: 'inspector-card candidate-action'},
+      actionField('local date', 'candidate-local-date', action.local_date),
+      actionField('timezone', 'candidate-timezone', action.timezone),
+      actionField('start', 'candidate-start', action.start),
+      actionField('end', 'candidate-end', action.end),
+      actionField('duration minutes', 'candidate-duration-minutes', action.duration_minutes),
+      actionField('calendar', 'candidate-calendar-id', action.calendar_id),
+      actionField('title', 'candidate-title', action.title),
+      actionField('attendees', 'candidate-attendees', JSON.stringify(action.attendees || [])),
+      actionField('affected ids', 'candidate-affected-ids', JSON.stringify(action.affected_ids || [])),
+      actionField('conflicts', 'candidate-conflicts', JSON.stringify(action.conflicts || [])),
+      actionField('reversibility', 'candidate-reversibility', action.reversibility),
+      actionField('authority need', 'candidate-authority-need', action.authority_need),
+      h('span', {'data-testid': 'timezone-local-day-matches'}, String(timezoneCheck.local_day_matches === true)),
+      h('span', {'data-testid': 'timezone-offset-roundtrip'}, String(timezoneCheck.offset_roundtrip === true)),
+      h('span', {'data-testid': 'timezone-duration-preserved'}, String(timezoneCheck.duration_preserved === true)),
+      h('span', {'data-testid': 'timezone-tomorrow-uses-bound-timezone'}, String(timezoneCheck.tomorrow_uses_bound_timezone === true)),
+      h('span', {'data-testid': 'timezone-dst-case-resolved'}, String(timezoneCheck.dst_case_resolved === true))),
     story.length ? h('ol', {class: 'story'}, story) : null,
     h('div', {}, rewards),
     h('div', {class: 'card-actions'},

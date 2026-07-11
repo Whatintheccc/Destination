@@ -297,10 +297,14 @@ def normalize(run_dir: Path) -> None:
             })
         elif scenario_id == "P-ACTION-VISIBLE":
             replay_payload["action"] = internal_action(raw, truth["timezone"])
-            rendered_payload.update({"action": visible_action(semantic), "captured_from_ui": True})
+            rendered_candidates = extract_candidate_dom(raw["dom_html"])
+            leading_fields = rendered_candidates[0]["fields"] if rendered_candidates else {}
+            rendered_payload.update({"action": visible_action(leading_fields), "captured_from_ui": True})
         elif scenario_id == "P-TIMEZONE":
+            rendered_candidates = extract_candidate_dom(raw["dom_html"])
+            leading_fields = rendered_candidates[0]["fields"] if rendered_candidates else {}
             rendered_payload["timezone_check"] = {
-                key: semantic.get(f"timezone-{key.replace('_', '-')}") == "true"
+                key: leading_fields.get(f"timezone-{key.replace('_', '-')}") == "true"
                 for key in ("local_day_matches", "offset_roundtrip", "duration_preserved", "tomorrow_uses_bound_timezone", "dst_case_resolved")
             }
         elif scenario_id == "P-FOLLOWUP":
