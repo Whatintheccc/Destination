@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Successive exact-main D0 attempts have exposed three ruler/access-point defects before any product semantics were changed: D0 interaction applicability, binding-target status integration, and zero-byte optional-artifact handling. V5 now closes the ruler path; the retained V4 attempt still shows a real app identity defect (`app_bundle_path` is lost when Swift hands launch ownership to Python). After V5 lands, that identity defect is the next product wave.**
+Current verdict: **The V5 ruler path is closed and the bounded D0 app-identity repair now passes the full release gate. Swift preserves authoritative bundle identity across the Python handoff; health exposes canonical PID/port; packaged launches no longer crawl outside the bundle for `.env`. Raw LaunchServices evidence is coherent. The repair must land on protected main and pass a fresh binding D0 before D1 product semantics open.**
 
 ---
 
@@ -760,6 +760,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — D0 owned-launch identity repaired
+
+- Passed `CALENDAR_PILOT_APP_BUNDLE_PATH` from the Swift app supervisor into its Python
+  child, preventing Python from overwriting authoritative bundle identity with `null`.
+- Added canonical numeric `server_pid` and `port` to runtime health while retaining the
+  existing raw `pid` and `launch_port` fields used by release diagnostics.
+- Stopped packaged env discovery at the app root. An explicit
+  `CALENDAR_PILOT_ENV_FILE` remains allowed, but a LaunchServices app no longer walks
+  out of its bundle into a repository `.env` on Desktop. Development parent search is
+  unchanged.
+- Added focused tests for canonical process identity and the packaged env boundary.
+- Verification: 27 focused Python tests and 17 Swift tests passed. The first release
+  rerun proved LaunchServices ready in 6.46 seconds but correctly failed secret scan on
+  a test fixture shaped like a secret assignment; after replacing it with a neutral
+  marker, all 18 release checks passed (`ok: true`), including empty secret findings.
+- Raw stopped launch state now retains the exact bundle path and matching launch id,
+  PID, and port across the top-level launch tuple and embedded health process. No
+  routing, planning, projection, policy, provider, or effect code changed.
 
 ### 2026-07-11 — Optional empty-artifact applicability corrected
 

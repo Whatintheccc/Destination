@@ -34,6 +34,8 @@ def _env_path(path: str | Path | None = None) -> Path:
     configured = os.environ.get("CALENDAR_PILOT_ENV_FILE")
     if configured:
         return Path(configured)
+    if os.environ.get("CALENDAR_PILOT_APP_BUNDLE_PATH"):
+        return ROOT / ".env"
     for base in [ROOT, *ROOT.parents]:
         candidate = base / ".env"
         if candidate.exists():
