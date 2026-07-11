@@ -168,13 +168,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-bundle", default=str(DEFAULT_APP))
-    parser.add_argument("--cell", default="D1", choices=("D1", "D2"))
-    parser.add_argument("--runtime-mode", default="fixture", choices=("fixture", "swift_ipc"))
+    parser.add_argument("--cell", default="D1", choices=("D1", "D2", "D3", "D4"))
+    parser.add_argument("--runtime-mode", default="fixture", choices=("fixture", "swift_ipc", "live_codex", "live_diffusiongemma"))
     parser.add_argument("--architecture-report", default=str(DEFAULT_ARCHITECTURE_REPORT))
     parser.add_argument("--out-root", default=str(ROOT / "runs/dogfood"))
     parser.add_argument("--run-id", default="")
     args = parser.parse_args()
-    expected_mode = {"D1": "fixture", "D2": "swift_ipc"}[args.cell]
+    expected_mode = {
+        "D1": "fixture",
+        "D2": "swift_ipc",
+        "D3": "live_codex",
+        "D4": "live_diffusiongemma",
+    }[args.cell]
     if args.runtime_mode != expected_mode:
         parser.error(f"{args.cell} requires --runtime-mode {expected_mode}")
     report = run(args)

@@ -271,8 +271,8 @@ def normalize(run_dir: Path) -> None:
     run_dir = run_dir.resolve()
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
     truth = json.loads((run_dir / "operator_truth.json").read_text(encoding="utf-8"))
-    if manifest.get("cell") not in {"D1", "D2"}:
-        raise ValueError("D1/D2 normalizer cannot process another cell")
+    if manifest.get("cell") not in {"D1", "D2", "D3", "D4"}:
+        raise ValueError("D1-D4 normalizer cannot process another cell")
     browser_path = run_dir / "ruler_capture/browser_records.jsonl"
     browser_rows = load_jsonl(browser_path)
     by_scenario: dict[str, list[dict[str, Any]]] = {}
