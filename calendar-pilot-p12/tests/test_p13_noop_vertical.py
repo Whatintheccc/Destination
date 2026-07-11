@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 import tempfile
 import unittest
 
@@ -31,6 +32,17 @@ class P13NoopVerticalTests(unittest.TestCase):
                 self.assertEqual([card["intent"] for card in restored_cards], ["do_nothing"])
             finally:
                 restored.close()
+
+    def test_noop_fixture_is_available_with_swift_ipc_and_deterministic_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {"CALENDAR_PILOT_KERNEL_BACKEND": "stub"}):
+            session = DogfoodSessionState(run_dir=Path(td), runtime_mode="swift_ipc")
+            try:
+                snapshot = session.create_plan("Use the fixture where every calendar change is dominated.")
+                self.assertEqual(snapshot["chat"]["candidate_cards"][0]["intent"], "do_nothing")
+                self.assertEqual(session.runtime_mode, "swift_ipc")
+                self.assertEqual(session.provider.provider_id, "deterministic_fixture_provider")
+            finally:
+                session.close()
 
 
 if __name__ == "__main__":

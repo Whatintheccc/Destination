@@ -782,6 +782,12 @@ Append newest entries first. Never rewrite a failed run after a fix.
   generalized browser driver still waited for the D1 literal `Fixture mode`. The
   retained repair derives the expected runtime label from the manifest cell; the
   aborted directory is access-point evidence, not a product result.
+- The corrected-label attempt (`20260711T175641Z-d2-swift_ipc-9acf4cd0e7b5`)
+  reached Swift denial and explicit staging, then aborted when `P-NOOP` rejected fixture
+  activation solely because the kernel mode was `swift_ipc`. Fixture eligibility belongs
+  to provider identity: D2 still uses `deterministic_fixture_provider`. The repair admits
+  that provider while continuing to reject live/EventKit providers; the aborted directory
+  remains execution evidence, not a D2 verdict.
 
 ### 2026-07-11 — No-op closed; restart identity normalization selected
 
