@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from evals.dogfood.capture.normalize_d1 import effect_counts, internal_action, visible_action
+from evals.dogfood.capture.normalize_d1 import effect_counts, ids_from_dom, internal_action, visible_action
 from scripts.run_p13_dogfood_d1 import health_matches_launch
 
 
@@ -67,6 +67,10 @@ class DogfoodD1CaptureTests(unittest.TestCase):
         health = {"build_id": "abc", "runtime_mode": "fixture", "process": {"server_pid": 12, "launch_id": "launch-1", "port": 8787}}
         self.assertTrue(health_matches_launch(launch, health))
         self.assertFalse(health_matches_launch(launch, {**health, "build_id": "wrong"}))
+
+    def test_dom_identity_extraction_preserves_visible_order(self) -> None:
+        dom = '<div data-candidate-id="leading"></div><div data-candidate-id="second"></div><div data-candidate-id="leading"></div>'
+        self.assertEqual(ids_from_dom(dom, "data-candidate-id"), ["leading", "second"])
 
 
 if __name__ == "__main__":

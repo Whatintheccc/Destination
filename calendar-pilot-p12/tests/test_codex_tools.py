@@ -131,9 +131,9 @@ class CodexToolRuntimeTests(unittest.TestCase):
         names = [c.tool_name for c in plan.calls]
         self.assertIn(CodexToolName.INSPECT_WEEK, names)
         self.assertIn(CodexToolName.GENERATE_CANDIDATE_FRONTIER, names)
-        self.assertIn(CodexToolName.SIMULATE_ACTION_PROGRAM, names)
-        self.assertIn(CodexToolName.STAGE_ACTION_PACKET, names)
-        self.assertIn(plan.recommended_next_action, {"stage_for_confirmation", "staged_draft"})
+        self.assertNotIn(CodexToolName.SIMULATE_ACTION_PROGRAM, names)
+        self.assertNotIn(CodexToolName.STAGE_ACTION_PACKET, names)
+        self.assertEqual(plan.recommended_next_action, "recommendation_ready")
 
     def test_offline_policy_tuning_changes_next_generation(self):
         replay = ReplayBuffer()
