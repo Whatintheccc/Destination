@@ -140,6 +140,9 @@ def count_delta(current: dict[str, int], previous: dict[str, int]) -> dict[str, 
 
 
 def fact_ids_from_provider(raw: dict[str, Any]) -> list[str]:
+    observation = latest_record(raw, "calendar_observation").get("payload", {})
+    if isinstance(observation, dict) and isinstance(observation.get("fact_ids"), list):
+        return sorted(str(value) for value in observation["fact_ids"])
     for row in reversed(replay_rows(raw)):
         if row.get("record_type") != "codex_tool_receipt":
             continue

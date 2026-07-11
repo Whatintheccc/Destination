@@ -1,6 +1,6 @@
 import {api, loadView, normalizeView} from './api.js';
 import {connectEvents} from './bus.js';
-import {candidateCard, receiptCard} from './components/cards.js';
+import {candidateCard, observationCard, receiptCard} from './components/cards.js';
 import {openEnvelopeOverlay} from './components/envelope.js';
 import {h, clear, kv} from './h.js';
 import {createStore} from './store.js';
@@ -118,6 +118,7 @@ function messageNode(message) {
   const cards = [];
   for (const card of (message.cards || [])) {
     if (card.type === 'candidate') cards.push(candidateCard(card));
+    else if (card.type === 'observation') cards.push(observationCard(card));
     else if (card.type === 'receipt') cards.push(receiptCard(card.receipt || card));
   }
   return h('article', {class: `message ${message.role === 'user' ? 'user' : 'assistant'}`, 'data-testid': `message-${message.role === 'user' ? 'user' : 'assistant'}`},

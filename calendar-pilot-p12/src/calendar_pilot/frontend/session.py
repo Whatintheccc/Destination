@@ -32,7 +32,9 @@ from calendar_pilot.environment.trace import TRACE_BUS
 from calendar_pilot.frontend.projector import FrontendProjector
 from calendar_pilot.frontend.session_conversation import (
     FrontendConversationTools,
+    conversation_message_requests_calendar_observation,
     conversation_tool_metadata,
+    normalize_conversation_message,
     profile_patch_payload_from_receipt,
 )
 from calendar_pilot.frontend.session_persistence import SessionPersistenceController
@@ -312,6 +314,8 @@ class DogfoodSessionState:
         intent = routed.classified_intent
         self.replay.append_router_decision(routed, trace_id=routed.turn_id)
         self._emit_trace(routed.turn_id, "router", "route_classified", payload=routed.replay_payload())
+        if conversation_message_requests_calendar_observation(normalize_conversation_message(goal)):
+            return self._create_observation_response(goal, intent, routed.turn_id)
         if intent not in {"calendar_goal", "mixed_calendar_operational"}:
             live_chat = self.conversation.live_response(goal, intent)
             if live_chat is not None:
@@ -410,6 +414,52 @@ class DogfoodSessionState:
             "plan_id": plan.plan_id,
             "metadata": metadata,
             "conversation_receipts": conversation_receipts,
+            "created_at": _now().isoformat(),
+        })
+        self.persist()
+        return self.snapshot()
+
+    def _create_observation_response(self, goal: str, intent: str, trace_id: str) -> dict[str, Any]:
+        facts = [
+            {
+                "fact_id": event.event_id,
+                "citation_id": event.event_id,
+                "title": event.title,
+                "start": event.start.isoformat(),
+                "end": event.end.isoformat(),
+                "calendar_id": event.calendar_id,
+                "category": event.category,
+            }
+            for event in self.observation.events
+        ]
+        observation_payload = {
+            "observation_id": self.observation.observation_id,
+            "timezone": self.observation.time_zone_id,
+            "fact_ids": [fact["fact_id"] for fact in facts],
+            "citation_ids": [fact["citation_id"] for fact in facts],
+            "facts": facts,
+            "candidate_ids": [],
+        }
+        replay_id = self.replay.append_generic(
+            "calendar_observation",
+            observation_payload,
+            record_id=f"calendar_observation:{trace_id}",
+            trace_id=trace_id,
+            signal_stream="world",
+        )
+        self._emit_trace(trace_id, "provider_observation", "observation_read", payload={"replay_record_id": replay_id, "fact_ids": observation_payload["fact_ids"]})
+        self.transcript_events.append({
+            "kind": "assistant_observation",
+            "title": "Tomorrow's calendar evidence",
+            "body": f"I found {len(facts)} cited calendar events in the bound {self.observation.time_zone_id} observation. I did not generate or stage a change.",
+            "metadata": self._response_metadata(
+                goal=goal,
+                intent=intent,
+                response_source="cited_calendar_observation",
+                reason="read-only calendar question resolved from the active provider observation",
+                extra_metadata={"tool_sequence": ["inspect_week"], "tool_call_count": 1, "observation_replay_record_id": replay_id},
+            ),
+            "cards": [{"type": "observation", **observation_payload}],
             "created_at": _now().isoformat(),
         })
         self.persist()
