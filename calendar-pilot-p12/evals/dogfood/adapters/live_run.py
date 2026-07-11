@@ -85,12 +85,15 @@ class LiveRunAdapter:
         self.evidence_rows.append({"scenario_id": scenario_id, "source": source, "payload": payload, "label": label, "envelope": dict(row)})
 
     def _load(self) -> None:
+        required_artifacts = set(str(value) for value in self.manifest.get("required_artifacts", []))
         for filename, source in JSON_DOCUMENTS.items():
             path = self.run_dir / filename
             if not path.is_file():
                 continue
             if path.stat().st_size == 0:
-                raise ValueError(f"zero-byte dogfood artifact: {path}")
+                if filename in required_artifacts:
+                    raise ValueError(f"zero-byte dogfood artifact: {path}")
+                continue
             payload = _load_json(path)
             self.documents[source] = payload
             self._consider_run_id(payload, filename)
@@ -104,7 +107,9 @@ class LiveRunAdapter:
             if not path.is_file():
                 continue
             if path.stat().st_size == 0:
-                raise ValueError(f"zero-byte dogfood artifact: {path}")
+                if filename in required_artifacts:
+                    raise ValueError(f"zero-byte dogfood artifact: {path}")
+                continue
             self._record_artifact(path, source)
             for index, row in enumerate(_load_jsonl(path), 1):
                 self._consider_run_id(row, f"{filename}:{index}")

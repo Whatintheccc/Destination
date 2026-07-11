@@ -1,0 +1,75 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/dogfood_eval_report_v5.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DogfoodEvalReportV5",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dogfood_eval_report_schema_version", "run_id", "generated_at", "decision", "binding_eligible", "first_blocking_scenario_id", "manifest", "scenario_set", "instrument_artifacts", "evidence_admissibility", "architecture_rails", "product_rail", "distance", "scenarios", "artifact_inventory"],
+  "properties": {
+    "dogfood_eval_report_schema_version": {"const": "dogfood_eval_report.v5"},
+    "run_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "decision": {"enum": ["pass", "fail", "hold", "not_reached"]},
+    "binding_eligible": {"type": "boolean"},
+    "first_blocking_scenario_id": {"type": ["string", "null"]},
+    "manifest": {"$ref": "#/$defs/artifact"},
+    "scenario_set": {"$ref": "#/$defs/artifact"},
+    "instrument_artifacts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/artifact"}},
+    "evidence_admissibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["prerequisite_id", "prerequisite_schema_version", "status", "binding_eligible", "checks", "instrument"],
+      "properties": {
+        "prerequisite_id": {"const": "E-REPLAY-INTEGRITY"},
+        "prerequisite_schema_version": {"const": "dogfood_admissibility.v2"},
+        "status": {"enum": ["pass", "fail", "hold"]},
+        "binding_eligible": {"type": "boolean"},
+        "checks": {
+          "type": "object", "additionalProperties": false,
+          "required": ["replay_parent_resolution", "raw_normalized_equality", "independent_visible_capture"],
+          "properties": {
+            "replay_parent_resolution": {
+              "type": "object", "additionalProperties": false,
+              "required": ["status", "violations", "replay_required", "checked_replay_records", "checked_journal_events"],
+              "properties": {"status": {"enum": ["pass", "fail"]}, "violations": {"type": "array", "items": {"$ref": "#/$defs/violation"}}, "replay_required": {"type": "boolean"}, "checked_replay_records": {"type": "integer", "minimum": 0}, "checked_journal_events": {"type": "integer", "minimum": 0}}
+            },
+            "raw_normalized_equality": {
+              "type": "object", "additionalProperties": false,
+              "required": ["status", "violations", "checked_normalized_rows"],
+              "properties": {"status": {"enum": ["pass", "fail"]}, "violations": {"type": "array", "items": {"$ref": "#/$defs/violation"}}, "checked_normalized_rows": {"type": "integer", "minimum": 0}}
+            },
+            "independent_visible_capture": {
+              "type": "object", "additionalProperties": false,
+              "required": ["status", "violations", "checked_scenarios", "external_unavailable", "reason"],
+              "properties": {"status": {"enum": ["pass", "fail", "hold"]}, "violations": {"type": "array", "items": {"$ref": "#/$defs/violation"}}, "checked_scenarios": {"type": "integer", "minimum": 0}, "external_unavailable": {"type": "boolean"}, "reason": {"type": ["string", "null"]}}
+            }
+          }
+        },
+        "instrument": {
+          "type": "object", "additionalProperties": false,
+          "required": ["replay_checker", "required_invariant_ids", "admissibility_module", "browser_capture"],
+          "properties": {
+            "replay_checker": {"$ref": "#/$defs/artifact"},
+            "required_invariant_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+            "admissibility_module": {"$ref": "#/$defs/artifact"},
+            "browser_capture": {"$ref": "#/$defs/artifact"}
+          }
+        }
+      }
+    },
+    "architecture_rails": {"type": "object", "additionalProperties": false, "required": ["preservation", "target_conformance"], "properties": {"preservation": {"$ref": "#/$defs/rail"}, "target_conformance": {"$ref": "#/$defs/rail"}}},
+    "product_rail": {"$ref": "#/$defs/rail"},
+    "distance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status_counts", "required_blocking_scenario_ids", "evidence_completeness_ratio", "internal_visible_projection_divergence", "requested_actual_effect_ceiling_divergence", "plan_continuity_violations", "provider_truth_divergence", "latency_cost_variance_resources", "unreached_capabilities"],
+      "properties": {"status_counts": {"type": "object"}, "required_blocking_scenario_ids": {"type": "array", "items": {"type": "string"}}, "evidence_completeness_ratio": {"type": "number", "minimum": 0, "maximum": 1}, "internal_visible_projection_divergence": {"type": "integer", "minimum": 0}, "requested_actual_effect_ceiling_divergence": {"type": "integer", "minimum": 0}, "plan_continuity_violations": {"type": "integer", "minimum": 0}, "provider_truth_divergence": {"type": "integer", "minimum": 0}, "latency_cost_variance_resources": {"type": "object"}, "unreached_capabilities": {"type": "array", "items": {"type": "string"}}}
+    },
+    "scenarios": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/scenario"}},
+    "artifact_inventory": {"type": "array", "items": {"$ref": "#/$defs/artifact"}}
+  },
+  "$defs": {
+    "artifact": {"type": "object", "additionalProperties": false, "required": ["kind", "path", "sha256"], "properties": {"kind": {"type": "string"}, "path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "violation": {"type": "object", "additionalProperties": false, "required": ["check", "subject", "detail"], "properties": {"check": {"type": "string"}, "subject": {"type": "string"}, "detail": {"type": "string"}}},
+    "rail": {"type": "object", "additionalProperties": false, "required": ["decision", "scenario_count", "status_counts", "blocking_scenario_ids"], "properties": {"decision": {"enum": ["pass", "fail", "hold", "not_reached"]}, "scenario_count": {"type": "integer", "minimum": 0}, "status_counts": {"type": "object"}, "blocking_scenario_ids": {"type": "array", "items": {"type": "string"}}}},
+    "scenario": {"type": "object", "additionalProperties": false, "required": ["scenario_id", "order", "status", "summary", "required_sources", "present_sources", "evidence", "metrics"], "properties": {"scenario_id": {"type": "string"}, "order": {"type": "integer", "minimum": 1}, "status": {"enum": ["pass", "fail", "hold", "not_reached"]}, "summary": {"type": "string"}, "required_sources": {"type": "array", "items": {"type": "string"}}, "present_sources": {"type": "array", "items": {"type": "string"}}, "evidence": {"type": "object"}, "metrics": {"type": "object"}}}
+  }
+}

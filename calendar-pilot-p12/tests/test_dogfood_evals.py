@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 from evals.dogfood.predicates.product import ACTION_FIELDS, evaluate_predicate
+from evals.dogfood.adapters.live_run import LiveRunAdapter
 from evals.dogfood.run_dogfood_evals import PREDICATE_PATH, ROOT, SCENARIO_SET, build_report, load_scenario_set, required_artifacts_for_cell
 
 
@@ -112,6 +113,14 @@ class DogfoodPredicateTests(unittest.TestCase):
 
 
 class DogfoodReportTests(unittest.TestCase):
+    def test_zero_byte_artifact_is_ignored_only_when_optional(self):
+        with tempfile.TemporaryDirectory() as td:
+            run_dir = Path(td)
+            (run_dir / "replay.jsonl").write_bytes(b"")
+            LiveRunAdapter(ROOT, run_dir, {"run_id": "r", "required_artifacts": []}, {"run_id": "r"})
+            with self.assertRaisesRegex(ValueError, "zero-byte dogfood artifact"):
+                LiveRunAdapter(ROOT, run_dir, {"run_id": "r", "required_artifacts": ["replay.jsonl"]}, {"run_id": "r"})
+
     def test_d0_report_passes_only_with_complete_three_rail_evidence(self):
         scenario_set = load_scenario_set()
         with tempfile.TemporaryDirectory(dir=ROOT / "runs") as td:
@@ -168,8 +177,9 @@ class DogfoodReportTests(unittest.TestCase):
             }
             for name, payload in extra_json.items():
                 (run_dir / name).write_text(json.dumps(payload), encoding="utf-8")
+            (run_dir / "replay.jsonl").write_bytes(b"")
             report = build_report(run_dir=run_dir)
-            self.assertEqual(report["dogfood_eval_report_schema_version"], "dogfood_eval_report.v4")
+            self.assertEqual(report["dogfood_eval_report_schema_version"], "dogfood_eval_report.v5")
             self.assertEqual(report["product_rail"]["decision"], "pass")
             self.assertEqual(report["decision"], "pass")
             self.assertEqual(report["architecture_rails"]["target_conformance"]["decision"], "pass")
