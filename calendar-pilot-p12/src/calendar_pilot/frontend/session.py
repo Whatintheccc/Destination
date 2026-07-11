@@ -550,6 +550,11 @@ class DogfoodSessionState:
                 journal_scope_id=journal_scope_id,
             )
             for event in result.events:
+                replay_parent_id = (
+                    f"product_core_journal_event:{event.causal_parent_ids[0]}"
+                    if event.causal_parent_ids
+                    else None
+                )
                 self.replay.append_generic(
                     "product_core_journal_event",
                     {
@@ -559,7 +564,7 @@ class DogfoodSessionState:
                     },
                     record_id=f"product_core_journal_event:{event.row_id}",
                     trace_id=plan.plan_id,
-                    causal_parent_id=event.causal_parent_ids[0] if event.causal_parent_ids else None,
+                    causal_parent_id=replay_parent_id,
                 )
 
     def _frontier_trace_payload(self, plan: Any) -> dict[str, Any]:

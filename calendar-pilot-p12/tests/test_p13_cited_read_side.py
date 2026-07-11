@@ -9,6 +9,7 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from calendar_pilot.frontend.session import DogfoodSessionState
+from evals.dogfood.admissibility import check_replay_parent_resolution
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +61,23 @@ class P13CitedReadSideTests(unittest.TestCase):
                 self.assertEqual(view["read_side"]["status"], "pass")
             finally:
                 session.close()
+
+    def test_exported_product_core_journal_parents_resolve_in_replay_namespace(self):
+        with patch.dict("os.environ", {"CALENDAR_PILOT_PRODUCT_CORE_READ_SIDE": "cited"}), tempfile.TemporaryDirectory() as td:
+            run_dir = Path(td)
+            session = DogfoodSessionState(run_dir=run_dir)
+            try:
+                session.create_plan("Make next week less chaotic")
+            finally:
+                session.close()
+            result = check_replay_parent_resolution(run_dir)
+            self.assertEqual(result["status"], "pass", result["violations"])
+            product_core_rows = [
+                row for row in session.replay.records
+                if row.record_type == "product_core_journal_event" and row.causal_parent_id
+            ]
+            self.assertTrue(product_core_rows)
+            self.assertTrue(all(row.causal_parent_id.startswith("product_core_journal_event:") for row in product_core_rows))
 
     def test_cited_view_is_restart_stable_and_incumbent_selector_remains_available(self):
         with tempfile.TemporaryDirectory() as td:
