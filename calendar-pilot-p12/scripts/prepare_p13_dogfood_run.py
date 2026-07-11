@@ -208,7 +208,7 @@ def prepare(args: argparse.Namespace) -> Path:
         if not architecture_source.is_file() or architecture_source.stat().st_size == 0:
             raise FileNotFoundError(f"signed architecture report is missing: {architecture_source}")
         shutil.copy2(architecture_source, run_dir / "architecture_eval_report_v2.json")
-        runtime = RUNTIME_BINDINGS[args.runtime_mode]
+        runtime = {"requested_mode": args.runtime_mode, **RUNTIME_BINDINGS[args.runtime_mode]}
         manifest = {
             "dogfood_run_manifest_schema_version": "dogfood_run_manifest.v1",
             "run_id": run_id,

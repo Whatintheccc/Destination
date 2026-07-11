@@ -10,6 +10,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from scripts.prepare_p13_dogfood_run import (
     ROOT,
+    RUNTIME_BINDINGS,
     SCENARIO_SET,
     TRUTH_SCHEMA,
     fixture_truth,
@@ -35,6 +36,11 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         self.assertEqual(d7[:len(d1)], d1)
         self.assertEqual(d7[-2:], ["provider.after.json", "provider.after_undo.json"])
         self.assertEqual(len(d7), len(set(d7)))
+
+    def test_runtime_binding_completes_manifest_runtime_contract(self) -> None:
+        runtime = {"requested_mode": "fixture", **RUNTIME_BINDINGS["fixture"]}
+        self.assertEqual(set(runtime), {"requested_mode", "expected_backends", "credential_classes"})
+        self.assertEqual(runtime["requested_mode"], "fixture")
 
     def test_fixture_truth_is_minimal_hashed_and_schema_valid(self) -> None:
         truth = fixture_truth("run-1", datetime.now(timezone.utc).isoformat(), ROOT / "data/sample_calendar.json")
