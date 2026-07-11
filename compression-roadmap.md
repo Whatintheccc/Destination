@@ -3,7 +3,7 @@
 Status: living architecture specification — the single forward document
 Audience: systems architecture, product engineering, runtime engineering, ML engineering, frontend engineering
 Scope: CalendarPilot after P12; target architecture and migration discipline from Step E through P17
-Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, positive-learning promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6's proposal-only control plane, signed empty-baseline pointer migration, and causal decision/exposure/outcome capture now pass: immutable payloads, sealed-partition non-exposure, OS-enforced optimizer confinement, authenticated promotion ingress, signed atomic bootstrap, exact rendered-set evidence, candidate-level feedback, runtime load, and byte-exact rollback are executable. Unsigned and positive-learning promotion remain hard holds; real partition windows, a frozen pre-search epoch, authenticated human reward ingress, and an identifiable improvement claim are still required before learning can advance `CURRENT`. P16 contraction remains blocked until the relevant operational cutovers and monitor certificates exist.
+Position: Step E and P12 are closed (run `20260706T220150Z-step-e-complete`), P13.0 is complete for single-owner development, and the bounded P13.1–P13.4 `create_prep_block` verticals passed their owner-signed composite waves. Two P13.5 retirements now pass: `create_prep_block × deterministic_sandbox` and the exact managed `create_prep_block × apple_eventkit × binding_id@epoch` each have one normal EffectKernel owner with no normal legacy mutation route. No production, deployment, positive-learning promotion, global EventKit, other-calendar, or other-action authority has been conferred. P13.6's proposal-only control plane, signed empty-baseline pointer migration, and causal decision/exposure/outcome capture now pass: immutable payloads, sealed-partition non-exposure, OS-enforced optimizer confinement, authenticated promotion ingress, signed atomic bootstrap, exact rendered-set evidence, candidate-level feedback, runtime load, and byte-exact rollback are executable. Unsigned and positive-learning promotion remain hard holds; real partition windows, a frozen pre-search epoch, authenticated human reward ingress, and an identifiable improvement claim are still required before learning can advance `CURRENT`. The P13 product-eval V1 instrument now exists and a complete visible D1 run produced useful diagnostic failure evidence, but not a binding baseline: the interactive process was not app-bundle-owned and its retained replay contains unresolved causal parents. P16 contraction remains blocked until product conformance, the relevant operational cutovers, and monitor certificates exist.
 Provenance: every P12-era claim here is evidenced in the frozen [P12 Record](P12-RECORD.md) — run ids, SHAs, verdicts, blocker resolutions. This document cites the Record; it does not restate it. The code's current-truth docs live in `calendar-pilot-p12/docs/`.
 
 This document is not a cleanup plan. It is the architecture specification for compressing CalendarPilot into the smallest governed learning loop that preserves the humane product contract.
@@ -2013,6 +2013,7 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
 | frontier collapse may erase model-specific failures | lab can measure a fiction | preserve failure_mode/cost/latency/variance |
 | schema collapse can thin evidence | old rows can disappear silently | total migration or denial receipts |
 | script refactor can move the ruler | lab reports can improve because instruments changed | keep evaluator external; freeze instrument and prove bit-identical reports |
+| normalized dogfood rows can describe an internally consistent fiction | a mutable product or capture adapter can omit raw causal breaks while the scenario predicates pass | before the three rails, require a versioned evidence-admissibility check that binds raw parent resolution, evaluator-derived raw-to-normalized equality, and ruler-owned semantic DOM capture; plant one failure for each and inherit V1's build/cross-run/model-prose attacks |
 | Program A evidence path can reset | autonomy runway loses calendar-time progress | count matched examples and feedback before/after every wave |
 
 ---
@@ -2074,6 +2075,18 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
    epoch, authenticate the human outcome ingress, and require identifiable
    improvement statistics before positive-learning promotion can open.
 
+9A. Close the P13 product-conformance ladder before contraction.
+   The V1 instrument and retained D1 diagnostic run are DONE, but that run is not a
+   binding baseline. Land them unchanged; freeze a ruler-only V2 evidence-admissibility
+   prerequisite; then close app-owned identity, independent visible capture, and raw
+   causal replay/export in a measurement-only wave. Run binding D0, then D1. Repair one
+   deterministic causal root at a time in this order: observation command semantics,
+   recommendation effect ceiling, exact action/timezone projection,
+   follow-up/correction continuity, and simulation/no-op truth. D1 must pass before D2;
+   D3 live Codex and D4 live DiffusionGemma are sibling component experiments; D5/D6
+   remain read-only; D7 is the one explicit verified-and-compensated effect. Preserve
+   `P-FEEDBACK`, `P-RESTART`, zero unrequested effects, and the architecture rails.
+
 10. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.
 
@@ -2120,7 +2133,12 @@ bootstrap/rollback records, and its UI now records a complete pre-epoch causal e
 chain. The next work authenticates human outcome ingress and adds an identifiable
 improvement attestation, then freezes real partitions and thresholds
 in a new pre-search instrument epoch; positive-learning promotion remains held until then.
-meta-optimization remains a post-P17 option. Contraction follows evidence (P16), and
+Separately, the P13 product V1 ruler and full visible D1 run have exposed the next
+product path without earning a binding baseline: exact app ownership failed, actual-run
+causal replay is inadmissible, and the deterministic controller collapses observation,
+recommendation, correction, and acting into one planning macro. A V2 admissibility gate
+and measurement-only wave precede one-root-at-a-time D1 repair. Meta-optimization remains
+a post-P17 option. Contraction follows evidence (P16), and
 line count falls as a consequence. The floor is where the next subtraction would blind
 the system, weaken compensation/control, thin evidence, or corrupt evaluation.
 
