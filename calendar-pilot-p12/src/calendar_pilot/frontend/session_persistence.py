@@ -7,7 +7,7 @@ from calendar_pilot.codex import CodexExecutivePlan
 from calendar_pilot.environment.fsio import atomic_write_json
 from calendar_pilot.frontend.launch import LaunchConfig
 from calendar_pilot.replay import observation_fingerprint
-from calendar_pilot.types import AuthorityGrant, CandidateCalendarAction, UserBiography
+from calendar_pilot.types import AuthorityGrant, CandidateCalendarAction, RawCalendarObservation, UserBiography, to_jsonable
 
 
 def _now() -> datetime:
@@ -68,6 +68,7 @@ class SessionPersistenceController:
             "runtime_mode": self.session.runtime_mode,
             "authority_tier": self.session.authority_tier,
             "authority_scopes": self.session.authority_scopes,
+            "observation": to_jsonable(self.session.observation),
             "biography": self.session.biography.to_dict(),
             "latest_plan": self.session.latest_plan.to_dict() if self.session.latest_plan is not None else None,
             "latest_plan_observation_id": self.session.latest_plan_observation_id,
@@ -130,6 +131,11 @@ class SessionPersistenceController:
         scopes = data.get("authority_scopes")
         if isinstance(scopes, list):
             self.session.authority_scopes = [str(scope) for scope in scopes if str(scope).strip()]
+        observation = data.get("observation")
+        provider_id = str(getattr(self.session.provider, "provider_id", ""))
+        restores_fixture_observation = self.session.provider is None or provider_id == "deterministic_fixture_provider"
+        if isinstance(observation, dict) and restores_fixture_observation:
+            self.session.observation = RawCalendarObservation.from_dict(observation)
         biography = data.get("biography")
         if isinstance(biography, dict):
             self.session.biography = UserBiography.from_dict(biography)

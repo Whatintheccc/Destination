@@ -124,7 +124,12 @@ class DiffusionGemmaPolicy:
         candidates.extend(self._move_flexible_holds(observation, biography, signals))
         candidates.extend(self._protect_focus_windows(observation, biography, signals))
         candidates.extend(self._draft_day_repair_plan(observation, biography, signals))
-        candidates.append(self._do_nothing(observation, signals))
+        noop = self._do_nothing(observation, signals)
+        if not candidates:
+            constraint = "no admissible calendar change: the protected window has no legal insertion or move slot"
+            noop.explanation = constraint
+            noop.control_notes.append(f"binding_constraint={constraint}")
+        candidates.append(noop)
 
         for candidate in candidates:
             self._attach_initial_scores(candidate, observation, biography, signals)

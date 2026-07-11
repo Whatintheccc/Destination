@@ -85,6 +85,10 @@ def conversation_message_requests_candidate_correction(normalized: str) -> bool:
     )
 
 
+def conversation_message_requests_noop_fixture(normalized: str) -> bool:
+    return "fixture" in normalized and "calendar change" in normalized and "dominated" in normalized
+
+
 def conversation_message_requests_profile_apply(normalized: str) -> bool:
     return "profile" in normalized and any(term in normalized for term in [
         "apply patch",

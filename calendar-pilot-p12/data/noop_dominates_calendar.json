@@ -1,0 +1,29 @@
+{
+  "observation_id": "fixture_noop_dominates",
+  "user_scope_id": "local_demo_user",
+  "observed_at": "2026-07-02T08:00:00-07:00",
+  "time_zone_id": "America/Los_Angeles",
+  "events": [
+    {
+      "event_id": "fixture_hard_constraint",
+      "title": "Protected recovery day",
+      "start": "2026-07-02T08:00:00-07:00",
+      "end": "2026-07-02T18:00:00-07:00",
+      "calendar_id": "personal",
+      "attendees": [],
+      "location": "",
+      "notes": "Fixture truth: no calendar change is admissible inside this protected window.",
+      "is_user_owned": true,
+      "is_flexible": false,
+      "category": "hard_constraint"
+    }
+  ],
+  "tasks": [],
+  "device_context": {
+    "local_hour": 8,
+    "active_surface": "calendar_day_view",
+    "is_focus_mode": true
+  },
+  "notification_history": [],
+  "prior_actions": []
+}
