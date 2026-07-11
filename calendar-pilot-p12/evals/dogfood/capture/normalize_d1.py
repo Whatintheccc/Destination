@@ -224,6 +224,14 @@ def restart_digest(raw: dict[str, Any], label: str) -> dict[str, str]:
     return {f"{label}_{key}_digest": digest(value) for key, value in components.items()}
 
 
+def active_plan_identity(raw: dict[str, Any]) -> dict[str, Any]:
+    frontier = raw.get("view", {}).get("frontier", {})
+    return {
+        "generation_id": frontier.get("generation_id"),
+        "goal": frontier.get("goal"),
+    }
+
+
 def envelope(run_id: str, scenario_id: str, source: str, payload: dict[str, Any], raw_artifact: str, raw_sha: str, record_id: str) -> dict[str, Any]:
     return {
         "dogfood_evidence_schema_version": "dogfood_evidence.v1",
@@ -314,8 +322,8 @@ def normalize(run_dir: Path) -> None:
             before_candidate = selected_candidate(before)
             after_candidate = selected_candidate(raw)
             replay_payload["continuity"] = {
-                "before_plan_digest": digest(before.get("view", {}).get("pipeline")),
-                "after_plan_digest": digest(raw.get("view", {}).get("pipeline")),
+                "before_plan_digest": digest(active_plan_identity(before)),
+                "after_plan_digest": digest(active_plan_identity(raw)),
                 "before_candidate_digest": digest(before_candidate),
                 "after_candidate_digest": digest(after_candidate),
                 "before_action_digest": digest(before_action),

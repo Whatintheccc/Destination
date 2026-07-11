@@ -123,7 +123,13 @@ function messageNode(message) {
   }
   return h('article', {class: `message ${message.role === 'user' ? 'user' : 'assistant'}`, 'data-testid': `message-${message.role === 'user' ? 'user' : 'assistant'}`},
     h('div', {class: 'avatar'}),
-    h('div', {class: 'bubble'}, message.title ? h('h3', {}, message.title) : null, message.body ? h('p', {}, message.body) : null, h('div', {class: 'cards'}, cards)));
+    h('div', {class: 'bubble'},
+      message.title ? h('h3', {}, message.title) : null,
+      message.body ? h('p', {}, message.body) : null,
+      message.metadata?.followup_resolved_from_existing_evidence === true
+        ? h('span', {class: 'badge', 'data-testid': 'followup-resolved-from-existing-evidence'}, 'true')
+        : null,
+      h('div', {class: 'cards'}, cards)));
 }
 
 function renderObserve(root, view) {

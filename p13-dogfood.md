@@ -733,7 +733,7 @@ scenario failures into independent tickets. Execute this order:
      cited read command; no frontier, plan, simulation, grant, or stage
    P-RECOMMEND [closed on binding run 20260711T163138Z]
      requested recommendation ceiling makes staging structurally unreachable
-   P-ACTION-VISIBLE + P-TIMEZONE
+   P-ACTION-VISIBLE + P-TIMEZONE [closed on binding run 20260711T164158Z]
      exact candidate action and local-time truth project visibly
    P-FOLLOWUP + P-CORRECTION
      preserve or causally replace the active plan as requested
@@ -760,6 +760,23 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Action/timezone closed; follow-up continuity selected
+
+- Exact protected-main build `ca2ee819f2a2` passed all 18 release checks and signed
+  architecture manifest `p13-dogfood-action-projection:ca2ee819f2a2:20260711T164143Z`.
+- Binding run `20260711T164158Z-d1-fixture-ca2ee819f2a2` closed both
+  `P-ACTION-VISIBLE` and `P-TIMEZONE`. D1 advanced to 6/11 pass with evidence
+  completeness `1.0`, architecture preservation 11/11, and zero provider,
+  effect-ceiling, and internal-visible projection divergence.
+- The five remaining failures are `P-FOLLOWUP`, `P-CORRECTION`, `P-SIMULATE`,
+  `P-NOOP`, and `P-RESTART`; `P-FOLLOWUP` is the first blocker.
+- Follow-up repair introduces a narrow existing-plan evidence path: exact time and
+  duration questions marked “do not replan” cite the retained plan/candidate/action,
+  do not invoke the frontier, and visibly disclose that provenance. The D1 normalizer
+  now identifies a plan by generation id and goal instead of treating additive router
+  trace as a plan replacement. Exact protected-main D1 rerun remains required before
+  closing this wave.
 
 ### 2026-07-11 — P-RECOMMEND closed; action projection selected
 
