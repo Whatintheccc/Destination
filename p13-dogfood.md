@@ -644,6 +644,30 @@ conversation continuity.
 
 Append newest entries first. Never rewrite a failed run after a fix.
 
+### 2026-07-10 — Fresh D1 visible product run completed
+
+- Committed the instrument candidate as `1e0e4c4f467a`, built the exact macOS bundle,
+  and passed all 18 dogfood release checks.
+- Ran the complete D1 product sequence through the visible UI from a fresh retained run
+  directory, including observation, recommendation, action inspection, timezone,
+  follow-up, correction, explicit simulation, no-op, feedback, and restart.
+- Product verdict: **fail** — 2 pass, 9 fail. `P-FEEDBACK` and `P-RESTART` passed;
+  `P-IDENTITY`, `P-OBSERVE`, `P-RECOMMEND`, `P-ACTION-VISIBLE`, `P-TIMEZONE`,
+  `P-FOLLOWUP`, `P-CORRECTION`, `P-SIMULATE`, and `P-NOOP` failed.
+- Observed 143 replay records, five planning decisions, five frontier generations, 26
+  tool calls, six simulations, five automatic stage calls, zero provider mutations,
+  five exposures, one exact corrected outcome, and ten rendered invariant violations.
+- Architecture preservation passed 11/11; the nine legacy target-conformance scenarios
+  remained `not_reached`.
+- Retained report:
+  `calendar-pilot-p12/runs/dogfood/20260711T013402Z-d1-fixture-1e0e4c4f467a/REPORT.md`
+  with machine-readable sibling `dogfood_run_report.json` and hashed screenshots,
+  health, state, replay, provider, architecture, and release evidence.
+- The release bundle itself passed, but the interactive process was established from
+  the clean source checkout after direct bundle launch failed to create an owned server
+  in the execution environment. The run is therefore retained as diagnostic evidence,
+  not mislabeled as a binding `dogfood_eval_report.v1` conformance report.
+
 ### 2026-07-10 — Product-eval instrument candidate implemented
 
 - Added `dogfood_run_manifest.v1`, `dogfood_operator_truth.v1`, and
