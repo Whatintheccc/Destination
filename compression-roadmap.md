@@ -2090,6 +2090,7 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
    D3 live Codex and D4 live DiffusionGemma are sibling component experiments; D5/D6
    remain read-only; D7 is the one explicit verified-and-compensated effect. Preserve
    `P-FEEDBACK`, `P-RESTART`, zero unrequested effects, and the architecture rails.
+   Binding D0 is DONE on protected main `c9124c5de48a`; D1 is the active gate.
 
 10. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.

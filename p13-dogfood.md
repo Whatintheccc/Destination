@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **The V5 ruler path is closed and the bounded D0 app-identity repair now passes the full release gate. Swift preserves authoritative bundle identity across the Python handoff; health exposes canonical PID/port; packaged launches no longer crawl outside the bundle for `.env`. Raw LaunchServices evidence is coherent. The repair must land on protected main and pass a fresh binding D0 before D1 product semantics open.**
+Current verdict: **Binding D0 is complete on protected main `c9124c5de48a`: release, evidence admissibility, architecture preservation, manifest-required architecture targets, `P-IDENTITY`, and artifact completeness all pass (`binding_eligible=true`). D1 is now open. Its first expected semantic blocker is `P-OBSERVE`; no D2 or product-model expansion is allowed until the complete deterministic D1 cell passes.**
 
 ---
 
@@ -710,23 +710,17 @@ floors are later eligibility to evaluate learning; they do not substitute for th
 
 ## 12. Next Work
 
-V1 and the retained D1 run have done their job: they localized the next work. Do not
-turn the nine scenario failures into nine independent tickets. Execute this order:
+V1 and the retained diagnostic D1 run localized the work; V2-V5 and the D0 identity wave
+closed measurement applicability and exact app ownership. Do not turn the remaining
+scenario failures into independent tickets. Execute this order:
 
-1. Land the current candidate through protected main. It contains instrument commit
-   `1e0e4c4`, diagnostic record `38842e9`, and this architecture review; do not change
-   product behavior or rewrite the retained run while landing it.
-2. Freeze a ruler-only V2 epoch. Add the §2.2 evidence-admissibility prerequisite,
-   source-to-normalized evidence references, independent visible capture, and planted
-   integrity counterexamples. Reuse the unchanged V1 product scenario set.
-3. Run one measurement-only wave: preregister the run, establish exact app-bundle,
-   build, PID, port, and launch ownership; preserve canonical Journal identity across
-   replay/export; emit the complete required artifact set. Do not change routing,
-   policy, projection, or effects in this wave.
-4. Run binding D0 and stop on any identity, capture, or admissibility non-pass.
-5. Run the complete binding D1 suite unchanged. The current diagnostic result informs
+[x] Land the V1 instrument and diagnostic record through protected main.
+[x] Freeze evidence admissibility and its planted integrity counterexamples.
+[x] Close cell-aware D0 evidence applicability and exact app-owned identity.
+[x] Pass binding D0 on exact protected main with complete three-rail evidence.
+[ ] Run the complete binding D1 suite unchanged. The diagnostic result informs
    hypotheses but does not predetermine the binding verdict.
-6. Close one causal semantic root per vertical wave, rerunning all of D1 after each:
+[ ] Close one causal semantic root per vertical wave, rerunning all of D1 after each:
 
    ```text
    P-OBSERVE
@@ -741,10 +735,10 @@ turn the nine scenario failures into nine independent tickets. Execute this orde
      exact nonmutating preview and honest inaction
    ```
 
-7. Treat all 18 release checks, architecture preservation 11/11, zero D1 provider
+[ ] Treat all 18 release checks, architecture preservation 11/11, zero D1 provider
    mutations, `P-FEEDBACK`, `P-RESTART`, content-addressed artifacts, and cross-run
    rejection as non-regression constraints from the first wave onward.
-8. Do not enter D2 until D1 is wholly passing with exact identity and zero required
+[ ] Do not enter D2 until D1 is wholly passing with exact identity and zero required
    replay-invariant violations. Then run D2 through real Swift IPC. Run D3 and D4 as
    sibling component experiments—live Codex with deterministic policy, and live
    DiffusionGemma with deterministic Codex—before D5 real-provider reads, D6
@@ -760,6 +754,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Binding D0 passed; D1 opened
+
+- Landed the owned-launch identity repair through protected main as `c9124c5de48a` and
+  rebuilt/released that exact commit. All 18 release checks passed; the mutating EventKit
+  leg remained explicitly opt-in and skipped.
+- Generated a fresh signed architecture V2 report from manifest
+  `p13-dogfood-v5-d0:c9124c5de48a:20260711T120804Z`: overall pass, preservation 11/11,
+  all manifest-required targets pass, and seven nonbinding target debts remain explicit.
+- Preregistered and launched fresh D0 run
+  `20260711T121030Z-d0-package-c9124c5de48a` from the exact app bundle.
+- Binding report `dogfood_eval_report.v5`: overall `pass`,
+  `binding_eligible=true`, evidence admissibility pass, `P-IDENTITY` pass, no first
+  blocker, and evidence completeness `1.0`.
+- Distance vector is zero for projection divergence, effect-ceiling divergence, plan
+  continuity, and provider truth. D0 has no unreached capability inside its one-scenario
+  cell.
+- The run directory and checksum inventory are immutable. D1 is now the active cell;
+  D2-D7 remain closed.
 
 ### 2026-07-11 — D0 owned-launch identity repaired
 
