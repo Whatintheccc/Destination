@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -24,7 +25,7 @@ from calendar_pilot.types import AtomicActionType, CandidateCalendarAction, Poli
 load_local_env()
 LIVE_DIFFUSIONGEMMA_BACKEND = "nvidia_nim_diffusiongemma_policy"
 PROMPT_VERSION = "frontier_v1"
-LIVE_DIFFUSIONGEMMA_PROMPT_VERSION = "calendar_pilot_nim_frontier_generator_v2"
+LIVE_DIFFUSIONGEMMA_PROMPT_VERSION = "calendar_pilot_nim_compact_frontier_v3"
 NVIDIA_NIM_DOC_URL = "https://docs.api.nvidia.com/nim/reference/diffusiongemma-26b-a4b-it-infer"
 DEFAULT_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 DEFAULT_NIM_MODEL = "google/diffusiongemma-26b-a4b-it"
@@ -184,7 +185,7 @@ class NvidiaNIMPolicyClient:
                 "base_url": self.base_url,
                 "response_id": data.get("id"),
                 "candidate_count": len(parsed["candidates"]),
-                "decoding_settings": self._decoding_settings() | {"temperature": 0.2, "top_p": 0.9},
+                "decoding_settings": self._frontier_decoding_settings() | {"temperature": 0.2, "top_p": 0.9},
                 "timeout_seconds": self.timeout_seconds,
                 "retry_policy": self._retry_policy(),
                 "schema_retry_count": len(schema_retries),
@@ -297,7 +298,12 @@ class NvidiaNIMPolicyClient:
                 validation_errors.append(f"skipped_non_object_candidate:{idx}")
                 rejections.append({"reason": "skipped_non_object_candidate", "index": idx, "raw_item": raw_item})
                 continue
-            item = NvidiaNIMPolicyClient._normalize_frontier_candidate(item, idx=idx, validation_errors=validation_errors)
+            item = NvidiaNIMPolicyClient._normalize_frontier_candidate(
+                item,
+                idx=idx,
+                validation_errors=validation_errors,
+                observation=observation,
+            )
             try:
                 candidate = CandidateCalendarAction.from_dict(item)
             except Exception as exc:
@@ -337,7 +343,17 @@ class NvidiaNIMPolicyClient:
                 candidate.model_story = ["NIM generated this candidate as part of the live frontier."]
             candidates.append(candidate)
         if not candidates:
-            raise LiveDiffusionGemmaSchemaError("NIM frontier response did not contain any valid typed candidates")
+            reasons = []
+            for rejection in rejections:
+                reason = str(rejection.get("reason") or "invalid_candidate")
+                schema_errors = rejection.get("schema_errors") or []
+                if schema_errors:
+                    reason += ":" + "|".join(str(error) for error in schema_errors[:3])
+                reasons.append(reason)
+            detail = "; ".join(reasons[:4]) or "no candidate survived local validation"
+            raise LiveDiffusionGemmaSchemaError(
+                f"NIM frontier response did not contain any valid typed candidates ({detail})"
+            )
         candidates.sort(key=lambda c: c.expected_reward, reverse=True)
         return {"candidates": candidates, "policy_summary": str(payload.get("policy_summary") or ""), "validation_errors": validation_errors, "rejections": rejections}
 
@@ -378,8 +394,51 @@ class NvidiaNIMPolicyClient:
         return errors
 
     @staticmethod
-    def _normalize_frontier_candidate(item: dict[str, Any], *, idx: int, validation_errors: list[str]) -> dict[str, Any]:
+    def _normalize_frontier_candidate(
+        item: dict[str, Any],
+        *,
+        idx: int,
+        validation_errors: list[str],
+        observation: RawCalendarObservation | None = None,
+    ) -> dict[str, Any]:
         normalized = dict(item)
+        if not normalized.get("actions") and normalized.get("action_type"):
+            parameters = dict(normalized.get("parameters") or {})
+            action_type = str(normalized["action_type"])
+            event_id = str(parameters.get("event_id") or "")
+            observed_event = next(
+                (event for event in (observation.events if observation else []) if event.event_id == event_id),
+                None,
+            )
+            calendar_id = str(parameters.get("calendar_id") or (observed_event.calendar_id if observed_event else "default"))
+            action = {
+                "action_type": action_type,
+                "title": str(parameters.get("title") or (observed_event.title if observed_event else "")),
+                "event_id": event_id or None,
+                "start": parameters.get("start"),
+                "end": parameters.get("end"),
+                "calendar_id": calendar_id,
+                "attendees": list(parameters.get("attendees") or []),
+                "metadata": {
+                    key: value
+                    for key, value in parameters.items()
+                    if key not in {"title", "event_id", "start", "end", "calendar_id", "attendees"}
+                },
+            }
+            normalized["actions"] = [action]
+            normalized.setdefault("target_calendars", [calendar_id])
+            normalized.setdefault("affected_event_ids", [event_id] if event_id else [])
+            normalized.setdefault("affected_people_ids", list(parameters.get("attendees") or []))
+            normalized.setdefault("required_authority_tier", int(normalized.get("authority") or (0 if action_type in {"do_nothing", "notify", "ask_clarification", "draft_schedule_plan"} else 3)))
+            normalized.setdefault("reversibility", "none" if action_type in {"do_nothing", "notify", "ask_clarification"} else "high")
+            reasoning = str(normalized.get("reasoning") or "")
+            normalized.setdefault("explanation", reasoning)
+            normalized.setdefault("model_story", [reasoning] if reasoning else [])
+            validation_errors.append(f"normalized_compact_candidate:{idx}")
+        if not normalized.get("candidate_id"):
+            identity_payload = json.dumps(normalized, sort_keys=True, separators=(",", ":"), default=str)
+            normalized["candidate_id"] = "nim_" + hashlib.sha256(identity_payload.encode("utf-8")).hexdigest()[:16]
+            validation_errors.append(f"derived_candidate_id:{idx}")
         for list_field in ["target_calendars", "affected_event_ids", "affected_people_ids", "model_story", "control_notes"]:
             value = normalized.get(list_field)
             if isinstance(value, str):
@@ -465,8 +524,8 @@ class NvidiaNIMPolicyClient:
 
     def _frontier_prompt(self, goal: str, observation: RawCalendarObservation, biography: UserBiography, *, limit: int, retry: bool = False) -> str:
         return json.dumps({
-            "instruction": "Generate a candidate frontier for CalendarPilot. Return only JSON matching the schema: {policy_summary: string, candidates: CandidateCalendarAction[]}. Each candidate must have candidate_id, intent, actions, target_calendars, affected_event_ids, affected_people_ids, required_authority_tier, reversibility, reward heads, right_moment_decision, model_story, counterfactual, control_notes, reward_breakdown, right_moment_score, and simulated_outcomes.",
-            "strict_retry_instruction": "Previous output was not valid JSON. Return one compact JSON object only, with no markdown, no prose, no comments, and no trailing commas." if retry else None,
+            "instruction": "Generate a small candidate frontier for CalendarPilot using the compact proposal schema: each candidate has intent, action_type, authority, parameters, and reasoning. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
+            "strict_retry_instruction": "Previous output failed the typed action contract. Return fewer compact candidates with complete parameters. Do not omit start/end for a mutating action and do not emit markdown or prose outside the JSON object." if retry else None,
             "goal": goal,
             "limit": limit,
             "observation": to_jsonable(observation),
@@ -495,10 +554,49 @@ class NvidiaNIMPolicyClient:
                 "strict": False,
                 "schema": {
                     "type": "object",
-                    "required": ["policy_summary", "candidates"],
+                    "additionalProperties": False,
+                    "required": ["candidates"],
                     "properties": {
                         "policy_summary": {"type": "string"},
-                        "candidates": {"type": "array", "items": {"type": "object"}},
+                        "candidates": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 8,
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["intent", "action_type", "authority", "parameters", "reasoning"],
+                                "properties": {
+                                    "intent": {"type": "string", "enum": [intent.value for intent in CanonicalIntent]},
+                                    "action_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "do_nothing", "notify", "ask_clarification", "create_event",
+                                            "move_event", "resize_event", "delete_own_event", "add_buffer",
+                                            "create_focus_block", "batch_tasks", "draft_schedule_plan",
+                                            "auto_apply_plan", "undo",
+                                        ],
+                                    },
+                                    "authority": {"type": "integer", "minimum": 0, "maximum": 6},
+                                    "parameters": {
+                                        "type": "object",
+                                        "additionalProperties": False,
+                                        "properties": {
+                                            "title": {"type": "string"},
+                                            "notes": {"type": "string"},
+                                            "event_id": {"type": "string"},
+                                            "start": {"type": "string"},
+                                            "end": {"type": "string"},
+                                            "calendar_id": {"type": "string"},
+                                            "attendees": {"type": "array", "items": {"type": "string"}},
+                                            "is_user_owned": {"type": "boolean"},
+                                            "category": {"type": "string"},
+                                        },
+                                    },
+                                    "reasoning": {"type": "string"},
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -697,9 +795,20 @@ class NvidiaNIMPolicyClient:
                 "poll_interval_seconds": 1.0,
                 "timeout_seconds": self.timeout_seconds,
             },
-            "decoding_settings": self._decoding_settings(),
+            "decoding_settings": self._frontier_decoding_settings(),
             "tls_ca_bundle_source": _nim_tls_ca_bundle_source(),
         } | payload
+
+    @classmethod
+    def _frontier_decoding_settings(cls) -> dict[str, Any]:
+        return {
+            "max_tokens": int(os.environ.get("CALENDAR_PILOT_NIM_FRONTIER_MAX_TOKENS", "4200")),
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "stream": False,
+            "response_format": cls._frontier_response_format(),
+            "enable_thinking": False,
+        }
 
     @classmethod
     def _decoding_settings(cls) -> dict[str, Any]:

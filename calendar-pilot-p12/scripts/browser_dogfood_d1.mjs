@@ -72,31 +72,47 @@ async function main() {
     await sendStimulus(client, 'P-FOLLOWUP');
     await record(client, 'P-FOLLOWUP', 'after_followup');
 
-    await click(client, '[data-testid="candidate-corrected"]');
-    await waitFor(client, 'document.body.innerText.includes("Recorded corrected")');
-    await sendStimulus(client, 'P-CORRECTION');
-    await record(client, 'P-CORRECTION', 'after_correction');
+    if (await visible(client, '[data-testid="candidate-corrected"]')) {
+      await click(client, '[data-testid="candidate-corrected"]');
+      await waitFor(client, 'document.body.innerText.includes("Recorded corrected")');
+      await sendStimulus(client, 'P-CORRECTION');
+      await record(client, 'P-CORRECTION', 'after_correction', { attempted: true, succeeded: true, action: 'candidate_corrected_then_reasked' });
+    } else {
+      await record(client, 'P-CORRECTION', 'prerequisite_unavailable', { attempted: false, succeeded: false, reason: 'candidate_corrected_control_absent' });
+    }
 
-    await click(client, '[data-testid="simulate-candidate"]');
-    await waitFor(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length > 0');
-    await record(client, 'P-SIMULATE', 'after_simulate');
+    if (await visible(client, '[data-testid="simulate-candidate"]')) {
+      await click(client, '[data-testid="simulate-candidate"]');
+      await waitFor(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length > 0');
+      await record(client, 'P-SIMULATE', 'after_simulate', { attempted: true, succeeded: true, action: 'simulate' });
+    } else {
+      await record(client, 'P-SIMULATE', 'prerequisite_unavailable', { attempted: false, succeeded: false, reason: 'simulate_control_absent' });
+    }
     if (manifest.cell !== 'D1') {
-      await setAuthority(client, 0, 'recommend');
-      await click(client, '[data-testid="commit-candidate"]');
-      await waitFor(client, 'document.querySelector("[data-testid=\\"denial-owner\\"]") !== null');
-      await record(client, 'P-DENIAL', 'after_denial');
-      await setAuthority(client, 3, 'recommend, stage, commit_private, undo');
-      if (manifest.cell === 'D2') {
-        const receiptsBeforeStage = await evaluate(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length');
-        await click(client, '[data-testid="stage-candidate"]');
-        await waitFor(client, `document.querySelectorAll('[data-testid="receipt-card"]').length > ${receiptsBeforeStage}`);
+      if (await visible(client, '[data-testid="commit-candidate"]')) {
+        await setAuthority(client, 0, 'recommend');
+        await click(client, '[data-testid="commit-candidate"]');
+        await waitFor(client, 'document.querySelector("[data-testid=\\"denial-owner\\"]") !== null');
+        await record(client, 'P-DENIAL', 'after_denial', { attempted: true, succeeded: true, action: 'low_authority_commit_denied' });
+        await setAuthority(client, 3, 'recommend, stage, commit_private, undo');
+        if (manifest.cell === 'D2') {
+          const receiptsBeforeStage = await evaluate(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length');
+          await click(client, '[data-testid="stage-candidate"]');
+          await waitFor(client, `document.querySelectorAll('[data-testid="receipt-card"]').length > ${receiptsBeforeStage}`);
+        }
+      } else {
+        await record(client, 'P-DENIAL', 'prerequisite_unavailable', { attempted: false, succeeded: false, reason: 'commit_control_absent' });
       }
     }
     await sendStimulus(client, 'P-NOOP');
     await record(client, 'P-NOOP', 'after_noop');
-    await click(client, '[data-testid="candidate-dismissed"]');
-    await waitFor(client, 'document.body.innerText.includes("Recorded dismissed")');
-    await record(client, 'P-FEEDBACK', 'after_feedback');
+    if (await visible(client, '[data-testid="candidate-dismissed"]')) {
+      await click(client, '[data-testid="candidate-dismissed"]');
+      await waitFor(client, 'document.body.innerText.includes("Recorded dismissed")');
+      await record(client, 'P-FEEDBACK', 'after_feedback', { attempted: true, succeeded: true, action: 'dismissed' });
+    } else {
+      await record(client, 'P-FEEDBACK', 'prerequisite_unavailable', { attempted: false, succeeded: false, reason: 'dismiss_control_absent' });
+    }
     await record(client, 'P-RESTART', 'before_restart');
   } catch (error) {
     if (client) await screenshot(client, path.join(screenshotDir, `browser-${mode}-failure.png`)).catch(() => {});
@@ -128,7 +144,7 @@ async function sendStimulus(client, scenarioId) {
   await waitFor(client, `document.querySelector('#state-version')?.textContent !== ${JSON.stringify(version)}`);
 }
 
-async function record(client, scenarioId, phase) {
+async function record(client, scenarioId, phase, driverInteraction = null) {
   const domHtml = await evaluate(client, 'document.documentElement.outerHTML');
   const view = await getJson(`${baseUrl}/api/view`);
   const replay = await getJson(`${baseUrl}/api/replay/export`);
@@ -141,6 +157,7 @@ async function record(client, scenarioId, phase) {
     run_id: manifest.run_id,
     scenario_id: scenarioId,
     phase,
+    driver_interaction: driverInteraction,
     url: baseUrl,
     captured_at: new Date().toISOString(),
     dom_html: domHtml,
@@ -266,6 +283,17 @@ async function click(client, selector) {
   await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: info.x, y: info.y, button: 'none' });
   await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: info.x, y: info.y, button: 'left', clickCount: 1 });
   await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: info.x, y: info.y, button: 'left', clickCount: 1 });
+}
+
+async function visible(client, selector) {
+  const safe = JSON.stringify(selector);
+  return Boolean(await evaluate(client, `(() => {
+    const el = document.querySelector(${safe});
+    if (!el) return false;
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return rect.width > 0 && rect.height > 0 && style.display !== 'none' && !el.disabled;
+  })()`));
 }
 
 async function fill(client, selector, value) {

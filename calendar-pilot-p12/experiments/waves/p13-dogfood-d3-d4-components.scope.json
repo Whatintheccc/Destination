@@ -6,8 +6,11 @@
     "calendar-pilot-p12/experiments/waves/p13-dogfood-d3-d4-components.scope.json",
     "calendar-pilot-p12/scripts/browser_dogfood_d1.mjs",
     "calendar-pilot-p12/scripts/run_p13_dogfood_d1.py",
+    "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/live.py",
     "calendar-pilot-p12/src/calendar_pilot/frontend/session_snapshot.py",
+    "calendar-pilot-p12/tests/test_policy.py",
     "calendar-pilot-p12/tests/test_p13_restart_projection.py",
+    "compression-roadmap.md",
     "p13-dogfood.md"
   ],
   "declared": {
