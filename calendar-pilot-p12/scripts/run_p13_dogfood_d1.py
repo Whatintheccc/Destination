@@ -47,10 +47,10 @@ def health_matches_launch(launch_state: dict[str, Any], health: dict[str, Any]) 
     ))
 
 
-def launch(app_bundle: Path, run_dir: Path) -> None:
+def launch(app_bundle: Path, run_dir: Path, runtime_mode: str) -> None:
     subprocess.run([
         "open", "-n",
-        "--env", "CALENDAR_PILOT_RUNTIME_MODE=fixture",
+        "--env", f"CALENDAR_PILOT_RUNTIME_MODE={runtime_mode}",
         "--env", f"CALENDAR_PILOT_RUN_DIR={run_dir}",
         str(app_bundle),
     ], check=True)
@@ -110,8 +110,8 @@ def run_browser(phase: str, base_url: str, run_dir: Path) -> None:
 
 def prepare_args(args: argparse.Namespace) -> argparse.Namespace:
     return argparse.Namespace(
-        cell="D1",
-        runtime_mode="fixture",
+        cell=args.cell,
+        runtime_mode=args.runtime_mode,
         scenario_set=str(ROOT / "evals/dogfood/scenarios/p13_product_v2.json"),
         app_bundle=str(Path(args.app_bundle).resolve()),
         architecture_report=str(Path(args.architecture_report).resolve()),
@@ -127,7 +127,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     first_launch: dict[str, Any] = {}
     second_launch: dict[str, Any] = {}
     try:
-        launch(Path(args.app_bundle).resolve(), run_dir)
+        launch(Path(args.app_bundle).resolve(), run_dir, args.runtime_mode)
         first_launch, health = wait_for_launch(run_dir)
         shutil.copy2(run_dir / "launch_state.json", run_dir / "launch_state.before.json")
         (run_dir / "health.json").write_text(json.dumps(health, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -136,7 +136,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         stop_launch(first_launch)
         first_launch = {}
 
-        launch(Path(args.app_bundle).resolve(), run_dir)
+        launch(Path(args.app_bundle).resolve(), run_dir, args.runtime_mode)
         second_launch, second_health = wait_for_launch(run_dir, previous_launch_id=str(health.get("process", {}).get("launch_id") or ""))
         run_browser("after-restart", str(second_launch["base_url"]), run_dir)
         shutil.copy2(run_dir / "launch_state.json", run_dir / "launch_state.after.json")
@@ -168,10 +168,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-bundle", default=str(DEFAULT_APP))
+    parser.add_argument("--cell", default="D1", choices=("D1", "D2"))
+    parser.add_argument("--runtime-mode", default="fixture", choices=("fixture", "swift_ipc"))
     parser.add_argument("--architecture-report", default=str(DEFAULT_ARCHITECTURE_REPORT))
     parser.add_argument("--out-root", default=str(ROOT / "runs/dogfood"))
     parser.add_argument("--run-id", default="")
     args = parser.parse_args()
+    expected_mode = {"D1": "fixture", "D2": "swift_ipc"}[args.cell]
+    if args.runtime_mode != expected_mode:
+        parser.error(f"{args.cell} requires --runtime-mode {expected_mode}")
     report = run(args)
     raise SystemExit(0 if report["decision"] == "pass" else 1)
 

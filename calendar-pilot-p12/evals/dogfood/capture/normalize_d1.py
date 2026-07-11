@@ -271,8 +271,8 @@ def normalize(run_dir: Path) -> None:
     run_dir = run_dir.resolve()
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
     truth = json.loads((run_dir / "operator_truth.json").read_text(encoding="utf-8"))
-    if manifest.get("cell") != "D1":
-        raise ValueError("D1 normalizer cannot process another cell")
+    if manifest.get("cell") not in {"D1", "D2"}:
+        raise ValueError("D1/D2 normalizer cannot process another cell")
     browser_path = run_dir / "ruler_capture/browser_records.jsonl"
     browser_rows = load_jsonl(browser_path)
     by_scenario: dict[str, list[dict[str, Any]]] = {}
@@ -370,6 +370,13 @@ def normalize(run_dir: Path) -> None:
                         preview[field] = value
             rendered_payload["preview"] = preview
             ui_evidence.append((scenario_id, {"action": "simulate"}))
+        elif scenario_id == "P-DENIAL":
+            rendered_payload["denial"] = {
+                "owner": semantic.get("denial-owner"),
+                "reason": semantic.get("denial-reason"),
+                "repair": semantic.get("denial-repair"),
+                "specific": semantic.get("denial-specific") == "true",
+            }
         elif scenario_id == "P-NOOP":
             candidate = selected_candidate(raw)
             rendered_payload.update({
