@@ -35,6 +35,7 @@ from calendar_pilot.frontend.session_conversation import (
     conversation_message_requests_candidate_correction,
     conversation_message_requests_calendar_observation,
     conversation_message_requests_existing_plan_followup,
+    conversation_message_requests_noop_fixture,
     conversation_tool_metadata,
     normalize_conversation_message,
     profile_patch_payload_from_receipt,
@@ -317,6 +318,9 @@ class DogfoodSessionState:
         self._emit_trace(routed.turn_id, "router", "route_classified", payload=routed.replay_payload())
         if self.latest_plan is not None and conversation_message_requests_existing_plan_followup(normalize_conversation_message(goal)):
             return self._create_existing_plan_followup(goal, intent, routed.turn_id)
+        if conversation_message_requests_noop_fixture(normalize_conversation_message(goal)):
+            self._activate_noop_fixture()
+            intent = "calendar_goal"
         correction_command = None
         if self.latest_plan is not None and conversation_message_requests_candidate_correction(normalize_conversation_message(goal)):
             correction_command = self._activate_pending_candidate_correction()
@@ -436,6 +440,15 @@ class DogfoodSessionState:
         })
         self.persist()
         return self.snapshot()
+
+    def _activate_noop_fixture(self) -> None:
+        if self.runtime_mode != "fixture":
+            raise ValueError("the no-op fixture is available only in deterministic fixture mode")
+        fixture_path = ROOT / "data" / "noop_dominates_calendar.json"
+        self.observation = RawCalendarObservation.from_dict(json.loads(fixture_path.read_text(encoding="utf-8")))
+        reset_provider = getattr(self.provider, "reset", None)
+        if callable(reset_provider):
+            reset_provider(self.observation)
 
     def _create_existing_plan_followup(self, goal: str, intent: str, trace_id: str) -> dict[str, Any]:
         snapshot = self.snapshot()

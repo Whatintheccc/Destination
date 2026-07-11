@@ -23,6 +23,7 @@ TRUTH_SCHEMA = ROOT / "contracts/dogfood_operator_truth.schema.json"
 DEFAULT_APP = ROOT / "dist/CalendarPilot.app"
 DEFAULT_ARCHITECTURE_REPORT = ROOT / "runs/architecture_evals/architecture_eval_report_v2.json"
 DEFAULT_FIXTURE = ROOT / "data/sample_calendar.json"
+NOOP_FIXTURE = ROOT / "data/noop_dominates_calendar.json"
 PREDICATE_ARTIFACTS = (
     ROOT / "evals/dogfood/predicates/product.py",
     ROOT / "evals/dogfood/admissibility.py",
@@ -30,6 +31,7 @@ PREDICATE_ARTIFACTS = (
     ROOT / "evals/dogfood/capture/normalize_d1.py",
     ROOT / "scripts/browser_dogfood_d1.mjs",
     ROOT / "scripts/run_p13_dogfood_d1.py",
+    NOOP_FIXTURE,
 )
 
 RUNTIME_BINDINGS: dict[str, dict[str, Any]] = {
@@ -143,6 +145,18 @@ def fixture_truth(run_id: str, created_at: str, fixture_path: Path) -> dict[str,
             "value": value,
             "source_hash": sha256_json(event),
         })
+    noop_fixture = json.loads(NOOP_FIXTURE.read_text(encoding="utf-8"))
+    facts.append({
+        "fact_id": "fixture:noop_dominates",
+        "kind": "fixture_truth",
+        "value": {
+            "fixture_id": "noop_dominates",
+            "noop_dominates": True,
+            "observation_id": noop_fixture["observation_id"],
+            "fixture_path": str(NOOP_FIXTURE.relative_to(ROOT)),
+        },
+        "source_hash": sha256_file(NOOP_FIXTURE),
+    })
     return {
         "dogfood_operator_truth_schema_version": "dogfood_operator_truth.v1",
         "run_id": run_id,

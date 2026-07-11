@@ -89,6 +89,14 @@ class DogfoodPredicateTests(unittest.TestCase):
         good = vector({"rendered_view": [{"preview": preview}], "replay": [{}], "ui_action": [{}]}, sources=("rendered_view", "replay", "ui_action"))
         self.assert_pass_then_fail("simulate", good, lambda row: row["records"]["replay"][0].__setitem__("provider_mutations", 1))
 
+    def test_noop_requires_bound_fixture_truth_and_hidden_write_controls(self):
+        truth = {"facts": [{"kind": "fixture_truth", "value": {"fixture_id": "noop_dominates", "noop_dominates": True}}]}
+        good = vector({"rendered_view": [{"winner": "no_op", "binding_constraint": "hard constraint", "write_controls_visible": False}]}, sources=("operator_truth", "rendered_view", "replay"))
+        good["operator_truth"] = truth
+        self.assert_pass_then_fail("noop", good, lambda row: row["records"]["rendered_view"][0].__setitem__("write_controls_visible", True))
+        missing_truth = vector({"rendered_view": [{"winner": "no_op", "binding_constraint": "hard constraint", "write_controls_visible": False}]}, sources=("operator_truth", "rendered_view", "replay"))
+        self.assertEqual(evaluate_predicate("noop", missing_truth)["status"], "fail")
+
     def test_effect_rejects_commit_without_readback(self):
         effect = {"tickets": 1, "claims": 1, "dispatches": 1, "provider_mutations": 1, "verify_count": 1, "ticket_external_id": "x", "provider_external_id": "x", "verify_external_id": "x", "receipt_external_id": "x", "target_binding": "b@1", "expected_binding": "b@1", "receipt_status": "committed", "has_attendees": False, "action_family": "create_prep_block", "legacy_owner_mutations": 0}
         good = vector({"replay": [{"effect": effect}], "ui_action": [{}], "provider_after": [{}]}, sources=("replay", "ui_action", "provider_after"))

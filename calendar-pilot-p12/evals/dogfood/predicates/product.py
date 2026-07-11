@@ -68,7 +68,11 @@ def _identity(vector: dict[str, Any]) -> dict[str, Any]:
 
 
 def _observe(vector: dict[str, Any]) -> dict[str, Any]:
-    truth = {str(row.get("fact_id")) for row in vector.get("operator_truth", {}).get("facts", [])}
+    truth = {
+        str(row.get("fact_id"))
+        for row in vector.get("operator_truth", {}).get("facts", [])
+        if row.get("kind") == "calendar_event"
+    }
     provider = _latest(vector, "provider_read")
     rendered = _latest(vector, "rendered_view")
     provider_ids = {str(value) for value in provider.get("fact_ids", [])}
@@ -142,8 +146,14 @@ def _simulate(vector: dict[str, Any]) -> dict[str, Any]:
 
 def _noop(vector: dict[str, Any]) -> dict[str, Any]:
     row = _latest(vector, "rendered_view")
-    ok = row.get("winner") == "no_op" and bool(row.get("binding_constraint")) and row.get("write_controls_visible") is False
-    return _result("pass" if ok else "fail", "Dominated fixture selects and explains no-op." if ok else "No-op did not win cleanly or the UI still implied a write.", evidence={"winner": row.get("winner"), "binding_constraint": row.get("binding_constraint"), "write_controls_visible": row.get("write_controls_visible")})
+    fixture_truth = any(
+        fact.get("kind") == "fixture_truth"
+        and fact.get("value", {}).get("fixture_id") == "noop_dominates"
+        and fact.get("value", {}).get("noop_dominates") is True
+        for fact in vector.get("operator_truth", {}).get("facts", [])
+    )
+    ok = fixture_truth and row.get("winner") == "no_op" and bool(row.get("binding_constraint")) and row.get("write_controls_visible") is False
+    return _result("pass" if ok else "fail", "Dominated fixture selects and explains no-op." if ok else "No-op did not win cleanly or the UI still implied a write.", evidence={"fixture_truth": fixture_truth, "winner": row.get("winner"), "binding_constraint": row.get("binding_constraint"), "write_controls_visible": row.get("write_controls_visible")})
 
 
 def _denial(vector: dict[str, Any]) -> dict[str, Any]:

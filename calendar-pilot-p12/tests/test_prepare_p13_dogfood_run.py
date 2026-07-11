@@ -46,8 +46,15 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         truth = fixture_truth("run-1", datetime.now(timezone.utc).isoformat(), ROOT / "data/sample_calendar.json")
         schema = json.loads(TRUTH_SCHEMA.read_text(encoding="utf-8"))
         Draft202012Validator(schema, format_checker=FormatChecker()).validate(truth)
-        self.assertEqual([row["fact_id"] for row in truth["facts"]], ["evt_client_call", "evt_admin", "evt_team_sync"])
-        self.assertTrue(all(set(row["value"]) == {"event_id", "start", "end", "calendar_id", "is_user_owned", "is_flexible", "category"} for row in truth["facts"]))
+        self.assertEqual(
+            [row["fact_id"] for row in truth["facts"]],
+            ["evt_client_call", "evt_admin", "evt_team_sync", "fixture:noop_dominates"],
+        )
+        noop = truth["facts"][-1]
+        self.assertEqual(noop["kind"], "fixture_truth")
+        self.assertTrue(noop["value"]["noop_dominates"])
+        calendar_facts = [row for row in truth["facts"] if row["kind"] == "calendar_event"]
+        self.assertTrue(all(set(row["value"]) == {"event_id", "start", "end", "calendar_id", "is_user_owned", "is_flexible", "category"} for row in calendar_facts))
         serialized = json.dumps(truth)
         self.assertNotIn("client@example.com", serialized)
         self.assertNotIn("Discuss renewal options", serialized)

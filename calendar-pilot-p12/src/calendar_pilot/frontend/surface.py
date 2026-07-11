@@ -400,6 +400,11 @@ def _chat_surface(plan: CodexExecutivePlan, candidate_rows: list[dict[str, Any]]
             "model_story": row.get("model_story", []),
             "explanation": row.get("explanation", ""),
             "counterfactual": row.get("counterfactual", ""),
+            "binding_constraint": next((
+                str(note).split("=", 1)[1]
+                for note in row.get("control_notes", [])
+                if str(note).startswith("binding_constraint=")
+            ), None),
             "addresses_goal": bool(plan.goal and row.get("explanation")),
             "rationale_compares_noop": bool(row.get("counterfactual")),
             "action": row.get("action", {}),

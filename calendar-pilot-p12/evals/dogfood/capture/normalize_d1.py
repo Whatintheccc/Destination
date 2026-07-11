@@ -355,9 +355,12 @@ def normalize(run_dir: Path) -> None:
         elif scenario_id == "P-NOOP":
             candidate = selected_candidate(raw)
             rendered_payload.update({
-                "winner": "no_op" if candidate.get("intent") == "no_op" else candidate.get("intent"),
+                "winner": "no_op" if candidate.get("intent") in {"no_op", "do_nothing"} else candidate.get("intent"),
                 "binding_constraint": semantic.get("noop-binding-constraint"),
-                "write_controls_visible": bool(ids_from_dom(raw["dom_html"], "data-candidate-id")),
+                "write_controls_visible": any(
+                    f'data-testid="{testid}"' in raw["dom_html"]
+                    for testid in ("simulate-candidate", "stage-candidate", "commit-candidate")
+                ),
             })
         elif scenario_id == "P-FEEDBACK":
             exposure = latest_payload(replay_rows(raw), "learning_exposure")

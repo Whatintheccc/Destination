@@ -738,7 +738,7 @@ scenario failures into independent tickets. Execute this order:
    P-FOLLOWUP [closed on binding run 20260711T165823Z] +
    P-CORRECTION [closed on binding run 20260711T171111Z]
      preserve or causally replace the active plan as requested
-   P-SIMULATE + P-NOOP
+   P-SIMULATE [closed on binding run 20260711T171901Z] + P-NOOP
      exact nonmutating preview and honest inaction
    ```
 
@@ -761,6 +761,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Simulation closed; no-op fixture made executable
+
+- Exact protected-main build `573f39c17a93` passed the release gate and signed
+  architecture manifest `p13-dogfood-simulation-preview:573f39c17a93:20260711T171843Z`.
+- Binding run `20260711T171901Z-d1-fixture-573f39c17a93` closed `P-SIMULATE`:
+  the visible preview includes exact action, provider result, conflict result, and
+  uncertainty while every effect counter remains zero.
+- D1 advanced to 9/11 pass with evidence completeness `1.0`, preservation 11/11,
+  and zero provider, effect-ceiling, and projection divergence. Only `P-NOOP` and
+  `P-RESTART` remain.
+- The no-op failure revealed a frozen-instrument defect: `noop_dominates` existed in
+  the scenario-set fixture-family list but the D1 transaction never loaded or
+  truth-bound it. The repair adds a content-hashed protected-window observation,
+  records its fixture truth in operator evidence, loads it only for the exact fixture
+  request in deterministic mode, and persists the selected observation across restart.
+  With no legal insertion or move slot, only the real `do_nothing` candidate remains;
+  its binding constraint is visible and simulate/stage/commit controls are absent.
+  Exact protected-main D1 rerun remains required before closure.
 
 ### 2026-07-11 — Correction closed; simulation receipt projection selected
 
