@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0 is complete on protected main `c9124c5de48a`: release, evidence admissibility, architecture preservation, manifest-required architecture targets, `P-IDENTITY`, and artifact completeness all pass (`binding_eligible=true`). D1 is now open. Its first expected semantic blocker is `P-OBSERVE`; no D2 or product-model expansion is allowed until the complete deterministic D1 cell passes.**
+Current verdict: **Binding D0 and D1 are complete. Exact protected-main D1 build `f2f8cc06fbfd` passes all 11 required product scenarios with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D2 Swift IPC is now open; D3-D7 remain closed until their preceding component boundaries are executable and green.**
 
 ---
 
@@ -743,17 +743,17 @@ scenario failures into independent tickets. Execute this order:
      exact nonmutating preview and honest inaction
    ```
 
-[ ] Treat all 18 release checks, architecture preservation 11/11, zero D1 provider
+[x] Treat all 18 release checks, architecture preservation 11/11, zero D1 provider
    mutations, `P-FEEDBACK`, `P-RESTART`, content-addressed artifacts, and cross-run
    rejection as non-regression constraints from the first wave onward.
-[ ] Do not enter D2 until D1 is wholly passing with exact identity and zero required
+[x] Do not enter D2 until D1 is wholly passing with exact identity and zero required
    replay-invariant violations. Then run D2 through real Swift IPC. Run D3 and D4 as
    sibling component experiments—live Codex with deterministic policy, and live
    DiffusionGemma with deterministic Codex—before D5 real-provider reads, D6
    integration, and the one explicitly confirmed/verified/compensated D7 effect.
 
-Do not start EventKit writes, positive-learning promotion, DiffusionGemma substitution,
-or recursive harness optimization while D1 is open. Preserve this run's raw trace as
+Do not start EventKit writes, positive-learning promotion, or recursive harness
+optimization while D2-D6 are open. Preserve D1's raw trace as
 search/debug history; it is not positive human reward, held-out evidence, or five
 independent examples merely because the same candidate was exposed five times.
 
@@ -762,6 +762,21 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Deterministic D1 complete; D2 Swift IPC access point selected
+
+- Exact protected-main build `f2f8cc06fbfd` passed all 18 release checks and signed
+  ruler manifest `p13-dogfood-restart-identity:f2f8cc06fbfd:20260711T174000Z`.
+- Binding run `20260711T174018Z-d1-fixture-f2f8cc06fbfd` is a complete product pass:
+  11/11 scenarios pass, no blocker remains, evidence completeness is `1.0`, all four
+  distance divergences are zero, architecture preservation is 11/11, and the run is
+  binding eligible.
+- D2 previously had a cell declaration but no executable access point. The next wave
+  parameterizes the proven packaged-app runner for `swift_ipc`, adds the required
+  visible P-DENIAL evidence, performs one denied low-authority commit request, then one
+  explicit staged draft under restored authority. `make p13-dogfood-d2` is the single
+  proposed access point. Exact protected-main release, signed architecture binding,
+  and the complete D2 transaction remain required before any D2 verdict.
 
 ### 2026-07-11 — No-op closed; restart identity normalization selected
 

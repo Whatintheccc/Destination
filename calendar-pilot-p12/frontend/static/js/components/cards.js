@@ -78,6 +78,12 @@ export function receiptCard(input) {
     kv('receipt', card.receipt_id || '—'),
     kv('grant', card.grant_id || '—'),
     kv('rollback', card.rollback_state || card.rollback_handle_id || '—'),
+    ['denied', 'failed'].includes(card.status) ? h('div', {class: 'inspector-card', 'data-testid': 'denial-evidence'},
+      actionField('owner', 'denial-owner', 'Swift effect kernel'),
+      actionField('reason', 'denial-reason', card.body || 'Swift denied the requested action.'),
+      actionField('repair', 'denial-repair', 'Narrow the action or explicitly grant the required scope and tier.'),
+      h('span', {'data-testid': 'denial-specific'}, String(Boolean(card.body && card.body !== 'denied'))))
+      : null,
     card.simulation_preview ? h('div', {class: 'inspector-card', 'data-testid': 'simulation-preview'},
       actionField('simulated action', 'simulation-action', JSON.stringify(card.simulation_preview.action)),
       actionField('provider result', 'simulation-provider-result', JSON.stringify(card.simulation_preview.provider_result)),

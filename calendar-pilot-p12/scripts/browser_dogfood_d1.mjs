@@ -17,7 +17,7 @@ if (!['before-restart', 'after-restart'].includes(mode) || !baseUrl || !runDir) 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(runDir, 'run_manifest.json'), 'utf8'));
-if (manifest.cell !== 'D1') throw new Error(`D1 browser driver cannot execute cell ${manifest.cell}`);
+if (!['D1', 'D2'].includes(manifest.cell)) throw new Error(`D1/D2 browser driver cannot execute cell ${manifest.cell}`);
 const scenarioSet = JSON.parse(await readFile(path.join(root, manifest.scenario_set.path), 'utf8'));
 const stimuli = Object.fromEntries(scenarioSet.scenarios.map(row => [row.scenario_id, row.stimulus]));
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -70,6 +70,16 @@ async function main() {
     await click(client, '[data-testid="simulate-candidate"]');
     await waitFor(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length > 0');
     await record(client, 'P-SIMULATE', 'after_simulate');
+    if (manifest.cell === 'D2') {
+      await setAuthority(client, 0, 'recommend');
+      await click(client, '[data-testid="commit-candidate"]');
+      await waitFor(client, 'document.querySelector("[data-testid=\\"denial-owner\\"]") !== null');
+      await record(client, 'P-DENIAL', 'after_denial');
+      await setAuthority(client, 3, 'recommend, stage, commit_private, undo');
+      const receiptsBeforeStage = await evaluate(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length');
+      await click(client, '[data-testid="stage-candidate"]');
+      await waitFor(client, `document.querySelectorAll('[data-testid="receipt-card"]').length > ${receiptsBeforeStage}`);
+    }
     await sendStimulus(client, 'P-NOOP');
     await record(client, 'P-NOOP', 'after_noop');
     await click(client, '[data-testid="candidate-dismissed"]');
@@ -85,6 +95,15 @@ async function main() {
     await stopChrome(chrome);
     if (userDataDir) await rm(userDataDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   }
+}
+
+async function setAuthority(client, tier, scopes) {
+  await click(client, '[data-surface="authority"]');
+  await fill(client, '#authority-tier', String(tier));
+  await fill(client, '#authority-scopes', scopes);
+  await click(client, '#save-authority');
+  await waitFor(client, `document.querySelector('#authority-chip')?.textContent.includes('Tier ${tier}')`);
+  await click(client, '[data-surface="operate"]');
 }
 
 async function sendStimulus(client, scenarioId) {
