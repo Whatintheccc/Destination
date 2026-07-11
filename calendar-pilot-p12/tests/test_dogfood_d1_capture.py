@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import unittest
 
-from evals.dogfood.capture.normalize_d1 import effect_counts, extract_candidate_dom, ids_from_dom, internal_action, visible_action
+from evals.dogfood.capture.normalize_d1 import effect_counts, extract_candidate_dom, ids_from_dom, internal_action, restart_digest, visible_action
 from scripts.run_p13_dogfood_d1 import health_matches_launch
 
 
@@ -81,6 +82,39 @@ class DogfoodD1CaptureTests(unittest.TestCase):
             {"candidate_id": "leading", "fields": {"candidate-card": "", "candidate-addresses-goal": "true", "candidate-compares-noop": "true"}},
             {"candidate_id": "second", "fields": {"candidate-card": "", "candidate-addresses-goal": "false", "candidate-compares-noop": "false"}},
         ])
+
+    def test_restart_digest_ignores_process_replacement_but_not_runtime_semantics(self) -> None:
+        base = {
+            "view": {
+                "conversation": {"messages": []},
+                "frontier": {"generation_id": "plan-1", "goal": "goal", "candidates": []},
+                "pipeline": {"turns": [{"trace_id": "ephemeral"}]},
+                "runtime": {
+                    "build_id": "abc",
+                    "runtime_mode": "fixture",
+                    "requested_runtime_mode": "fixture",
+                    "backends": {"provider": "deterministic_fixture_provider"},
+                    "fixture_mode": True,
+                    "fixture_paths": {"active_observation_id": "obs-1", "uses_sample_fixtures": True, "provider_observation_loaded": False},
+                    "process": {"pid": 10, "launch_id": "before"},
+                    "live_target": False,
+                    "production_target": False,
+                    "valid_runtime_mode": True,
+                },
+            },
+            "replay_export": {"records": []},
+        }
+        after = deepcopy(base)
+        after["view"]["pipeline"] = {"turns": []}
+        after["view"]["runtime"]["process"] = {"pid": 20, "launch_id": "after"}
+        before_digest = restart_digest(base, "before")
+        after_digest = restart_digest(after, "after")
+        self.assertEqual(before_digest["before_plan_digest"], after_digest["after_plan_digest"])
+        self.assertEqual(before_digest["before_runtime_digest"], after_digest["after_runtime_digest"])
+
+        after["view"]["runtime"]["backends"]["provider"] = "apple_eventkit"
+        changed = restart_digest(after, "after")
+        self.assertNotEqual(before_digest["before_runtime_digest"], changed["after_runtime_digest"])
 
 
 if __name__ == "__main__":

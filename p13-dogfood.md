@@ -738,7 +738,8 @@ scenario failures into independent tickets. Execute this order:
    P-FOLLOWUP [closed on binding run 20260711T165823Z] +
    P-CORRECTION [closed on binding run 20260711T171111Z]
      preserve or causally replace the active plan as requested
-   P-SIMULATE [closed on binding run 20260711T171901Z] + P-NOOP
+   P-SIMULATE [closed on binding run 20260711T171901Z] +
+   P-NOOP [closed on binding run 20260711T173155Z]
      exact nonmutating preview and honest inaction
    ```
 
@@ -761,6 +762,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — No-op closed; restart identity normalization selected
+
+- Exact protected-main build `0170ae6eedd2` passed release and signed architecture
+  manifest `p13-dogfood-noop-fixture:0170ae6eedd2:20260711T173140Z`.
+- Binding run `20260711T173155Z-d1-fixture-0170ae6eedd2` closed `P-NOOP` with
+  truth-bound fixture identity, the actual `do_nothing` winner, a visible binding
+  constraint, and no simulate/stage/commit controls.
+- D1 advanced to 10/11 pass with evidence completeness `1.0`, preservation 11/11,
+  and zero provider, effect-ceiling, and projection divergence. `P-RESTART` is the
+  sole remaining failure; duplicate tool/effect count is already zero.
+- Restart evidence shows conversation, candidate, receipts, outcomes, and replay are
+  equal. The two reported mismatches are normalizer errors: “plan” hashes the
+  process-local trace bus instead of active generation id/goal, while “runtime” hashes
+  PID and launch id even though restart must replace them. The repair hashes stable
+  plan/runtime semantics and leaves process replacement to the independent launch and
+  process identity rail. Applied read-only to the retained raw before/after records,
+  all seven restart components compare equal. Exact protected-main D1 rerun remains
+  required before closure.
 
 ### 2026-07-11 — Simulation closed; no-op fixture made executable
 
