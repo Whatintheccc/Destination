@@ -29,7 +29,7 @@ from evals.architecture.run_architecture_evals import validate_report as validat
 SCENARIO_SET = ROOT / "evals/dogfood/scenarios/p13_product_v2.json"
 MANIFEST_SCHEMA = ROOT / "contracts/dogfood_run_manifest.schema.json"
 TRUTH_SCHEMA = ROOT / "contracts/dogfood_operator_truth.schema.json"
-REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report_v4.schema.json"
+REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report_v5.schema.json"
 PREDICATE_PATH = ROOT / "evals/dogfood/predicates/product.py"
 ADAPTER_PATH = ROOT / "evals/dogfood/adapters/live_run.py"
 STATUSES = ("pass", "fail", "hold", "not_reached")
@@ -322,7 +322,7 @@ def build_report(*, run_dir: Path, scenario_set_path: Path = SCENARIO_SET, out: 
     first_blocker = _first_blocker(admissibility["status"], product, architecture)
     instrument_artifacts = [_artifact("dogfood_runner", Path(__file__)), _artifact("dogfood_predicates", PREDICATE_PATH), _artifact("dogfood_adapter", ADAPTER_PATH), _artifact("dogfood_report_schema", REPORT_SCHEMA), _artifact("dogfood_manifest_schema", MANIFEST_SCHEMA), _artifact("dogfood_operator_truth_schema", TRUTH_SCHEMA)]
     report = {
-        "dogfood_eval_report_schema_version": "dogfood_eval_report.v4",
+        "dogfood_eval_report_schema_version": "dogfood_eval_report.v5",
         "run_id": manifest["run_id"], "generated_at": datetime.now(timezone.utc).isoformat(),
         "decision": decision, "binding_eligible": admissibility["binding_eligible"],
         "first_blocking_scenario_id": first_blocker,

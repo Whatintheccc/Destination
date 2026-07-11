@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **The V2 D0 run proved app-bundle ownership and exposed a ruler applicability error; the exact-main V3 architecture run then exposed a status-integration error. V4 now makes D0 evidence cell-aware and treats only manifest-required target non-pass as blocking while retaining all nonbinding target debt in the distance/counts. Binding D0 must be rerun from the exact protected-main V4 commit before D1 opens.**
+Current verdict: **Successive exact-main D0 attempts have exposed three ruler/access-point defects before any product semantics were changed: D0 interaction applicability, binding-target status integration, and zero-byte optional-artifact handling. V5 now closes the ruler path; the retained V4 attempt still shows a real app identity defect (`app_bundle_path` is lost when Swift hands launch ownership to Python). After V5 lands, that identity defect is the next product wave.**
 
 ---
 
@@ -99,6 +99,7 @@ dogfood_eval_report.v1   (retained; V1 reports remain immutable)
 dogfood_eval_report.v2   (retained; adds the §2.2 admissibility prerequisite)
 dogfood_eval_report.v3   (cell-aware D0/D1-D7 admissibility)
 dogfood_eval_report.v4   (binding-target status integration)
+dogfood_eval_report.v5   (optional-empty artifact applicability)
 dogfood_admissibility.v1 (retained V2 prerequisite semantics)
 dogfood_admissibility.v2 (D0 replay optional; D1-D7 replay required)
 dogfood_ruler_capture.v1 (ruler-owned semantic DOM capture)
@@ -123,6 +124,7 @@ calendar-pilot-p12/contracts/
   dogfood_eval_report_v2.schema.json
   dogfood_eval_report_v3.schema.json
   dogfood_eval_report_v4.schema.json
+  dogfood_eval_report_v5.schema.json
   dogfood_operator_truth.schema.json
 ```
 
@@ -212,6 +214,12 @@ even though nonbinding target debt remains `not_reached`. The dogfood runner had
 the observational target-rail decision into its binding decision. Report V4 now derives
 target binding status only from `blocking_scenario_ids`; it preserves the full 48-scenario
 counts and unmet debt without allowing nonbinding debt to block D0-D7.
+
+The first exact-main V4 D0 launch created an empty `replay.jsonl`, as the app does before
+any interaction. Although replay was no longer required, the live-run adapter rejected
+all zero-byte JSONL before consulting the cell inventory. Report V5 makes emptiness
+cell-aware too: an optional empty artifact is ignored, while a required empty artifact
+still fails before evidence evaluation.
 
 ### 2.3 Instrument separation
 
@@ -752,6 +760,21 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Optional empty-artifact applicability corrected
+
+- The exact protected-main V4 D0 app launch produced an intentionally empty replay and
+  the adapter raised before it could derive a report.
+- Added report V5 and made zero-byte handling consult the frozen cell inventory. Optional
+  D0 replay is ignored; required D1-D7 replay remains a hard failure.
+- Added both sides of the counterexample: the same empty replay passes adapter loading
+  when optional and raises when required.
+- Retained the V4 run directory as an evaluator exception. No report was fabricated and
+  no artifact was deleted or rewritten.
+- The raw launch also exposed the next real D0 product defect: Swift writes the bundle
+  path, then Python overwrites launch state with `app_bundle_path=null` because the
+  supervisor does not pass `CALENDAR_PILOT_APP_BUNDLE_PATH` to its child. That repair is
+  deliberately deferred until the V5 ruler lands.
 
 ### 2026-07-11 — Binding architecture-target status integration corrected
 
