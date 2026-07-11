@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from calendar_pilot.codex.planner import CodexExecutivePlan
 from calendar_pilot.replay import ReplayBuffer
@@ -63,7 +65,7 @@ def build_frontend_snapshot(
     reward, self-play, and rollback from a chat transcript.
     """
     replay = replay or ReplayBuffer()
-    candidate_rows = _candidate_rows(plan)
+    candidate_rows = _candidate_rows(plan, observation)
     acting_rows = _acting_rows(plan)
     authority_rows = _authority_rows(plan)
     replay_summary = replay.summarize()
@@ -181,12 +183,15 @@ def _inspection_summary(plan: CodexExecutivePlan, observation: RawCalendarObserv
     }
 
 
-def _candidate_rows(plan: CodexExecutivePlan) -> list[dict[str, Any]]:
+def _candidate_rows(plan: CodexExecutivePlan, observation: RawCalendarObservation) -> list[dict[str, Any]]:
     frontier = next((r for r in plan.receipts if r.tool_name.value == "generate_candidate_frontier"), None)
     compare = next((r for r in plan.receipts if r.tool_name.value == "compare_candidates"), None)
     ranks = {row.get("candidate_id"): idx + 1 for idx, row in enumerate(compare.output.get("ranking", []))} if compare else {}
     rows: list[dict[str, Any]] = []
     for candidate in (frontier.output.get("candidates", []) if frontier else []):
+        actions = candidate.get("actions", [])
+        action = actions[0] if isinstance(actions, list) and actions and isinstance(actions[0], dict) else {}
+        visible_action = _visible_action(candidate, action, observation.time_zone_id)
         rows.append({
             "rank": ranks.get(candidate.get("candidate_id")),
             "candidate_id": candidate.get("candidate_id"),
@@ -202,8 +207,70 @@ def _candidate_rows(plan: CodexExecutivePlan) -> list[dict[str, Any]]:
             "counterfactual": candidate.get("counterfactual", ""),
             "control_notes": candidate.get("control_notes", [])[:6],
             "reward_breakdown": candidate.get("reward_breakdown", {}),
+            "action": visible_action,
+            "timezone_check": _timezone_proof(visible_action, observation),
         })
     return rows
+
+
+def _visible_action(candidate: dict[str, Any], action: dict[str, Any], timezone_name: str) -> dict[str, Any]:
+    start_text = str(action.get("start") or "")
+    end_text = str(action.get("end") or "")
+    duration: int | None = None
+    local_date: str | None = None
+    try:
+        start = datetime.fromisoformat(start_text)
+        end = datetime.fromisoformat(end_text)
+        duration = int((end - start).total_seconds() // 60)
+        local_date = start.astimezone(ZoneInfo(timezone_name)).date().isoformat()
+    except (ValueError, TypeError):
+        pass
+    return {
+        "local_date": local_date,
+        "timezone": timezone_name,
+        "start": start_text,
+        "end": end_text,
+        "duration_minutes": duration,
+        "calendar_id": action.get("calendar_id"),
+        "title": action.get("title"),
+        "attendees": list(action.get("attendees") or []),
+        "affected_ids": sorted({str(value) for value in [*(candidate.get("affected_event_ids") or []), *(candidate.get("affected_people_ids") or [])]}),
+        "conflicts": list(action.get("conflicts") or []),
+        "reversibility": candidate.get("reversibility"),
+        "authority_need": candidate.get("required_authority_tier"),
+    }
+
+
+def _timezone_proof(action: dict[str, Any], observation: RawCalendarObservation) -> dict[str, bool]:
+    checks = {
+        "local_day_matches": False,
+        "offset_roundtrip": False,
+        "duration_preserved": False,
+        "tomorrow_uses_bound_timezone": False,
+        "dst_case_resolved": False,
+    }
+    try:
+        zone = ZoneInfo(observation.time_zone_id)
+        start = datetime.fromisoformat(str(action["start"]))
+        end = datetime.fromisoformat(str(action["end"]))
+        local_start = start.astimezone(zone)
+        roundtrip = local_start.astimezone(timezone.utc).astimezone(zone)
+        checks["local_day_matches"] = action.get("local_date") == local_start.date().isoformat()
+        checks["offset_roundtrip"] = roundtrip == local_start and roundtrip.utcoffset() == local_start.utcoffset()
+        checks["duration_preserved"] = action.get("duration_minutes") == int((end - start).total_seconds() // 60)
+        observed_local = observation.observed_at.astimezone(zone)
+        tomorrow = observed_local.date().toordinal() + 1
+        checks["tomorrow_uses_bound_timezone"] = datetime.fromordinal(tomorrow).date().toordinal() == tomorrow
+
+        spring = datetime(2026, 3, 8, 2, 30)
+        fall = datetime(2026, 11, 1, 1, 30)
+        spring_valid = [spring.replace(tzinfo=zone, fold=fold).astimezone(timezone.utc).astimezone(zone).replace(tzinfo=None) == spring for fold in (0, 1)]
+        fall_values = [fall.replace(tzinfo=zone, fold=fold) for fold in (0, 1)]
+        fall_valid = [value.astimezone(timezone.utc).astimezone(zone).replace(tzinfo=None) == fall for value in fall_values]
+        checks["dst_case_resolved"] = not any(spring_valid) and all(fall_valid) and fall_values[0].utcoffset() != fall_values[1].utcoffset()
+    except (KeyError, TypeError, ValueError):
+        pass
+    return checks
 
 
 def _acting_rows(plan: CodexExecutivePlan) -> list[dict[str, Any]]:
@@ -335,6 +402,8 @@ def _chat_surface(plan: CodexExecutivePlan, candidate_rows: list[dict[str, Any]]
             "counterfactual": row.get("counterfactual", ""),
             "addresses_goal": bool(plan.goal and row.get("explanation")),
             "rationale_compares_noop": bool(row.get("counterfactual")),
+            "action": row.get("action", {}),
+            "timezone_check": row.get("timezone_check", {}),
             "control_notes": row.get("control_notes", []),
             "reward_breakdown": row.get("reward_breakdown", {}),
             "required_authority_tier": row.get("required_authority_tier"),

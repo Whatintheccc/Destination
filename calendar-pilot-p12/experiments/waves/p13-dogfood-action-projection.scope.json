@@ -1,0 +1,39 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/evals/dogfood/capture/normalize_d1.py",
+    "calendar-pilot-p12/experiments/waves/p13-dogfood-action-projection.scope.json",
+    "calendar-pilot-p12/frontend/static/js/components/cards.js",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/surface.py",
+    "calendar-pilot-p12/tests/test_p13_action_projection_vertical.py",
+    "p13-dogfood.md"
+  ],
+  "declared": {
+    "actions": ["*"],
+    "backends": [],
+    "surfaces": ["browser", "frontend", "projection"],
+    "instruments": ["dogfood_normalizer", "tests"],
+    "control_planes": []
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_signature",
+    "target.cited_required_projection",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
