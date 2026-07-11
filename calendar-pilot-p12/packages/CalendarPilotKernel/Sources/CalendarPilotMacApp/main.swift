@@ -171,6 +171,7 @@ final class CalendarPilotProcessSupervisor {
         env["CALENDAR_PILOT_LAUNCH_REQUESTED_PORT"] = ProcessInfo.processInfo.environment["CALENDAR_PILOT_PORT"] ?? String(config.port)
         env["CALENDAR_PILOT_LAUNCHER_PID"] = String(config.launcherPID)
         env["CALENDAR_PILOT_APP_ROOT"] = config.appRoot
+        env["CALENDAR_PILOT_APP_BUNDLE_PATH"] = config.appBundlePath
         env["CALENDAR_PILOT_RUN_DIR"] = config.runDir
         env["CALENDAR_PILOT_BUILD_ID"] = config.buildID
         env["CALENDAR_PILOT_SWIFT_KERNEL_SERVER"] = config.kernelServerPath

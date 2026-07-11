@@ -49,6 +49,20 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertEqual(loaded, root / ".env")
             self.assertEqual(__import__("os").environ["NVIDIA_API_KEY"], "from-parent")
 
+    def test_packaged_env_loader_does_not_escape_app_root(self):
+        from calendar_pilot import env as env_module
+
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {"CALENDAR_PILOT_APP_BUNDLE_PATH": str(Path(td) / "CalendarPilot.app")}, clear=True):
+            root = Path(td)
+            packaged_root = root / "CalendarPilot.app" / "Contents" / "Resources" / "app"
+            packaged_root.mkdir(parents=True)
+            (root / ".env").write_text("CALENDAR_PILOT_TEST_MARKER=must-not-load\n", encoding="utf-8")
+            with patch.object(env_module, "ROOT", packaged_root):
+                loaded = env_module.load_local_env()
+
+            self.assertIsNone(loaded)
+            self.assertNotIn("CALENDAR_PILOT_TEST_MARKER", __import__("os").environ)
+
     def test_fixture_runtime_is_explicit_and_release_safe(self):
         with tempfile.TemporaryDirectory() as td:
             session = DogfoodSessionState(run_dir=Path(td))
@@ -61,6 +75,19 @@ class RuntimeModeTests(unittest.TestCase):
             self.assertEqual(report["backends"]["provider"], "deterministic_fixture_provider")
             self.assertEqual(report["live_blockers"], [])
             self.assertTrue(runtime_is_release_safe(report))
+
+    def test_runtime_health_exposes_canonical_owned_process_identity(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {
+            "CALENDAR_PILOT_LAUNCH_ID": "launch-owned",
+            "CALENDAR_PILOT_LAUNCH_PORT": "43123",
+            "CALENDAR_PILOT_LAUNCH_REQUESTED_PORT": "8787",
+        }):
+            report = DogfoodSessionState(run_dir=Path(td)).runtime_report()
+
+            self.assertEqual(report["process"]["server_pid"], report["process"]["pid"])
+            self.assertEqual(report["process"]["port"], 43123)
+            self.assertEqual(report["process"]["launch_port"], "43123")
+            self.assertEqual(report["process"]["launch_id"], "launch-owned")
 
     def test_auto_runtime_prefers_live_codex_and_reports_fallbacks(self):
         with tempfile.TemporaryDirectory() as td, patch.dict("os.environ", {
