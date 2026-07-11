@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0 and D1 are complete. Exact protected-main D1 build `f2f8cc06fbfd` passes all 11 required product scenarios with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D2 Swift IPC is now open; D3-D7 remain closed until their preceding component boundaries are executable and green.**
+Current verdict: **Binding D0, D1, and D2 are complete. Exact protected-main D2 build `182347705737` passes all 12 required product scenarios through real Swift IPC with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D3 live Codex and D4 live DiffusionGemma are now open as sibling component cells; D5-D7 remain closed.**
 
 ---
 
@@ -762,6 +762,20 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — D2 Swift IPC complete; D3/D4 component cells selected
+
+- Exact protected-main build `182347705737` passed release and signed architecture
+  manifest `p13-dogfood-d2-swift-ipc:182347705737:20260711T180238Z`.
+- Binding run `20260711T180258Z-d2-swift_ipc-182347705737` passes 12/12 required
+  scenarios: all D1 semantics, visible/specific Swift denial, one explicitly requested
+  staged draft, feedback, and restart. The run is binding eligible with completeness
+  `1.0`; all four distance divergences are zero; architecture preservation is 11/11.
+- D3 and D4 now reuse the exact transaction with their manifest-bound runtime labels.
+  Both exercise P-DENIAL but omit D2's staged draft, preserving their zero-stage effect
+  ceilings. `make p13-dogfood-d3` selects live Codex + deterministic policy; `make
+  p13-dogfood-d4` selects deterministic Codex + live DiffusionGemma. Exact protected-main
+  release, signing, and each complete component run remain required before closure.
 
 ### 2026-07-11 — Deterministic D1 complete; D2 Swift IPC access point selected
 
