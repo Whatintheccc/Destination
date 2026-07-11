@@ -53,6 +53,10 @@ class P13CitedReadSideTests(unittest.TestCase):
                 self.assertTrue(set(cited["citation"]["event_ids"]).issubset(row_ids))
                 self.assertTrue(cited["projection"]["title"])
                 self.assertTrue(cited["projection"]["start"])
+                self.assertTrue(cited["explanation"])
+                self.assertTrue(cited["counterfactual"])
+                self.assertTrue(cited["addresses_goal"])
+                self.assertTrue(cited["rationale_compares_noop"])
                 self.assertEqual({row["effect_owner"] for row in cited["controls"]}, {"incumbent"})
                 self.assertEqual({row["authority_source"] for row in cited["controls"]}, {"incumbent_swift_gate"})
                 self.assertEqual(cited["new_effect_counts"], {
