@@ -95,7 +95,10 @@ The instrument candidate now implements these versioned contracts before product
 ```text
 dogfood_run_manifest.v1
 dogfood_scenario_set.v1
-dogfood_eval_report.v1
+dogfood_eval_report.v1   (retained; V1 reports remain immutable)
+dogfood_eval_report.v2   (adds the §2.2 admissibility prerequisite)
+dogfood_admissibility.v1 (embedded E-REPLAY-INTEGRITY object)
+dogfood_ruler_capture.v1 (ruler-owned semantic DOM capture)
 dogfood_operator_truth.v1
 ```
 
@@ -106,11 +109,14 @@ calendar-pilot-p12/evals/dogfood/
   scenarios/p13_product_v1.json
   predicates/product.py
   adapters/live_run.py
+  admissibility.py
+  capture/browser_capture.py
   run_dogfood_evals.py
 
 calendar-pilot-p12/contracts/
   dogfood_run_manifest.schema.json
   dogfood_eval_report.schema.json
+  dogfood_eval_report_v2.schema.json
   dogfood_operator_truth.schema.json
 ```
 
@@ -162,6 +168,21 @@ with its cited raw row, and product-reported rendering that disagrees with indep
 DOM capture. Existing V1 build/PID, cross-run, and screenshot/model-prose attacks remain
 binding rather than being duplicated. The 15 V1 product scenarios and their order do
 not change.
+
+This prerequisite is now implemented as `dogfood_eval_report.v2`: the runner derives an
+`evidence_admissibility` object from three checks (`replay_parent_resolution`,
+`raw_normalized_equality`, `independent_visible_capture`) before the rails, gates
+`binding_eligible` on its pass, and names `E-REPLAY-INTEGRITY` as the first blocker in
+causal order on any non-pass. Normalized evidence rows must cite `raw_refs`
+(artifact + artifact hash + raw record identity + scenario boundary + derived fields),
+and every payload field must be re-derived from those raw sources. The ruler-owned
+capture driver binds `nonce = sha256(run_id \n scenario_id \n stimulus_utf8_sha256)`
+per scenario and retains `ruler_capture/capture_manifest.json` plus
+`ruler_capture/semantic_dom.jsonl`; capture rows must echo that nonce, and rendered
+`visible` fields must agree with the capture. Applied to the retained diagnostic D1 run,
+the checker reproduces its inadmissibility: fail with the ten repeated unresolved
+observation parents over 143 replay records, while all fifteen embedded journal events
+resolve inside their scopes.
 
 ### 2.3 Instrument separation
 
@@ -702,6 +723,47 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-10 — Ruler-only V2 evidence-admissibility epoch implemented
+
+- Landed the three-commit V1 candidate unchanged through protected main via the
+  repository's required rebase flow; the pre-landing diagnostic build commit remains
+  fetchable at tag `diagnostic/d1-build-1e0e4c4f467a`.
+- Implemented the §2.2 `E-REPLAY-INTEGRITY` prerequisite as `dogfood_eval_report.v2`
+  with an embedded `dogfood_admissibility.v1` object derived from per-check evidence:
+  replay/journal parent resolution (bound invariant `I3`), raw-to-normalized field
+  re-derivation over cited `raw_refs`, and nonce-bound independent semantic DOM capture
+  agreement. Non-pass admissibility forces `binding_eligible=false` and heads the report
+  as the first causal blocker; internally produced contradictions are `fail`, only a
+  preregistered externally unavailable capture may `hold`.
+- Added the ruler-owned headless browser capture driver
+  (`evals/dogfood/capture/browser_capture.py`); it binds run/scenario/stimulus nonces
+  from the signed run manifest, extracts `data-testid` textContent semantics, and
+  records its own implementation hash in `ruler_capture/capture_manifest.json`.
+- Added the three §2.2 planted admissibility attacks plus scope/nonce/driver-binding,
+  coverage, self-citation, and hold-path counterexamples: 23 new instrument tests, all
+  rejecting for the intended reason. `make p13-dogfood-eval-test` now runs 36 tests;
+  the full suite passes 341 with 11 platform/optional skips.
+- Verified against the retained diagnostic run
+  `runs/dogfood/20260711T013402Z-d1-fixture-1e0e4c4f467a` (read-only): admissibility
+  `fail` with exactly the ten known unresolved observation parents across 143 replay
+  records and fifteen in-scope embedded journal events. The retained run and V1 report
+  bytes are unchanged.
+- The V1 product scenario set and predicates are byte-identical to the frozen candidate
+  record (`bb6ec9ca7674…`, `d6002a732390…`). V2 epoch instrument hashes:
+
+  ```text
+  live adapter       54e72af07efffabd2fb953d508cbf5cfa96f865847f89cd607a6aa78490d29e1
+  runner             23a579a16eb7768f941eb79d84b7bd9d44fd40194bbc3e02e58c4a526d6628ef
+  admissibility      b3c57c3af1ec30b2cc88bdcf7f261a29f6ba282183bb74bcdff9cedfb0f647c3
+  capture driver     44a9c908977e436b09cffebf8b22daf56c663def097bafeabf3d6097cf02d12b
+  eval report v2     96b4e44e61d6c13aeea1c2d4d522772bf944a19448de3eaea2ae92ae378fbf08
+  replay checker     50e9745e44afc252ef2931beb4db6a40db212d3955362559adf3931e344e00e0
+  ```
+
+- Next: the measurement-only wave (§12 step 3) — app-bundle ownership, independent
+  capture execution, causal replay/export preservation, and the complete artifact set —
+  then binding D0.
 
 ### 2026-07-10 — D1 architecture review fixed the proceeding order
 

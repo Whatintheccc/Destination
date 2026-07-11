@@ -2077,8 +2077,12 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
 
 9A. Close the P13 product-conformance ladder before contraction.
    The V1 instrument and retained D1 diagnostic run are DONE, but that run is not a
-   binding baseline. Land them unchanged; freeze a ruler-only V2 evidence-admissibility
-   prerequisite; then close app-owned identity, independent visible capture, and raw
+   binding baseline. Land them unchanged — DONE; freeze a ruler-only V2
+   evidence-admissibility prerequisite — DONE (`dogfood_eval_report.v2` gates
+   `binding_eligible` behind E-REPLAY-INTEGRITY: replay/journal parent resolution,
+   raw-to-normalized re-derivation, nonce-bound independent DOM capture; it reproduces
+   the retained run's ten unresolved parents). Then close app-owned identity,
+   independent visible capture, and raw
    causal replay/export in a measurement-only wave. Run binding D0, then D1. Repair one
    deterministic causal root at a time in this order: observation command semantics,
    recommendation effect ceiling, exact action/timezone projection,

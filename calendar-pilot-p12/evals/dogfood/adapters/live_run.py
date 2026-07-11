@@ -82,7 +82,7 @@ class LiveRunAdapter:
         if not isinstance(scenario_id, str) or not isinstance(payload, dict):
             raise ValueError(f"invalid dogfood evidence envelope in {label}")
         source = str(row.get("source") or default_source)
-        self.evidence_rows.append({"scenario_id": scenario_id, "source": source, "payload": payload, "label": label})
+        self.evidence_rows.append({"scenario_id": scenario_id, "source": source, "payload": payload, "label": label, "envelope": dict(row)})
 
     def _load(self) -> None:
         for filename, source in JSON_DOCUMENTS.items():

@@ -16,6 +16,7 @@
   "codex_tool_receipt.schema.json": "v1",
   "curriculum_run.schema.json": "v1",
   "dogfood_eval_report.schema.json": "v1",
+  "dogfood_eval_report_v2.schema.json": "v2",
   "dogfood_operator_truth.schema.json": "v1",
   "dogfood_run_manifest.schema.json": "v1",
   "cvar_report.schema.json": "v1",
