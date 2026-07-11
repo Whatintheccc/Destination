@@ -33,6 +33,7 @@ from calendar_pilot.frontend.projector import FrontendProjector
 from calendar_pilot.frontend.session_conversation import (
     FrontendConversationTools,
     conversation_message_requests_calendar_observation,
+    conversation_message_requests_existing_plan_followup,
     conversation_tool_metadata,
     normalize_conversation_message,
     profile_patch_payload_from_receipt,
@@ -314,6 +315,8 @@ class DogfoodSessionState:
         intent = routed.classified_intent
         self.replay.append_router_decision(routed, trace_id=routed.turn_id)
         self._emit_trace(routed.turn_id, "router", "route_classified", payload=routed.replay_payload())
+        if self.latest_plan is not None and conversation_message_requests_existing_plan_followup(normalize_conversation_message(goal)):
+            return self._create_existing_plan_followup(goal, intent, routed.turn_id)
         if conversation_message_requests_calendar_observation(normalize_conversation_message(goal)):
             return self._create_observation_response(goal, intent, routed.turn_id)
         if intent not in {"calendar_goal", "mixed_calendar_operational"}:
@@ -414,6 +417,60 @@ class DogfoodSessionState:
             "plan_id": plan.plan_id,
             "metadata": metadata,
             "conversation_receipts": conversation_receipts,
+            "created_at": _now().isoformat(),
+        })
+        self.persist()
+        return self.snapshot()
+
+    def _create_existing_plan_followup(self, goal: str, intent: str, trace_id: str) -> dict[str, Any]:
+        snapshot = self.snapshot()
+        cards = snapshot.get("chat", {}).get("candidate_cards", [])
+        card = cards[0] if cards and isinstance(cards[0], dict) else {}
+        action = card.get("action", {}) if isinstance(card.get("action"), dict) else {}
+        candidate_id = str(card.get("candidate_id") or "")
+        plan_id = str(getattr(self.latest_plan, "plan_id", ""))
+        duration = action.get("duration_minutes")
+        timezone_name = str(action.get("timezone") or self.observation.time_zone_id)
+        body = (
+            f"The current proposal is {action.get('title') or card.get('title') or 'the selected action'} "
+            f"from {action.get('start') or 'an unknown start'} to {action.get('end') or 'an unknown end'} "
+            f"({duration if duration is not None else 'unknown'} minutes) in {timezone_name}. "
+            "I answered from the existing selected candidate; I did not generate or choose a new plan."
+        )
+        record_id = self.replay.append_generic(
+            "existing_plan_followup",
+            {
+                "plan_id": plan_id,
+                "candidate_id": candidate_id,
+                "action": action,
+                "question": goal,
+                "resolved_from_existing_evidence": True,
+            },
+            trace_id=trace_id,
+        )
+        metadata = self._response_metadata(
+            goal=goal,
+            intent=intent,
+            response_source="existing_plan_evidence",
+            plan=self.latest_plan,
+            reason="follow-up resolved from the selected candidate without replanning",
+            extra_metadata={
+                "followup_record_id": record_id,
+                "followup_plan_id": plan_id,
+                "followup_candidate_id": candidate_id,
+                "followup_resolved_from_existing_evidence": True,
+            },
+        )
+        self._emit_trace(trace_id, "conversation", "followup_resolved", payload={
+            "plan_id": plan_id,
+            "candidate_id": candidate_id,
+            "replay_record_id": record_id,
+        })
+        self.transcript_events.append({
+            "kind": "assistant_followup",
+            "title": "Current proposal details",
+            "body": body,
+            "metadata": metadata,
             "created_at": _now().isoformat(),
         })
         self.persist()

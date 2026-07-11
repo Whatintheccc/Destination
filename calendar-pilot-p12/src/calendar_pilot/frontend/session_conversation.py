@@ -59,6 +59,24 @@ def conversation_message_requests_calendar_observation(normalized: str) -> bool:
     return requests_read and not requests_change
 
 
+def conversation_message_requests_existing_plan_followup(normalized: str) -> bool:
+    requests_specifics = any(term in normalized for term in (
+        "what exact time",
+        "what time",
+        "exact time",
+        "what duration",
+        "how long",
+    ))
+    preserves_plan = any(term in normalized for term in (
+        "do not replan",
+        "don't replan",
+        "without replanning",
+        "existing plan",
+        "current proposal",
+    ))
+    return requests_specifics and preserves_plan
+
+
 def conversation_message_requests_profile_apply(normalized: str) -> bool:
     return "profile" in normalized and any(term in normalized for term in [
         "apply patch",
