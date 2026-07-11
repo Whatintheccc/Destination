@@ -735,7 +735,8 @@ scenario failures into independent tickets. Execute this order:
      requested recommendation ceiling makes staging structurally unreachable
    P-ACTION-VISIBLE + P-TIMEZONE [closed on binding run 20260711T164158Z]
      exact candidate action and local-time truth project visibly
-   P-FOLLOWUP [closed on binding run 20260711T165823Z] + P-CORRECTION
+   P-FOLLOWUP [closed on binding run 20260711T165823Z] +
+   P-CORRECTION [closed on binding run 20260711T171111Z]
      preserve or causally replace the active plan as requested
    P-SIMULATE + P-NOOP
      exact nonmutating preview and honest inaction
@@ -760,6 +761,24 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Correction closed; simulation receipt projection selected
+
+- Exact protected-main build `535fe57de06f` passed the release gate and signed
+  architecture manifest `p13-dogfood-correction-causality:535fe57de06f:20260711T171054Z`.
+- Binding run `20260711T171111Z-d1-fixture-535fe57de06f` closed `P-CORRECTION`:
+  command ancestry is cited, the replaced assumption is inactive, the regenerated
+  leading action is 15 rather than 25 minutes, and before/after authority digests
+  agree exactly.
+- D1 advanced to 8/11 pass with evidence completeness `1.0`, preservation 11/11,
+  and zero provider, effect-ceiling, and projection divergence. The remaining
+  failures are `P-SIMULATE`, `P-NOOP`, and `P-RESTART`.
+- Simulation repair projects the actual `simulate_action_program` receipt into four
+  visible fields: exact action, provider result, conflict result, and uncertainty.
+  It does not infer mutation success or fabricate provider work; the projection is
+  sourced from the candidate, Swift preview receipt, envelope provider identity,
+  and simulated outcome vector already present in replay. Browser E2E now requires
+  all four fields. Exact protected-main D1 rerun remains required before closure.
 
 ### 2026-07-11 — Follow-up closed; correction causality selected
 

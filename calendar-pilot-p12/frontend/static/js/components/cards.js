@@ -77,6 +77,15 @@ export function receiptCard(input) {
     kv('receipt', card.receipt_id || '—'),
     kv('grant', card.grant_id || '—'),
     kv('rollback', card.rollback_state || card.rollback_handle_id || '—'),
+    card.simulation_preview ? h('div', {class: 'inspector-card', 'data-testid': 'simulation-preview'},
+      actionField('simulated action', 'simulation-action', JSON.stringify(card.simulation_preview.action)),
+      actionField('provider result', 'simulation-provider-result', JSON.stringify(card.simulation_preview.provider_result)),
+      actionField('conflict result', 'simulation-conflict-result', JSON.stringify(card.simulation_preview.conflict_result)),
+      actionField('uncertainty', 'simulation-uncertainty', JSON.stringify(card.simulation_preview.uncertainty)),
+      card.simulation_preview.denial_or_hold_reason
+        ? actionField('denial or hold', 'simulation-denial-or-hold-reason', card.simulation_preview.denial_or_hold_reason)
+        : null)
+      : null,
     h('div', {class: 'card-actions'},
       card.rollback_handle_id && card.status === 'committed' ? h('button', {class: 'secondary undo-btn', 'data-testid': 'undo-action', dataset: {rollback: card.rollback_handle_id}}, 'Undo') : null,
       card.receipt_id ? h('button', {class: 'secondary feedback-useful', 'data-testid': 'feedback-useful', dataset: {receiptId: card.receipt_id}}, 'Useful') : null,
@@ -90,6 +99,29 @@ export function normalizeReceipt(receipt) {
   const env = output.action_envelope || swift.action_envelope || receipt.action_envelope || {};
   const provider = env.provider || output.provider_receipt || {};
   const rollbackState = provider.rollback_state || (output.rollback_verified === true ? 'verified' : undefined);
+  const candidate = output.candidate || {};
+  const candidateAction = (candidate.actions || [])[0];
+  const isSimulation = output.simulation_only === true || receipt.tool_name === 'simulate_action_program' || swift.stage_state === 'simulated';
+  const simulationPreview = isSimulation ? {
+    action: candidateAction || {},
+    provider_result: {
+      provider_id: swift.provider_id || provider.provider_id || null,
+      sync_status: output.would_sync_status || swift.sync_status || null,
+      actuation_mode: output.would_actuation_mode || swift.actuation_mode || null,
+      simulation_only: output.simulation_only === true,
+    },
+    conflict_result: {
+      passed: swift.conflict_check_passed === true,
+      rejected_action_types: swift.rejected_action_types || [],
+    },
+    uncertainty: {
+      predicted_regret: candidate.predicted_regret,
+      predicted_social_risk: candidate.predicted_social_risk,
+      predicted_interruption_cost: candidate.predicted_interruption_cost,
+      simulated_outcomes: candidate.simulated_outcomes || {},
+    },
+    denial_or_hold_reason: output.would_denied_reason || swift.denied_reason || null,
+  } : null;
   return {
     type: 'receipt',
     receipt_id: swift.receipt_id || receipt.swift_receipt_id || receipt.receipt_id || receipt.tool_call_id,
@@ -102,5 +134,6 @@ export function normalizeReceipt(receipt) {
     candidate_id: swift.candidate_id || receipt.candidate_id,
     envelope_id: env.envelope_id || receipt.envelope_id,
     trace_id: env.trace_id || receipt.correlation_id,
+    simulation_preview: simulationPreview,
   };
 }

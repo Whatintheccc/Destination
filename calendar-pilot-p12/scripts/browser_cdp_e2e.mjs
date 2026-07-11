@@ -57,6 +57,9 @@ async function main() {
   await fill(client, '#goal-input', 'Make next week less chaotic');
   await click(client, '#send-goal');
   await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length > 0');
+  await click(client, '[data-testid="simulate-candidate"]');
+  await waitFor(client, 'document.querySelector("[data-testid=\\"simulation-preview\\"]") !== null');
+  await waitFor(client, '["simulation-action", "simulation-provider-result", "simulation-conflict-result", "simulation-uncertainty"].every(id => document.querySelector(`[data-testid="${id}"]`)?.textContent.length > 2)');
   await click(client, '[data-testid="stage-candidate"]');
   await waitFor(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length > 0');
   await click(client, '[data-testid="commit-candidate"]');

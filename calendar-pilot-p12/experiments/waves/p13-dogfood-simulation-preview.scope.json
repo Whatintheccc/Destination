@@ -1,0 +1,37 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/experiments/waves/p13-dogfood-simulation-preview.scope.json",
+    "calendar-pilot-p12/frontend/static/js/components/cards.js",
+    "calendar-pilot-p12/scripts/browser_cdp_e2e.mjs",
+    "p13-dogfood.md"
+  ],
+  "declared": {
+    "actions": ["simulate_action_program"],
+    "backends": [],
+    "surfaces": ["browser", "frontend", "projection"],
+    "instruments": ["browser_e2e", "tests"],
+    "control_planes": []
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_signature",
+    "target.cited_required_projection",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
