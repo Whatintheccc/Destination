@@ -35,6 +35,18 @@ def get_json(url: str) -> dict[str, Any]:
         return json.loads(response.read().decode("utf-8"))
 
 
+def health_matches_launch(launch_state: dict[str, Any], health: dict[str, Any]) -> bool:
+    process = health.get("process", {})
+    return all((
+        bool(launch_state.get("base_url")),
+        health.get("build_id") == launch_state.get("build_id"),
+        health.get("runtime_mode") == launch_state.get("runtime_mode"),
+        bool(process.get("server_pid")) and process.get("server_pid") == launch_state.get("server_pid"),
+        bool(process.get("launch_id")) and process.get("launch_id") == launch_state.get("launch_id"),
+        process.get("port") == launch_state.get("port"),
+    ))
+
+
 def launch(app_bundle: Path, run_dir: Path) -> None:
     subprocess.run([
         "open", "-n",
@@ -54,7 +66,7 @@ def wait_for_launch(run_dir: Path, *, previous_launch_id: str | None = None, tim
                 time.sleep(0.1)
                 continue
             health = get_json(f"{launch_state['base_url']}/api/health")
-            if health.get("status") == "ok" and health.get("process", {}).get("launch_id") == launch_state.get("launch_id"):
+            if health_matches_launch(launch_state, health):
                 return launch_state, health
         except Exception as exc:
             last_error = exc
