@@ -116,7 +116,13 @@ calendar-pilot-p12/evals/dogfood/
   adapters/live_run.py
   admissibility.py
   capture/browser_capture.py
+  capture/normalize_d1.py
   run_dogfood_evals.py
+
+calendar-pilot-p12/scripts/
+  browser_dogfood_d1.mjs
+  prepare_p13_dogfood_run.py
+  run_p13_dogfood_d1.py
 
 calendar-pilot-p12/contracts/
   dogfood_run_manifest.schema.json
@@ -132,11 +138,19 @@ Implemented access points:
 
 ```bash
 make p13-dogfood-eval-test
+make p13-dogfood-prepare CELL=D1 RUNTIME_MODE=fixture
+make p13-dogfood-d1
 make p13-dogfood-evals DOGFOOD_RUN=<content-addressed-run-dir>
 ```
 
 `make p13-dogfood-eval-test` exercises the frozen scenario coverage, report derivation,
-and planted counterexamples. `make p13-dogfood-evals` requires `DOGFOOD_RUN` to name a
+and planted counterexamples. `make p13-dogfood-prepare` preregisters a fresh cell only
+from clean protected main and binds the exact app/bridge, scenario stimuli, instrument
+hashes, runtime topology, effect ceiling, architecture report, and minimal redacted
+operator truth before launch. `make p13-dogfood-d1` is the complete D1 access point: it
+preregisters, launches the packaged app, performs real browser clicks, captures every
+frozen scenario boundary, restarts the same run, normalizes only from retained raw
+records, and evaluates the report. `make p13-dogfood-evals` requires `DOGFOOD_RUN` to name a
 preregistered run directory, validates the bound manifest/operator truth/instrument
 hashes, rejects missing, empty, cross-run, or mismatched-build evidence, derives all
 three rails, and writes `dogfood_eval_report.json` plus `SHA256SUMS`.
@@ -528,21 +542,13 @@ The release report is prerequisite evidence, not a product verdict.
 
 ### 9.2 Run isolation
 
-Quit all CalendarPilot instances. Create one run directory per cell and scenario-set
-epoch. The eventual manifest builder must write and sign `run_manifest.json` before
-launch; until implemented, preserve the equivalent values manually.
+Quit all CalendarPilot instances. The access point creates one run directory per
+cell/build/epoch and writes `run_manifest.json` plus the minimal operator truth before
+launch. It refuses a dirty worktree, a non-main branch, `HEAD != origin/main`, a stale
+app build, or an existing run id.
 
 ```bash
-CELL="d1-fixture"
-MODE="fixture"
-RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$CELL-$(git rev-parse --short=12 HEAD)"
-RUN_DIR="$HOME/Library/Application Support/CalendarPilot/dogfood/$RUN_ID"
-mkdir -p "$RUN_DIR"
-
-open -n \
-  --env CALENDAR_PILOT_RUNTIME_MODE="$MODE" \
-  --env CALENDAR_PILOT_RUN_DIR="$RUN_DIR" \
-  "$HOME/Desktop/CalendarPilot.app"
+make p13-dogfood-d1
 ```
 
 Never reuse a session across cells or builds. Never attach to an ambient
@@ -754,6 +760,26 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — D1 became one executable evidence transaction
+
+- Repaired exported ProductCore replay lineage: embedded Journal parents retain their
+  reducer identity while the outer replay envelope uses the exported replay namespace.
+  The binding I3 checker now passes on a real generated session.
+- Replaced the roadmap's manual-equivalence setup with strict protected-main
+  preregistration. Fixture truth is scenario-minimal and excludes attendee addresses,
+  notes, and unrelated personal data.
+- Added one D1 browser path using the existing Chrome/CDP machinery. It sends frozen
+  stimuli and exercises correction, simulation, feedback, and restart only through
+  visible controls; each boundary retains DOM, `/api/view`, health, replay, and a
+  screenshot.
+- Added deterministic normalization from hashed retained records, independent semantic
+  DOM comparison, original-replay retention, and the complete required artifact
+  inventory. This is measurement infrastructure only; it does not repair or reinterpret
+  product failures.
+- The next step is the first exact protected-main execution of `make p13-dogfood-d1`.
+  Its first binding failure, not the historical hand-normalized report, selects the next
+  product wave.
 
 ### 2026-07-11 — Binding D0 passed; D1 opened
 
