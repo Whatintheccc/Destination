@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from evals.dogfood.capture.normalize_d1 import effect_counts, internal_action, visible_action
+from scripts.run_p13_dogfood_d1 import health_matches_launch
 
 
 class DogfoodD1CaptureTests(unittest.TestCase):
@@ -60,6 +61,12 @@ class DogfoodD1CaptureTests(unittest.TestCase):
             "claims": 0,
             "outbox_dispatches": 0,
         })
+
+    def test_packaged_health_readiness_is_identity_based_not_status_label_based(self) -> None:
+        launch = {"base_url": "http://127.0.0.1:8787", "build_id": "abc", "runtime_mode": "fixture", "server_pid": 12, "launch_id": "launch-1", "port": 8787}
+        health = {"build_id": "abc", "runtime_mode": "fixture", "process": {"server_pid": 12, "launch_id": "launch-1", "port": 8787}}
+        self.assertTrue(health_matches_launch(launch, health))
+        self.assertFalse(health_matches_launch(launch, {**health, "build_id": "wrong"}))
 
 
 if __name__ == "__main__":
