@@ -307,7 +307,6 @@ class DogfoodSessionState:
         ).grant_id
 
     def create_plan(self, goal: str, *, commit: bool = False, authority_tier: int | None = None) -> dict[str, Any]:
-        self._finalize_learning_outcomes(now=_now(), superseded=True)
         goal = (goal or "Make next week less chaotic").strip()
         self.authority_tier = int(authority_tier if authority_tier is not None else self.authority_tier)
         self.transcript_events.append({"kind": "user", "body": goal, "created_at": _now().isoformat()})
@@ -317,6 +316,7 @@ class DogfoodSessionState:
         self._emit_trace(routed.turn_id, "router", "route_classified", payload=routed.replay_payload())
         if self.latest_plan is not None and conversation_message_requests_existing_plan_followup(normalize_conversation_message(goal)):
             return self._create_existing_plan_followup(goal, intent, routed.turn_id)
+        self._finalize_learning_outcomes(now=_now(), superseded=True)
         if conversation_message_requests_calendar_observation(normalize_conversation_message(goal)):
             return self._create_observation_response(goal, intent, routed.turn_id)
         if intent not in {"calendar_goal", "mixed_calendar_operational"}:
