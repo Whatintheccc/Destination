@@ -128,7 +128,7 @@ class FrontendProjector:
                     continue
                 replacement = cited_by_id.get(str(card.get("candidate_id", "")))
                 if replacement is not None:
-                    cards[index] = replacement
+                    cards[index] = {**card, **replacement}
 
         substitute(view.get("frontier", {}).get("candidates"))
         conversation = view.get("conversation", {})
