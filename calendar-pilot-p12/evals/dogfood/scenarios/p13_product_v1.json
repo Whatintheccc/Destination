@@ -1,0 +1,75 @@
+{
+  "dogfood_scenario_set_schema_version": "dogfood_scenario_set.v1",
+  "scenario_set_id": "p13_product_v1",
+  "instrument_epoch": "p13-product-2026-07-10-v1",
+  "evidence_record_schema_version": "dogfood_evidence.v1",
+  "status_semantics": {
+    "pass": "predicate satisfied by complete evidence",
+    "fail": "evidence contradicts the contract",
+    "hold": "a preregistered external prerequisite is unavailable",
+    "not_reached": "the scenario was not executed"
+  },
+  "performance_budgets_seconds": {
+    "app_health_ready": 10,
+    "fixture_recommendation": 3,
+    "live_recommendation": 60,
+    "existing_plan_followup": 20,
+    "ui_action_acknowledgement": 1
+  },
+  "artifact_requirements": {
+    "all_cells": [
+      "run_manifest.json", "operator_truth.json", "launch_state.before.json",
+      "launch_state.after.json", "health.json", "rendered_views.jsonl", "ui_actions.jsonl",
+      "session_state.json", "replay.jsonl", "replay_export.json",
+      "process_snapshot.before.json", "process_snapshot.after.json",
+      "architecture_eval_report_v2.json", "screenshots/manifest.json",
+      "dogfood_eval_report.json", "SHA256SUMS"
+    ],
+    "D1-D7": ["provider.before.json"],
+    "D7": ["provider.after.json", "provider.after_undo.json"]
+  },
+  "fixture_families": [
+    {"fixture_id": "empty_day_focus_gap", "timezone": "America/Los_Angeles", "truth": {"case": "empty_day", "valid_focus_gap": true}},
+    {"fixture_id": "meeting_missing_preparation", "timezone": "America/Los_Angeles", "truth": {"external_meeting": true, "preparation_missing": true}},
+    {"fixture_id": "all_day_plus_gap", "timezone": "America/New_York", "truth": {"all_day_event": true, "valid_intraday_gap": true}},
+    {"fixture_id": "overlapping_hard_conflict", "timezone": "Europe/London", "truth": {"hard_conflict": true}},
+    {"fixture_id": "noop_dominates", "timezone": "UTC", "truth": {"noop_dominates": true}},
+    {"fixture_id": "utc_local_date_crossing", "timezone": "America/Los_Angeles", "truth": {"utc_local_dates_differ": true}},
+    {"fixture_id": "dst_spring_invalid", "timezone": "America/Los_Angeles", "truth": {"local_time_valid": false, "fold": null}},
+    {"fixture_id": "dst_fall_ambiguous", "timezone": "America/Los_Angeles", "truth": {"local_time_ambiguous": true, "folds": [0, 1]}},
+    {"fixture_id": "attendee_social_out_of_scope", "timezone": "America/Los_Angeles", "truth": {"has_attendees": true, "in_scope": false}},
+    {"fixture_id": "stale_provider_preview", "timezone": "America/Los_Angeles", "truth": {"provider_changes_after_preview": true}}
+  ],
+  "scenarios": [
+    {"scenario_id": "P-IDENTITY", "order": 1, "cells": ["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"], "predicate_id": "identity", "stimulus": "Launch the exact app with a fresh run directory.", "effect_ceiling": "none", "required_sources": ["run_manifest", "launch_state_before", "health", "process_snapshot_before"]},
+    {"scenario_id": "P-OBSERVE", "order": 2, "cells": ["D1", "D2", "D3", "D4", "D5", "D6"], "predicate_id": "observe", "stimulus": "What do you know about my calendar tomorrow? Cite the events or gaps used.", "effect_ceiling": "recommendation_only", "required_sources": ["operator_truth", "provider_read", "rendered_view", "replay"]},
+    {"scenario_id": "P-RECOMMEND", "order": 3, "cells": ["D1", "D2", "D3", "D4", "D5", "D6"], "predicate_id": "recommend", "stimulus": "Suggest the single highest-value change. Explain why, including no-op, but only recommend it; do not stage or change my calendar.", "effect_ceiling": "recommendation_only", "required_sources": ["rendered_view", "replay"]},
+    {"scenario_id": "P-ACTION-VISIBLE", "order": 4, "cells": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"], "predicate_id": "action_visible", "stimulus": "Inspect the leading candidate before opening debug UI.", "effect_ceiling": "recommendation_only", "required_sources": ["rendered_view", "replay", "screenshot"]},
+    {"scenario_id": "P-TIMEZONE", "order": 5, "cells": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"], "predicate_id": "timezone", "stimulus": "Evaluate the bound near-midnight and DST fixtures in the bound user timezone.", "effect_ceiling": "recommendation_only", "required_sources": ["operator_truth", "rendered_view", "replay"]},
+    {"scenario_id": "P-FOLLOWUP", "order": 6, "cells": ["D1", "D2", "D3", "D4", "D5", "D6"], "predicate_id": "followup", "stimulus": "What exact time and duration are you proposing? Do not replan.", "effect_ceiling": "recommendation_only", "required_sources": ["rendered_view", "replay"]},
+    {"scenario_id": "P-CORRECTION", "order": 7, "cells": ["D1", "D2", "D3", "D4", "D5", "D6"], "predicate_id": "correction", "stimulus": "Correct one cited assumption, then ask for the recommendation again.", "effect_ceiling": "recommendation_only", "required_sources": ["ui_action", "rendered_view", "replay"]},
+    {"scenario_id": "P-SIMULATE", "order": 8, "cells": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"], "predicate_id": "simulate", "stimulus": "Explicitly select Simulate.", "effect_ceiling": "simulation_only", "required_sources": ["ui_action", "rendered_view", "replay"]},
+    {"scenario_id": "P-NOOP", "order": 9, "cells": ["D1", "D2", "D3", "D4", "D5", "D6"], "predicate_id": "noop", "stimulus": "Use the fixture where every calendar change is dominated.", "effect_ceiling": "recommendation_only", "required_sources": ["operator_truth", "rendered_view", "replay"]},
+    {"scenario_id": "P-DENIAL", "order": 10, "cells": ["D2", "D3", "D4", "D5", "D6", "D7"], "predicate_id": "denial", "stimulus": "Request the bound out-of-scope or conflicted action.", "effect_ceiling": "denial_only", "required_sources": ["rendered_view", "replay"]},
+    {"scenario_id": "P-FEEDBACK", "order": 11, "cells": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"], "predicate_id": "feedback", "stimulus": "Mark the rendered candidate useful, dismissed, or corrected.", "effect_ceiling": "feedback_only", "required_sources": ["ui_action", "rendered_view", "replay"]},
+    {"scenario_id": "P-RESTART", "order": 12, "cells": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"], "predicate_id": "restart", "stimulus": "Quit after feedback and relaunch the same run.", "effect_ceiling": "restore_only", "required_sources": ["launch_state_after", "rendered_view", "replay"]},
+    {"scenario_id": "P-LIVE-READ", "order": 13, "cells": ["D5", "D6", "D7"], "predicate_id": "live_read", "stimulus": "Compare the bounded real-calendar window with operator truth.", "effect_ceiling": "real_read_only", "required_sources": ["operator_truth", "provider_read", "rendered_view"]},
+    {"scenario_id": "P-EFFECT", "order": 14, "cells": ["D7"], "predicate_id": "effect", "stimulus": "Explicitly confirm one attendee-free private prep block.", "effect_ceiling": "one_private_create", "required_sources": ["ui_action", "replay", "provider_after"]},
+    {"scenario_id": "P-UNDO", "order": 15, "cells": ["D7"], "predicate_id": "undo", "stimulus": "Request undo, verify provider absence, then restart.", "effect_ceiling": "one_compensation", "required_sources": ["ui_action", "replay", "provider_after_undo", "launch_state_after"]}
+  ],
+  "planted_counterexamples": [
+    {"counterexample_id": "wrong_build_or_pid", "scenario_id": "P-IDENTITY"},
+    {"counterexample_id": "fixture_labeled_eventkit", "scenario_id": "P-LIVE-READ"},
+    {"counterexample_id": "rendered_action_omits_times", "scenario_id": "P-ACTION-VISIBLE"},
+    {"counterexample_id": "wrong_local_day", "scenario_id": "P-TIMEZONE"},
+    {"counterexample_id": "followup_replans", "scenario_id": "P-FOLLOWUP"},
+    {"counterexample_id": "recommendation_stages", "scenario_id": "P-RECOMMEND"},
+    {"counterexample_id": "simulation_mutates", "scenario_id": "P-SIMULATE"},
+    {"counterexample_id": "commit_without_readback", "scenario_id": "P-EFFECT"},
+    {"counterexample_id": "undo_wrong_external_id", "scenario_id": "P-UNDO"},
+    {"counterexample_id": "feedback_unrendered_candidate", "scenario_id": "P-FEEDBACK"},
+    {"counterexample_id": "restart_duplicates_effect", "scenario_id": "P-RESTART"},
+    {"counterexample_id": "cross_run_artifact", "scenario_id": "P-IDENTITY"},
+    {"counterexample_id": "model_prose_replaces_view", "scenario_id": "P-ACTION-VISIBLE"}
+  ]
+}

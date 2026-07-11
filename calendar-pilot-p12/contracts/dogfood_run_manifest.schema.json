@@ -1,0 +1,49 @@
+{
+  "$id": "https://calendar-pilot.local/contracts/dogfood_run_manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DogfoodRunManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dogfood_run_manifest_schema_version", "run_id", "created_at", "cell", "run_dir", "repository", "build", "runtime", "scenario_set", "predicate_artifacts", "scenario_ids", "stimuli", "effect_ceiling", "required_artifacts", "timeouts_seconds", "operator_checkpoints"],
+  "properties": {
+    "dogfood_run_manifest_schema_version": {"const": "dogfood_run_manifest.v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "cell": {"enum": ["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"]},
+    "run_dir": {"type": "string", "minLength": 1},
+    "repository": {
+      "type": "object", "additionalProperties": false,
+      "required": ["git_sha", "app_tree_sha", "clean"],
+      "properties": {"git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "app_tree_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "clean": {"const": true}}
+    },
+    "build": {
+      "type": "object", "additionalProperties": false,
+      "required": ["build_id", "app_bundle_path", "app_sha256", "bridge_sha256"],
+      "properties": {"build_id": {"type": "string", "minLength": 7}, "app_bundle_path": {"type": "string", "minLength": 1}, "app_sha256": {"$ref": "#/$defs/sha256"}, "bridge_sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requested_mode", "expected_backends", "credential_classes"],
+      "properties": {"requested_mode": {"type": "string", "minLength": 1}, "expected_backends": {"type": "object", "additionalProperties": {"type": "string"}}, "credential_classes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}
+    },
+    "scenario_set": {"$ref": "#/$defs/artifact"},
+    "predicate_artifacts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/artifact"}},
+    "scenario_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "stimuli": {
+      "type": "array", "minItems": 1,
+      "items": {"type": "object", "additionalProperties": false, "required": ["scenario_id", "utf8_sha256"], "properties": {"scenario_id": {"type": "string"}, "utf8_sha256": {"$ref": "#/$defs/sha256"}}}
+    },
+    "effect_ceiling": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider_mutations", "effect_attempts", "stage_actions", "claims", "outbox_dispatches"],
+      "properties": {"provider_mutations": {"type": "integer", "minimum": 0}, "effect_attempts": {"type": "integer", "minimum": 0}, "stage_actions": {"type": "integer", "minimum": 0}, "claims": {"type": "integer", "minimum": 0}, "outbox_dispatches": {"type": "integer", "minimum": 0}}
+    },
+    "required_artifacts": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "timeouts_seconds": {"type": "object", "additionalProperties": {"type": "number", "exclusiveMinimum": 0}},
+    "operator_checkpoints": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}}
+  }
+}
