@@ -266,12 +266,17 @@ class SessionSnapshotBuilder:
         if self.session.latest_plan is None:
             return messages
         if snapshot.get("action_queue"):
+            stable_created_at = next((
+                event.get("created_at")
+                for event in reversed(self.session.transcript_events)
+                if event.get("created_at")
+            ), None)
             messages.append({
                 "id": "msg_latest_actions",
                 "role": "assistant",
                 "title": "Acting controls",
                 "body": "The latest Swift receipts are available for undo and feedback.",
                 "cards": [{"type": "action_queue", "actions": snapshot.get("action_queue", [])}],
-                "created_at": _now().isoformat(),
+                "created_at": stable_created_at,
             })
         return messages
