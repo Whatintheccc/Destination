@@ -20,6 +20,7 @@ const manifest = JSON.parse(await readFile(path.join(runDir, 'run_manifest.json'
 if (!['D1', 'D2'].includes(manifest.cell)) throw new Error(`D1/D2 browser driver cannot execute cell ${manifest.cell}`);
 const scenarioSet = JSON.parse(await readFile(path.join(root, manifest.scenario_set.path), 'utf8'));
 const stimuli = Object.fromEntries(scenarioSet.scenarios.map(row => [row.scenario_id, row.stimulus]));
+const expectedRuntimeLabel = manifest.cell === 'D2' ? 'Swift IPC mode' : 'Fixture mode';
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const captureDir = path.join(runDir, 'ruler_capture');
 const screenshotDir = path.join(runDir, 'screenshots');
@@ -46,7 +47,7 @@ async function main() {
     await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 900, deviceScaleFactor: 1, mobile: false });
     await client.send('Page.navigate', { url: baseUrl });
     await waitFor(client, 'document.querySelector("[data-testid=\\"chat-transcript\\"]") !== null');
-    await waitFor(client, 'document.querySelector("[data-testid=\\"runtime-chip\\"]")?.textContent.includes("Fixture mode")');
+    await waitFor(client, `document.querySelector("[data-testid=\\"runtime-chip\\"]")?.textContent.includes(${JSON.stringify(expectedRuntimeLabel)})`);
 
     if (mode === 'after-restart') {
       await record(client, 'P-RESTART', 'after_restart');
