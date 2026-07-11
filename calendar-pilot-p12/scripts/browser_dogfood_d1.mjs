@@ -29,7 +29,11 @@ const expectedRuntimeLabel = {
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const captureDir = path.join(runDir, 'ruler_capture');
 const screenshotDir = path.join(runDir, 'screenshots');
-const waitTimeoutMs = Number(process.env.CALENDAR_PILOT_BROWSER_WAIT_MS || 15000);
+const configuredWaitMs = Number(process.env.CALENDAR_PILOT_BROWSER_WAIT_MS || 0);
+const preregisteredWaitSeconds = ['D3', 'D4'].includes(manifest.cell)
+  ? Number(scenarioSet.performance_budgets_seconds?.live_recommendation || 60)
+  : Math.max(15, Number(scenarioSet.performance_budgets_seconds?.existing_plan_followup || 20));
+const waitTimeoutMs = configuredWaitMs > 0 ? configuredWaitMs : preregisteredWaitSeconds * 1000;
 await mkdir(captureDir, { recursive: true });
 await mkdir(screenshotDir, { recursive: true });
 
