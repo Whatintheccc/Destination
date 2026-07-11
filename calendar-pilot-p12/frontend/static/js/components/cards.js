@@ -1,5 +1,22 @@
 import {h, kv} from '../h.js';
 
+export function observationCard(card) {
+  const facts = (card.facts || []).map(fact => h('div', {
+    class: 'inspector-card observation-fact',
+    'data-fact-id': fact.fact_id || '',
+  },
+    h('div', {class: 'card-header'},
+      h('div', {}, h('h4', {}, fact.title || fact.fact_id || 'Calendar fact'), h('p', {}, `${fact.start || '—'} → ${fact.end || '—'}`)),
+      h('span', {class: 'badge', 'data-citation-id': fact.citation_id || fact.fact_id || ''}, `Cited ${fact.citation_id || fact.fact_id || '—'}`)),
+    kv('calendar', fact.calendar_id),
+    kv('category', fact.category)));
+  return h('div', {class: 'card observation-card', 'data-testid': 'observation-card'},
+    h('div', {class: 'card-header'},
+      h('div', {}, h('h4', {}, 'Calendar observation'), h('p', {}, `Bound timezone: ${card.timezone || '—'}`)),
+      h('span', {class: 'badge'}, `${facts.length} cited facts`)),
+    ...facts);
+}
+
 export function candidateCard(card) {
   const candidateId = card.candidate_id || '';
   const story = (card.model_story || []).slice(0, 3).map(line => h('li', {}, line));

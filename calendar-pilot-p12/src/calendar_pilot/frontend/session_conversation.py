@@ -34,6 +34,31 @@ def conversation_message_requests_undo(normalized: str) -> bool:
     ])
 
 
+def conversation_message_requests_calendar_observation(normalized: str) -> bool:
+    if "calendar" not in normalized:
+        return False
+    requests_read = any(term in normalized for term in (
+        "what do you know",
+        "what is on",
+        "what's on",
+        "show me",
+        "list the events",
+        "cite the events",
+        "events or gaps",
+    ))
+    requests_change = any(term in normalized for term in (
+        "suggest",
+        "recommend",
+        "change my calendar",
+        "stage",
+        "schedule",
+        "create",
+        "move",
+        "reschedule",
+    ))
+    return requests_read and not requests_change
+
+
 def conversation_message_requests_profile_apply(normalized: str) -> bool:
     return "profile" in normalized and any(term in normalized for term in [
         "apply patch",

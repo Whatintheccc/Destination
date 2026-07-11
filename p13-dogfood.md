@@ -724,7 +724,7 @@ scenario failures into independent tickets. Execute this order:
 [x] Freeze evidence admissibility and its planted integrity counterexamples.
 [x] Close cell-aware D0 evidence applicability and exact app-owned identity.
 [x] Pass binding D0 on exact protected main with complete three-rail evidence.
-[ ] Run the complete binding D1 suite unchanged. The diagnostic result informs
+[x] Run the complete binding D1 suite unchanged. The diagnostic result informs
    hypotheses but does not predetermine the binding verdict.
 [ ] Close one causal semantic root per vertical wave, rerunning all of D1 after each:
 
@@ -760,6 +760,30 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — First binding D1 baseline selected P-OBSERVE
+
+- Exact protected-main build `b4d5f6acc490` passed the release gate on the clean rerun.
+  A preceding mac-app browser-sanity timeout was retained as flake evidence; the final
+  structured release report is `ok: true`.
+- Signed architecture manifest `p13-dogfood-d1-health-ready:b4d5f6acc490:20260711T125504Z`
+  produced preservation 11/11 pass and all manifest-required target passes.
+- Binding run `20260711T125518Z-d1-fixture-b4d5f6acc490` is admissible and complete:
+  independent DOM capture pass, raw/normalized equality pass for 24 rows, replay I3
+  pass across 128 records and 12 embedded Journal events, artifact completeness `1.0`.
+- Product result: 2 pass (`P-IDENTITY`, `P-FEEDBACK`), 9 fail, 0 hold, 0 not reached.
+  The distance vector reports projection divergence 17, continuity violations 10,
+  provider-truth divergence 3, and effect-ceiling divergence 2. No provider mutation
+  occurred.
+- `P-OBSERVE` is the first causal blocker: provider facts and operator truth agree on
+  all three fixture events, but visible facts/citations are empty and the read-only
+  question produced one automatic stage. The run proves this is one routing/topology
+  defect: observation went through frontier → simulation → stage.
+- Implemented the candidate repair as one cited observation path: active provider facts
+  become visible citation-bearing cards and the read-only path has no reachability to
+  frontier, grant, simulation, or stage. Focused tests, the full 357-test Python suite,
+  and browser E2E pass. Exact protected-main D1 rerun remains required before checking
+  off the `P-OBSERVE` wave.
 
 ### 2026-07-11 — D1 became one executable evidence transaction
 

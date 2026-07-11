@@ -232,6 +232,8 @@ class SessionSnapshotBuilder:
             }
             if event.get("kind") == "assistant_plan":
                 message["cards"] = snapshot.get("chat", {}).get("candidate_cards", [])[:3]
+            elif event.get("kind") == "assistant_observation":
+                message["cards"] = [dict(card) for card in event.get("cards", []) if isinstance(card, dict)]
             if event.get("kind") == "assistant_receipt" and event.get("receipt"):
                 message["cards"] = [{"type": "receipt", "receipt": event["receipt"]}]
             if event.get("kind", "").startswith("assistant") and event.get("conversation_receipts"):
