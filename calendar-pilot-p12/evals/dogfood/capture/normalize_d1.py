@@ -155,7 +155,7 @@ def fact_ids_from_provider(raw: dict[str, Any]) -> list[str]:
 
 
 def ids_from_dom(dom: str, attribute: str) -> list[str]:
-    return sorted(set(re.findall(rf'{re.escape(attribute)}=["\']([^"\']+)["\']', dom)))
+    return list(dict.fromkeys(re.findall(rf'{re.escape(attribute)}=["\']([^"\']+)["\']', dom)))
 
 
 def latest_payload(rows: list[dict[str, Any]], record_type: str) -> dict[str, Any]:

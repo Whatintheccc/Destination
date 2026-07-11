@@ -729,7 +729,7 @@ scenario failures into independent tickets. Execute this order:
 [ ] Close one causal semantic root per vertical wave, rerunning all of D1 after each:
 
    ```text
-   P-OBSERVE
+   P-OBSERVE [closed on binding run 20260711T130433Z]
      cited read command; no frontier, plan, simulation, grant, or stage
    P-RECOMMEND
      requested recommendation ceiling makes staging structurally unreachable
@@ -760,6 +760,23 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — P-OBSERVE closed; P-RECOMMEND selected
+
+- Exact protected-main observation build `bfa9948d5002` passed release and signed
+  architecture manifest `p13-dogfood-observation:bfa9948d5002:20260711T130414Z`.
+- Binding run `20260711T130433Z-d1-fixture-bfa9948d5002` remained admissible and
+  complete. `P-OBSERVE` flipped to pass, provider-truth divergence fell from 3 to 0,
+  effect-ceiling divergence fell from 2 to 1, and no prior pass regressed.
+- `P-RECOMMEND` is the new first blocker. The real product still automatically staged
+  once and did not visibly mark goal fit/no-op comparison. Separately, the normalizer
+  alphabetically sorted candidate ids and therefore misidentified the visibly leading
+  candidate; this was measurement error, not product quality.
+- Candidate repair removes automatic simulation/stage from deterministic
+  recommendation planning, makes simulation an explicit later control, exposes the
+  retained counterfactual as the visible no-change comparison, and preserves DOM order
+  when identifying the leading card. Exact protected-main D1 rerun remains required
+  before closing `P-RECOMMEND`.
 
 ### 2026-07-11 — First binding D1 baseline selected P-OBSERVE
 

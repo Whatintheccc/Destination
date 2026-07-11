@@ -50,8 +50,9 @@ class CodexToolPlanner:
 
     The planner is the conceptual repair for Codex: it turns a goal into app
     operations. DiffusionGemma still learns/proposes, and Swift still validates,
-    but Codex now owns the deliberate sequence: inspect, generate, compare,
-    simulate, stage, and request commit only when the authority model permits.
+    but Codex now owns the deliberate sequence. Recommendation requests stop
+    after inspect/generate/compare; simulation and actuation require an explicit
+    later control or an explicit commit request.
     """
 
     def __init__(self, runtime: CodexToolRuntime | None = None) -> None:
@@ -84,17 +85,18 @@ class CodexToolPlanner:
         compare_receipt = self._run(plan, compare, observation, biography)
         winner = (compare_receipt.output.get("winner") or {}).get("candidate_id")
         if winner:
-            simulate = self._call(CodexToolName.SIMULATE_ACTION_PROGRAM, {"candidate_id": winner}, authority_tier, "Simulate the winning action without committing provider state.", grant_id=grant.grant_id, correlation_id=winner)
-            sim_receipt = self._run(plan, simulate, observation, biography)
-            needs_confirm = bool(sim_receipt.output.get("would_require_confirmation"))
-            if commit and not needs_confirm:
+            if commit:
+                simulate = self._call(CodexToolName.SIMULATE_ACTION_PROGRAM, {"candidate_id": winner}, authority_tier, "Simulate the winning action before the explicit commit request.", grant_id=grant.grant_id, correlation_id=winner)
+                sim_receipt = self._run(plan, simulate, observation, biography)
+                needs_confirm = bool(sim_receipt.output.get("would_require_confirmation"))
+                if needs_confirm:
+                    plan.recommended_next_action = "commit_requires_confirmation"
+                    return plan
                 commit_call = self._call(CodexToolName.REQUEST_COMMIT, {"candidate_id": winner}, authority_tier, "Request Swift to commit the selected packet.", grant_id=grant.grant_id, correlation_id=winner)
                 commit_receipt = self._run(plan, commit_call, observation, biography)
                 plan.recommended_next_action = "committed" if not commit_receipt.denied_reason else "commit_denied_stage_instead"
             else:
-                stage_call = self._call(CodexToolName.STAGE_ACTION_PACKET, {"candidate_id": winner}, authority_tier, "Stage the packet so the user or authority policy can confirm.", grant_id=grant.grant_id, correlation_id=winner)
-                self._run(plan, stage_call, observation, biography)
-                plan.recommended_next_action = "stage_for_confirmation" if needs_confirm else "staged_draft"
+                plan.recommended_next_action = "recommendation_ready"
         else:
             plan.recommended_next_action = "no_candidate_available"
         return plan
