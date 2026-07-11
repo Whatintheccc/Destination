@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **The V2 D0 run proved app-bundle ownership and exposed a ruler applicability error: an identity-only cell was required to emit D1-style interaction evidence. A ruler-only V3 candidate now makes replay and interaction artifacts optional only for D0 while preserving full D1-D7 admissibility. Focused, full-Python, architecture-ruler, and 18-leg dogfood-release gates pass. Binding D0 must now be rerun from the exact protected-main V3 commit before D1 opens.**
+Current verdict: **The V2 D0 run proved app-bundle ownership and exposed a ruler applicability error; the exact-main V3 architecture run then exposed a status-integration error. V4 now makes D0 evidence cell-aware and treats only manifest-required target non-pass as blocking while retaining all nonbinding target debt in the distance/counts. Binding D0 must be rerun from the exact protected-main V4 commit before D1 opens.**
 
 ---
 
@@ -98,6 +98,7 @@ dogfood_scenario_set.v1
 dogfood_eval_report.v1   (retained; V1 reports remain immutable)
 dogfood_eval_report.v2   (retained; adds the §2.2 admissibility prerequisite)
 dogfood_eval_report.v3   (cell-aware D0/D1-D7 admissibility)
+dogfood_eval_report.v4   (binding-target status integration)
 dogfood_admissibility.v1 (retained V2 prerequisite semantics)
 dogfood_admissibility.v2 (D0 replay optional; D1-D7 replay required)
 dogfood_ruler_capture.v1 (ruler-owned semantic DOM capture)
@@ -121,6 +122,7 @@ calendar-pilot-p12/contracts/
   dogfood_eval_report.schema.json
   dogfood_eval_report_v2.schema.json
   dogfood_eval_report_v3.schema.json
+  dogfood_eval_report_v4.schema.json
   dogfood_operator_truth.schema.json
 ```
 
@@ -203,6 +205,13 @@ D7      additionally provider-after and provider-after-undo
 
 This is scenario set `p13_product_v2`, `dogfood_admissibility.v2`, and
 `dogfood_eval_report.v3`. A missing or empty replay remains a hard fail in D1-D7.
+
+The exact-main V3 architecture run also confirmed the architecture evaluator's intended
+status law: its overall decision is `pass` when every manifest-required target passes,
+even though nonbinding target debt remains `not_reached`. The dogfood runner had copied
+the observational target-rail decision into its binding decision. Report V4 now derives
+target binding status only from `blocking_scenario_ids`; it preserves the full 48-scenario
+counts and unmet debt without allowing nonbinding debt to block D0-D7.
 
 ### 2.3 Instrument separation
 
@@ -743,6 +752,22 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Binding architecture-target status integration corrected
+
+- A fresh signed architecture V2 run on protected main passed overall and preservation
+  11/11; all manifest-required targets passed while seven nonbinding targets remained
+  `not_reached` and explicit.
+- Found that the dogfood adapter copied the architecture target rail's observational
+  `not_reached` decision into the binding dogfood verdict, contradicting the documented
+  rule that only manifest-required target non-pass blocks.
+- Added `dogfood_eval_report.v4`. Target status counts and unmet debt remain complete;
+  the dogfood target binding decision is derived only from required blocking scenario
+  ids and their statuses.
+- Added a report-level counterexample proving a required target can pass, a nonbinding
+  target can remain `not_reached`, and the dogfood report remains binding-eligible.
+- Focused dogfood instrument tests remain green (38/38). A new protected-main exact
+  commit and fresh D0 are required; no old D0 or architecture artifact is relabeled.
 
 ### 2026-07-11 — Cell-aware D0 admissibility epoch implemented
 
