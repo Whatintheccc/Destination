@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **the product-eval instrument candidate exists and rejects its planted lies; the user-value loop is not MVP-ready and has no binding baseline report yet**
+Current verdict: **V1 produced a valuable diagnostic D1 failure, not a binding baseline. The user-value loop is not MVP-ready: exact app ownership was not proven, retained causal evidence contains unresolved parents, and the deterministic product controller collapses distinct user commands into one plan/simulate/stage macro.**
 
 ---
 
@@ -130,7 +130,40 @@ three rails, and writes `dogfood_eval_report.json` plus `SHA256SUMS`.
 Manual runs without those contracts may still discover defects but cannot claim a
 product-conformance score.
 
-### 2.2 Instrument separation
+### 2.2 Evidence admissibility before the three rails
+
+The first complete V1 UI run exposed a ruler omission: normalized scenario evidence and
+an architecture scenario report can coexist with unresolved causal references in the
+actual retained replay. A future run must not earn a binding three-rail verdict from an
+internally consistent summary of an inadmissible raw record.
+
+V1 and its reports remain immutable. The next ruler-only instrument epoch must add one
+versioned prerequisite, not a fourth outcome rail and not a new product scenario:
+
+```text
+E-REPLAY-INTEGRITY
+  every replay parent resolves inside the same retained run
+  every embedded Journal parent resolves inside its journal scope
+  each normalized row cites artifact hash, raw record identity, and scenario boundary
+  the evaluator re-derives protected fields from those raw sources
+  a ruler-owned browser driver binds the stimulus/nonce and captures semantic DOM state
+  product-reported visible state agrees with that independent capture
+```
+
+An internally produced integrity contradiction is `fail`, never `hold`. An externally
+unavailable preregistered capture prerequisite may be `hold`. Either non-pass makes
+`binding_eligible=false`; the evaluator may retain diagnostic scenario results and the
+distance vector, but none contributes to a binding pass claim.
+
+The V2 schema must derive this object from per-check evidence and bind the replay checker,
+required invariant ids, and browser capture implementation by hash. Three new planted
+attacks are sufficient: an unresolved raw parent, a normalized payload that disagrees
+with its cited raw row, and product-reported rendering that disagrees with independent
+DOM capture. Existing V1 build/PID, cross-run, and screenshot/model-prose attacks remain
+binding rather than being duplicated. The 15 V1 product scenarios and their order do
+not change.
+
+### 2.3 Instrument separation
 
 Do not change dogfood scenarios, predicates, thresholds, and product behavior in the
 same candidate. Sequence the work:
@@ -619,30 +652,72 @@ floors are later eligibility to evaluate learning; they do not substitute for th
 
 ## 12. Next Work
 
-The instrument-only implementation is complete in the current candidate. The next
-sequence is:
+V1 and the retained D1 run have done their job: they localized the next work. Do not
+turn the nine scenario failures into nine independent tickets. Execute this order:
 
-1. Land this candidate on clean protected main without changing product behavior.
-2. Build and release that exact commit, preregister a fresh D0 run, and prove complete
-   three-rail report generation from retained artifacts.
-3. Capture a fresh D1 baseline with the same frozen instrument. Do not reuse the mutable
-   ground-zero session directory.
-4. Stop at the first causal blocker and retain the report. The historical evidence
-   predicts `P-ACTION-VISIBLE`, followed by recommendation effect-ceiling and follow-up
-   continuity failures.
-5. Only then repair visible action projection, timezone handling, recommendation effect
-   ceiling, follow-up continuity, and simulation output.
-6. Rerun the identical instrument from D1 upward; stop at the first blocking scenario.
+1. Land the current candidate through protected main. It contains instrument commit
+   `1e0e4c4`, diagnostic record `38842e9`, and this architecture review; do not change
+   product behavior or rewrite the retained run while landing it.
+2. Freeze a ruler-only V2 epoch. Add the §2.2 evidence-admissibility prerequisite,
+   source-to-normalized evidence references, independent visible capture, and planted
+   integrity counterexamples. Reuse the unchanged V1 product scenario set.
+3. Run one measurement-only wave: preregister the run, establish exact app-bundle,
+   build, PID, port, and launch ownership; preserve canonical Journal identity across
+   replay/export; emit the complete required artifact set. Do not change routing,
+   policy, projection, or effects in this wave.
+4. Run binding D0 and stop on any identity, capture, or admissibility non-pass.
+5. Run the complete binding D1 suite unchanged. The current diagnostic result informs
+   hypotheses but does not predetermine the binding verdict.
+6. Close one causal semantic root per vertical wave, rerunning all of D1 after each:
 
-Do not start with EventKit writes or learning promotion. The first blocking product
-scenario is visible action truth, followed by recommendation effect-ceiling and
-conversation continuity.
+   ```text
+   P-OBSERVE
+     cited read command; no frontier, plan, simulation, grant, or stage
+   P-RECOMMEND
+     requested recommendation ceiling makes staging structurally unreachable
+   P-ACTION-VISIBLE + P-TIMEZONE
+     exact candidate action and local-time truth project visibly
+   P-FOLLOWUP + P-CORRECTION
+     preserve or causally replace the active plan as requested
+   P-SIMULATE + P-NOOP
+     exact nonmutating preview and honest inaction
+   ```
+
+7. Treat all 18 release checks, architecture preservation 11/11, zero D1 provider
+   mutations, `P-FEEDBACK`, `P-RESTART`, content-addressed artifacts, and cross-run
+   rejection as non-regression constraints from the first wave onward.
+8. Do not enter D2 until D1 is wholly passing with exact identity and zero required
+   replay-invariant violations. Then run D2 through real Swift IPC. Run D3 and D4 as
+   sibling component experiments—live Codex with deterministic policy, and live
+   DiffusionGemma with deterministic Codex—before D5 real-provider reads, D6
+   integration, and the one explicitly confirmed/verified/compensated D7 effect.
+
+Do not start EventKit writes, positive-learning promotion, DiffusionGemma substitution,
+or recursive harness optimization while D1 is open. Preserve this run's raw trace as
+search/debug history; it is not positive human reward, held-out evidence, or five
+independent examples merely because the same candidate was exposed five times.
 
 ---
 
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-10 — D1 architecture review fixed the proceeding order
+
+- Classified the retained result into three causal layers: measurement admissibility
+  (`P-IDENTITY`), raw evidence integrity (ten repeated `I3` violations), and product
+  semantics (one routing/planning macro plus incomplete projection).
+- The ten invariant findings are five repeated missing observation-parent references,
+  twice per plan. Architecture preservation 11/11 remains valuable scenario evidence;
+  it is not a health assertion over the actual D1 replay.
+- Replaced the stale action-visibility-first prediction. The expected semantic order is
+  now observation command semantics, recommendation effect ceiling, exact projection,
+  continuity/correction, then simulation/no-op specifics.
+- Bound the next epoch to an evidence-admissibility prerequisite while retaining the
+  existing three rails and unchanged 15-scenario V1 product set.
+- Deferred recursive/meta-harness search and live DiffusionGemma comparison until the
+  deterministic D1 product contract is binding and green.
 
 ### 2026-07-10 — Fresh D1 visible product run completed
 
