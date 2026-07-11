@@ -77,6 +77,14 @@ def conversation_message_requests_existing_plan_followup(normalized: str) -> boo
     return requests_specifics and preserves_plan
 
 
+def conversation_message_requests_candidate_correction(normalized: str) -> bool:
+    return (
+        "correct" in normalized
+        and "assumption" in normalized
+        and any(term in normalized for term in ("recommendation again", "recommend again", "ask again"))
+    )
+
+
 def conversation_message_requests_profile_apply(normalized: str) -> bool:
     return "profile" in normalized and any(term in normalized for term in [
         "apply patch",

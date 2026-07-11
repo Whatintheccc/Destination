@@ -64,7 +64,7 @@ export function candidateCard(card) {
       h('button', {class: 'primary commit-btn', 'data-testid': 'commit-candidate', dataset: {candidateId}}, 'Commit with Swift'),
       h('button', {class: 'secondary candidate-accepted', 'data-testid': 'candidate-accepted', dataset: {candidateId}}, 'Useful'),
       h('button', {class: 'secondary candidate-dismissed', 'data-testid': 'candidate-dismissed', dataset: {candidateId}}, 'Dismiss'),
-      h('button', {class: 'secondary candidate-corrected', 'data-testid': 'candidate-corrected', dataset: {candidateId}}, 'Needs correction')));
+      h('button', {class: 'secondary candidate-corrected', 'data-testid': 'candidate-corrected', dataset: {candidateId}}, 'Shorten by 10 min')));
 }
 
 export function receiptCard(input) {

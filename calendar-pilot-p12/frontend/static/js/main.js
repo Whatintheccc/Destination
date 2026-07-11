@@ -65,7 +65,24 @@ function renderOperate(root, view) {
   if (!hasCandidate) (view.frontier?.candidates || []).slice(0, 4).forEach(card => root.append(candidateCard(card)));
   const hasReceipt = root.querySelector('[data-testid="receipt-card"]');
   if (!hasReceipt) (view.conversation?.receipt_cards || []).forEach(card => root.append(receiptCard(card)));
+  if (view.correction?.command_id) root.append(correctionEvidence(view.correction));
   queueMicrotask(() => ensureExposure(view, root).catch(err => showToast(err.message)));
+}
+
+function correctionEvidence(correction) {
+  const citations = (correction.citation_ids || []).map(citationId => h('span', {
+    class: 'badge',
+    'data-correction-citation-id': citationId,
+  }, `Cited ${citationId}`));
+  return h('div', {class: 'inspector-card', 'data-testid': 'correction-evidence'},
+    h('h4', {}, 'Applied candidate correction'),
+    h('span', {'data-testid': 'correction-command-id'}, correction.command_id),
+    h('span', {'data-testid': 'correction-old-belief-active'}, String(correction.old_belief_active === true)),
+    h('span', {'data-testid': 'correction-new-plan-uses-correction'}, String(correction.new_plan_uses_correction === true)),
+    h('span', {'data-testid': 'correction-before-authority-digest'}, correction.before_authority_digest || ''),
+    h('span', {'data-testid': 'correction-after-authority-digest'}, correction.after_authority_digest || ''),
+    h('p', {}, `${correction.actual_minutes ?? '—'} minutes after explicit correction.`),
+    ...citations);
 }
 
 function learningDecision(view) { return view.learning?.evidence?.latest_decision || null; }
@@ -103,7 +120,9 @@ async function recordCandidateOutcome(candidateId, outcome) {
       exposure_id: exposureId,
       candidate_id: candidateId,
       outcome,
-      reason: 'explicit candidate-card feedback',
+      reason: outcome === 'corrected'
+        ? 'Explicit UI command: shorten the selected timed action by 10 minutes.'
+        : 'explicit candidate-card feedback',
     }}, sessionId());
     showToast(`Recorded ${outcome}.`);
     await refresh();

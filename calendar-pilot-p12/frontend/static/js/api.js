@@ -51,5 +51,6 @@ export function normalizeView(payload) {
     lab: state.inspector?.self_play || {},
     pipeline: state.pipeline || {turns: state.trace ? [{trace_id: state.summary?.plan_id || 'sample', stages: state.trace}] : []},
     invariants: state.invariants || {violations: []},
+    correction: state.correction || null,
   };
 }

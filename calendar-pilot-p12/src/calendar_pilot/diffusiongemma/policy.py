@@ -63,6 +63,19 @@ def apply_policy_tuning(candidate: CandidateCalendarAction, tuning: PolicyTuning
         candidate.control_notes.append(f"offline_tuning=adversary_penalty:{penalty:+.2f}")
 
 
+def corrected_prep_minutes(biography: UserBiography, fallback: int) -> int:
+    for claim in reversed(biography.preference_claims):
+        if claim.get("kind") != "explicit_candidate_correction" or claim.get("active") is not True:
+            continue
+        if claim.get("applies_to_intent") != "create_prep_block":
+            continue
+        try:
+            return min(45, max(5, int(claim["preferred_minutes"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return fallback
+
+
 class DiffusionGemmaPolicy:
     """Reference DiffusionGemma policy for an agentic calendar optimizer.
 
@@ -131,7 +144,10 @@ class DiffusionGemmaPolicy:
         out: list[CandidateCalendarAction] = []
         prep_conf = biography.confidence_for("prep blocks")
         prep_tasks = [t for t in observation.tasks if t.category == "prep"]
-        requested_minutes = min(45, max([t.estimated_minutes for t in prep_tasks] or [25]))
+        requested_minutes = corrected_prep_minutes(
+            biography,
+            min(45, max([t.estimated_minutes for t in prep_tasks] or [25])),
+        )
         for event in observation.events:
             if event.category != "external_meeting":
                 continue
