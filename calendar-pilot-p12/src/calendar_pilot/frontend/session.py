@@ -442,8 +442,8 @@ class DogfoodSessionState:
         return self.snapshot()
 
     def _activate_noop_fixture(self) -> None:
-        if self.runtime_mode != "fixture":
-            raise ValueError("the no-op fixture is available only in deterministic fixture mode")
+        if str(getattr(self.provider, "provider_id", "")) != "deterministic_fixture_provider":
+            raise ValueError("the no-op fixture is available only with the deterministic fixture provider")
         fixture_path = ROOT / "data" / "noop_dominates_calendar.json"
         self.observation = RawCalendarObservation.from_dict(json.loads(fixture_path.read_text(encoding="utf-8")))
         reset_provider = getattr(self.provider, "reset", None)
