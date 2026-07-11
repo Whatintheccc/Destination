@@ -773,7 +773,8 @@ Append newest entries first. Never rewrite a failed run after a fix.
   `P-NOOP`, and `P-RESTART`; `P-FOLLOWUP` is the first blocker.
 - Follow-up repair introduces a narrow existing-plan evidence path: exact time and
   duration questions marked “do not replan” cite the retained plan/candidate/action,
-  do not invoke the frontier, and visibly disclose that provenance. The D1 normalizer
+  do not invoke the frontier, do not supersede the still-live decision/exposure window,
+  and visibly disclose that provenance. The D1 normalizer
   now identifies a plan by generation id and goal instead of treating additive router
   trace as a plan replacement. Exact protected-main D1 rerun remains required before
   closing this wave.

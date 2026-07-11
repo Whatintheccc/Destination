@@ -16,6 +16,8 @@ class P13FollowupVerticalTests(unittest.TestCase):
                 before = session.create_plan("Suggest the single highest-value change; only recommend it.")
                 plan = session.latest_plan
                 candidate = before["chat"]["candidate_cards"][0]
+                decision = next(row for row in reversed(session.replay.records) if row.record_type == "learning_decision")
+                exposure_id = session.learning_exposure(decision.record_id, [candidate["candidate_id"]])["exposure_id"]
                 frontier_count = sum(row.record_type == "frontier_generation" for row in session.replay.records)
 
                 after = session.create_plan("What exact time and duration are you proposing? Do not replan.")
@@ -26,6 +28,7 @@ class P13FollowupVerticalTests(unittest.TestCase):
                     sum(row.record_type == "frontier_generation" for row in session.replay.records),
                     frontier_count,
                 )
+                self.assertIsNone(session._learning_outcome_for(exposure_id, candidate["candidate_id"]))
                 followup = next(row for row in reversed(session.replay.records) if row.record_type == "existing_plan_followup")
                 self.assertEqual(followup.payload["plan_id"], plan.plan_id)
                 self.assertEqual(followup.payload["candidate_id"], candidate["candidate_id"])
