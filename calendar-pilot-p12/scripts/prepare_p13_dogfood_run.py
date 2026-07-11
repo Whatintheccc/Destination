@@ -27,6 +27,9 @@ PREDICATE_ARTIFACTS = (
     ROOT / "evals/dogfood/predicates/product.py",
     ROOT / "evals/dogfood/admissibility.py",
     ROOT / "evals/dogfood/capture/browser_capture.py",
+    ROOT / "evals/dogfood/capture/normalize_d1.py",
+    ROOT / "scripts/browser_dogfood_d1.mjs",
+    ROOT / "scripts/run_p13_dogfood_d1.py",
 )
 
 RUNTIME_BINDINGS: dict[str, dict[str, Any]] = {

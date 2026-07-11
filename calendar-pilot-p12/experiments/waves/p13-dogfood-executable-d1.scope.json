@@ -1,0 +1,42 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "Makefile",
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/evals/dogfood/capture/normalize_d1.py",
+    "calendar-pilot-p12/experiments/waves/p13-dogfood-executable-d1.scope.json",
+    "calendar-pilot-p12/scripts/browser_dogfood_d1.mjs",
+    "calendar-pilot-p12/scripts/prepare_p13_dogfood_run.py",
+    "calendar-pilot-p12/scripts/run_p13_dogfood_d1.py",
+    "calendar-pilot-p12/tests/test_dogfood_d1_capture.py",
+    "p13-dogfood.md"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": ["deterministic_fixture_provider"],
+    "surfaces": ["app_access", "browser", "docs", "evaluation", "tests", "wave_scope"],
+    "instruments": ["dogfood_capture", "dogfood_normalizer", "dogfood_preregistration", "dogfood_runner"],
+    "control_planes": ["evaluator"]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_protected_path_rejection",
+    "target.binding_manifest_signature",
+    "target.instrument_mutation_rejection",
+    "target.promotion_override_rejection"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
