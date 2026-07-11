@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from evals.dogfood.capture.normalize_d1 import effect_counts, ids_from_dom, internal_action, visible_action
+from evals.dogfood.capture.normalize_d1 import effect_counts, extract_candidate_dom, ids_from_dom, internal_action, visible_action
 from scripts.run_p13_dogfood_d1 import health_matches_launch
 
 
@@ -71,6 +71,16 @@ class DogfoodD1CaptureTests(unittest.TestCase):
     def test_dom_identity_extraction_preserves_visible_order(self) -> None:
         dom = '<div data-candidate-id="leading"></div><div data-candidate-id="second"></div><div data-candidate-id="leading"></div>'
         self.assertEqual(ids_from_dom(dom, "data-candidate-id"), ["leading", "second"])
+
+    def test_candidate_dom_extraction_keeps_duplicate_testids_card_local(self) -> None:
+        dom = '''
+        <div data-testid="candidate-card" data-candidate-id="leading"><div data-testid="candidate-addresses-goal">true</div><div data-testid="candidate-compares-noop">true</div></div>
+        <div data-testid="candidate-card" data-candidate-id="second"><div data-testid="candidate-addresses-goal">false</div><div data-testid="candidate-compares-noop">false</div></div>
+        '''
+        self.assertEqual(extract_candidate_dom(dom), [
+            {"candidate_id": "leading", "fields": {"candidate-card": "", "candidate-addresses-goal": "true", "candidate-compares-noop": "true"}},
+            {"candidate_id": "second", "fields": {"candidate-card": "", "candidate-addresses-goal": "false", "candidate-compares-noop": "false"}},
+        ])
 
 
 if __name__ == "__main__":

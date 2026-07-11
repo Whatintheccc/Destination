@@ -10,6 +10,7 @@ import re
 import shutil
 import sys
 from typing import Any
+from html.parser import HTMLParser
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -38,6 +39,50 @@ ACTION_TESTIDS = {
 }
 JSON_ACTION_FIELDS = {"attendees", "affected_ids", "conflicts"}
 INT_ACTION_FIELDS = {"duration_minutes", "authority_need"}
+
+
+class _CandidateDOMParser(HTMLParser):
+    VOID_ELEMENTS = frozenset({"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"})
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.candidates: list[dict[str, Any]] = []
+        self._stack: list[tuple[int | None, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = {name: value for name, value in attrs}
+        testid = attributes.get("data-testid")
+        candidate_index = self._stack[-1][0] if self._stack else None
+        if testid == "candidate-card":
+            candidate_index = len(self.candidates)
+            self.candidates.append({"candidate_id": attributes.get("data-candidate-id"), "fields": {}})
+        if candidate_index is not None and testid:
+            self.candidates[candidate_index]["fields"].setdefault(testid, [])
+        if tag.lower() not in self.VOID_ELEMENTS:
+            self._stack.append((candidate_index, testid))
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() not in self.VOID_ELEMENTS and self._stack:
+            self._stack.pop()
+
+    def handle_data(self, data: str) -> None:
+        if not self._stack:
+            return
+        candidate_index, testid = self._stack[-1]
+        if candidate_index is not None and testid:
+            self.candidates[candidate_index]["fields"][testid].append(data)
+
+
+def extract_candidate_dom(dom: str) -> list[dict[str, Any]]:
+    parser = _CandidateDOMParser()
+    parser.feed(dom)
+    return [
+        {
+            "candidate_id": row["candidate_id"],
+            "fields": {key: " ".join(" ".join(parts).split()) for key, parts in row["fields"].items()},
+        }
+        for row in parser.candidates
+    ]
 
 
 def sha256_file(path: Path) -> str:
@@ -242,11 +287,13 @@ def normalize(run_dir: Path) -> None:
         elif scenario_id == "P-RECOMMEND":
             candidate = selected_candidate(raw)
             replay_payload["candidate_id"] = candidate.get("candidate_id")
-            rendered_ids = ids_from_dom(raw["dom_html"], "data-candidate-id")
+            rendered_candidates = extract_candidate_dom(raw["dom_html"])
+            rendered_ids = [str(row["candidate_id"]) for row in rendered_candidates if row.get("candidate_id")]
+            leading_fields = rendered_candidates[0]["fields"] if rendered_candidates else {}
             rendered_payload.update({
                 "candidate_id": rendered_ids[0] if rendered_ids else None,
-                "addresses_goal": semantic.get("candidate-addresses-goal") == "true",
-                "rationale_compares_noop": semantic.get("candidate-compares-noop") == "true",
+                "addresses_goal": leading_fields.get("candidate-addresses-goal") == "true",
+                "rationale_compares_noop": leading_fields.get("candidate-compares-noop") == "true",
             })
         elif scenario_id == "P-ACTION-VISIBLE":
             replay_payload["action"] = internal_action(raw, truth["timezone"])
