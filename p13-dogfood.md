@@ -735,7 +735,7 @@ scenario failures into independent tickets. Execute this order:
      requested recommendation ceiling makes staging structurally unreachable
    P-ACTION-VISIBLE + P-TIMEZONE [closed on binding run 20260711T164158Z]
      exact candidate action and local-time truth project visibly
-   P-FOLLOWUP + P-CORRECTION
+   P-FOLLOWUP [closed on binding run 20260711T165823Z] + P-CORRECTION
      preserve or causally replace the active plan as requested
    P-SIMULATE + P-NOOP
      exact nonmutating preview and honest inaction
@@ -760,6 +760,26 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Follow-up closed; correction causality selected
+
+- Exact protected-main build `8a5d334c4886` passed the full release and signed
+  architecture gates. Binding run `20260711T165823Z-d1-fixture-8a5d334c4886`
+  closed `P-FOLLOWUP`: plan, candidate, and action identities remained stable; no
+  frontier or effect path ran; the visible answer cited the retained evidence.
+- D1 advanced to 7/11 pass with evidence completeness `1.0`, architecture
+  preservation 11/11, and zero provider, effect-ceiling, and projection divergence.
+  The remaining failures are `P-CORRECTION`, `P-SIMULATE`, `P-NOOP`, and
+  `P-RESTART`.
+- An earlier exact-main attempt at `c37d6d1` aborted before evaluation because the
+  follow-up incorrectly censored its active learning exposure, making the subsequent
+  corrected outcome inadmissible. The retained fix moves supersession behind the
+  non-planning follow-up branch; it is capture-path evidence, not a product verdict.
+- Correction repair turns the card control into an explicit ten-minute shortening
+  command, records command and application as an append-only causal pair, feeds the
+  corrected duration into the next policy frontier, and visibly cites replacement,
+  old-belief deactivation, and unchanged authority. Exact protected-main D1 rerun
+  remains required before closing `P-CORRECTION`.
 
 ### 2026-07-11 — Action/timezone closed; follow-up continuity selected
 

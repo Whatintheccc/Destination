@@ -80,6 +80,7 @@ class SessionSnapshotBuilder:
         snapshot["inspector"]["self_play"]["history"] = self.session.self_play_history[-5:]
         snapshot["inspector"]["replay"]["records"] = [record.envelope() for record in self.session.replay.records[-40:]]
         snapshot["learning"] = self.learning_snapshot(snapshot)
+        snapshot["correction"] = self.correction_snapshot()
         snapshot["pipeline"] = {"turns": self.pipeline_turns()}
         snapshot["invariants"] = {"violations": [violation.to_dict() for violation in check_replay([record.envelope() for record in self.session.replay.records])]}
         snapshot["inspector"]["provider"] = self.provider_inspector()
@@ -92,6 +93,25 @@ class SessionSnapshotBuilder:
             if event.get("kind") == "user"
         ][-8:]
         return snapshot
+
+    def correction_snapshot(self) -> dict[str, Any] | None:
+        applications = [
+            row for row in self.session.replay.records
+            if row.record_type == "candidate_correction_application"
+        ]
+        if not applications:
+            return None
+        row = applications[-1].payload
+        return {
+            "command_id": row.get("command_id"),
+            "citation_ids": row.get("citation_ids", []),
+            "old_belief_active": row.get("old_belief_active"),
+            "new_plan_uses_correction": row.get("new_plan_uses_correction"),
+            "before_authority_digest": row.get("before_authority_digest"),
+            "after_authority_digest": row.get("after_authority_digest"),
+            "replacement_minutes": row.get("replacement_minutes"),
+            "actual_minutes": row.get("actual_minutes"),
+        }
 
     def learning_snapshot(self, snapshot: dict[str, Any]) -> dict[str, Any]:
         candidate_cards = snapshot.get("chat", {}).get("candidate_cards", [])

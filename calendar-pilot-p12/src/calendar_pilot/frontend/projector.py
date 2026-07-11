@@ -62,6 +62,7 @@ class FrontendProjector:
             "signals": signals,
             "pipeline": snapshot.get("pipeline", {"turns": []}),
             "invariants": snapshot.get("invariants", {"violations": []}),
+            "correction": snapshot.get("correction"),
         }
         view["read_side"] = self._apply_product_core_read_side(view)
         return view

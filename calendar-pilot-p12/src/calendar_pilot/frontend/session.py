@@ -32,6 +32,7 @@ from calendar_pilot.environment.trace import TRACE_BUS
 from calendar_pilot.frontend.projector import FrontendProjector
 from calendar_pilot.frontend.session_conversation import (
     FrontendConversationTools,
+    conversation_message_requests_candidate_correction,
     conversation_message_requests_calendar_observation,
     conversation_message_requests_existing_plan_followup,
     conversation_tool_metadata,
@@ -316,6 +317,12 @@ class DogfoodSessionState:
         self._emit_trace(routed.turn_id, "router", "route_classified", payload=routed.replay_payload())
         if self.latest_plan is not None and conversation_message_requests_existing_plan_followup(normalize_conversation_message(goal)):
             return self._create_existing_plan_followup(goal, intent, routed.turn_id)
+        correction_command = None
+        if self.latest_plan is not None and conversation_message_requests_candidate_correction(normalize_conversation_message(goal)):
+            correction_command = self._activate_pending_candidate_correction()
+            if correction_command is not None:
+                goal = str(getattr(self.latest_plan, "goal", goal))
+                intent = "calendar_goal"
         self._finalize_learning_outcomes(now=_now(), superseded=True)
         if conversation_message_requests_calendar_observation(normalize_conversation_message(goal)):
             return self._create_observation_response(goal, intent, routed.turn_id)
@@ -378,10 +385,18 @@ class DogfoodSessionState:
         self.latest_plan_observation_fingerprint = observation_fingerprint(self.observation)
         self._record_frontier_rejections_from_plan(plan)
         self._record_product_core_read_side(plan)
+        if correction_command is not None:
+            self._record_candidate_correction_application(correction_command, plan)
         self._emit_trace(plan.plan_id, "planner", "planner_started", payload={"planner_backend": getattr(plan, "planner_backend", "unknown")})
         self._emit_trace(plan.plan_id, "frontier_service", "frontier_generated", payload=self._frontier_trace_payload(plan))
         conversation_receipts = []
         extra_metadata: dict[str, Any] = {}
+        if correction_command is not None:
+            extra_metadata.update({
+                "correction_command_id": correction_command["command_id"],
+                "correction_applied": True,
+                "correction_replacement_minutes": correction_command["replacement_minutes"],
+            })
         if intent == "mixed_calendar_operational":
             conversation_receipts = self.conversation.execute_tools(self.conversation.local_tool_calls(goal), goal)
             conversation_metadata = conversation_tool_metadata(conversation_receipts)
@@ -475,6 +490,125 @@ class DogfoodSessionState:
         })
         self.persist()
         return self.snapshot()
+
+    def _authority_state_digest(self) -> str:
+        grants = [grant.to_dict() for grant in self.kernel.authority_grants.values()]
+        payload = {
+            "authority_tier": self.authority_tier,
+            "authority_scopes": sorted(self.authority_scopes),
+            "grants": sorted(grants, key=lambda row: str(row.get("grant_id", ""))),
+        }
+        return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+    def _pending_candidate_correction(self) -> dict[str, Any] | None:
+        applied = {
+            str(row.payload.get("command_id"))
+            for row in self.replay.records
+            if row.record_type == "candidate_correction_application"
+        }
+        for row in reversed(self.replay.records):
+            if row.record_type != "candidate_correction_command" or row.record_id in applied:
+                continue
+            return dict(row.payload)
+        return None
+
+    def _record_candidate_correction_command(self, candidate_id: str, outcome_id: str, reason: str) -> str:
+        candidate = self.runtime.frontier.get(candidate_id)
+        if candidate is None or not candidate.actions:
+            raise ValueError("candidate correction requires a visible candidate action")
+        action = candidate.actions[0]
+        if action.start is None or action.end is None:
+            raise ValueError("candidate correction requires a timed action")
+        old_minutes = max(5, int((action.end - action.start).total_seconds() // 60))
+        replacement_minutes = max(5, old_minutes - 10)
+        snapshot = self.snapshot()
+        card = next(
+            (row for row in snapshot.get("chat", {}).get("candidate_cards", []) if row.get("candidate_id") == candidate_id),
+            {},
+        )
+        citation = card.get("citation", {}) if isinstance(card.get("citation"), dict) else {}
+        command_id = "correction_command:" + hashlib.sha256(
+            f"{outcome_id}|{candidate_id}|{old_minutes}|{replacement_minutes}".encode("utf-8")
+        ).hexdigest()[:20]
+        outcome = self._learning_record(outcome_id, "learning_outcome")
+        citations = [
+            command_id,
+            outcome_id,
+            str(outcome.payload.get("exposure_id", "")),
+            str(outcome.payload.get("decision_id", "")),
+            *[str(value) for value in citation.get("event_ids", [])],
+        ]
+        self.replay.append_generic(
+            "candidate_correction_command",
+            {
+                "command_id": command_id,
+                "candidate_id": candidate_id,
+                "outcome_id": outcome_id,
+                "old_belief_id": f"candidate_assumption:{candidate_id}:duration",
+                "old_claim": f"{old_minutes}-minute prep duration is appropriate",
+                "old_minutes": old_minutes,
+                "replacement_claim": f"use a {replacement_minutes}-minute prep duration",
+                "replacement_minutes": replacement_minutes,
+                "citation_ids": list(dict.fromkeys(value for value in citations if value)),
+                "reason": reason,
+                "before_authority_digest": self._authority_state_digest(),
+                "status": "pending",
+            },
+            record_id=command_id,
+            trace_id=str(getattr(self.latest_plan, "plan_id", candidate_id)),
+            causal_parent_id=outcome_id,
+            signal_stream="action",
+        )
+        return command_id
+
+    def _activate_pending_candidate_correction(self) -> dict[str, Any] | None:
+        command = self._pending_candidate_correction()
+        if command is None:
+            return None
+        self.biography.preference_claims.append({
+            "claim": command["replacement_claim"],
+            "kind": "explicit_candidate_correction",
+            "active": True,
+            "applies_to_intent": "create_prep_block",
+            "preferred_minutes": command["replacement_minutes"],
+            "command_id": command["command_id"],
+            "citation_ids": command["citation_ids"],
+            "updated_at": _now().isoformat(),
+        })
+        return command
+
+    def _record_candidate_correction_application(self, command: dict[str, Any], plan: CodexExecutivePlan) -> None:
+        frontier = next((receipt for receipt in plan.receipts if receipt.tool_name == CodexToolName.GENERATE_CANDIDATE_FRONTIER), None)
+        candidates = frontier.output.get("candidates", []) if frontier is not None and isinstance(frontier.output, dict) else []
+        leading = candidates[0] if candidates and isinstance(candidates[0], dict) else {}
+        actions = leading.get("actions", []) if isinstance(leading, dict) else []
+        action = actions[0] if actions and isinstance(actions[0], dict) else {}
+        try:
+            start = datetime.fromisoformat(str(action.get("start")))
+            end = datetime.fromisoformat(str(action.get("end")))
+            duration = int((end - start).total_seconds() // 60)
+        except (TypeError, ValueError):
+            duration = None
+        self.replay.append_generic(
+            "candidate_correction_application",
+            {
+                "command_id": command["command_id"],
+                "old_belief_id": command["old_belief_id"],
+                "old_belief_active": False,
+                "plan_id": plan.plan_id,
+                "candidate_id": leading.get("candidate_id"),
+                "replacement_minutes": command["replacement_minutes"],
+                "actual_minutes": duration,
+                "new_plan_uses_correction": duration == command["replacement_minutes"],
+                "citation_ids": command["citation_ids"],
+                "before_authority_digest": command["before_authority_digest"],
+                "after_authority_digest": self._authority_state_digest(),
+            },
+            record_id=f"candidate_correction_application:{command['command_id']}",
+            trace_id=plan.plan_id,
+            causal_parent_id=command["command_id"],
+            signal_stream="biography",
+        )
 
     def _create_observation_response(self, goal: str, intent: str, trace_id: str) -> dict[str, Any]:
         facts = [
@@ -993,6 +1127,8 @@ class DogfoodSessionState:
             reason=reason,
             observed_at=_now(),
         )
+        if outcome == "corrected":
+            self._record_candidate_correction_command(candidate_id, outcome_id, reason)
         self.persist()
         return {"decision": "pass", "outcome_id": outcome_id, "duplicate": False}
 
