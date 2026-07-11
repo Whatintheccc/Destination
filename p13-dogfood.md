@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **V1 produced a valuable diagnostic D1 failure, not a binding baseline. The user-value loop is not MVP-ready: exact app ownership was not proven, retained causal evidence contains unresolved parents, and the deterministic product controller collapses distinct user commands into one plan/simulate/stage macro.**
+Current verdict: **The V2 D0 run proved app-bundle ownership and exposed a ruler applicability error: an identity-only cell was required to emit D1-style interaction evidence. A ruler-only V3 candidate now makes replay and interaction artifacts optional only for D0 while preserving full D1-D7 admissibility. Focused, full-Python, architecture-ruler, and 18-leg dogfood-release gates pass. Binding D0 must now be rerun from the exact protected-main V3 commit before D1 opens.**
 
 ---
 
@@ -96,8 +96,10 @@ The instrument candidate now implements these versioned contracts before product
 dogfood_run_manifest.v1
 dogfood_scenario_set.v1
 dogfood_eval_report.v1   (retained; V1 reports remain immutable)
-dogfood_eval_report.v2   (adds the §2.2 admissibility prerequisite)
-dogfood_admissibility.v1 (embedded E-REPLAY-INTEGRITY object)
+dogfood_eval_report.v2   (retained; adds the §2.2 admissibility prerequisite)
+dogfood_eval_report.v3   (cell-aware D0/D1-D7 admissibility)
+dogfood_admissibility.v1 (retained V2 prerequisite semantics)
+dogfood_admissibility.v2 (D0 replay optional; D1-D7 replay required)
 dogfood_ruler_capture.v1 (ruler-owned semantic DOM capture)
 dogfood_operator_truth.v1
 ```
@@ -107,6 +109,7 @@ Required repository shape:
 ```text
 calendar-pilot-p12/evals/dogfood/
   scenarios/p13_product_v1.json
+  scenarios/p13_product_v2.json
   predicates/product.py
   adapters/live_run.py
   admissibility.py
@@ -117,6 +120,7 @@ calendar-pilot-p12/contracts/
   dogfood_run_manifest.schema.json
   dogfood_eval_report.schema.json
   dogfood_eval_report_v2.schema.json
+  dogfood_eval_report_v3.schema.json
   dogfood_operator_truth.schema.json
 ```
 
@@ -183,6 +187,22 @@ per scenario and retains `ruler_capture/capture_manifest.json` plus
 the checker reproduces its inadmissibility: fail with the ten repeated unresolved
 observation parents over 143 replay records, while all fifteen embedded journal events
 resolve inside their scopes.
+
+The V2 binding D0 run then exposed a narrower applicability defect: D0 exercises only
+`P-IDENTITY`, but V1's uniform artifact list required replay, rendered-view, UI-action,
+session, and screenshot artifacts, while admissibility v1 failed an intentionally absent
+replay. The ruler-only V3 epoch corrects that without changing any product stimulus,
+fixture, predicate, threshold, or counterexample:
+
+```text
+D0      identity/release/architecture artifacts; replay optional but validated if present
+D1-D7   complete replay, normalized evidence, independent DOM, session, screenshot,
+        provider-before, identity/release, and architecture artifacts
+D7      additionally provider-after and provider-after-undo
+```
+
+This is scenario set `p13_product_v2`, `dogfood_admissibility.v2`, and
+`dogfood_eval_report.v3`. A missing or empty replay remains a hard fail in D1-D7.
 
 ### 2.3 Instrument separation
 
@@ -723,6 +743,64 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — Cell-aware D0 admissibility epoch implemented
+
+- Preserved frozen V1/V2 files and created scenario set `p13_product_v2`, admissibility
+  `dogfood_admissibility.v2`, and report contract `dogfood_eval_report.v3`.
+- Kept all 15 product scenarios, exact stimulus bytes, ten fixture families, 13 planted
+  product counterexamples, predicates, thresholds, and causal order unchanged.
+- Split artifact applicability by cell. D0 now requires only identity, release,
+  architecture, report, and checksum evidence; D1-D7 retain the complete interaction
+  inventory, and D7 retains provider-after and provider-after-undo evidence.
+- An absent D0 replay is admissible because D0 sends no product stimulus. Any replay
+  that exists is still checked. Missing or empty replay remains a hard failure in D1-D7.
+- Verification: 38 focused dogfood tests, 343 Python tests with 11 skips, 18 architecture
+  evaluator V2 tests, and the 18-leg dogfood release passed (`ok: true`; the mutating
+  EventKit probe remained opt-in and skipped).
+- This is an instrument-only candidate. A fresh binding D0 from the exact protected-main
+  commit is still required before D1 opens.
+
+### 2026-07-10 — Measurement-only wave + binding D0 run (§12 steps 3–4)
+
+- Ran the ruler-only V2 measurement wave and binding D0 against a freshly built owned
+  bundle at protected-main `eaee26c1d22a` (repo
+  `eaee26c1d22aa6bd28f95580e4ad2ee6b7254240`, app subtree
+  `8e588d319294c55fc51d879ee7a46a05463fbe51`). No product code and no frozen instrument
+  file changed: working tree stayed clean, the frozen dogfood instrument's 36 tests still
+  pass, and the three admissibility instrument hashes bound in the report match the frozen
+  epoch (replay checker `50e9745e…`, admissibility `b3c57c3a…`, capture driver
+  `44a9c908…`).
+- **Binding D0 verdict (frozen V2 evaluator): fail, `binding_eligible=false`, first
+  blocker `E-REPLAY-INTEGRITY`.** Retained at
+  `calendar-pilot-p12/runs/dogfood/20260711T035822Z-d0-package-eaee26c1d22a/`
+  (`dogfood_eval_report.json` + `SHA256SUMS` + `REPORT.md`).
+- **App-bundle ownership is now proven, correcting the prior D1 environment finding.**
+  The bundle's Swift MacApp *does* spawn an owned server here; 15 of 16 `P-IDENTITY`
+  comparisons pass — real `build_hashes`/`app_bundle`/`build_id`, and `pid`/`port`/
+  `launch_id` agreeing across `launch_state.before`, normalized `health`, and
+  `process_snapshot.before`, with `fresh_run` (no ambient `:8787` attachment) and valid
+  `instrument_hashes`. Health normalization is a truthful field remap only
+  (`process.server_pid<-pid`, `process.port<-int(launch_port)`; values unchanged).
+- **The only identity failure is `required_artifacts`, and admissibility fails on the
+  empty replay** — both are structural facts of the identity-only D0 cell, not ownership
+  defects. D0 sends no product stimulus, so the app produces no causal replay
+  (`replay.jsonl` genuinely 0 bytes; not retained as a zero-byte artifact) and no
+  `rendered_views.jsonl`/`ui_actions.jsonl`. `raw_normalized_equality` and
+  `independent_visible_capture` both pass (zero fabricated evidence rows).
+- **Two secondary findings.** (1) The frozen `browser_capture.py` access point was
+  executed against the owned server; under Google Chrome 150 its `--dump-dom` hangs on
+  the live app page (data-URL captures succeed), so no semantic DOM was captured — this
+  does not affect the D0 verdict, which has no rendered-view rows. (2) The signed
+  architecture v2 rail was not run (verification/signing keys unavailable this wave), so
+  both architecture rails `hold`. Neither is the causal headline; `E-REPLAY-INTEGRITY`
+  precedes them.
+- Per §12 step 4 the wave stops on this admissibility/identity non-pass; D1 repair stays
+  closed. **Next work is a ruler-epoch decision, not a product edit:** whether identity-
+  only cells are exempt from the non-empty-replay precondition and the product-interaction
+  artifact requirements, or whether the released package must emit a bootstrap causal
+  record at launch. That is a scenario/predicate/contract change and therefore a new
+  instrument epoch — it must not be folded into a measurement wave.
 
 ### 2026-07-10 — Ruler-only V2 evidence-admissibility epoch implemented
 

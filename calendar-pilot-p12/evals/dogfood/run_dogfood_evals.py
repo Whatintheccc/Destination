@@ -26,10 +26,10 @@ from evals.dogfood.predicates import evaluate_predicate
 from evals.architecture.run_architecture_evals import validate_report as validate_architecture_report
 
 
-SCENARIO_SET = ROOT / "evals/dogfood/scenarios/p13_product_v1.json"
+SCENARIO_SET = ROOT / "evals/dogfood/scenarios/p13_product_v2.json"
 MANIFEST_SCHEMA = ROOT / "contracts/dogfood_run_manifest.schema.json"
 TRUTH_SCHEMA = ROOT / "contracts/dogfood_operator_truth.schema.json"
-REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report_v2.schema.json"
+REPORT_SCHEMA = ROOT / "contracts/dogfood_eval_report_v3.schema.json"
 PREDICATE_PATH = ROOT / "evals/dogfood/predicates/product.py"
 ADAPTER_PATH = ROOT / "evals/dogfood/adapters/live_run.py"
 STATUSES = ("pass", "fail", "hold", "not_reached")
@@ -72,7 +72,7 @@ def _validate(payload: dict[str, Any], schema_path: Path, label: str) -> None:
 
 def load_scenario_set(path: Path = SCENARIO_SET) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("dogfood_scenario_set_schema_version") != "dogfood_scenario_set.v1":
+    if payload.get("dogfood_scenario_set_schema_version") != "dogfood_scenario_set.v2":
         raise ValueError("unsupported dogfood scenario-set version")
     scenarios = payload.get("scenarios")
     if not isinstance(scenarios, list):
@@ -104,9 +104,7 @@ def _stimulus_hash(text: str) -> str:
 
 def required_artifacts_for_cell(scenario_set: dict[str, Any], cell: str) -> list[str]:
     requirements = scenario_set.get("artifact_requirements", {})
-    values = list(requirements.get("all_cells", []))
-    if cell != "D0":
-        values.extend(requirements.get("D1-D7", []))
+    values = list(requirements.get("D0" if cell == "D0" else "D1-D7", []))
     if cell == "D7":
         values.extend(requirements.get("D7", []))
     if len(values) != len(set(values)):
@@ -314,7 +312,7 @@ def build_report(*, run_dir: Path, scenario_set_path: Path = SCENARIO_SET, out: 
     first_blocker = _first_blocker(admissibility["status"], product, architecture)
     instrument_artifacts = [_artifact("dogfood_runner", Path(__file__)), _artifact("dogfood_predicates", PREDICATE_PATH), _artifact("dogfood_adapter", ADAPTER_PATH), _artifact("dogfood_report_schema", REPORT_SCHEMA), _artifact("dogfood_manifest_schema", MANIFEST_SCHEMA), _artifact("dogfood_operator_truth_schema", TRUTH_SCHEMA)]
     report = {
-        "dogfood_eval_report_schema_version": "dogfood_eval_report.v2",
+        "dogfood_eval_report_schema_version": "dogfood_eval_report.v3",
         "run_id": manifest["run_id"], "generated_at": datetime.now(timezone.utc).isoformat(),
         "decision": decision, "binding_eligible": admissibility["binding_eligible"],
         "first_blocking_scenario_id": first_blocker,

@@ -86,6 +86,14 @@ class ReplayParentResolutionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             result = check_replay_parent_resolution(Path(td))
         self.assertEqual(result["status"], "fail")
+        self.assertTrue(result["replay_required"])
+
+    def test_d0_missing_replay_is_admissible(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            result = check_replay_parent_resolution(Path(td), replay_required=False)
+        self.assertEqual(result["status"], "pass")
+        self.assertFalse(result["replay_required"])
+        self.assertEqual(result["checked_replay_records"], 0)
 
 
 class RawNormalizedEqualityTests(unittest.TestCase):
@@ -284,6 +292,13 @@ class DerivedAdmissibilityTests(unittest.TestCase):
         self.assertTrue(result["binding_eligible"])
         for name in ("replay_checker", "admissibility_module", "browser_capture"):
             self.assertTrue(Path(result["instrument"][name]["path"]).is_file())
+
+    def test_d0_is_binding_eligible_without_product_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            result = derive_admissibility(Path(td), {"run_id": "run-1", "cell": "D0", "stimuli": []}, [])
+        self.assertEqual(result["status"], "pass")
+        self.assertTrue(result["binding_eligible"])
+        self.assertFalse(result["checks"]["replay_parent_resolution"]["replay_required"])
 
 
 class SemanticDOMExtractionTests(unittest.TestCase):

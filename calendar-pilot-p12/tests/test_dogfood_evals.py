@@ -36,9 +36,18 @@ class DogfoodPredicateTests(unittest.TestCase):
 
     def test_scenario_set_freezes_product_fixtures_and_counterexamples(self):
         scenario_set = load_scenario_set()
+        self.assertEqual(scenario_set["dogfood_scenario_set_schema_version"], "dogfood_scenario_set.v2")
         self.assertEqual(len(scenario_set["scenarios"]), 15)
         self.assertEqual(len(scenario_set["fixture_families"]), 10)
         self.assertEqual(len(scenario_set["planted_counterexamples"]), 13)
+        d0 = required_artifacts_for_cell(scenario_set, "D0")
+        d1 = required_artifacts_for_cell(scenario_set, "D1")
+        self.assertNotIn("replay.jsonl", d0)
+        self.assertNotIn("rendered_views.jsonl", d0)
+        self.assertNotIn("ui_actions.jsonl", d0)
+        self.assertIn("replay.jsonl", d1)
+        self.assertIn("rendered_views.jsonl", d1)
+        self.assertIn("ui_actions.jsonl", d1)
 
     def test_identity_rejects_wrong_process_and_cross_run_artifact(self):
         manifest = {"run_id": "run-1", "run_dir": "/tmp/run-1", "build": {"build_id": "abcdef123456", "app_bundle_path": "/tmp/App.app"}, "runtime": {"requested_mode": "fixture", "expected_backends": {"provider": "deterministic_fixture_provider"}}}
@@ -149,21 +158,18 @@ class DogfoodReportTests(unittest.TestCase):
                 "scenarios": [architecture_scenario("preservation.test", "preservation"), architecture_scenario("target.test", "target_conformance")],
             }
             extra_json = {
-                "launch_state.after.json": {}, "session_state.json": {}, "replay_export.json": {},
-                "process_snapshot.after.json": {}, "architecture_eval_report_v2.json": architecture,
+                "launch_state.after.json": {}, "process_snapshot.after.json": {},
+                "architecture_eval_report_v2.json": architecture,
             }
             for name, payload in extra_json.items():
                 (run_dir / name).write_text(json.dumps(payload), encoding="utf-8")
-            for name in ("rendered_views.jsonl", "ui_actions.jsonl", "replay.jsonl"):
-                (run_dir / name).write_text("{}\n", encoding="utf-8")
-            (run_dir / "screenshots").mkdir()
-            (run_dir / "screenshots/manifest.json").write_text(json.dumps({"run_id": run_id, "screenshots": []}), encoding="utf-8")
             report = build_report(run_dir=run_dir)
-            self.assertEqual(report["dogfood_eval_report_schema_version"], "dogfood_eval_report.v2")
+            self.assertEqual(report["dogfood_eval_report_schema_version"], "dogfood_eval_report.v3")
             self.assertEqual(report["product_rail"]["decision"], "pass")
             self.assertEqual(report["decision"], "pass")
             self.assertEqual(report["evidence_admissibility"]["status"], "pass")
             self.assertTrue(report["binding_eligible"])
+            self.assertFalse(report["evidence_admissibility"]["checks"]["replay_parent_resolution"]["replay_required"])
             self.assertIsNone(report["first_blocking_scenario_id"])
             self.assertEqual(report["distance"]["evidence_completeness_ratio"], 1.0)
             self.assertTrue((run_dir / "SHA256SUMS").is_file())
