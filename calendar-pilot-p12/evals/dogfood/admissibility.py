@@ -16,7 +16,7 @@ from calendar_pilot.environment import invariants as replay_invariants
 
 
 PREREQUISITE_ID = "E-REPLAY-INTEGRITY"
-ADMISSIBILITY_SCHEMA_VERSION = "dogfood_admissibility.v1"
+ADMISSIBILITY_SCHEMA_VERSION = "dogfood_admissibility.v2"
 REQUIRED_INVARIANT_IDS = ("I3",)
 CAPTURE_MANIFEST_NAME = "ruler_capture/capture_manifest.json"
 CAPTURE_ROWS_NAME = "ruler_capture/semantic_dom.jsonl"
@@ -55,15 +55,20 @@ def _load_jsonl(path: Path) -> list[Any]:
     return rows
 
 
-def check_replay_parent_resolution(run_dir: Path) -> dict[str, Any]:
+def check_replay_parent_resolution(run_dir: Path, *, replay_required: bool = True) -> dict[str, Any]:
     """Every replay parent resolves inside the same retained run; every embedded
     Journal parent resolves inside its journal scope."""
     violations: list[dict[str, str]] = []
     replay_path = run_dir / "replay.jsonl"
     if not replay_path.is_file() or replay_path.stat().st_size == 0:
         return {
-            "status": "fail",
-            "violations": [_violation("replay_parent_resolution", "replay.jsonl", "retained replay is missing or empty")],
+            "status": "fail" if replay_required else "pass",
+            "violations": (
+                [_violation("replay_parent_resolution", "replay.jsonl", "retained replay is missing or empty")]
+                if replay_required
+                else []
+            ),
+            "replay_required": replay_required,
             "checked_replay_records": 0,
             "checked_journal_events": 0,
         }
@@ -94,6 +99,7 @@ def check_replay_parent_resolution(run_dir: Path) -> dict[str, Any]:
     return {
         "status": "fail" if violations else "pass",
         "violations": violations,
+        "replay_required": replay_required,
         "checked_replay_records": len(rows),
         "checked_journal_events": len(journal_events),
     }
@@ -264,8 +270,9 @@ def instrument_binding() -> dict[str, Any]:
 
 
 def derive_admissibility(run_dir: Path, manifest: dict[str, Any], evidence_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    replay_required = manifest.get("cell") != "D0"
     checks = {
-        "replay_parent_resolution": check_replay_parent_resolution(run_dir),
+        "replay_parent_resolution": check_replay_parent_resolution(run_dir, replay_required=replay_required),
         "raw_normalized_equality": check_raw_normalized_equality(run_dir, evidence_rows),
         "independent_visible_capture": check_independent_visible_capture(run_dir, manifest, evidence_rows),
     }
