@@ -83,6 +83,40 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(metadata["fallback_state"], "model_generated_frontier")
         self.assertEqual(metadata["prompt_version"], "calendar_pilot_nim_compact_frontier_v4")
 
+    def test_live_generated_frontier_applies_explicit_duration_correction_locally(self):
+        candidate = next(
+            row for row in DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)
+            if row.intent == "create_prep_block"
+        )
+
+        class FixedGeneratorClient:
+            model = "google/diffusiongemma-26b-a4b-it"
+
+            def generate_candidate_frontier(self, **_kwargs):
+                return NIMFrontierResult(
+                    candidates=[candidate],
+                    policy_summary="Fixed uncorrected model proposal.",
+                    metadata={"prompt_version": "calendar_pilot_nim_compact_frontier_v4"},
+                )
+
+        original_minutes = int((candidate.actions[0].end - candidate.actions[0].start).total_seconds() // 60)
+        preferred_minutes = original_minutes - 10
+        self.biography.preference_claims.append({
+            "kind": "explicit_candidate_correction",
+            "active": True,
+            "applies_to_intent": candidate.intent,
+            "preferred_minutes": preferred_minutes,
+        })
+
+        corrected = LiveDiffusionGemmaPolicy(client=FixedGeneratorClient()).generate_candidates(
+            self.observation,
+            self.biography,
+        )[0]
+
+        actual_minutes = int((corrected.actions[0].end - corrected.actions[0].start).total_seconds() // 60)
+        self.assertEqual(actual_minutes, preferred_minutes)
+        self.assertIn(f"explicit_duration_correction={original_minutes}->{preferred_minutes}", corrected.control_notes)
+
     def test_live_diffusiongemma_policy_forwards_user_goal_to_nim_generator(self):
         client = GoalCaptureNIMGeneratorClient()
         policy = LiveDiffusionGemmaPolicy(client=client)

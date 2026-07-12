@@ -801,6 +801,25 @@ independent examples merely because the same candidate was exposed five times.
 
 Append newest entries first. Never rewrite a failed run after a fix.
 
+### 2026-07-11 — First binding D6 run localizes correction across the model boundary
+
+- Protected-main build `112cd3aa667e` passed release and signed architecture manifest
+  `p13-dogfood-d6-integrated-read:112cd3aa667e:20260712T015452Z`.
+- Binding run `20260712T015507Z-d6-auto-112cd3aa667e` resolves to the exact all-live
+  composition with no blockers, fallbacks, or setup notes. It is binding-eligible and
+  evidence-complete; twelve of thirteen scenarios pass with every distance and effect
+  counter at zero. The frozen EventKit gap, visible projection, simulation, denial,
+  isolated no-op, feedback, and restart all pass.
+- `P-CORRECTION` alone fails. The live NIM proposal remained 120 minutes after the cited
+  correction requested 110. D5's repair correctly stores correction by actual intent,
+  but the model-generated Frontier path trusted the respondent to consume that biography
+  claim; unlike the heuristic generator, it had no deterministic local enforcement.
+- The selected repair keeps semantic proposal generation in the model but applies the
+  already-authorized duration correction locally to the validated typed candidate before
+  ranking and temporal control. This is not a new planner or fallback: it is deterministic
+  hydration of explicit user evidence at the respondent boundary. D6 remains open pending
+  protected-main rerun; the 12/13 run is retained unchanged.
+
 ### 2026-07-11 — D5 complete; D6 all-live read integration opened
 
 - Generic timed-candidate correction merged on protected main `7468d83d6bfd` after both
