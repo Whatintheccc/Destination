@@ -13,6 +13,15 @@ from scripts.run_p13_dogfood_d7 import event_payload
 
 
 class DogfoodD1CaptureTests(unittest.TestCase):
+    def test_browser_submit_retries_only_until_composer_acknowledges(self) -> None:
+        driver = (Path(__file__).resolve().parents[1] / "scripts/browser_dogfood_d1.mjs").read_text(encoding="utf-8")
+        self.assertIn("for (let attempt = 0; attempt < 3; attempt += 1)", driver)
+        self.assertIn("await client.send('Network.enable')", driver)
+        self.assertIn("client.planRequestCount > initialPlanRequestCount", driver)
+        self.assertIn("new URL(request.url).pathname === '/api/plans'", driver)
+        self.assertIn("stimulus submission was not acknowledged by the composer", driver)
+        self.assertNotIn("await click(client, '#send-goal');\n  await waitFor(client, `document.querySelector('#state-version')", driver)
+
     def test_d7_runner_imports_canonical_managed_eventkit_driver(self) -> None:
         self.assertTrue(callable(event_payload))
 
