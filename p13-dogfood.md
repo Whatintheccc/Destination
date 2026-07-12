@@ -815,6 +815,9 @@ Append newest entries first. Never rewrite a failed run after a fix.
   requested duration, and places that corrected object first even when the respondent
   proposes only no-op. Model alternatives remain visible, but cannot erase the object
   the user just edited. D6 remains open pending protected-main rerun.
+- Exact clean behavior commit `19fc8ac08cea` passes the affected live DiffusionGemma
+  E2E with corrected-incumbent retention, Swift IPC simulation, browser interaction,
+  replay provenance, and secret inspection.
 
 ### 2026-07-11 — First binding D6 run localizes correction across the model boundary
 
