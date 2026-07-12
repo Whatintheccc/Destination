@@ -943,12 +943,43 @@ class LiveDiffusionGemmaPolicy:
         generate_frontier = getattr(self.client, "generate_candidate_frontier", None)
         if callable(generate_frontier):
             frontier_limit = int(os.environ.get("CALENDAR_PILOT_NIM_FRONTIER_LIMIT", "4"))
-            result = generate_frontier(
-                goal=user_goal,
-                observation=observation,
-                biography=biography,
-                limit=max(1, frontier_limit),
-            )
+            try:
+                result = generate_frontier(
+                    goal=user_goal,
+                    observation=observation,
+                    biography=biography,
+                    limit=max(1, frontier_limit),
+                )
+            except LiveDiffusionGemmaSchemaError as exc:
+                retained_candidates, correction_target, retained = retain_explicitly_corrected_candidate(
+                    [], biography, observation=observation,
+                )
+                if correction_target is None or not retained:
+                    raise
+                correction_target.control_notes.append("nim_schema_failure=retained_explicit_user_correction")
+                metadata = {
+                    "backend": LIVE_DIFFUSIONGEMMA_BACKEND,
+                    "model": self.client.model,
+                    "prompt_version": LIVE_DIFFUSIONGEMMA_PROMPT_VERSION,
+                    "validation": {
+                        "status": "rejected",
+                        "rejections": [{
+                            "reason": exc.category,
+                            "detail": str(exc)[:500],
+                            "retained_explicit_user_correction": True,
+                        }],
+                    },
+                }
+                self._policy_metadata_by_candidate[correction_target.candidate_id] = self._candidate_policy_metadata(
+                    metadata,
+                    candidate_id=correction_target.candidate_id,
+                    rank=1,
+                    score_delta=0.0,
+                    reason="NIM returned an invalid frontier; the observation-bound explicit user edit retained its prior candidate.",
+                    fallback_state="explicit_correction_incumbent_retained_after_model_rejection",
+                    ranked_by_model=False,
+                )
+                return retained_candidates
             for idx, candidate in enumerate(result.candidates, start=1):
                 apply_explicit_duration_correction(candidate, biography)
                 candidate.control_notes.extend([
@@ -970,7 +1001,9 @@ class LiveDiffusionGemmaPolicy:
                     ranked_by_model=True,
                 )
             ranked = sorted(result.candidates, key=lambda c: (c.expected_reward, c.right_moment_score), reverse=True)
-            ranked, correction_target, retained = retain_explicitly_corrected_candidate(ranked, biography)
+            ranked, correction_target, retained = retain_explicitly_corrected_candidate(
+                ranked, biography, observation=observation,
+            )
             if correction_target is not None:
                 self._policy_metadata_by_candidate[correction_target.candidate_id] = self._candidate_policy_metadata(
                     result.metadata,

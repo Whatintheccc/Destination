@@ -163,6 +163,72 @@ class PolicyTests(unittest.TestCase):
         )
         self.assertEqual([row.intent for row in after_consumption], ["do_nothing"])
 
+    def test_live_frontier_retains_observation_bound_correction_after_schema_rejection(self):
+        incumbent = next(
+            row for row in DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)
+            if row.intent == "create_prep_block"
+        )
+
+        class RejectingGeneratorClient:
+            model = "google/diffusiongemma-26b-a4b-it"
+
+            def generate_candidate_frontier(self, **_kwargs):
+                raise LiveDiffusionGemmaSchemaError("unknown_evidence_event_ids:task_renewal_prep")
+
+        original_minutes = int((incumbent.actions[0].end - incumbent.actions[0].start).total_seconds() // 60)
+        self.biography.preference_claims.append({
+            "kind": "explicit_candidate_correction",
+            "active": True,
+            "applies_to_intent": incumbent.intent,
+            "preferred_minutes": original_minutes - 10,
+            "candidate": incumbent.to_dict(),
+            "observation_id": self.observation.observation_id,
+        })
+
+        policy = LiveDiffusionGemmaPolicy(client=RejectingGeneratorClient())
+        corrected = policy.generate_candidates(self.observation, self.biography)[0]
+
+        actual_minutes = int((corrected.actions[0].end - corrected.actions[0].start).total_seconds() // 60)
+        self.assertEqual(actual_minutes, original_minutes - 10)
+        self.assertIn("nim_schema_failure=retained_explicit_user_correction", corrected.control_notes)
+        metadata = policy.policy_metadata_for_candidate(corrected.candidate_id)
+        self.assertEqual(metadata["fallback_state"], "explicit_correction_incumbent_retained_after_model_rejection")
+        self.assertEqual(metadata["validation"]["rejections"][0]["reason"], "model_policy_schema_failure")
+
+    def test_live_frontier_does_not_retain_correction_for_another_observation(self):
+        local_candidates = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)
+        incumbent = next(row for row in local_candidates if row.intent == "create_prep_block")
+        noop = next(row for row in local_candidates if row.intent == "do_nothing")
+
+        class NoopOnlyGeneratorClient:
+            model = "google/diffusiongemma-26b-a4b-it"
+
+            def generate_candidate_frontier(self, **_kwargs):
+                return NIMFrontierResult(
+                    candidates=[noop],
+                    policy_summary="Model preferred no-op.",
+                    metadata={"prompt_version": "calendar_pilot_nim_compact_frontier_v4"},
+                )
+
+        self.biography.preference_claims.append({
+            "kind": "explicit_candidate_correction",
+            "active": True,
+            "applies_to_intent": incumbent.intent,
+            "preferred_minutes": 15,
+            "candidate": incumbent.to_dict(),
+            "observation_id": self.observation.observation_id,
+        })
+        other_payload = json.loads((ROOT / "data/sample_calendar.json").read_text())
+        other_payload["observation_id"] = "fixture_noop_dominates"
+        other_observation = RawCalendarObservation.from_dict(other_payload)
+
+        candidates = LiveDiffusionGemmaPolicy(client=NoopOnlyGeneratorClient()).generate_candidates(
+            other_observation,
+            self.biography,
+        )
+
+        self.assertEqual([row.intent for row in candidates], ["do_nothing"])
+
     def test_live_diffusiongemma_policy_forwards_user_goal_to_nim_generator(self):
         client = GoalCaptureNIMGeneratorClient()
         policy = LiveDiffusionGemmaPolicy(client=client)
