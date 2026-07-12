@@ -59,6 +59,7 @@ async function main() {
     client = await CdpClient.connect(target.webSocketDebuggerUrl);
     await client.send('Page.enable');
     await client.send('Runtime.enable');
+    await client.send('Network.enable');
     await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 900, deviceScaleFactor: 1, mobile: false });
     await client.send('Page.navigate', { url: baseUrl });
     await waitFor(client, 'document.querySelector("[data-testid=\\"chat-transcript\\"]") !== null');
@@ -207,10 +208,30 @@ async function sendStimulus(client, scenarioId, { requireVisibleUser = true } = 
   const text = stimuli[scenarioId];
   if (!text) throw new Error(`missing frozen stimulus for ${scenarioId}`);
   const version = await evaluate(client, 'document.querySelector("#state-version")?.textContent || ""');
-  await fill(client, '#goal-input', text);
-  await click(client, '#send-goal');
-  await waitFor(client, `document.querySelector('#state-version')?.textContent !== ${JSON.stringify(version)}`);
-  if (requireVisibleUser) await waitFor(client, `Array.from(document.querySelectorAll('[data-testid="message-user"]')).some(node => node.innerText.includes(${JSON.stringify(text)}))`);
+  await submitStimulus(client, text);
+  if (requireVisibleUser) {
+    await waitFor(client, `Array.from(document.querySelectorAll('[data-testid="message-user"]')).some(node => node.innerText.includes(${JSON.stringify(text)}))`);
+  } else {
+    await waitFor(client, `document.querySelector('#state-version')?.textContent !== ${JSON.stringify(version)}`);
+  }
+}
+
+async function submitStimulus(client, text) {
+  const visibleExpression = `Array.from(document.querySelectorAll('[data-testid="message-user"]')).some(node => node.innerText.includes(${JSON.stringify(text)}))`;
+  const initialPlanRequestCount = client.planRequestCount;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (await evaluate(client, visibleExpression)) return;
+    if (await evaluate(client, 'document.querySelector("#goal-input")?.value') !== text) {
+      await fill(client, '#goal-input', text);
+    }
+    await click(client, '#send-goal');
+    const acknowledgmentDeadline = Date.now() + 750;
+    while (Date.now() < acknowledgmentDeadline) {
+      if (client.planRequestCount > initialPlanRequestCount || await evaluate(client, visibleExpression)) return;
+      await delay(50);
+    }
+  }
+  throw new Error('stimulus submission was not acknowledged by the composer');
 }
 
 async function record(client, scenarioId, phase, driverInteraction = null) {
@@ -288,8 +309,15 @@ class CdpClient {
     this.ws = ws;
     this.nextId = 1;
     this.pending = new Map();
+    this.planRequestCount = 0;
     ws.addEventListener('message', event => {
       const message = JSON.parse(event.data);
+      if (message.method === 'Network.requestWillBeSent') {
+        const request = message.params?.request || {};
+        try {
+          if (request.method === 'POST' && new URL(request.url).pathname === '/api/plans') this.planRequestCount += 1;
+        } catch (_) { /* ignore malformed CDP request events */ }
+      }
       if (!message.id || !this.pending.has(message.id)) return;
       const callbacks = this.pending.get(message.id);
       this.pending.delete(message.id);

@@ -811,6 +811,13 @@ Append newest entries first. Never rewrite a failed run after a fix.
 
 ### 2026-07-12 — Empty-window D6 localized the final read-only access-point defect
 
+- Final-build D3 attempt `20260712T083044Z-d3-live_codex-bd8ddf25394d` reproduced the
+  browser click race previously seen once in D1: the first stimulus completed, then the
+  second click missed during a DOM refresh while an unrelated state-version increment
+  falsely satisfied the driver. The access point now requires synchronous composer
+  acknowledgment (an observed POST to `/api/plans` or the exact visible message) and retries the real
+  click only while unacknowledged. It no longer treats a generic version change as proof
+  of submission.
 - First shared-parent execution `20260712T081927Z-d5-live_provider-bd4b796afdba`
   passed 12/13 and failed only P-NOOP. The product selected and explained no-op with no
   write controls; the ruler had omitted the isolated `noop_dominates` truth fact when
