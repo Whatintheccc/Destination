@@ -42,6 +42,18 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         runtime = {"requested_mode": "fixture", **RUNTIME_BINDINGS["fixture"]}
         self.assertEqual(set(runtime), {"requested_mode", "expected_backends", "credential_classes"})
         self.assertEqual(runtime["requested_mode"], "fixture")
+        self.assertEqual(RUNTIME_BINDINGS["auto"]["expected_backends"], {
+            "codex": "live_codex_app_server",
+            "diffusiongemma": "nvidia_nim_diffusiongemma_policy",
+            "kernel": "SwiftKernelIPCClient",
+            "provider": "apple_eventkit",
+        })
+
+    def test_d6_reuses_live_read_scenarios_without_effect_or_undo(self) -> None:
+        scenario_ids = [row["scenario_id"] for row in selected_scenarios(self.scenario_set, "D6")]
+        self.assertIn("P-LIVE-READ", scenario_ids)
+        self.assertNotIn("P-EFFECT", scenario_ids)
+        self.assertNotIn("P-UNDO", scenario_ids)
 
     def test_fixture_truth_is_minimal_hashed_and_schema_valid(self) -> None:
         truth = fixture_truth("run-1", datetime.now(timezone.utc).isoformat(), ROOT / "data/sample_calendar.json")

@@ -17,7 +17,7 @@ if (!['before-restart', 'after-restart'].includes(mode) || !baseUrl || !runDir) 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(runDir, 'run_manifest.json'), 'utf8'));
-if (!['D1', 'D2', 'D3', 'D4', 'D5'].includes(manifest.cell)) throw new Error(`D1-D5 browser driver cannot execute cell ${manifest.cell}`);
+if (!['D1', 'D2', 'D3', 'D4', 'D5', 'D6'].includes(manifest.cell)) throw new Error(`D1-D6 browser driver cannot execute cell ${manifest.cell}`);
 const scenarioSet = JSON.parse(await readFile(path.join(root, manifest.scenario_set.path), 'utf8'));
 const stimuli = Object.fromEntries(scenarioSet.scenarios.map(row => [row.scenario_id, row.stimulus]));
 const expectedRuntimeLabel = {
@@ -26,12 +26,13 @@ const expectedRuntimeLabel = {
   D3: 'Live Codex mode',
   D4: 'Live DiffusionGemma mode',
   D5: 'Live provider mode',
+  D6: 'Auto assistant',
 }[manifest.cell];
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const captureDir = path.join(runDir, 'ruler_capture');
 const screenshotDir = path.join(runDir, 'screenshots');
 const configuredWaitMs = Number(process.env.CALENDAR_PILOT_BROWSER_WAIT_MS || 0);
-const preregisteredWaitSeconds = ['D3', 'D4'].includes(manifest.cell)
+const preregisteredWaitSeconds = ['D3', 'D4', 'D6'].includes(manifest.cell)
   ? Number(scenarioSet.performance_budgets_seconds?.live_recommendation || 60)
   : Math.max(15, Number(scenarioSet.performance_budgets_seconds?.existing_plan_followup || 20));
 const waitTimeoutMs = configuredWaitMs > 0 ? configuredWaitMs : preregisteredWaitSeconds * 1000;
@@ -66,7 +67,7 @@ async function main() {
 
     await sendStimulus(client, 'P-OBSERVE');
     await record(client, 'P-OBSERVE', 'after_observe');
-    if (manifest.cell === 'D5') await record(client, 'P-LIVE-READ', 'bounded_live_read');
+    if (['D5', 'D6'].includes(manifest.cell)) await record(client, 'P-LIVE-READ', 'bounded_live_read');
     await sendStimulus(client, 'P-RECOMMEND');
     await record(client, 'P-RECOMMEND', 'after_recommend');
     await record(client, 'P-ACTION-VISIBLE', 'candidate_inspection');
