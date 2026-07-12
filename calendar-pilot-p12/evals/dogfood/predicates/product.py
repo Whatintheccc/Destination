@@ -78,8 +78,10 @@ def _observe(vector: dict[str, Any]) -> dict[str, Any]:
     provider_ids = {str(value) for value in provider.get("fact_ids", [])}
     visible_ids = {str(value) for value in rendered.get("fact_ids", [])}
     citation_ids = {str(value) for value in rendered.get("citation_ids", [])}
+    gap = next((row for row in vector.get("operator_truth", {}).get("facts", []) if row.get("kind") == "calendar_gap"), None)
+    truth_supported = bool(truth) or (gap is not None and not truth)
     zero, counts = _zero_effects(vector)
-    ok = bool(truth) and provider_ids == truth == visible_ids and visible_ids.issubset(citation_ids) and not rendered.get("candidate_ids") and zero
+    ok = truth_supported and provider_ids == truth == visible_ids and visible_ids.issubset(citation_ids) and not rendered.get("candidate_ids") and zero
     divergence = len(truth.symmetric_difference(visible_ids))
     return _result("pass" if ok else "fail", "Visible cited observation agrees with provider and operator truth." if ok else "Observation truth, citations, or no-effect ceiling diverged.", evidence={"truth_fact_ids": sorted(truth), "provider_fact_ids": sorted(provider_ids), "visible_fact_ids": sorted(visible_ids), "citation_ids": sorted(citation_ids), "effect_counts": counts}, metrics={"provider_truth_divergence": divergence, "effect_ceiling_divergence": sum(counts.values())})
 
@@ -183,15 +185,20 @@ def _live_read(vector: dict[str, Any]) -> dict[str, Any]:
     truth = vector.get("operator_truth", {})
     provider = _latest(vector, "provider_read")
     rendered = _latest(vector, "rendered_view")
-    truth_ids = {str(row.get("fact_id")) for row in truth.get("facts", [])}
+    truth_ids = {str(row.get("fact_id")) for row in truth.get("facts", []) if row.get("kind") == "calendar_event"}
+    gap = next((row for row in truth.get("facts", []) if row.get("kind") == "calendar_gap"), None)
+    gap_value = gap.get("value", {}) if isinstance(gap, dict) else {}
     provider_ids = {str(value) for value in provider.get("fact_ids", [])}
     visible_ids = {str(value) for value in rendered.get("fact_ids", [])}
     health = vector.get("health", {})
     provider_ok = health.get("backends", {}).get("provider") == "apple_eventkit" and provider.get("provider_identity") == "apple_eventkit" and truth.get("provider_identity") == "apple_eventkit"
     fixture_free = provider.get("uses_sample_fixtures") is False and not provider.get("fixture_rows")
-    ok = bool(truth_ids) and truth_ids == provider_ids == visible_ids and provider_ok and fixture_free and provider.get("permission_owner") == "app"
+    expected_window = {key: gap_value.get(key) for key in ("time_min", "time_max")}
+    window_ok = bool(gap) and expected_window == provider.get("read_window")
+    truth_supported = bool(truth_ids) or (bool(gap) and gap_value.get("event_count") == 0)
+    ok = truth_supported and truth_ids == provider_ids == visible_ids and provider_ok and fixture_free and window_ok and provider.get("permission_owner") == "app"
     divergence = len(truth_ids.symmetric_difference(provider_ids)) + len(truth_ids.symmetric_difference(visible_ids))
-    return _result("pass" if ok else "fail", "Live provider read agrees with operator truth and contains no fixture leakage." if ok else "Provider identity, permission ownership, truth, or fixture isolation diverged.", evidence={"truth_fact_ids": sorted(truth_ids), "provider_fact_ids": sorted(provider_ids), "visible_fact_ids": sorted(visible_ids), "provider_ok": provider_ok, "fixture_free": fixture_free}, metrics={"provider_truth_divergence": divergence + (0 if provider_ok and fixture_free else 1)})
+    return _result("pass" if ok else "fail", "Live provider read agrees with operator truth and contains no fixture leakage." if ok else "Provider identity, permission ownership, truth, read window, or fixture isolation diverged.", evidence={"truth_fact_ids": sorted(truth_ids), "provider_fact_ids": sorted(provider_ids), "visible_fact_ids": sorted(visible_ids), "provider_ok": provider_ok, "fixture_free": fixture_free, "window_ok": window_ok, "expected_window": expected_window, "provider_window": provider.get("read_window")}, metrics={"provider_truth_divergence": divergence + (0 if provider_ok and fixture_free and window_ok else 1)})
 
 
 def _effect(vector: dict[str, Any]) -> dict[str, Any]:

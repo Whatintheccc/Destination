@@ -212,7 +212,7 @@ class SessionPersistenceController:
                 self.session.runtime.frontier[restored.candidate_id] = restored
         if self.session.latest_plan is None:
             return
-        if not self.candidate_restore_allowed(self.session.latest_plan_observation_id, self.session.latest_plan_observation_fingerprint):
+        if not self.candidate_restore_allowed(self.session.latest_plan_observation_id, self.session.latest_plan_observation_fingerprint) and not self.isolated_noop_plan_restore_allowed():
             return
         for receipt in self.session.latest_plan.receipts:
             output = receipt.output if isinstance(receipt.output, dict) else {}
@@ -233,7 +233,7 @@ class SessionPersistenceController:
         return bool(source_fingerprint and source_fingerprint == observation_fingerprint(self.session.observation))
 
     def prune_latest_plan_for_active_observation(self) -> None:
-        if self.session.latest_plan is None or self.candidate_restore_allowed(self.session.latest_plan_observation_id, self.session.latest_plan_observation_fingerprint):
+        if self.session.latest_plan is None or self.candidate_restore_allowed(self.session.latest_plan_observation_id, self.session.latest_plan_observation_fingerprint) or self.isolated_noop_plan_restore_allowed():
             return
         before = len(self.session.latest_plan.receipts)
         self.session.latest_plan.receipts = [
@@ -250,3 +250,21 @@ class SessionPersistenceController:
             "stale_observation_id": self.session.latest_plan_observation_id,
             "active_observation_id": self.session.observation.observation_id,
         })
+
+    def isolated_noop_plan_restore_allowed(self) -> bool:
+        if self.session.latest_plan is None or self.session.latest_plan_observation_id != "fixture_noop_dominates":
+            return False
+        candidates: list[dict[str, Any]] = []
+        for receipt in self.session.latest_plan.receipts:
+            output = receipt.output if isinstance(receipt.output, dict) else {}
+            rows = output.get("candidates")
+            if isinstance(rows, list):
+                candidates.extend(row for row in rows if isinstance(row, dict))
+            candidate = output.get("candidate")
+            if isinstance(candidate, dict):
+                candidates.append(candidate)
+        return bool(candidates) and all(
+            row.get("intent") == "do_nothing"
+            and all(action.get("action_type") == "do_nothing" for action in row.get("actions", []) if isinstance(action, dict))
+            for row in candidates
+        )

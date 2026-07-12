@@ -17,7 +17,7 @@ if (!['before-restart', 'after-restart'].includes(mode) || !baseUrl || !runDir) 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(runDir, 'run_manifest.json'), 'utf8'));
-if (!['D1', 'D2', 'D3', 'D4'].includes(manifest.cell)) throw new Error(`D1-D4 browser driver cannot execute cell ${manifest.cell}`);
+if (!['D1', 'D2', 'D3', 'D4', 'D5'].includes(manifest.cell)) throw new Error(`D1-D5 browser driver cannot execute cell ${manifest.cell}`);
 const scenarioSet = JSON.parse(await readFile(path.join(root, manifest.scenario_set.path), 'utf8'));
 const stimuli = Object.fromEntries(scenarioSet.scenarios.map(row => [row.scenario_id, row.stimulus]));
 const expectedRuntimeLabel = {
@@ -25,6 +25,7 @@ const expectedRuntimeLabel = {
   D2: 'Swift IPC mode',
   D3: 'Live Codex mode',
   D4: 'Live DiffusionGemma mode',
+  D5: 'Live provider mode',
 }[manifest.cell];
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const captureDir = path.join(runDir, 'ruler_capture');
@@ -65,6 +66,7 @@ async function main() {
 
     await sendStimulus(client, 'P-OBSERVE');
     await record(client, 'P-OBSERVE', 'after_observe');
+    if (manifest.cell === 'D5') await record(client, 'P-LIVE-READ', 'bounded_live_read');
     await sendStimulus(client, 'P-RECOMMEND');
     await record(client, 'P-RECOMMEND', 'after_recommend');
     await record(client, 'P-ACTION-VISIBLE', 'candidate_inspection');

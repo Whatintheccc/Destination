@@ -152,6 +152,7 @@ class AppleEventKitProvider:
         else:
             self.bridge = SwiftEventKitBridge()
         self.state = self._load_state()
+        self.last_read_window: dict[str, str] | None = None
 
     def health_status(self, *, request_access: bool = False) -> dict[str, Any]:
         command = "request_access" if request_access else "status"
@@ -185,9 +186,13 @@ class AppleEventKitProvider:
 
     def read_observation(self, user_scope_id: str, *, observed_at: datetime | None = None, time_zone_id: str = "UTC") -> RawCalendarObservation:
         now = observed_at or datetime.now(timezone.utc)
+        time_min = _read_window_bound("CALENDAR_PILOT_EVENTKIT_READ_TIME_MIN") or (now - timedelta(days=1))
+        time_max = _read_window_bound("CALENDAR_PILOT_EVENTKIT_READ_TIME_MAX") or (now + timedelta(days=14))
+        if time_max <= time_min:
+            raise CalendarProviderError("EventKit read window must have time_max after time_min")
+        self.last_read_window = {"time_min": time_min.isoformat(), "time_max": time_max.isoformat()}
         result = self.bridge.call("read_events", {
-            "time_min": (now - timedelta(days=1)).isoformat(),
-            "time_max": (now + timedelta(days=14)).isoformat(),
+            **self.last_read_window,
         })
         return RawCalendarObservation(
             observation_id=self.observation_id,
@@ -547,6 +552,19 @@ def _default_bridge_path() -> str:
         if str(path) and path.exists():
             return str(path)
     return ""
+
+
+def _read_window_bound(name: str) -> datetime | None:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise CalendarProviderError(f"{name} must be an ISO-8601 datetime") from exc
+    if parsed.tzinfo is None:
+        raise CalendarProviderError(f"{name} must include a UTC offset")
+    return parsed
 
 
 def _canonical_bridge_executable(path: Path) -> Path:

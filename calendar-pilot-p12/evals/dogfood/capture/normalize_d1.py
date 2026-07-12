@@ -199,6 +199,11 @@ def fact_ids_from_provider(raw: dict[str, Any]) -> list[str]:
     return []
 
 
+def provider_observation_payload(raw: dict[str, Any]) -> dict[str, Any]:
+    payload = latest_record(raw, "calendar_observation").get("payload", {})
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
 def ids_from_dom(dom: str, attribute: str) -> list[str]:
     return list(dict.fromkeys(re.findall(rf'{re.escape(attribute)}=["\']([^"\']+)["\']', dom)))
 
@@ -271,8 +276,8 @@ def normalize(run_dir: Path) -> None:
     run_dir = run_dir.resolve()
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
     truth = json.loads((run_dir / "operator_truth.json").read_text(encoding="utf-8"))
-    if manifest.get("cell") not in {"D1", "D2", "D3", "D4"}:
-        raise ValueError("D1-D4 normalizer cannot process another cell")
+    if manifest.get("cell") not in {"D1", "D2", "D3", "D4", "D5"}:
+        raise ValueError("D1-D5 normalizer cannot process another cell")
     browser_path = run_dir / "ruler_capture/browser_records.jsonl"
     browser_rows = load_jsonl(browser_path)
     by_scenario: dict[str, list[dict[str, Any]]] = {}
@@ -312,6 +317,12 @@ def normalize(run_dir: Path) -> None:
                 "fact_ids": ids_from_dom(raw["dom_html"], "data-fact-id"),
                 "citation_ids": ids_from_dom(raw["dom_html"], "data-citation-id"),
                 "candidate_ids": ids_from_dom(raw["dom_html"], "data-candidate-id"),
+            })
+        elif scenario_id == "P-LIVE-READ":
+            rendered_payload.update({
+                "fact_ids": ids_from_dom(raw["dom_html"], "data-fact-id"),
+                "citation_ids": ids_from_dom(raw["dom_html"], "data-citation-id"),
+                "captured_from_ui": True,
             })
         elif scenario_id == "P-RECOMMEND":
             candidate = selected_candidate(raw)
@@ -425,9 +436,26 @@ def normalize(run_dir: Path) -> None:
         replay_evidence.append((scenario_id, replay_payload))
 
     provider_raw = by_scenario["P-OBSERVE"][-1]
-    provider_payload = {"fact_ids": fact_ids_from_provider(provider_raw), "provider_identity": "deterministic_fixture_provider", "uses_sample_fixtures": True, "fixture_rows": [], "permission_owner": "fixture"}
+    observation_payload = provider_observation_payload(provider_raw)
+    raw_health = provider_raw.get("health", {}) if isinstance(provider_raw.get("health"), dict) else {}
+    health_backends = raw_health.get("backends", {}) if isinstance(raw_health.get("backends"), dict) else {}
+    fixture_paths = raw_health.get("fixture_paths", {}) if isinstance(raw_health.get("fixture_paths"), dict) else {}
+    provider_health = raw_health.get("provider_health", {}) if isinstance(raw_health.get("provider_health"), dict) else {}
+    provider_identity = str(health_backends.get("provider") or "unknown_provider")
+    live_provider = provider_identity == "apple_eventkit"
+    provider_payload = {
+        "fact_ids": fact_ids_from_provider(provider_raw),
+        "provider_identity": provider_identity,
+        "uses_sample_fixtures": bool(fixture_paths.get("uses_sample_fixtures")),
+        "fixture_rows": [],
+        "permission_owner": "app" if provider_health.get("auth_method") == "eventkit_os_calendar_permission" else "fixture",
+        "read_window": observation_payload.get("read_window"),
+    }
+    provider_rows = [("P-OBSERVE", provider_payload)]
+    if manifest.get("cell") == "D5":
+        provider_rows.append(("P-LIVE-READ", provider_payload))
 
-    for source, rows in (("rendered_view", [(scenario, payload) for scenario, payload, _ in rendered]), ("replay", replay_evidence), ("ui_action", ui_evidence), ("provider_read", [("P-OBSERVE", provider_payload)])):
+    for source, rows in (("rendered_view", [(scenario, payload) for scenario, payload, _ in rendered]), ("replay", replay_evidence), ("ui_action", ui_evidence), ("provider_read", provider_rows)):
         for index, (scenario_id, payload) in enumerate(rows, 1):
             derived.append({"record_id": f"derived:{source}:{scenario_id}:{index}", "scenario_id": scenario_id, "source": source, **payload})
     derived_path = run_dir / "ruler_capture/derived_records.jsonl"
@@ -451,8 +479,8 @@ def normalize(run_dir: Path) -> None:
 
     provider_document = {
         "run_id": manifest["run_id"],
-        "provider_identity": "deterministic_fixture_provider",
-        "dogfood_evidence": envelopes_for("provider_read", [("P-OBSERVE", provider_payload)]),
+        "provider_identity": provider_payload["provider_identity"],
+        "dogfood_evidence": envelopes_for("provider_read", provider_rows),
     }
     (run_dir / "provider.before.json").write_text(json.dumps(provider_document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     final_raw = by_scenario["P-RESTART"][-1]

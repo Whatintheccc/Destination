@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0-D3 are complete. Exact protected-main D3 build `1a1b5c6b5ab4` passes all 12 required product scenarios through live Codex with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D4 live DiffusionGemma is active: exact protected-main run `20260712T005425Z-d4-live_diffusiongemma-2d4264672d32` is binding eligible and passes 10/12 with complete evidence and zero divergence; only explicit comparison against no change (`P-RECOMMEND`) and visible no-op binding constraint (`P-NOOP`) fail. The selected compact v4 contract adds that single semantic. D5-D7 remain closed.**
+Current verdict: **Binding D0-D4 are complete. Exact protected-main D4 run `20260712T010920Z-d4-live_diffusiongemma-68c32e163d04` passes all 12 required product scenarios with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, or continuity divergence. D5 real EventKit read is active. Its access path now binds one operator-verified calendar window before launch, makes EventKit read exactly that window, grades a visible empty interval as evidence rather than missing truth, and runs the dominated no-op fixture only as an isolated shadow without replacing EventKit. D6-D7 remain closed.**
 
 ---
 
@@ -592,6 +592,24 @@ live_blockers                              []
 The absence of a visible Connect Calendar control is itself a product access-point fail;
 the API only enables evaluation.
 
+For the current privacy-preserving D5 pass, first inspect Mac Calendar independently and
+choose one bounded local interval with zero Calendar events. Do not infer emptiness from
+the app under test. Freeze the offset-aware endpoints, then run:
+
+```bash
+make p13-dogfood-d5 \
+  LIVE_WINDOW_START='2026-07-12T00:00:00-07:00' \
+  LIVE_WINDOW_END='2026-07-13T00:00:00-07:00' \
+  LIVE_TIMEZONE='America/Los_Angeles'
+```
+
+The manifest-adjacent operator truth records a hashed `calendar_gap`; the same endpoints
+are injected into the owned app process and must reappear in provider evidence. An empty
+set passes only when operator truth, EventKit, and the visible cited read all agree. The
+`P-NOOP` fixture remains required, but in D5 it executes as an explicitly recorded shadow
+observation: it cannot reset the provider, change provider identity, or leak into
+`P-LIVE-READ`.
+
 ### 9.5 D7 current-build binding
 
 D7 is blocked until D1-D6 pass and a fresh managed EventKit certificate binds the exact
@@ -726,7 +744,7 @@ scenario failures into independent tickets. Execute this order:
 [x] Pass binding D0 on exact protected main with complete three-rail evidence.
 [x] Run the complete binding D1 suite unchanged. The diagnostic result informs
    hypotheses but does not predetermine the binding verdict.
-[ ] Close one causal semantic root per vertical wave, rerunning all of D1 after each:
+[x] Close one causal semantic root per vertical wave, rerunning all of D1 after each:
 
    ```text
    P-OBSERVE [closed on binding run 20260711T130433Z]
@@ -752,6 +770,13 @@ scenario failures into independent tickets. Execute this order:
    DiffusionGemma with deterministic Codex—before D5 real-provider reads, D6
    integration, and the one explicitly confirmed/verified/compensated D7 effect.
 
+[x] Close D4 on exact protected main with the compact respondent boundary and required
+    no-op comparison. `20260712T010920Z-d4-live_diffusiongemma-68c32e163d04` passes 12/12.
+[ ] Pass D5 through a frozen operator-verified EventKit read window with zero writes,
+    fixture leakage, stage calls, claims, or outbox dispatches.
+[ ] Pass D6 all-live integration, then perform the one explicitly confirmed D7 effect
+    and compensation.
+
 Do not start EventKit writes, positive-learning promotion, or recursive harness
 optimization while D2-D6 are open. Preserve D1's raw trace as
 search/debug history; it is not positive human reward, held-out evidence, or five
@@ -762,6 +787,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — D4 complete; D5 live-read boundary opened
+
+- Protected-main build `68c32e163d04` binds the compact v4 DiffusionGemma proposal
+  contract, including an explicit comparison with no change and a visible binding
+  constraint when no-op wins.
+- Run `20260712T010639Z-d4-live_diffusiongemma-68c32e163d04` is retained as an external
+  respondent-failure run: NVIDIA returned HTTP 502 during correction, producing a
+  truthful 9/12 result without any provider mutation.
+- The unchanged exact build and signed architecture manifest were rerun as
+  `20260712T010920Z-d4-live_diffusiongemma-68c32e163d04`; it passes 12/12 with complete
+  evidence and zero measured divergence. D4 is closed.
+- D5 preflight confirmed app-owned EventKit permission (`full_access`), real-provider
+  observation hydration, no fixture fallback, and an independently visible empty
+  Calendar interval. The D5 wave freezes that interval before launch and treats its
+  zero-event claim as a first-class `calendar_gap` rather than manufacturing an event.
+- The former D5 contradiction is removed: the normalizer no longer labels live EventKit
+  as a deterministic fixture, and the no-op fixture is an isolated shadow that cannot
+  replace the active provider or its observation.
 
 ### 2026-07-11 — D3 live Codex complete; D4 compact Frontier boundary selected
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -42,6 +42,21 @@ def load_bio() -> UserBiography:
 
 
 class AppleEventKitProviderTests(unittest.TestCase):
+    def test_read_observation_uses_and_records_frozen_environment_window(self):
+        bridge = FakeEventKitBridge(authorized=True)
+        provider = AppleEventKitProvider(bridge=bridge)
+        time_min = "2026-07-12T00:00:00-07:00"
+        time_max = "2026-07-13T00:00:00-07:00"
+        with patch.dict("os.environ", {
+            "CALENDAR_PILOT_EVENTKIT_READ_TIME_MIN": time_min,
+            "CALENDAR_PILOT_EVENTKIT_READ_TIME_MAX": time_max,
+        }):
+            provider.read_observation("operator", observed_at=datetime(2026, 7, 11, tzinfo=timezone.utc))
+
+        payload = next(payload for command, payload in bridge.calls if command == "read_events")
+        self.assertEqual(payload, {"time_min": time_min, "time_max": time_max})
+        self.assertEqual(provider.last_read_window, payload)
+
     def test_eventkit_bridge_path_never_opens_main_app_bundle(self):
         with tempfile.TemporaryDirectory() as td:
             bin_dir = Path(td) / "CalendarPilot.app" / "Contents" / "Resources" / "app" / "bin"

@@ -168,6 +168,49 @@ def fixture_truth(run_id: str, created_at: str, fixture_path: Path) -> dict[str,
     }
 
 
+def live_gap_truth(run_id: str, created_at: str, *, timezone_name: str, time_min: str, time_max: str) -> dict[str, Any]:
+    lower = datetime.fromisoformat(time_min.replace("Z", "+00:00"))
+    upper = datetime.fromisoformat(time_max.replace("Z", "+00:00"))
+    if lower.tzinfo is None or upper.tzinfo is None or upper <= lower:
+        raise ValueError("live EventKit truth requires an offset-aware, increasing read window")
+    gap_value = {
+        "time_min": lower.isoformat(),
+        "time_max": upper.isoformat(),
+        "event_count": 0,
+        "verification_method": "mac_calendar_ui",
+    }
+    noop_fixture = json.loads(NOOP_FIXTURE.read_text(encoding="utf-8"))
+    facts = [
+        {
+            "fact_id": f"calendar_gap:{sha256_json(gap_value)[:16]}",
+            "kind": "calendar_gap",
+            "value": gap_value,
+            "source_hash": sha256_json(gap_value),
+        },
+        {
+            "fact_id": "fixture:noop_dominates",
+            "kind": "fixture_truth",
+            "value": {
+                "fixture_id": "noop_dominates",
+                "noop_dominates": True,
+                "observation_id": noop_fixture["observation_id"],
+                "fixture_path": str(NOOP_FIXTURE.relative_to(ROOT)),
+                "execution_scope": "isolated_shadow",
+            },
+            "source_hash": sha256_file(NOOP_FIXTURE),
+        },
+    ]
+    return {
+        "dogfood_operator_truth_schema_version": "dogfood_operator_truth.v1",
+        "run_id": run_id,
+        "created_at": created_at,
+        "timezone": timezone_name,
+        "redaction_class": "sensitive_local_only",
+        "provider_identity": "apple_eventkit",
+        "facts": facts,
+    }
+
+
 def process_identity() -> dict[str, str]:
     dirty = git("status", "--short")
     if dirty:
@@ -251,9 +294,26 @@ def prepare(args: argparse.Namespace) -> Path:
             },
             "required_artifacts": required_artifacts(scenario_set, args.cell),
             "timeouts_seconds": scenario_set["performance_budgets_seconds"],
-            "operator_checkpoints": (["confirm_one_private_create", "confirm_compensation"] if args.cell == "D7" else []),
+            "operator_checkpoints": (
+                ["confirm_one_private_create", "confirm_compensation"]
+                if args.cell == "D7"
+                else (["confirm_live_read_window"] if args.cell == "D5" else [])
+            ),
         }
-        truth = fixture_truth(run_id, created_at, Path(args.fixture).resolve())
+        if args.cell == "D5":
+            if not args.live_window_start or not args.live_window_end:
+                raise ValueError("D5 requires a pre-confirmed bounded live EventKit window")
+            truth = live_gap_truth(
+                run_id,
+                created_at,
+                timezone_name=args.live_timezone,
+                time_min=args.live_window_start,
+                time_max=args.live_window_end,
+            )
+        elif args.cell in {"D6", "D7"}:
+            raise ValueError(f"{args.cell} live operator-truth preparation is not implemented")
+        else:
+            truth = fixture_truth(run_id, created_at, Path(args.fixture).resolve())
         validate(manifest, MANIFEST_SCHEMA, "dogfood run manifest")
         validate(truth, TRUTH_SCHEMA, "dogfood operator truth")
         (run_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -272,6 +332,9 @@ def main() -> None:
     parser.add_argument("--app-bundle", default=str(DEFAULT_APP))
     parser.add_argument("--architecture-report", default=str(DEFAULT_ARCHITECTURE_REPORT))
     parser.add_argument("--fixture", default=str(DEFAULT_FIXTURE))
+    parser.add_argument("--live-window-start", default="")
+    parser.add_argument("--live-window-end", default="")
+    parser.add_argument("--live-timezone", default="America/Los_Angeles")
     parser.add_argument("--out-root", default=str(ROOT / "runs/dogfood"))
     parser.add_argument("--run-id", default="")
     args = parser.parse_args()

@@ -14,6 +14,7 @@ from scripts.prepare_p13_dogfood_run import (
     SCENARIO_SET,
     TRUTH_SCHEMA,
     fixture_truth,
+    live_gap_truth,
     required_artifacts,
     selected_scenarios,
 )
@@ -58,6 +59,23 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         serialized = json.dumps(truth)
         self.assertNotIn("client@example.com", serialized)
         self.assertNotIn("Discuss renewal options", serialized)
+
+    def test_live_gap_truth_binds_empty_ui_verified_window_and_isolates_noop_fixture(self) -> None:
+        truth = live_gap_truth(
+            "run-live",
+            datetime.now(timezone.utc).isoformat(),
+            timezone_name="America/Los_Angeles",
+            time_min="2026-07-12T00:00:00-07:00",
+            time_max="2026-07-13T00:00:00-07:00",
+        )
+        schema = json.loads(TRUTH_SCHEMA.read_text(encoding="utf-8"))
+        Draft202012Validator(schema, format_checker=FormatChecker()).validate(truth)
+        self.assertEqual(truth["provider_identity"], "apple_eventkit")
+        self.assertEqual(truth["redaction_class"], "sensitive_local_only")
+        gap, noop = truth["facts"]
+        self.assertEqual(gap["kind"], "calendar_gap")
+        self.assertEqual(gap["value"]["event_count"], 0)
+        self.assertEqual(noop["value"]["execution_scope"], "isolated_shadow")
 
 
 if __name__ == "__main__":
