@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from evals.dogfood.capture.normalize_d1 import d7_effect_evidence, d7_undo_evidence, effect_counts, extract_candidate_dom, ids_from_dom, internal_action, latest_provider_transaction, latest_tool_receipt, restart_digest, visible_action
+from evals.dogfood.capture.normalize_d1 import d7_committed_action, d7_effect_evidence, d7_provider_read_evidence, d7_undo_evidence, effect_counts, extract_candidate_dom, ids_from_dom, internal_action, latest_provider_transaction, latest_tool_receipt, restart_digest, visible_action
 from evals.dogfood.predicates.product import evaluate_predicate
 from scripts.run_p13_dogfood_d1 import health_matches_launch
 from scripts.run_p13_dogfood_d7 import event_payload
@@ -106,20 +106,19 @@ class DogfoodD1CaptureTests(unittest.TestCase):
                 "tickets": {"apply-1": {"ticket": apply}},
                 "outbox": {"apply-1": {"facts": ["claim", "dispatch", "unknown", "verified"]}},
                 "receipts": {"apply-1": {"phase": "verified"}},
-                "adapter_state": {"mutation_count": 1, "compensation_mutation_count": 0},
+                "adapter_state": {"mutation_count": 1, "compensation_mutation_count": 0, "external_ids": {"idem-1": "event-1"}},
             }
             final = {
                 "tickets": {"apply-1": {"ticket": apply}, "undo-1": {"ticket": compensate}},
                 "outbox": {"apply-1": {"facts": ["claim", "dispatch", "unknown", "verified"]}, "undo-1": {"facts": ["claim", "dispatch", "unknown", "verified"]}},
                 "receipts": {"apply-1": {"phase": "verified"}, "undo-1": {"phase": "verified"}},
-                "adapter_state": {"mutation_count": 1, "compensation_mutation_count": 1},
+                "adapter_state": {"mutation_count": 1, "compensation_mutation_count": 1, "external_ids": {}},
             }
-            for filename, value in (("ledger.after_commit.raw.json", after_commit), ("ledger.after_undo.raw.json", final), ("ledger.after_restart.raw.json", final), ("provider.after.raw.json", {"events": [{"event_id": "event-1"}]}), ("provider.after_undo.raw.json", {"events": []})):
+            for filename, value in (("ledger.after_commit.raw.json", after_commit), ("ledger.after_undo.raw.json", final), ("ledger.after_restart.raw.json", final), ("provider.before.raw.json", {"provider_identity": "apple_eventkit", "permission_status": "full_access", "read_window": {"time_min": "a", "time_max": "b"}, "events": [{"event_id": "parent-1"}]}), ("provider.after.raw.json", {"events": [{"event_id": "event-1"}]}), ("provider.after_undo.raw.json", {"events": []})):
                 (capture / filename).write_text(json.dumps(value))
             raw = {"replay_export": {"records": [
-                {"record_type": "codex_tool_receipt", "payload": {"receipt": {"tool_name": "request_commit", "status": "committed", "output": {"swift_receipt": {"generated_event_ids": ["event-1"]}, "retirement": {"owner": "effect_kernel"}}}}},
-                {"record_type": "provider_transaction", "payload": {"operation": "commit", "transaction": {"external_ids": ["event-1"], "effect_receipt_sha256": "receipt-hash"}}},
-                {"record_type": "provider_transaction", "payload": {"operation": "rollback", "transaction": {"rollback_verified": True}}},
+                {"record_type": "codex_tool_receipt", "payload": {"receipt": {"tool_name": "request_commit", "status": "committed", "output": {"candidate": {"actions": [{"start": "2026-07-11T08:00:00-07:00", "end": "2026-07-11T08:30:00-07:00", "calendar_id": "sandbox", "title": "Prep", "attendees": []}], "affected_event_ids": ["parent-1"], "affected_people_ids": [], "reversibility": "high", "required_authority_tier": 3}, "swift_receipt": {"generated_event_ids": ["event-1"]}, "provider_receipt": {"external_ids": ["event-1"], "effect_receipt_sha256": "receipt-hash"}, "retirement": {"owner": "effect_kernel"}}}}},
+                {"record_type": "codex_tool_receipt", "payload": {"receipt": {"tool_name": "request_undo", "status": "reverted", "output": {"rollback_verified": True}}}},
             ]}}
             effect = d7_effect_evidence(run_dir, raw)
             undo = d7_undo_evidence(run_dir, raw)
@@ -127,6 +126,9 @@ class DogfoodD1CaptureTests(unittest.TestCase):
             undo_vector = {"records": {"replay": [{"undo": undo}]}, "present_sources": ["replay", "ui_action", "provider_after_undo", "launch_state_after"], "required_sources": ["replay", "ui_action", "provider_after_undo", "launch_state_after"], "scenario_record_count": 1}
             self.assertEqual(evaluate_predicate("effect", effect_vector)["status"], "pass")
             self.assertEqual(evaluate_predicate("undo", undo_vector)["status"], "pass")
+            self.assertEqual(d7_committed_action(raw, "America/Los_Angeles")["calendar_id"], "sandbox")
+            self.assertEqual(d7_provider_read_evidence(run_dir)["fact_ids"], ["parent-1"])
+            self.assertEqual(d7_provider_read_evidence(run_dir)["permission_owner"], "app")
 
             final["outbox"]["undo-1"]["facts"].append("dispatch")
             (capture / "ledger.after_restart.raw.json").write_text(json.dumps(final))
