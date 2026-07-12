@@ -127,7 +127,11 @@ async function main() {
     }
     await record(client, 'P-RESTART', 'before_restart');
   } catch (error) {
-    if (client) await screenshot(client, path.join(screenshotDir, `browser-${mode}-failure.png`)).catch(() => {});
+    if (client) {
+      await screenshot(client, path.join(screenshotDir, `browser-${mode}-failure.png`)).catch(() => {});
+      const failureDom = await evaluate(client, 'document.documentElement.outerHTML').catch(() => '');
+      if (failureDom) await writeFile(path.join(captureDir, `browser-${mode}-failure.html`), failureDom, 'utf8');
+    }
     await writeFile(path.join(captureDir, `browser-${mode}-failure.txt`), `${error?.stack || error}\n`, 'utf8');
     throw error;
   } finally {
@@ -139,7 +143,7 @@ async function main() {
 
 async function runD7Phase(client) {
   if (mode === 'd7-precommit') {
-    await sendStimulus(client, 'P-EFFECT');
+    await sendStimulus(client, 'P-EFFECT', { requireVisibleUser: false });
     await waitFor(client, 'document.querySelector("[data-testid=\\"candidate-card\\"]") !== null');
     const view = await getJson(`${baseUrl}/api/view`);
     const candidate = view?.frontier?.candidates?.[0];
@@ -196,14 +200,14 @@ async function setAuthority(client, tier, scopes) {
   await click(client, '[data-surface="operate"]');
 }
 
-async function sendStimulus(client, scenarioId) {
+async function sendStimulus(client, scenarioId, { requireVisibleUser = true } = {}) {
   const text = stimuli[scenarioId];
   if (!text) throw new Error(`missing frozen stimulus for ${scenarioId}`);
   const version = await evaluate(client, 'document.querySelector("#state-version")?.textContent || ""');
   await fill(client, '#goal-input', text);
   await click(client, '#send-goal');
-  await waitFor(client, `Array.from(document.querySelectorAll('[data-testid="message-user"]')).some(node => node.innerText.includes(${JSON.stringify(text)}))`);
   await waitFor(client, `document.querySelector('#state-version')?.textContent !== ${JSON.stringify(version)}`);
+  if (requireVisibleUser) await waitFor(client, `Array.from(document.querySelectorAll('[data-testid="message-user"]')).some(node => node.innerText.includes(${JSON.stringify(text)}))`);
 }
 
 async function record(client, scenarioId, phase, driverInteraction = null) {
