@@ -2101,9 +2101,14 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
    binding run `20260712T014343Z-d5-live_provider-7468d83d6bfd` passed 13/13 against an
    independently inspected, offset-aware Calendar window with exact operator/provider/UI
    agreement, isolated no-op truth, and zero writes, stages, claims, or dispatches. D6
-   all-live read integration is the active gate. Reuse the frozen read-only transaction
-   and require `auto` to resolve simultaneously to live Codex, live DiffusionGemma,
-   Swift IPC, and EventKit with no fallback, blocker, or setup note.
+   is DONE on protected main `c53c94e0a8ec`: binding run
+   `20260712T023617Z-d6-auto-c53c94e0a8ec` passed 13/13 with live Codex, live
+   DiffusionGemma, Swift IPC, and EventKit simultaneously, no fallback/blocker/setup
+   note, complete evidence, and zero divergence. D7 is the active and final product
+   gate: generate a fresh current-build managed EventKit binding, obtain immediate
+   operator confirmation, apply and verify one exact attendee-free private prep block,
+   separately authorize compensation, verify absence, and prove restart does not
+   redispatch. No previous binding or implicit confirmation is admissible.
 
 10. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.
