@@ -117,6 +117,45 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(actual_minutes, preferred_minutes)
         self.assertIn(f"explicit_duration_correction={original_minutes}->{preferred_minutes}", corrected.control_notes)
 
+    def test_live_frontier_retains_explicitly_corrected_incumbent_when_model_returns_noop(self):
+        local_candidates = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)
+        incumbent = next(row for row in local_candidates if row.intent == "create_prep_block")
+        noop = next(row for row in local_candidates if row.intent == "do_nothing")
+
+        class NoopOnlyGeneratorClient:
+            model = "google/diffusiongemma-26b-a4b-it"
+
+            def generate_candidate_frontier(self, **_kwargs):
+                return NIMFrontierResult(
+                    candidates=[noop],
+                    policy_summary="Model preferred no-op.",
+                    metadata={"prompt_version": "calendar_pilot_nim_compact_frontier_v4"},
+                )
+
+        original_minutes = int((incumbent.actions[0].end - incumbent.actions[0].start).total_seconds() // 60)
+        self.biography.preference_claims.append({
+            "kind": "explicit_candidate_correction",
+            "active": True,
+            "applies_to_intent": incumbent.intent,
+            "preferred_minutes": original_minutes - 10,
+            "candidate": incumbent.to_dict(),
+        })
+
+        policy = LiveDiffusionGemmaPolicy(client=NoopOnlyGeneratorClient())
+        candidates = policy.generate_candidates(
+            self.observation,
+            self.biography,
+        )
+
+        corrected = candidates[0]
+        actual_minutes = int((corrected.actions[0].end - corrected.actions[0].start).total_seconds() // 60)
+        self.assertEqual(corrected.intent, incumbent.intent)
+        self.assertEqual(actual_minutes, original_minutes - 10)
+        self.assertEqual(candidates[1].intent, "do_nothing")
+        self.assertIn("explicit_correction_target=retained_incumbent", corrected.control_notes)
+        metadata = policy.policy_metadata_for_candidate(corrected.candidate_id)
+        self.assertEqual(metadata["fallback_state"], "explicit_correction_incumbent_retained")
+
     def test_live_diffusiongemma_policy_forwards_user_goal_to_nim_generator(self):
         client = GoalCaptureNIMGeneratorClient()
         policy = LiveDiffusionGemmaPolicy(client=client)

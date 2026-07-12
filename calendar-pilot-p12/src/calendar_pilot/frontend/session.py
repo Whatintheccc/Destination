@@ -573,6 +573,7 @@ class DogfoodSessionState:
             {
                 "command_id": command_id,
                 "candidate_id": candidate_id,
+                "candidate": candidate.to_dict(),
                 "applies_to_intent": candidate.intent,
                 "outcome_id": outcome_id,
                 "old_belief_id": f"candidate_assumption:{candidate_id}:duration",
@@ -602,6 +603,7 @@ class DogfoodSessionState:
             "active": True,
             "applies_to_intent": command["applies_to_intent"],
             "preferred_minutes": command["replacement_minutes"],
+            "candidate": command["candidate"],
             "command_id": command["command_id"],
             "citation_ids": command["citation_ids"],
             "updated_at": _now().isoformat(),
