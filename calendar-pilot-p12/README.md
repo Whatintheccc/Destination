@@ -319,6 +319,26 @@ normal receipt-owned `REQUEST_UNDO` path, and verifies exact-calendar absence. T
 remains `authorizes_production: false`; every other EventKit scope and production mode
 stays incumbent-owned.
 
+The final P13 product dogfood cell uses the same retired vertical through one fail-closed
+access point:
+
+```bash
+make p13-dogfood-d7 \
+  CALENDAR_ID=09B50C6A-826E-4030-9908-D25DC900AC59
+```
+
+Run it only from clean protected main after `make mac-app-build` and a passing signed
+architecture report. It creates one separately ticketed, attendee-free parent fixture in
+the exact sandbox calendar, preregisters the resulting bounded read window, and refuses
+to proceed unless the all-live frontier exposes one exact private `create_prep_block`.
+The process then prints `D7_AWAITING_COMMIT=COMMIT <candidate-id>` and reads that exact
+line from stdin. After independent EventKit readback it prints
+`D7_AWAITING_UNDO=UNDO <external-id>` and requires that separate exact line before
+compensation. The runner verifies absence, restarts without redispatch, evaluates the
+frozen product rail, and removes the parent fixture in `finally`. A mismatch or missing
+confirmation performs no scored action; it never turns a setup confirmation into commit
+or undo authority.
+
 `make lab-promote` has one P13.6 aperture: `RECORD=...` may apply a content-addressed,
 promoter-signed `bootstrap` or `rollback` record whose previous-`CURRENT` precondition,
 instrument epoch, manifest/evidence hashes, payload hash, and pinned signer all verify.

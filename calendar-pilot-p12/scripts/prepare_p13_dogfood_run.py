@@ -31,6 +31,7 @@ PREDICATE_ARTIFACTS = (
     ROOT / "evals/dogfood/capture/normalize_d1.py",
     ROOT / "scripts/browser_dogfood_d1.mjs",
     ROOT / "scripts/run_p13_dogfood_d1.py",
+    ROOT / "scripts/run_p13_dogfood_d7.py",
     NOOP_FIXTURE,
 )
 
@@ -211,6 +212,55 @@ def live_gap_truth(run_id: str, created_at: str, *, timezone_name: str, time_min
     }
 
 
+def live_event_truth(
+    run_id: str,
+    created_at: str,
+    *,
+    timezone_name: str,
+    time_min: str,
+    time_max: str,
+    event: dict[str, Any],
+) -> dict[str, Any]:
+    lower = datetime.fromisoformat(time_min.replace("Z", "+00:00"))
+    upper = datetime.fromisoformat(time_max.replace("Z", "+00:00"))
+    if lower.tzinfo is None or upper.tzinfo is None or upper <= lower:
+        raise ValueError("live EventKit truth requires an offset-aware, increasing read window")
+    required = ("event_id", "start", "end", "calendar_id")
+    if any(not str(event.get(field) or "").strip() for field in required):
+        raise ValueError("D7 live EventKit truth requires an exact event id, interval, and calendar")
+    start = datetime.fromisoformat(str(event["start"]).replace("Z", "+00:00"))
+    end = datetime.fromisoformat(str(event["end"]).replace("Z", "+00:00"))
+    if start.tzinfo is None or end.tzinfo is None or not (lower <= start < end <= upper):
+        raise ValueError("D7 parent event must be fully contained in the preregistered read window")
+    value = {
+        "event_id": str(event["event_id"]),
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "calendar_id": str(event["calendar_id"]),
+        "is_user_owned": bool(event.get("is_user_owned", True)),
+        "is_flexible": bool(event.get("is_flexible", False)),
+        "category": str(event.get("category") or "work"),
+    }
+    gap_value = {
+        "time_min": lower.isoformat(),
+        "time_max": upper.isoformat(),
+        "event_count": 1,
+        "verification_method": "temporary_attendee_free_parent_fixture",
+    }
+    return {
+        "dogfood_operator_truth_schema_version": "dogfood_operator_truth.v1",
+        "run_id": run_id,
+        "created_at": created_at,
+        "timezone": timezone_name,
+        "redaction_class": "sensitive_local_only",
+        "provider_identity": "apple_eventkit",
+        "facts": [
+            {"fact_id": value["event_id"], "kind": "calendar_event", "value": value, "source_hash": sha256_json(value)},
+            {"fact_id": f"calendar_window:{sha256_json(gap_value)[:16]}", "kind": "calendar_gap", "value": gap_value, "source_hash": sha256_json(gap_value)},
+        ],
+    }
+
+
 def process_identity() -> dict[str, str]:
     dirty = git("status", "--short")
     if dirty:
@@ -311,7 +361,17 @@ def prepare(args: argparse.Namespace) -> Path:
                 time_max=args.live_window_end,
             )
         elif args.cell == "D7":
-            raise ValueError(f"{args.cell} live operator-truth preparation is not implemented")
+            event_path = Path(str(getattr(args, "live_event_json", ""))).resolve()
+            if not args.live_window_start or not args.live_window_end or not event_path.is_file():
+                raise ValueError("D7 requires a preregistered live window and exact parent-event document")
+            truth = live_event_truth(
+                run_id,
+                created_at,
+                timezone_name=args.live_timezone,
+                time_min=args.live_window_start,
+                time_max=args.live_window_end,
+                event=json.loads(event_path.read_text(encoding="utf-8")),
+            )
         else:
             truth = fixture_truth(run_id, created_at, Path(args.fixture).resolve())
         validate(manifest, MANIFEST_SCHEMA, "dogfood run manifest")
@@ -335,6 +395,7 @@ def main() -> None:
     parser.add_argument("--live-window-start", default="")
     parser.add_argument("--live-window-end", default="")
     parser.add_argument("--live-timezone", default="America/Los_Angeles")
+    parser.add_argument("--live-event-json", default="")
     parser.add_argument("--out-root", default=str(ROOT / "runs/dogfood"))
     parser.add_argument("--run-id", default="")
     args = parser.parse_args()

@@ -123,6 +123,7 @@ calendar-pilot-p12/scripts/
   browser_dogfood_d1.mjs
   prepare_p13_dogfood_run.py
   run_p13_dogfood_d1.py
+  run_p13_dogfood_d7.py
 
 calendar-pilot-p12/contracts/
   dogfood_run_manifest.schema.json
@@ -140,6 +141,7 @@ Implemented access points:
 make p13-dogfood-eval-test
 make p13-dogfood-prepare CELL=D1 RUNTIME_MODE=fixture
 make p13-dogfood-d1
+make p13-dogfood-d7 CALENDAR_ID=<exact-attendee-free-sandbox-calendar-id>
 make p13-dogfood-evals DOGFOOD_RUN=<content-addressed-run-dir>
 ```
 
@@ -150,7 +152,12 @@ hashes, runtime topology, effect ceiling, architecture report, and minimal redac
 operator truth before launch. `make p13-dogfood-d1` is the complete D1 access point: it
 preregisters, launches the packaged app, performs real browser clicks, captures every
 frozen scenario boundary, restarts the same run, normalizes only from retained raw
-records, and evaluates the report. `make p13-dogfood-evals` requires `DOGFOOD_RUN` to name a
+records, and evaluates the report. `make p13-dogfood-d7` is the only write-capable product
+access point: it creates and later cleans a separately ticketed parent fixture, rejects
+any candidate other than the exact attendee-free private prep action, and hard-pauses for
+an exact action-time commit line followed by a different exact undo line. It independently
+reads EventKit after both transitions and derives cardinality from the durable EffectKernel
+ledger. `make p13-dogfood-evals` requires `DOGFOOD_RUN` to name a
 preregistered run directory, validates the bound manifest/operator truth/instrument
 hashes, rejects missing, empty, cross-run, or mismatched-build evidence, derives all
 three rails, and writes `dogfood_eval_report.json` plus `SHA256SUMS`.
@@ -627,24 +634,20 @@ observation: it cannot reset the provider, change provider identity, or leak int
 D7 is blocked until D1-D6 pass and a fresh managed EventKit certificate binds the exact
 app/bridge hashes. Existing binding files from older builds are invalid.
 
-Use the app-bundled managed EventKit procedure in
-[calendar-pilot-p12/README.md](calendar-pilot-p12/README.md), require passing cleanup,
-then launch with its new `binding_path`:
+Use the one app-bundled D7 access point from clean protected main:
 
 ```bash
-BINDING_FILE="<current-build binding_path>"
-STATE_ROOT="$RUN_DIR/managed-eventkit-effect-state"
-
-open -n \
-  --env CALENDAR_PILOT_RUNTIME_MODE=auto \
-  --env CALENDAR_PILOT_RUN_DIR="$RUN_DIR" \
-  --env CALENDAR_PILOT_MANAGED_EVENTKIT_BINDING_FILE="$BINDING_FILE" \
-  --env CALENDAR_PILOT_MANAGED_EVENTKIT_STATE_ROOT="$STATE_ROOT" \
-  --env CALENDAR_PILOT_MANAGED_EVENTKIT_INITIALIZE=1 \
-  "$HOME/Desktop/CalendarPilot.app"
+make p13-dogfood-d7 \
+  CALENDAR_ID=09B50C6A-826E-4030-9908-D25DC900AC59
 ```
 
-The operator confirms the one real effect at action time. No other action family,
+The harness creates a fresh current-build binding and one separately authorized temporary
+attendee-free parent in that exact sandbox calendar. Before any scored effect it proves
+the all-live candidate is the exact private prep action, then prints an exact
+`COMMIT <candidate-id>` challenge. After independent provider readback it prints a
+different `UNDO <external-id>` challenge. It derives ticket/claim/dispatch/mutation/verify
+cardinality from the durable gateway ledger, proves provider absence and restart
+non-redispatch, and cleans the parent fixture even on failure. No other action family,
 calendar, attendee-bearing operation, self-play materialization, or production authority
 is in scope.
 
