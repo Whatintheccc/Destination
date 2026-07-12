@@ -22,6 +22,7 @@ from scripts.prepare_p13_dogfood_run import (
     required_artifacts,
     selected_scenarios,
 )
+from scripts.run_p13_dogfood_d0 import prepare_args as d0_prepare_args
 from scripts.run_p13_dogfood_d1 import prepare_args as d1_prepare_args
 from scripts.run_p13_dogfood_d56 import cell_args as d56_cell_args
 from scripts.run_p13_dogfood_d56 import run as run_d56
@@ -56,6 +57,21 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
             "kernel": "SwiftKernelIPCClient",
             "provider": "apple_eventkit",
         })
+
+    def test_d0_access_point_is_identity_only_fixture_runtime(self) -> None:
+        args = argparse.Namespace(
+            app_bundle=str(ROOT / "dist/CalendarPilot.app"),
+            architecture_report=str(ROOT / "runs/architecture_evals/architecture_eval_report_v2.json"),
+            out_root=str(ROOT / "runs/dogfood"),
+            run_id="",
+        )
+
+        prepared = d0_prepare_args(args)
+
+        self.assertEqual(prepared.cell, "D0")
+        self.assertEqual(prepared.runtime_mode, "fixture")
+        self.assertEqual(prepared.live_window_start, "")
+        self.assertEqual(prepared.live_event_json, "")
 
     def test_d6_reuses_live_read_scenarios_without_effect_or_undo(self) -> None:
         scenario_ids = [row["scenario_id"] for row in selected_scenarios(self.scenario_set, "D6")]
