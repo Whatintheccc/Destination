@@ -44,6 +44,8 @@ class P13CorrectionVerticalTests(unittest.TestCase):
                 )
                 self.assertFalse(correction_claim["active"])
                 self.assertEqual(correction_claim["status"], "applied")
+                self.assertEqual(correction_claim["observation_id"], "obs_empty_calendar")
+                self.assertTrue(correction_claim["observation_fingerprint"])
             finally:
                 session.close()
 
@@ -82,6 +84,8 @@ class P13CorrectionVerticalTests(unittest.TestCase):
                 )
                 self.assertFalse(correction_claim["active"])
                 self.assertEqual(correction_claim["status"], "applied")
+                self.assertEqual(correction_claim["observation_id"], "obs_demo_001")
+                self.assertTrue(correction_claim["observation_fingerprint"])
                 application = next(
                     row for row in reversed(session.replay.records)
                     if row.record_type == "candidate_correction_application"

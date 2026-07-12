@@ -13,6 +13,7 @@ from calendar_pilot.diffusiongemma.temporal_controller import RightMomentTempora
 from calendar_pilot.diffusiongemma.signals import CalendarSignals, OpenSlot, extract_signals
 from calendar_pilot.diffusiongemma.world_model import CalendarWorldModel
 from calendar_pilot.environment.taxonomy import normalize_intent
+from calendar_pilot.replay import observation_fingerprint
 from calendar_pilot.types import (
     AtomicActionType,
     AtomicCalendarAction,
@@ -98,6 +99,8 @@ def apply_explicit_duration_correction(candidate: CandidateCalendarAction, biogr
 def retain_explicitly_corrected_candidate(
     candidates: list[CandidateCalendarAction],
     biography: UserBiography,
+    *,
+    observation: RawCalendarObservation | None = None,
 ) -> tuple[list[CandidateCalendarAction], CandidateCalendarAction | None, bool]:
     claim = next((
         row for row in reversed(biography.preference_claims)
@@ -107,6 +110,13 @@ def retain_explicitly_corrected_candidate(
     ), None)
     if claim is None:
         return candidates, None, False
+    if observation is not None:
+        bound_observation_id = str(claim.get("observation_id") or "")
+        bound_observation_fingerprint = str(claim.get("observation_fingerprint") or "")
+        if bound_observation_id and bound_observation_id != observation.observation_id:
+            return candidates, None, False
+        if bound_observation_fingerprint and bound_observation_fingerprint != observation_fingerprint(observation):
+            return candidates, None, False
     intent = str(claim.get("applies_to_intent") or "")
     target = next((
         candidate for candidate in candidates
