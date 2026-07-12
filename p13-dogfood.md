@@ -811,6 +811,12 @@ Append newest entries first. Never rewrite a failed run after a fix.
 
 ### 2026-07-12 — Empty-window D6 localized the final read-only access-point defect
 
+- First shared-parent execution `20260712T081927Z-d5-live_provider-bd4b796afdba`
+  passed 12/13 and failed only P-NOOP. The product selected and explained no-op with no
+  write controls; the ruler had omitted the isolated `noop_dominates` truth fact when
+  live truth contained an event rather than a gap. External cleanup independently
+  verified absence. The truth constructor now shares one shadow-fact producer across
+  both live shapes; product behavior and all effect ceilings remain unchanged.
 - The same-build sweep passed D1-D5 on protected main `7c6d2e3cafe8`. D6 then honestly
   chose no-op for the independently verified empty live window. That exposed a UI/server
   defect: no-op candidates offered a timed correction control and recorded a terminal

@@ -169,6 +169,22 @@ def fixture_truth(run_id: str, created_at: str, fixture_path: Path) -> dict[str,
     }
 
 
+def noop_shadow_fact() -> dict[str, Any]:
+    noop_fixture = json.loads(NOOP_FIXTURE.read_text(encoding="utf-8"))
+    return {
+        "fact_id": "fixture:noop_dominates",
+        "kind": "fixture_truth",
+        "value": {
+            "fixture_id": "noop_dominates",
+            "noop_dominates": True,
+            "observation_id": noop_fixture["observation_id"],
+            "fixture_path": str(NOOP_FIXTURE.relative_to(ROOT)),
+            "execution_scope": "isolated_shadow",
+        },
+        "source_hash": sha256_file(NOOP_FIXTURE),
+    }
+
+
 def live_gap_truth(run_id: str, created_at: str, *, timezone_name: str, time_min: str, time_max: str) -> dict[str, Any]:
     lower = datetime.fromisoformat(time_min.replace("Z", "+00:00"))
     upper = datetime.fromisoformat(time_max.replace("Z", "+00:00"))
@@ -180,7 +196,6 @@ def live_gap_truth(run_id: str, created_at: str, *, timezone_name: str, time_min
         "event_count": 0,
         "verification_method": "mac_calendar_ui",
     }
-    noop_fixture = json.loads(NOOP_FIXTURE.read_text(encoding="utf-8"))
     facts = [
         {
             "fact_id": f"calendar_gap:{sha256_json(gap_value)[:16]}",
@@ -188,18 +203,7 @@ def live_gap_truth(run_id: str, created_at: str, *, timezone_name: str, time_min
             "value": gap_value,
             "source_hash": sha256_json(gap_value),
         },
-        {
-            "fact_id": "fixture:noop_dominates",
-            "kind": "fixture_truth",
-            "value": {
-                "fixture_id": "noop_dominates",
-                "noop_dominates": True,
-                "observation_id": noop_fixture["observation_id"],
-                "fixture_path": str(NOOP_FIXTURE.relative_to(ROOT)),
-                "execution_scope": "isolated_shadow",
-            },
-            "source_hash": sha256_file(NOOP_FIXTURE),
-        },
+        noop_shadow_fact(),
     ]
     return {
         "dogfood_operator_truth_schema_version": "dogfood_operator_truth.v1",
@@ -257,6 +261,7 @@ def live_event_truth(
         "facts": [
             {"fact_id": value["event_id"], "kind": "calendar_event", "value": value, "source_hash": sha256_json(value)},
             {"fact_id": f"calendar_window:{sha256_json(gap_value)[:16]}", "kind": "calendar_gap", "value": gap_value, "source_hash": sha256_json(gap_value)},
+            noop_shadow_fact(),
         ],
     }
 
