@@ -56,6 +56,11 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         self.assertNotIn("P-EFFECT", scenario_ids)
         self.assertNotIn("P-UNDO", scenario_ids)
 
+    def test_d7_uses_the_frozen_live_recommendation_budget(self) -> None:
+        driver = (ROOT / "scripts/browser_dogfood_d1.mjs").read_text(encoding="utf-8")
+        self.assertIn("['D3', 'D4', 'D6', 'D7'].includes(manifest.cell)", driver)
+        self.assertEqual(self.scenario_set["performance_budgets_seconds"]["live_recommendation"], 60)
+
     def test_fixture_truth_is_minimal_hashed_and_schema_valid(self) -> None:
         truth = fixture_truth("run-1", datetime.now(timezone.utc).isoformat(), ROOT / "data/sample_calendar.json")
         schema = json.loads(TRUTH_SCHEMA.read_text(encoding="utf-8"))
