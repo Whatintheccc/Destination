@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0-D3 are complete. Exact protected-main D3 build `1a1b5c6b5ab4` passes all 12 required product scenarios through live Codex with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D4 live DiffusionGemma is open: the first complete attempt exposed an over-wide model-output contract and aborted at the missing correction control. A compact-proposal adapter and fail-observable browser capture are locally green but still require the exact protected-main live rerun. D5-D7 remain closed.**
+Current verdict: **Binding D0-D3 are complete. Exact protected-main D3 build `1a1b5c6b5ab4` passes all 12 required product scenarios through live Codex with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D4 live DiffusionGemma is open: exact clean candidate `c80fcef590bf` passes the affected live NIM E2E with a compact cited-proposal boundary and fail-observable browser capture. Protected-main merge, exact release/signing, and the binding D4 product transaction remain before a D4 verdict. D5-D7 remain closed.**
 
 ---
 
@@ -787,8 +787,17 @@ Append newest entries first. Never rewrite a failed run after a fix.
   as explicit failed prerequisites and emits no UI-action row unless a real DOM action
   succeeded. Product failure can therefore complete as a scored report rather than
   crashing the ruler. Focused policy/capture tests and all 373 Python tests pass locally.
-  The live NIM rerun, protected-main merge, release, signed D4 run, and D4 verdict remain
-  open; the external live-call window was unavailable after the candidate was built.
+  The external live-call window was unavailable after the first candidate was built.
+- Exact clean behavior commit `c80fcef590bf` then passed `make live-diffusiongemma-e2e`.
+  The retained artifact proves live NIM generation, exact observation-event citations,
+  local identity/contract hydration, ProductCore admission, Swift IPC simulation, the
+  complete generic browser interaction, replay provenance, and secret inspection. Two
+  instrument defects found en route remain preserved in the history: NIM naturally
+  returned a root proposal array rather than the unused wrapper, and the generic browser
+  clicked a preloaded stale candidate before a slower live plan completed. The final
+  adapter uses the smaller root array and the browser binds interaction to the completed
+  post-submit state version. Protected-main merge, exact release/signing, the binding D4
+  transaction, and the D4 verdict remain open.
 
 ### 2026-07-11 — D2 Swift IPC complete; D3/D4 component cells selected
 
