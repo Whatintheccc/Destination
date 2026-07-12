@@ -1,0 +1,45 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/experiments/waves/p13-dogfood-d4-evidence-allowlist.scope.json",
+    "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/live.py",
+    "calendar-pilot-p12/tests/test_policy.py"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": [
+      "live_diffusiongemma"
+    ],
+    "surfaces": [
+      "frontend",
+      "replay",
+      "tests",
+      "wave_scope"
+    ],
+    "instruments": [
+      "tests"
+    ],
+    "control_planes": []
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_signature",
+    "target.cited_required_projection",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
