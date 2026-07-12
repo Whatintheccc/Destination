@@ -85,6 +85,8 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
     def test_d7_uses_the_frozen_live_recommendation_budget(self) -> None:
         driver = (ROOT / "scripts/browser_dogfood_d1.mjs").read_text(encoding="utf-8")
         self.assertIn("['D3', 'D4', 'D6', 'D7'].includes(manifest.cell)", driver)
+        self.assertIn("findCandidateWithActions(replay, candidate?.candidate_id)", driver)
+        self.assertIn("internalCandidate?.actions?.[0]?.action_type !== 'create_focus_block'", driver)
         self.assertEqual(self.scenario_set["performance_budgets_seconds"]["live_recommendation"], 60)
 
     def test_fixture_truth_is_minimal_hashed_and_schema_valid(self) -> None:

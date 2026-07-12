@@ -150,13 +150,15 @@ async function runD7Phase(client) {
     await sendStimulus(client, 'P-EFFECT', { requireVisibleUser: false });
     await waitFor(client, 'document.querySelector("[data-testid=\\"candidate-card\\"]") !== null');
     const view = await getJson(`${baseUrl}/api/view`);
+    const replay = await getJson(`${baseUrl}/api/replay/export`);
     const candidate = view?.frontier?.candidates?.[0];
+    const internalCandidate = findCandidateWithActions(replay, candidate?.candidate_id);
     const truth = JSON.parse(await readFile(path.join(runDir, 'operator_truth.json'), 'utf8'));
     const parent = truth.facts.find(row => row.kind === 'calendar_event')?.value || {};
     const failures = [];
     if (view?.read_side?.status !== 'pass') failures.push(`read_side=${view?.read_side?.status}`);
     if (candidate?.intent !== 'create_prep_block') failures.push(`intent=${candidate?.intent}`);
-    if (candidate?.action?.action_type !== 'create_focus_block') failures.push(`action_type=${candidate?.action?.action_type}`);
+    if (internalCandidate?.actions?.[0]?.action_type !== 'create_focus_block') failures.push(`action_type=${internalCandidate?.actions?.[0]?.action_type}`);
     if ((candidate?.action?.attendees || []).length !== 0) failures.push('attendees_not_empty');
     if (candidate?.action?.calendar_id !== parent.calendar_id) failures.push(`calendar=${candidate?.action?.calendar_id}`);
     if (!String(candidate?.action?.title || '').startsWith('Prep:')) failures.push(`title=${candidate?.action?.title}`);
@@ -191,6 +193,19 @@ async function runD7Phase(client) {
   await waitFor(client, 'Array.from(document.querySelectorAll("[data-testid=\\"receipt-card\\"]")).some(node => node.innerText.includes("reverted"))');
   await record(client, 'P-UNDO', 'after_undo', {attempted: true, succeeded: true, action: 'separately_confirmed_compensation'});
   await record(client, 'P-RESTART', 'before_restart');
+}
+
+function findCandidateWithActions(rootValue, candidateId) {
+  if (!candidateId) return null;
+  const pending = [rootValue];
+  while (pending.length) {
+    const value = pending.pop();
+    if (!value || typeof value !== 'object') continue;
+    if (value.candidate_id === candidateId && Array.isArray(value.actions)) return value;
+    if (Array.isArray(value)) pending.push(...value);
+    else pending.push(...Object.values(value));
+  }
+  return null;
 }
 
 function cssEscape(value) {
