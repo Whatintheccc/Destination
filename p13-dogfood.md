@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0-D5 are complete. Exact protected-main D5 run `20260712T014343Z-d5-live_provider-7468d83d6bfd` passes all 13 required product scenarios with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider-truth, effect-ceiling, projection, or continuity divergence. It proves an operator-verified real EventKit gap through the visible UI without staging or writing. D6 all-live read integration is active; D7 remains closed.**
+Current verdict: **Binding D0-D6 are complete. Exact protected-main D6 run `20260712T023617Z-d6-auto-c53c94e0a8ec` passes all 13 required product scenarios with the exact all-live composition, `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider-truth, effect-ceiling, projection, or continuity divergence. D7 is the sole remaining cell and the first intentional real-calendar write: one exact confirmed private prep block, provider verification, separately authorized undo, verified absence, and restart safety.**
 
 ---
 
@@ -787,7 +787,9 @@ scenario failures into independent tickets. Execute this order:
 [x] Pass D5 through a frozen operator-verified EventKit read window with zero writes,
     fixture leakage, stage calls, claims, or outbox dispatches. Exact run
     `20260712T014343Z-d5-live_provider-7468d83d6bfd` passes 13/13.
-[ ] Pass D6 all-live integration, then perform the one explicitly confirmed D7 effect
+[x] Pass D6 all-live integration. Exact run
+    `20260712T023617Z-d6-auto-c53c94e0a8ec` passes 13/13 with no fallback or setup note.
+[ ] Perform the one explicitly confirmed D7 effect
     and compensation.
 
 Do not start EventKit writes, positive-learning promotion, or recursive harness
@@ -800,6 +802,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — D6 complete; D7 is the sole remaining external boundary
+
+- One-shot correction lifecycle merged on protected main `c53c94e0a8ec` after both
+  deterministic rulers passed. The exact app passed all 18 release checks; the mutating
+  EventKit probe remained skipped.
+- Signed manifest
+  `p13-dogfood-d6-consume-correction:c53c94e0a8ec:20260712T023544Z` passed architecture
+  preservation 11/11 and every manifest-required target.
+- Binding run `20260712T023617Z-d6-auto-c53c94e0a8ec` passes all 13 required scenarios
+  with `binding_eligible=true` and evidence completeness `1.0`. Captured backends are
+  exactly live Codex, live DiffusionGemma/NIM, Swift IPC, and Apple EventKit; there are
+  no blockers, fallbacks, or setup notes. All four distance measures and every stage,
+  effect, provider-mutation, claim, and outbox counter are zero. D6 is closed.
+- D7 is now the only open product cell. Unlike D0-D6 it intentionally crosses the real
+  effect boundary and therefore requires immediate operator confirmation before the one
+  exact attendee-free private `create_prep_block`, plus separate confirmation for its
+  compensation. A fresh current-build managed EventKit binding and verified cleanup are
+  prerequisites; no prior binding may be reused.
 
 ### 2026-07-11 — Corrected-object D6 rerun exposes one-shot claim lifecycle
 
