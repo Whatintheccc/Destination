@@ -253,7 +253,23 @@ class PolicyTests(unittest.TestCase):
 
         self.assertEqual(payload["observation"]["observation_id"], self.observation.observation_id)
         self.assertEqual(payload["observation"]["events"][0]["event_id"], self.observation.events[0].event_id)
+        self.assertEqual(payload["allowed_evidence_event_ids"], [event.event_id for event in self.observation.events])
+        self.assertEqual(payload["context_only_task_ids"], [task.task_id for task in self.observation.tasks])
+        self.assertNotIn("task_renewal_prep", payload["allowed_evidence_event_ids"])
         self.assertEqual(payload["biography"]["user_scope_id"], self.biography.user_scope_id)
+
+        request = client._frontier_request_payload(
+            "Make next week less chaotic",
+            self.observation,
+            self.biography,
+            limit=2,
+            temperature=0.2,
+            top_p=0.9,
+            retry=False,
+        )
+        evidence_items = request["response_format"]["json_schema"]["schema"]["items"]["properties"]["evidence_event_ids"]["items"]
+        self.assertEqual(evidence_items["enum"], [event.event_id for event in self.observation.events])
+        self.assertNotIn("task_renewal_prep", evidence_items["enum"])
 
     def test_live_nim_frontier_response_format_constrains_compact_model_proposal(self):
         schema = NvidiaNIMPolicyClient._frontier_response_format()["json_schema"]["schema"]

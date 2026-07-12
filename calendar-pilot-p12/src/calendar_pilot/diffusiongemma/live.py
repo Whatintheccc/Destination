@@ -224,7 +224,7 @@ class NvidiaNIMPolicyClient:
             "temperature": temperature,
             "top_p": top_p,
             "stream": False,
-            "response_format": self._frontier_response_format(),
+            "response_format": self._frontier_response_format(observation),
             "chat_template_kwargs": {"enable_thinking": False},
         }
 
@@ -561,10 +561,12 @@ class NvidiaNIMPolicyClient:
 
     def _frontier_prompt(self, goal: str, observation: RawCalendarObservation, biography: UserBiography, *, limit: int, retry: bool = False) -> str:
         return json.dumps({
-            "instruction": "Generate a JSON array of compact CalendarPilot proposals. Each proposal has intent, action_type, authority, parameters, evidence_event_ids, reasoning, and no_op_comparison. evidence_event_ids must contain the exact event_id values from the observation that justify the proposal; a prep block must cite its parent meeting. no_op_comparison must say why this action is better than making no change; for do_nothing it must state the binding constraint that makes every change worse. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
-            "strict_retry_instruction": "Previous output failed the typed action contract. Return a shorter JSON array with complete parameters, exact evidence_event_ids copied from the observation, and an explicit no_op_comparison. Do not omit start/end for a mutating action and do not emit markdown or prose outside the array." if retry else None,
+            "instruction": "Generate a JSON array of compact CalendarPilot proposals. Each proposal has intent, action_type, authority, parameters, evidence_event_ids, reasoning, and no_op_comparison. evidence_event_ids may contain only values from allowed_evidence_event_ids; task IDs are context only and are forbidden in that field. A prep block must cite its parent meeting event_id. no_op_comparison must say why this action is better than making no change; for do_nothing it must state the binding constraint that makes every change worse. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
+            "strict_retry_instruction": "Previous output failed the typed action contract. Return a shorter JSON array with complete parameters, evidence_event_ids copied only from allowed_evidence_event_ids, and an explicit no_op_comparison. Never place a context_only_task_id in evidence_event_ids. Do not omit start/end for a mutating action and do not emit markdown or prose outside the array." if retry else None,
             "goal": goal,
             "limit": limit,
+            "allowed_evidence_event_ids": [event.event_id for event in observation.events],
+            "context_only_task_ids": [task.task_id for task in observation.tasks],
             "observation": to_jsonable(observation),
             "biography": biography.to_dict(),
             "canonical_intents": [intent.value for intent in CanonicalIntent],
@@ -583,8 +585,8 @@ class NvidiaNIMPolicyClient:
         }, indent=2, default=str)
 
     @staticmethod
-    def _frontier_response_format() -> dict[str, Any]:
-        return {
+    def _frontier_response_format(observation: RawCalendarObservation | None = None) -> dict[str, Any]:
+        response_format = {
             "type": "json_schema",
             "json_schema": {
                 "name": "calendar_pilot_candidate_frontier",
@@ -632,6 +634,11 @@ class NvidiaNIMPolicyClient:
                 },
             },
         }
+        if observation is not None:
+            allowed_event_ids = [event.event_id for event in observation.events]
+            if allowed_event_ids:
+                response_format["json_schema"]["schema"]["items"]["properties"]["evidence_event_ids"]["items"]["enum"] = allowed_event_ids
+        return response_format
 
 
     @staticmethod

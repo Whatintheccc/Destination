@@ -1,0 +1,63 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/experiments/waves/p13-dogfood-d4-evidence-allowlist.scope.json",
+    "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/live.py",
+    "calendar-pilot-p12/tests/test_policy.py"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": [
+      "live_diffusiongemma"
+    ],
+    "surfaces": [
+      "frontend",
+      "replay",
+      "tests",
+      "wave_scope"
+    ],
+    "instruments": [
+      "tests"
+    ],
+    "control_planes": []
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_signature",
+    "target.cited_required_projection",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": [
+    {
+      "leg": "live-diffusiongemma-e2e",
+      "status": "ran",
+      "reason": {
+        "basis": "ran",
+        "detail": "Exact clean behavior commit e0cf5aef88f9 constrained evidence_event_ids to the observation event allowlist and passed live NIM generation, browser simulation/stage/denial interaction, replay provenance, and secret inspection on its first run."
+      },
+      "artifact": {
+        "path": "calendar-pilot-p12/runs/live_diffusiongemma_e2e/artifacts/live_policy_state.json",
+        "sha256": "4511b847ce2d38cd83c53db00d70a6fc56630371d97cbdde40f31f97006484ef"
+      },
+      "owner": "repository-owner",
+      "sign_off": "automated affected live leg passed on exact clean behavior commit",
+      "affected_by_wave": true,
+      "expires_at": "2026-07-13T07:15:02Z",
+      "next_unblock_action": "Rerun live-diffusiongemma-e2e before changing the NIM prompt, response schema, evidence allowlist, or parser validation."
+    }
+  ]
+}
