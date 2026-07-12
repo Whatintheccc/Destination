@@ -788,6 +788,27 @@ independent examples merely because the same candidate was exposed five times.
 
 Append newest entries first. Never rewrite a failed run after a fix.
 
+### 2026-07-11 — First binding D5 run localizes correction to the wrong intent
+
+- Protected-main build `025ab1ac234c` passed all 18 release checks; the opt-in mutating
+  EventKit probe remained skipped. Signed manifest
+  `p13-dogfood-d5-live-read:025ab1ac234c:20260712T013329Z` passed architecture
+  preservation 11/11 and every manifest-required target.
+- Binding run `20260712T013355Z-d5-live_provider-025ab1ac234c` is evidence-complete and
+  binding-eligible. Twelve of thirteen required scenarios pass, including exact live
+  gap truth, app-owned EventKit identity/permission, recommendation, simulation,
+  isolated no-op, denial, feedback, and restart. Provider truth, projection, continuity,
+  and effect-ceiling divergence are all zero; no stage, effect, mutation, claim, or
+  outbox dispatch occurred.
+- `P-CORRECTION` alone fails. The visible correction command was cited, replaced the old
+  belief, and preserved authority, but the replanned focus window remained 90 minutes.
+  Root cause: explicit duration correction was hardcoded to `create_prep_block`; an empty
+  real calendar correctly selected `protect_focus_window`, whose duration generator did
+  not consume the correction.
+- The selected vertical repair binds correction to the actual candidate intent and lets
+  every supported timed generator consume its own explicit duration correction. The
+  failure run remains immutable and D5 remains open pending protected-main rerun.
+
 ### 2026-07-11 — D4 complete; D5 live-read boundary opened
 
 - Protected-main build `68c32e163d04` binds the compact v4 DiffusionGemma proposal

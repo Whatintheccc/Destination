@@ -573,6 +573,7 @@ class DogfoodSessionState:
             {
                 "command_id": command_id,
                 "candidate_id": candidate_id,
+                "applies_to_intent": candidate.intent,
                 "outcome_id": outcome_id,
                 "old_belief_id": f"candidate_assumption:{candidate_id}:duration",
                 "old_claim": f"{old_minutes}-minute prep duration is appropriate",
@@ -599,7 +600,7 @@ class DogfoodSessionState:
             "claim": command["replacement_claim"],
             "kind": "explicit_candidate_correction",
             "active": True,
-            "applies_to_intent": "create_prep_block",
+            "applies_to_intent": command["applies_to_intent"],
             "preferred_minutes": command["replacement_minutes"],
             "command_id": command["command_id"],
             "citation_ids": command["citation_ids"],
