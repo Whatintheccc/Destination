@@ -113,7 +113,10 @@ def selected_candidate(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def internal_action(raw: dict[str, Any], timezone_name: str) -> dict[str, Any]:
-    candidate = selected_candidate(raw)
+    return candidate_action(selected_candidate(raw), timezone_name)
+
+
+def candidate_action(candidate: dict[str, Any], timezone_name: str) -> dict[str, Any]:
     actions = candidate.get("actions", [])
     action = dict(actions[0]) if isinstance(actions, list) and actions and isinstance(actions[0], dict) else {}
     if not action:
@@ -139,6 +142,12 @@ def internal_action(raw: dict[str, Any], timezone_name: str) -> dict[str, Any]:
         "reversibility": candidate.get("reversibility"),
         "authority_need": candidate.get("required_authority_tier"),
     }
+
+
+def d7_committed_action(raw: dict[str, Any], timezone_name: str) -> dict[str, Any]:
+    receipt = latest_tool_receipt(raw, "request_commit", "committed")
+    candidate = receipt.get("output", {}).get("candidate", {})
+    return candidate_action(candidate if isinstance(candidate, dict) else {}, timezone_name)
 
 
 def visible_action(semantic: dict[str, str]) -> dict[str, Any]:
@@ -242,6 +251,18 @@ def d7_provider_snapshot(run_dir: Path, name: str) -> dict[str, Any]:
     return json.loads((run_dir / "ruler_capture" / f"provider.{name}.raw.json").read_text(encoding="utf-8"))
 
 
+def d7_provider_read_evidence(run_dir: Path) -> dict[str, Any]:
+    snapshot = d7_provider_snapshot(run_dir, "before")
+    return {
+        "fact_ids": sorted(str(row.get("event_id")) for row in snapshot.get("events", []) if row.get("event_id")),
+        "provider_identity": str(snapshot.get("provider_identity") or "unknown_provider"),
+        "uses_sample_fixtures": False,
+        "fixture_rows": [],
+        "permission_owner": "app" if snapshot.get("permission_status") == "full_access" else "unknown",
+        "read_window": snapshot.get("read_window"),
+    }
+
+
 def d7_effect_evidence(run_dir: Path, raw: dict[str, Any]) -> dict[str, Any]:
     ledger = d7_ledger(run_dir, "ledger.after_commit.raw.json")
     apply_rows = [row["ticket"] for row in ledger.get("tickets", {}).values() if row.get("ticket", {}).get("kind") == "apply"]
@@ -249,8 +270,8 @@ def d7_effect_evidence(run_dir: Path, raw: dict[str, Any]) -> dict[str, Any]:
     outbox = ledger.get("outbox", {}).get(apply_ticket.get("ticket_id"), {})
     effect_receipt = ledger.get("receipts", {}).get(apply_ticket.get("ticket_id"), {})
     commit_receipt = latest_tool_receipt(raw, "request_commit", "committed")
-    provider_transaction = latest_provider_transaction(raw, "commit")
-    external_ids = list(provider_transaction.get("external_ids") or [])
+    provider_receipt = commit_receipt.get("output", {}).get("provider_receipt", {})
+    external_ids = list(provider_receipt.get("external_ids") or [])
     external_id = str(external_ids[0]) if len(external_ids) == 1 else ""
     provider_ids = {str(row.get("event_id")) for row in d7_provider_snapshot(run_dir, "after").get("events", [])}
     swift = commit_receipt.get("output", {}).get("swift_receipt", {})
@@ -284,21 +305,23 @@ def d7_undo_evidence(run_dir: Path, raw: dict[str, Any]) -> dict[str, Any]:
     compensation = next((row for row in tickets if row.get("kind") == "compensate"), {})
     apply_receipt = ledger.get("receipts", {}).get(apply_ticket.get("ticket_id"), {})
     compensation_receipt = ledger.get("receipts", {}).get(compensation.get("ticket_id"), {})
-    commit_transaction = latest_provider_transaction(raw, "commit")
-    rollback_transaction = latest_provider_transaction(raw, "rollback")
-    committed_ids = list(commit_transaction.get("external_ids") or [])
+    commit_receipt = latest_tool_receipt(raw, "request_commit", "committed")
+    undo_receipt = latest_tool_receipt(raw, "request_undo", "reverted")
+    commit_provider = commit_receipt.get("output", {}).get("provider_receipt", {})
+    committed_ids = list(commit_provider.get("external_ids") or [])
     committed_id = str(committed_ids[0]) if len(committed_ids) == 1 else ""
     remaining = {str(row.get("event_id")) for row in d7_provider_snapshot(run_dir, "after_undo").get("events", [])}
     before_dispatches = sum(list(row.get("facts") or []).count("dispatch") for row in before_restart_ledger.get("outbox", {}).values())
     after_dispatches = sum(list(row.get("facts") or []).count("dispatch") for row in ledger.get("outbox", {}).values())
-    linked = compensation.get("target_receipt_hash") == commit_transaction.get("effect_receipt_sha256")
+    linked = compensation.get("target_receipt_hash") == commit_provider.get("effect_receipt_sha256")
+    rollback_verified = undo_receipt.get("output", {}).get("rollback_verified") is True
     return {
         "separate_compensation_authority": bool(compensation.get("grant_id") and compensation.get("grant_id") != apply_ticket.get("grant_id")),
         "remove_count": int(ledger.get("adapter_state", {}).get("compensation_mutation_count", 0)),
         "committed_external_id": committed_id,
-        "remove_external_id": committed_id if linked and compensation_receipt.get("phase") == "verified" else None,
+        "remove_external_id": committed_id if linked and compensation_receipt.get("phase") == "verified" and rollback_verified else None,
         "absence_external_id": committed_id if committed_id not in remaining else None,
-        "verified_absent": bool(committed_id and committed_id not in remaining and rollback_transaction.get("rollback_verified") is True),
+        "verified_absent": bool(committed_id and committed_id not in remaining and linked and rollback_verified),
         "audit_retained": bool(apply_ticket and apply_receipt and compensation),
         "restart_redispatch_count": max(0, after_dispatches - before_dispatches),
     }
@@ -426,7 +449,11 @@ def normalize(run_dir: Path) -> None:
                 "rationale_compares_noop": leading_fields.get("candidate-compares-noop") == "true",
             })
         elif scenario_id == "P-ACTION-VISIBLE":
-            replay_payload["action"] = internal_action(raw, truth["timezone"])
+            replay_payload["action"] = (
+                d7_committed_action(by_scenario["P-EFFECT"][-1], truth["timezone"])
+                if manifest.get("cell") == "D7"
+                else internal_action(raw, truth["timezone"])
+            )
             rendered_candidates = extract_candidate_dom(raw["dom_html"])
             leading_fields = rendered_candidates[0]["fields"] if rendered_candidates else {}
             rendered_payload.update({"action": visible_action(leading_fields), "captured_from_ui": True})
@@ -548,6 +575,8 @@ def normalize(run_dir: Path) -> None:
         "permission_owner": "app" if provider_health.get("auth_method") == "eventkit_os_calendar_permission" else "fixture",
         "read_window": observation_payload.get("read_window"),
     }
+    if manifest.get("cell") == "D7":
+        provider_payload = d7_provider_read_evidence(run_dir)
     provider_rows = [("P-LIVE-READ" if manifest.get("cell") == "D7" else "P-OBSERVE", provider_payload)]
     if manifest.get("cell") in {"D5", "D6", "D7"}:
         if provider_rows[0][0] != "P-LIVE-READ":

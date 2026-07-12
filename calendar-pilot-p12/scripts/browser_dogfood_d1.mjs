@@ -169,7 +169,7 @@ async function runD7Phase(client) {
     await record(client, 'P-TIMEZONE', 'timezone_inspection');
     await record(client, 'P-LIVE-READ', 'bounded_live_read');
     await click(client, `[data-testid="simulate-candidate"][data-candidate-id="${cssEscape(candidate.candidate_id)}"]`);
-    await waitFor(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length > 0');
+    await waitFor(client, 'document.querySelector("[data-testid=\\"simulation-preview\\"]") !== null');
     await record(client, 'P-SIMULATE', 'after_simulate', {attempted: true, succeeded: true, action: 'simulate'});
     await setAuthority(client, 0, 'recommend');
     await click(client, `[data-testid="commit-candidate"][data-candidate-id="${cssEscape(candidate.candidate_id)}"]`);
