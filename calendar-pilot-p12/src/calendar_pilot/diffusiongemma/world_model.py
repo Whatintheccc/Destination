@@ -42,7 +42,7 @@ class CalendarWorldModel:
         risk_cliffs = list(signals.risk_cliffs)
         atoms: list[str] = []
 
-        if AtomicActionType.CREATE_EVENT in action_types and candidate.intent == "create_prep_block":
+        if AtomicActionType.CREATE_FOCUS_BLOCK in action_types and candidate.intent == "create_prep_block":
             thesis = "convert meeting pressure into a nearby prep buffer"
             counterfactual = "Without a prep block, the meeting stays naked and preparation competes with ambient admin work."
             upside = "The action creates a concrete runway before the external call."

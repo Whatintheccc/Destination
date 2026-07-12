@@ -15,7 +15,7 @@ from calendar_pilot.diffusiongemma.live import (
     NIMPolicyResult,
     NvidiaNIMPolicyClient,
 )
-from calendar_pilot.types import CodexToolCall, CodexToolName, PolicyTuning, RawCalendarObservation, UserBiography, RightMomentDecision
+from calendar_pilot.types import AtomicActionType, CodexToolCall, CodexToolName, PolicyTuning, RawCalendarObservation, UserBiography, RightMomentDecision
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,8 +27,10 @@ class PolicyTests(unittest.TestCase):
 
     def test_generates_prep_candidate(self):
         candidates = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)
-        intents = {c.intent for c in candidates}
-        self.assertIn("create_prep_block", intents)
+        prep = next(candidate for candidate in candidates if candidate.intent == "create_prep_block")
+        self.assertEqual([action.action_type for action in prep.actions], [AtomicActionType.CREATE_FOCUS_BLOCK])
+        self.assertTrue(prep.model_story[0].startswith("Hypothesis: convert meeting pressure into a nearby prep buffer"))
+        self.assertIn("Without a prep block", prep.counterfactual)
         self.assertGreater(candidates[0].expected_reward, 0)
 
     def test_right_moment_has_decision(self):
@@ -257,6 +259,7 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(payload["context_only_task_ids"], [task.task_id for task in self.observation.tasks])
         self.assertNotIn("task_renewal_prep", payload["allowed_evidence_event_ids"])
         self.assertEqual(payload["biography"]["user_scope_id"], self.biography.user_scope_id)
+        self.assertIn("create_prep_block proposal must use action_type=create_focus_block", payload["instruction"])
 
         request = client._frontier_request_payload(
             "Make next week less chaotic",
@@ -287,7 +290,7 @@ class PolicyTests(unittest.TestCase):
     def test_nim_frontier_parser_accepts_root_compact_candidate_array(self):
         compact = {
             "intent": "create_prep_block",
-            "action_type": "create_event",
+            "action_type": "create_focus_block",
             "authority": 3,
             "evidence_event_ids": ["evt_client_call"],
             "parameters": {
@@ -304,14 +307,14 @@ class PolicyTests(unittest.TestCase):
             json.dumps([compact]), self.observation, limit=1
         )
 
-        self.assertEqual(parsed["candidates"][0].actions[0].action_type.value, "create_event")
+        self.assertEqual(parsed["candidates"][0].actions[0].action_type.value, "create_focus_block")
         self.assertEqual(parsed["policy_summary"], "")
         self.assertIn("normalized_root_candidate_array", parsed["validation_errors"])
 
     def test_nim_frontier_parser_hydrates_compact_model_proposal(self):
         compact = {
             "intent": "create_prep_block",
-            "action_type": "create_event",
+            "action_type": "create_focus_block",
             "authority": 3,
             "evidence_event_ids": ["evt_client_call"],
             "parameters": {
@@ -329,7 +332,7 @@ class PolicyTests(unittest.TestCase):
         )
 
         candidate = parsed["candidates"][0]
-        self.assertEqual(candidate.actions[0].action_type.value, "create_event")
+        self.assertEqual(candidate.actions[0].action_type.value, "create_focus_block")
         self.assertEqual(candidate.actions[0].calendar_id, "work")
         self.assertEqual(candidate.required_authority_tier, 3)
         self.assertEqual(candidate.explanation, compact["reasoning"])
@@ -359,7 +362,7 @@ class PolicyTests(unittest.TestCase):
     def test_nim_frontier_parser_rejects_ungrounded_prep_block(self):
         compact = {
             "intent": "create_prep_block",
-            "action_type": "create_event",
+            "action_type": "create_focus_block",
             "authority": 3,
             "evidence_event_ids": [],
             "parameters": {
@@ -380,7 +383,7 @@ class PolicyTests(unittest.TestCase):
     def test_nim_frontier_parser_rejects_unknown_evidence_event_id(self):
         compact = {
             "intent": "create_prep_block",
-            "action_type": "create_event",
+            "action_type": "create_focus_block",
             "authority": 3,
             "evidence_event_ids": ["evt_invented"],
             "parameters": {
@@ -397,6 +400,29 @@ class PolicyTests(unittest.TestCase):
             NvidiaNIMPolicyClient._parse_frontier_payload(
                 json.dumps([compact]), self.observation, limit=1
             )
+
+    def test_nim_frontier_parser_normalizes_legacy_prep_action_type(self):
+        compact = {
+            "intent": "create_prep_block",
+            "action_type": "create_event",
+            "authority": 3,
+            "evidence_event_ids": ["evt_client_call"],
+            "parameters": {
+                "title": "Prep: renewal",
+                "start": "2026-07-01T14:30:00-07:00",
+                "end": "2026-07-01T15:00:00-07:00",
+                "calendar_id": "work",
+            },
+            "reasoning": "Prepare for the cited renewal call.",
+            "no_op_comparison": "Doing nothing leaves the cited call unprepared.",
+        }
+
+        parsed = NvidiaNIMPolicyClient._parse_frontier_payload(
+            json.dumps([compact]), self.observation, limit=1
+        )
+
+        self.assertEqual(parsed["candidates"][0].actions[0].action_type, AtomicActionType.CREATE_FOCUS_BLOCK)
+        self.assertIn("normalized_prep_action_type:0:0", parsed["validation_errors"])
 
     def test_nim_frontier_parser_derives_stable_local_candidate_identity(self):
         candidate = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
@@ -460,6 +486,7 @@ class PolicyTests(unittest.TestCase):
         valid = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
         invalid = dict(valid)
         invalid["candidate_id"] = "nim_invalid_move_without_times"
+        invalid["intent"] = "move_meeting"
         invalid["actions"] = [
             {
                 "action_type": "move_event",

@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **The product semantics have passed D0-D6, but the literal one-build MVP gate is open. Subsequent D4/D6 defect repairs changed the protected-main app identity. On the latest fully swept build, D1-D5 passed and D6 correctly exposed that an empty real-calendar window cannot exercise a timed correction. The final pass therefore uses one separately ticketed, attendee-free parent fixture for both read-only D5 and D6, cleans it outside the scored cells, then reruns D0-D7 on one exact protected-main build. D7 remains the only scored cell allowed to write.**
+Current verdict: **The product semantics have passed D0-D6, but the literal one-build MVP gate is open. Protected main `8bf8f03cf580` passed D1-D6 on one build, including the shared-parent D5/D6 wrapper and verified external cleanup. D7 then failed closed before its scored provider mutation because the live candidate used the domain-specific `create_focus_block` action while ProductCore still required legacy `create_event` for `create_prep_block`. The canonical action-type repair is now the active wave. After it lands, D0-D7 and release must run again on one exact protected-main build; D7 remains the only scored cell allowed to write.**
 
 ---
 
@@ -808,6 +808,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-12 — Same-build D1-D6 passed; D7 failed closed on prep action type
+
+- Protected main `8bf8f03cf580` passed D1 11/11, D2-D4 12/12 each, and shared-parent
+  D5/D6 13/13 each. Every run was binding-eligible with complete evidence,
+  architecture preservation 11/11, all 41 selected targets passing, and zero measured
+  divergence. The exact build also passed all 18 release checks; the opt-in mutating
+  EventKit release probe remained skipped.
+- D7 run `20260712T091746Z-d7-auto-8bf8f03cf580` reached the confirmed commit path and
+  failed closed before a scored provider mutation. Live DiffusionGemma emitted the
+  domain-specific `create_focus_block` action, while ProductCore still required the
+  legacy generic `create_event` type for `create_prep_block`. The retained receipt names
+  `prep_block_action_type`; the temporary parent was compensated and independently
+  verified absent.
+- The binding repair makes `create_focus_block` canonical across deterministic policy,
+  prep-specific world-model semantics, ProductCore admission, and the EventKit
+  certificate producer. Legacy `create_event` prep candidates are a planted denial.
+  Because this changes product identity, the exact-build ladder must run again after the
+  repair lands on protected main; the `8bf8f03` reports remain immutable diagnostics.
 
 ### 2026-07-12 — Empty-window D6 localized the final read-only access-point defect
 
