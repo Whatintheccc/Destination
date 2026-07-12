@@ -715,7 +715,11 @@ def _create_managed_parent_fixture(
     bridge_identity: dict[str, Any],
     state_root: Path,
     now: datetime,
+    parent_days_ahead: int = 7,
+    parent_title: str | None = None,
 ) -> dict[str, Any]:
+    if not 1 <= parent_days_ahead <= 30:
+        raise ValueError("managed parent fixture must be between 1 and 30 days ahead")
     driver = AppleEventKitSandboxDriver(provider, sandbox_calendar_id=calendar_id)
     adapter = EventKitSandboxAdapter(
         driver=driver,
@@ -740,7 +744,7 @@ def _create_managed_parent_fixture(
         expires_at=now + timedelta(minutes=30),
         confirmed=True,
     )
-    parent_start = (now + timedelta(days=7)).replace(hour=16, minute=0, second=0, microsecond=0)
+    parent_start = (now + timedelta(days=parent_days_ahead)).replace(hour=16, minute=0, second=0, microsecond=0)
     rows = ("observation:p13.5:parent", "proposal:p13.5:parent")
     preview = AdmissionPreview(
         preview_id="preview:p13.5:parent",
@@ -749,7 +753,7 @@ def _create_managed_parent_fixture(
         status="preview",
         denial_reasons=(),
         projection=PrepBlockProjection(
-            title=f"CalendarPilot P13.5 Parent Fixture {now.strftime('%Y%m%dT%H%M%S')}",
+            title=parent_title or f"CalendarPilot P13.5 Parent Fixture {now.strftime('%Y%m%dT%H%M%S')}",
             start=parent_start.isoformat(),
             end=(parent_start + timedelta(minutes=30)).isoformat(),
             calendar_id=calendar_id,

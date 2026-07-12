@@ -105,6 +105,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 bridge_identity=bridge_identity,
                 state_root=temporary / "parent-fixture",
                 now=now,
+                parent_days_ahead=1,
+                parent_title="CalendarPilot Board Review — 30 minutes preparation required",
             )
             if fixture.get("status") != "verified" or not fixture.get("external_id"):
                 raise RuntimeError(f"D56 parent fixture failed verification: {fixture.get('reason')}")
