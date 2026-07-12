@@ -808,8 +808,10 @@ Append newest entries first. Never rewrite a failed run after a fix.
   write controls but left the visible `binding_constraint` empty. The selected v4
   proposal adds one required `no_op_comparison`: it projects to `counterfactual` for
   every candidate and to `binding_constraint=` when inaction wins. Focused live probes
-  demonstrate both outputs, and all 377 Python tests pass. Exact affected-live E2E,
-  protected-main merge, release/signing, and binding D4 rerun remain required.
+  demonstrate both outputs, and all 377 Python tests pass. Exact clean behavior commit
+  `92fc378010fd` passes the affected live NIM E2E, including browser interaction and
+  replay/secret checks. Protected-main merge, release/signing, and binding D4 rerun
+  remain required.
 
 ### 2026-07-11 — D2 Swift IPC complete; D3/D4 component cells selected
 
