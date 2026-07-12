@@ -38,6 +38,12 @@ class P13CorrectionVerticalTests(unittest.TestCase):
                 self.assertEqual(corrected["action"]["duration_minutes"], 80)
                 self.assertTrue(after["correction"]["new_plan_uses_correction"])
                 self.assertEqual(after["action_queue"], [])
+                correction_claim = next(
+                    row for row in reversed(session.biography.preference_claims)
+                    if row.get("kind") == "explicit_candidate_correction"
+                )
+                self.assertFalse(correction_claim["active"])
+                self.assertEqual(correction_claim["status"], "applied")
             finally:
                 session.close()
 
@@ -70,6 +76,12 @@ class P13CorrectionVerticalTests(unittest.TestCase):
                 self.assertIn(evidence["command_id"], evidence["citation_ids"])
                 self.assertIn(exposure_id, evidence["citation_ids"])
                 self.assertIn(decision.record_id, evidence["citation_ids"])
+                correction_claim = next(
+                    row for row in reversed(session.biography.preference_claims)
+                    if row.get("kind") == "explicit_candidate_correction"
+                )
+                self.assertFalse(correction_claim["active"])
+                self.assertEqual(correction_claim["status"], "applied")
                 application = next(
                     row for row in reversed(session.replay.records)
                     if row.record_type == "candidate_correction_application"

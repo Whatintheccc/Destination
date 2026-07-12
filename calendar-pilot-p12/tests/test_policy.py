@@ -156,6 +156,13 @@ class PolicyTests(unittest.TestCase):
         metadata = policy.policy_metadata_for_candidate(corrected.candidate_id)
         self.assertEqual(metadata["fallback_state"], "explicit_correction_incumbent_retained")
 
+        self.biography.preference_claims[-1]["active"] = False
+        after_consumption = LiveDiffusionGemmaPolicy(client=NoopOnlyGeneratorClient()).generate_candidates(
+            self.observation,
+            self.biography,
+        )
+        self.assertEqual([row.intent for row in after_consumption], ["do_nothing"])
+
     def test_live_diffusiongemma_policy_forwards_user_goal_to_nim_generator(self):
         client = GoalCaptureNIMGeneratorClient()
         policy = LiveDiffusionGemmaPolicy(client=client)
