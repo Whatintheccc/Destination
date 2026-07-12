@@ -111,6 +111,30 @@ class P13LearningEvidenceTests(unittest.TestCase):
             finally:
                 session.close()
 
+    def test_noop_rejects_timed_correction_before_terminal_outcome_append(self):
+        with tempfile.TemporaryDirectory() as td:
+            session = self._session(td)
+            try:
+                state = session.create_plan("Use the fixture where every calendar change is dominated.")
+                card = state["chat"]["candidate_cards"][0]
+                self.assertEqual(card["intent"], "do_nothing")
+                decision = next(row for row in reversed(session.replay.records) if row.record_type == "learning_decision")
+                exposure_id = session.learning_exposure(decision.record_id, [card["candidate_id"]])["exposure_id"]
+
+                with self.assertRaisesRegex(ValueError, "timed action"):
+                    session.learning_outcome(
+                        decision_id=decision.record_id,
+                        exposure_id=exposure_id,
+                        candidate_id=card["candidate_id"],
+                        outcome="corrected",
+                        reason="Explicit UI command: shorten the selected timed action by 10 minutes.",
+                    )
+
+                self.assertIsNone(session._learning_outcome_for(exposure_id, card["candidate_id"]))
+                self.assertFalse(any(row.record_type == "candidate_correction_command" for row in session.replay.records))
+            finally:
+                session.close()
+
     def test_elapsed_window_becomes_ignored_and_superseded_window_becomes_censored(self):
         with tempfile.TemporaryDirectory() as td:
             session = self._session(td)

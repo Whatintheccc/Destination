@@ -117,6 +117,9 @@ async function main() {
       }
     }
     await sendStimulus(client, 'P-NOOP');
+    if (await visible(client, '[data-testid="candidate-corrected"]')) {
+      throw new Error('No-op candidate exposed an inapplicable timed-action correction control');
+    }
     await record(client, 'P-NOOP', 'after_noop');
     if (await visible(client, '[data-testid="candidate-dismissed"]')) {
       await click(client, '[data-testid="candidate-dismissed"]');

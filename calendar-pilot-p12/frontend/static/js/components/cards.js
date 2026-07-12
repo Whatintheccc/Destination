@@ -24,6 +24,11 @@ export function observationCard(card) {
 export function candidateCard(card) {
   const candidateId = card.candidate_id || '';
   const action = card.action || {};
+  const canCorrectDuration = card.intent !== 'do_nothing'
+    && Boolean(action.start)
+    && Boolean(action.end)
+    && Number.isFinite(Number(action.duration_minutes))
+    && Number(action.duration_minutes) > 0;
   const timezoneCheck = card.timezone_check || {};
   const story = (card.model_story || []).slice(0, 3).map(line => h('li', {}, line));
   const rewards = Object.entries(card.reward_breakdown || {}).slice(0, 5).map(([k, v]) => h('span', {class: 'badge'}, `${k} ${v}`));
@@ -65,7 +70,9 @@ export function candidateCard(card) {
       card.intent !== 'do_nothing' ? h('button', {class: 'primary commit-btn', 'data-testid': 'commit-candidate', dataset: {candidateId}}, 'Commit with Swift') : null,
       h('button', {class: 'secondary candidate-accepted', 'data-testid': 'candidate-accepted', dataset: {candidateId}}, 'Useful'),
       h('button', {class: 'secondary candidate-dismissed', 'data-testid': 'candidate-dismissed', dataset: {candidateId}}, 'Dismiss'),
-      h('button', {class: 'secondary candidate-corrected', 'data-testid': 'candidate-corrected', dataset: {candidateId}}, 'Shorten by 10 min')));
+      canCorrectDuration
+        ? h('button', {class: 'secondary candidate-corrected', 'data-testid': 'candidate-corrected', dataset: {candidateId}}, 'Shorten by 10 min')
+        : null));
 }
 
 export function receiptCard(input) {

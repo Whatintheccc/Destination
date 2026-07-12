@@ -559,12 +559,7 @@ class DogfoodSessionState:
         return None
 
     def _record_candidate_correction_command(self, candidate_id: str, outcome_id: str, reason: str) -> str:
-        candidate = self.runtime.frontier.get(candidate_id)
-        if candidate is None or not candidate.actions:
-            raise ValueError("candidate correction requires a visible candidate action")
-        action = candidate.actions[0]
-        if action.start is None or action.end is None:
-            raise ValueError("candidate correction requires a timed action")
+        candidate, action = self._candidate_correction_target(candidate_id)
         old_minutes = max(5, int((action.end - action.start).total_seconds() // 60))
         replacement_minutes = max(5, old_minutes - 10)
         snapshot = self.snapshot()
@@ -610,6 +605,15 @@ class DogfoodSessionState:
             signal_stream="action",
         )
         return command_id
+
+    def _candidate_correction_target(self, candidate_id: str):
+        candidate = self.runtime.frontier.get(candidate_id)
+        if candidate is None or not candidate.actions:
+            raise ValueError("candidate correction requires a visible candidate action")
+        action = candidate.actions[0]
+        if action.start is None or action.end is None:
+            raise ValueError("candidate correction requires a timed action")
+        return candidate, action
 
     def _activate_pending_candidate_correction(self) -> dict[str, Any] | None:
         command = self._pending_candidate_correction()
@@ -1187,6 +1191,8 @@ class DogfoodSessionState:
             if existing.payload.get("outcome") != outcome:
                 raise ValueError("candidate already has a conflicting terminal outcome")
             return {"decision": "pass", "outcome_id": existing.record_id, "duplicate": True}
+        if outcome == "corrected":
+            self._candidate_correction_target(candidate_id)
         outcome_id = self.replay.append_learning_outcome(
             exposure=exposure,
             candidate_id=candidate_id,
