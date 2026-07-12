@@ -140,6 +140,7 @@ Implemented access points:
 ```bash
 make p13-dogfood-eval-test
 make p13-dogfood-prepare CELL=D1 RUNTIME_MODE=fixture
+make p13-dogfood-d0
 make p13-dogfood-d1
 make p13-dogfood-d56 CALENDAR_ID=<exact-attendee-free-sandbox-calendar-id>
 make p13-dogfood-d7 CALENDAR_ID=<exact-attendee-free-sandbox-calendar-id>
@@ -150,7 +151,9 @@ make p13-dogfood-evals DOGFOOD_RUN=<content-addressed-run-dir>
 and planted counterexamples. `make p13-dogfood-prepare` preregisters a fresh cell only
 from clean protected main and binds the exact app/bridge, scenario stimuli, instrument
 hashes, runtime topology, effect ceiling, architecture report, and minimal redacted
-operator truth before launch. `make p13-dogfood-d1` is the complete D1 access point: it
+operator truth before launch. `make p13-dogfood-d0` is the identity-only packaged-app
+access point: it sends no stimulus, captures two owned launches, and derives the D0
+report. `make p13-dogfood-d1` is the complete D1 access point: it
 preregisters, launches the packaged app, performs real browser clicks, captures every
 frozen scenario boundary, restarts the same run, normalizes only from retained raw
 records, and evaluates the report. `make p13-dogfood-d7` is the only write-capable product

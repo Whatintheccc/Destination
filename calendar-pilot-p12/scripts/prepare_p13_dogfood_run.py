@@ -30,6 +30,7 @@ PREDICATE_ARTIFACTS = (
     ROOT / "evals/dogfood/capture/browser_capture.py",
     ROOT / "evals/dogfood/capture/normalize_d1.py",
     ROOT / "scripts/browser_dogfood_d1.mjs",
+    ROOT / "scripts/run_p13_dogfood_d0.py",
     ROOT / "scripts/run_p13_dogfood_d1.py",
     ROOT / "scripts/run_p13_dogfood_d7.py",
     NOOP_FIXTURE,
