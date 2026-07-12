@@ -6,13 +6,22 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from evals.dogfood.capture.normalize_d1 import d7_committed_action, d7_effect_evidence, d7_provider_read_evidence, d7_undo_evidence, effect_counts, extract_candidate_dom, ids_from_dom, internal_action, latest_provider_transaction, latest_tool_receipt, restart_digest, visible_action
+from evals.dogfood.capture.normalize_d1 import d7_committed_action, d7_effect_evidence, d7_provider_read_evidence, d7_undo_evidence, effect_counts, extract_candidate_dom, ids_from_dom, internal_action, latest_provider_transaction, latest_tool_receipt, restart_digest, visible_action, visible_fact_ids
 from evals.dogfood.predicates.product import evaluate_predicate
 from scripts.run_p13_dogfood_d1 import health_matches_launch
 from scripts.run_p13_dogfood_d7 import event_payload
 
 
 class DogfoodD1CaptureTests(unittest.TestCase):
+    def test_live_read_uses_visible_candidate_affected_ids_as_fact_projection(self) -> None:
+        dom = '''
+        <article data-testid="candidate-card" data-candidate-id="cand-1">
+          <span data-testid="candidate-affected-ids">["event-1"]</span>
+        </article>
+        <div data-fact-id="event-2"></div>
+        '''
+        self.assertEqual(visible_fact_ids(dom), ["event-1", "event-2"])
+
     def test_browser_submit_retries_only_until_composer_acknowledges(self) -> None:
         driver = (Path(__file__).resolve().parents[1] / "scripts/browser_dogfood_d1.mjs").read_text(encoding="utf-8")
         self.assertIn("for (let attempt = 0; attempt < 3; attempt += 1)", driver)
