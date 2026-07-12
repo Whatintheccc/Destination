@@ -811,6 +811,14 @@ Append newest entries first. Never rewrite a failed run after a fix.
 
 ### 2026-07-12 — Empty-window D6 localized the final read-only access-point defect
 
+- Shared-parent D5 `20260712T084948Z-d5-live_provider-87e500d0028e` passed 13/13.
+  D6 `20260712T085047Z-d6-auto-87e500d0028e` resolved to all four live backends but
+  failed five downstream action scenarios because the model honestly chose no-op: the
+  generic parent was a week away and stated no prep requirement. Cleanup independently
+  verified absence and all scored effect ceilings remained zero. The D5/D6 parent is now
+  aligned with the frozen stimulus: an attendee-free event tomorrow whose title explicitly
+  requires 30 minutes of preparation. This establishes a real capability prerequisite;
+  it does not mandate the model's answer or weaken a no-op verdict.
 - Final-build D3 attempt `20260712T083044Z-d3-live_codex-bd8ddf25394d` reproduced the
   browser click race previously seen once in D1: the first stimulus completed, then the
   second click missed during a DOM refresh while an unrelated state-version increment

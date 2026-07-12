@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import inspect
 import json
 from pathlib import Path
 import tempfile
@@ -24,6 +25,7 @@ from scripts.prepare_p13_dogfood_run import (
 from scripts.run_p13_dogfood_d1 import prepare_args as d1_prepare_args
 from scripts.run_p13_dogfood_d56 import cell_args as d56_cell_args
 from scripts.run_p13_dogfood_d56 import run as run_d56
+from scripts.run_live_eventkit_e2e import _create_managed_parent_fixture
 
 
 class PrepareP13DogfoodRunTests(unittest.TestCase):
@@ -174,6 +176,13 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "requires main"):
                 run_d56(args)
         create_fixture.assert_not_called()
+
+    def test_d56_parent_is_tomorrow_and_states_the_prep_requirement(self) -> None:
+        signature = inspect.signature(_create_managed_parent_fixture)
+        self.assertEqual(signature.parameters["parent_days_ahead"].default, 7)
+        driver = (ROOT / "scripts/run_p13_dogfood_d56.py").read_text(encoding="utf-8")
+        self.assertIn("parent_days_ahead=1", driver)
+        self.assertIn("30 minutes preparation required", driver)
 
 
 if __name__ == "__main__":
