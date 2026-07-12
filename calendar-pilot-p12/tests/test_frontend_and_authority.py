@@ -1,14 +1,15 @@
-
-
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import json
+import tempfile
 import unittest
-from datetime import timedelta
 from pathlib import Path
 
 from calendar_pilot.codex import CodexToolPlanner, CodexToolRuntime
 from calendar_pilot.frontend import build_frontend_snapshot
+from calendar_pilot.frontend.session import DogfoodSessionState
+from calendar_pilot.replay import observation_fingerprint
 from calendar_pilot.swift_bridge import SwiftKernelStub
 from calendar_pilot.types import (
     AtomicActionType,
@@ -20,6 +21,7 @@ from calendar_pilot.types import (
     RawCalendarObservation,
     Reversibility,
     UserBiography,
+    to_jsonable,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +36,42 @@ def load_bio() -> UserBiography:
 
 
 class FrontendAndAuthorityTests(unittest.TestCase):
+    def test_delayed_live_confirmation_refreshes_time_and_holds_on_calendar_drift(self):
+        with tempfile.TemporaryDirectory() as name:
+            session = DogfoodSessionState(run_dir=Path(name))
+            planned = session.observation
+            refreshed = RawCalendarObservation.from_dict({
+                **to_jsonable(planned),
+                "observed_at": datetime.now(timezone.utc).isoformat(),
+            })
+
+            class LiveProvider:
+                real_provider = True
+                real_oauth = False
+
+                def __init__(self, observation):
+                    self.observation = observation
+
+                def read_observation(self, *_args, **_kwargs):
+                    return self.observation
+
+            provider = LiveProvider(refreshed)
+            session.provider = provider
+            session.latest_plan_observation_fingerprint = observation_fingerprint(planned)
+            session._refresh_live_observation_for_confirmation(require_plan_match=True)
+            grant = session.issue_authority_grant(confirmed=True, reason="delayed_action_time_confirmation")
+            self.assertEqual(grant.issued_at, refreshed.observed_at)
+            self.assertTrue(grant.is_live_at(refreshed.observed_at))
+
+            provider.observation = RawCalendarObservation.from_dict({
+                **to_jsonable(refreshed),
+                "events": to_jsonable(refreshed)["events"][:-1],
+                "observed_at": (refreshed.observed_at + timedelta(seconds=1)).isoformat(),
+            })
+            with self.assertRaisesRegex(ValueError, "calendar changed after planning"):
+                session._refresh_live_observation_for_confirmation(require_plan_match=True)
+            session.close()
+
     def test_embedded_grant_payload_is_ignored_by_tool_runtime(self):
         obs = load_obs()
         bio = load_bio()

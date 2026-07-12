@@ -292,6 +292,22 @@ class DogfoodSessionState:
         self.authority_history.append({"grant": grant.to_dict(), "reason": reason, "created_at": _now().isoformat()})
         return grant
 
+    def _refresh_live_observation_for_confirmation(self, *, require_plan_match: bool) -> None:
+        if not self._real_provider_active():
+            return
+        read_observation = getattr(self.provider, "read_observation", None)
+        if not callable(read_observation):
+            raise ValueError("confirmed live action requires a fresh provider observation")
+        refreshed = read_observation(
+            self.observation.user_scope_id,
+            time_zone_id=self.observation.time_zone_id,
+        )
+        if require_plan_match:
+            planned = self.latest_plan_observation_fingerprint
+            if not planned or observation_fingerprint(refreshed) != planned:
+                raise ValueError("calendar changed after planning; regenerate the candidate before confirming")
+        self.observation = refreshed
+
     def latest_grant_id(self, *, confirmed: bool = False, scopes: list[str] | None = None) -> str:
         grants = list(self.kernel.authority_grants.values())
         scopes = scopes or []
@@ -1017,6 +1033,8 @@ class DogfoodSessionState:
         elif action == "commit":
             name = CodexToolName.REQUEST_COMMIT
             scopes = ["commit_private", "undo"]
+            if confirmed:
+                self._refresh_live_observation_for_confirmation(require_plan_match=True)
             confirmation = (
                 managed_commit_confirmation_provenance(candidate, self.provider.binding)
                 if isinstance(self.provider, ManagedEventKitRetirementProvider) and self.provider.owns_candidate(candidate)
@@ -1060,6 +1078,7 @@ class DogfoodSessionState:
 
     def undo(self, rollback_handle_id: str) -> dict[str, Any]:
         rollback_handle_id = rollback_handle_id.strip()
+        self._refresh_live_observation_for_confirmation(require_plan_match=False)
         grant_id = self.issue_authority_grant(confirmed=True, scopes=["undo"], reason=f"user_confirmed_undo:{rollback_handle_id}").grant_id
         receipt = self.runtime.execute(self._call(CodexToolName.REQUEST_UNDO, {"rollback_handle_id": rollback_handle_id}, grant_id=grant_id, reason="Request Swift rollback through the undo ledger.", correlation_id=rollback_handle_id), self.observation, self.biography)
         self._emit_action_lifecycle_trace(receipt, fallback_stage="rollback", fallback_trace_id=rollback_handle_id)
