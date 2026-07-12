@@ -287,7 +287,13 @@ class NvidiaNIMPolicyClient:
                 validation_errors.append("json_extracted_from_surrounding_text")
             except json.JSONDecodeError as inner:
                 raise LiveDiffusionGemmaSchemaError(f"NIM frontier JSON response was invalid: {inner}") from inner
-        raw_candidates = payload.get("candidates") if isinstance(payload, dict) else None
+        if isinstance(payload, list):
+            raw_candidates = payload
+            policy_summary = ""
+            validation_errors.append("normalized_root_candidate_array")
+        else:
+            raw_candidates = payload.get("candidates") if isinstance(payload, dict) else None
+            policy_summary = str(payload.get("policy_summary") or "") if isinstance(payload, dict) else ""
         if not isinstance(raw_candidates, list) or not raw_candidates:
             raise LiveDiffusionGemmaSchemaError("NIM frontier response did not contain candidates")
         candidates: list[CandidateCalendarAction] = []
@@ -316,6 +322,25 @@ class NvidiaNIMPolicyClient:
                 rejections.append({"reason": "duplicate_candidate_id", "index": idx, "raw_item": raw_item, "candidate_id": candidate.candidate_id})
                 candidate.candidate_id = f"{candidate.candidate_id}_{idx}"
             seen.add(candidate.candidate_id)
+            observed_event_ids = {event.event_id for event in observation.events}
+            unknown_evidence_ids = sorted(set(candidate.affected_event_ids) - observed_event_ids)
+            if unknown_evidence_ids:
+                validation_errors.append(f"skipped_unknown_evidence_event_ids:{candidate.candidate_id}")
+                rejections.append({
+                    "reason": "unknown_evidence_event_ids",
+                    "index": idx,
+                    "candidate_id": candidate.candidate_id,
+                    "schema_errors": unknown_evidence_ids,
+                })
+                continue
+            if candidate.intent == "create_prep_block" and not candidate.affected_event_ids:
+                validation_errors.append(f"skipped_ungrounded_prep_block:{candidate.candidate_id}")
+                rejections.append({
+                    "reason": "missing_parent_event_evidence",
+                    "index": idx,
+                    "candidate_id": candidate.candidate_id,
+                })
+                continue
             if not candidate.actions:
                 validation_errors.append(f"skipped_candidate_without_actions:{candidate.candidate_id}")
                 rejections.append({"reason": "skipped_candidate_without_actions", "index": idx, "raw_item": raw_item, "candidate_id": candidate.candidate_id})
@@ -355,7 +380,7 @@ class NvidiaNIMPolicyClient:
                 f"NIM frontier response did not contain any valid typed candidates ({detail})"
             )
         candidates.sort(key=lambda c: c.expected_reward, reverse=True)
-        return {"candidates": candidates, "policy_summary": str(payload.get("policy_summary") or ""), "validation_errors": validation_errors, "rejections": rejections}
+        return {"candidates": candidates, "policy_summary": policy_summary, "validation_errors": validation_errors, "rejections": rejections}
 
     @staticmethod
     def _frontier_action_errors(candidate: CandidateCalendarAction) -> list[str]:
@@ -427,7 +452,8 @@ class NvidiaNIMPolicyClient:
             }
             normalized["actions"] = [action]
             normalized.setdefault("target_calendars", [calendar_id])
-            normalized.setdefault("affected_event_ids", [event_id] if event_id else [])
+            evidence_event_ids = [str(value) for value in normalized.get("evidence_event_ids", [])]
+            normalized.setdefault("affected_event_ids", evidence_event_ids or ([event_id] if event_id else []))
             normalized.setdefault("affected_people_ids", list(parameters.get("attendees") or []))
             normalized.setdefault("required_authority_tier", int(normalized.get("authority") or (0 if action_type in {"do_nothing", "notify", "ask_clarification", "draft_schedule_plan"} else 3)))
             normalized.setdefault("reversibility", "none" if action_type in {"do_nothing", "notify", "ask_clarification"} else "high")
@@ -524,8 +550,8 @@ class NvidiaNIMPolicyClient:
 
     def _frontier_prompt(self, goal: str, observation: RawCalendarObservation, biography: UserBiography, *, limit: int, retry: bool = False) -> str:
         return json.dumps({
-            "instruction": "Generate a small candidate frontier for CalendarPilot using the compact proposal schema: each candidate has intent, action_type, authority, parameters, and reasoning. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
-            "strict_retry_instruction": "Previous output failed the typed action contract. Return fewer compact candidates with complete parameters. Do not omit start/end for a mutating action and do not emit markdown or prose outside the JSON object." if retry else None,
+            "instruction": "Generate a JSON array of compact CalendarPilot proposals. Each proposal has intent, action_type, authority, parameters, evidence_event_ids, and reasoning. evidence_event_ids must contain the exact event_id values from the observation that justify the proposal; a prep block must cite its parent meeting. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
+            "strict_retry_instruction": "Previous output failed the typed action contract. Return a shorter JSON array with complete parameters and exact evidence_event_ids copied from the observation. Do not omit start/end for a mutating action and do not emit markdown or prose outside the array." if retry else None,
             "goal": goal,
             "limit": limit,
             "observation": to_jsonable(observation),
@@ -553,49 +579,42 @@ class NvidiaNIMPolicyClient:
                 "name": "calendar_pilot_candidate_frontier",
                 "strict": False,
                 "schema": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["candidates"],
-                    "properties": {
-                        "policy_summary": {"type": "string"},
-                        "candidates": {
-                            "type": "array",
-                            "minItems": 1,
-                            "maxItems": 8,
-                            "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["intent", "action_type", "authority", "parameters", "evidence_event_ids", "reasoning"],
+                        "properties": {
+                            "intent": {"type": "string", "enum": [intent.value for intent in CanonicalIntent]},
+                            "action_type": {
+                                "type": "string",
+                                "enum": [
+                                    "do_nothing", "notify", "ask_clarification", "create_event",
+                                    "move_event", "resize_event", "delete_own_event", "add_buffer",
+                                    "create_focus_block", "batch_tasks", "draft_schedule_plan",
+                                    "auto_apply_plan", "undo",
+                                ],
+                            },
+                            "authority": {"type": "integer", "minimum": 0, "maximum": 6},
+                            "evidence_event_ids": {"type": "array", "items": {"type": "string"}},
+                            "parameters": {
                                 "type": "object",
                                 "additionalProperties": False,
-                                "required": ["intent", "action_type", "authority", "parameters", "reasoning"],
                                 "properties": {
-                                    "intent": {"type": "string", "enum": [intent.value for intent in CanonicalIntent]},
-                                    "action_type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "do_nothing", "notify", "ask_clarification", "create_event",
-                                            "move_event", "resize_event", "delete_own_event", "add_buffer",
-                                            "create_focus_block", "batch_tasks", "draft_schedule_plan",
-                                            "auto_apply_plan", "undo",
-                                        ],
-                                    },
-                                    "authority": {"type": "integer", "minimum": 0, "maximum": 6},
-                                    "parameters": {
-                                        "type": "object",
-                                        "additionalProperties": False,
-                                        "properties": {
-                                            "title": {"type": "string"},
-                                            "notes": {"type": "string"},
-                                            "event_id": {"type": "string"},
-                                            "start": {"type": "string"},
-                                            "end": {"type": "string"},
-                                            "calendar_id": {"type": "string"},
-                                            "attendees": {"type": "array", "items": {"type": "string"}},
-                                            "is_user_owned": {"type": "boolean"},
-                                            "category": {"type": "string"},
-                                        },
-                                    },
-                                    "reasoning": {"type": "string"},
+                                    "title": {"type": "string"},
+                                    "notes": {"type": "string"},
+                                    "event_id": {"type": "string"},
+                                    "start": {"type": "string"},
+                                    "end": {"type": "string"},
+                                    "calendar_id": {"type": "string"},
+                                    "attendees": {"type": "array", "items": {"type": "string"}},
+                                    "is_user_owned": {"type": "boolean"},
+                                    "category": {"type": "string"},
                                 },
                             },
+                            "reasoning": {"type": "string"},
                         },
                     },
                 },

@@ -4,6 +4,7 @@
     "calendar-pilot-p12/Makefile",
     "calendar-pilot-p12/evals/dogfood/capture/normalize_d1.py",
     "calendar-pilot-p12/experiments/waves/p13-dogfood-d3-d4-components.scope.json",
+    "calendar-pilot-p12/scripts/browser_cdp_e2e.mjs",
     "calendar-pilot-p12/scripts/browser_dogfood_d1.mjs",
     "calendar-pilot-p12/scripts/run_p13_dogfood_d1.py",
     "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/live.py",

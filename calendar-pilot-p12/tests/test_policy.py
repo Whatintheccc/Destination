@@ -111,22 +111,46 @@ class PolicyTests(unittest.TestCase):
 
     def test_live_nim_frontier_response_format_constrains_compact_model_proposal(self):
         schema = NvidiaNIMPolicyClient._frontier_response_format()["json_schema"]["schema"]
-        candidate = schema["properties"]["candidates"]["items"]
+        candidate = schema["items"]
 
-        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(schema["type"], "array")
         self.assertFalse(candidate["additionalProperties"])
         self.assertEqual(
             set(candidate["required"]),
-            {"intent", "action_type", "authority", "parameters", "reasoning"},
+            {"intent", "action_type", "authority", "parameters", "evidence_event_ids", "reasoning"},
         )
         self.assertIn("create_event", candidate["properties"]["action_type"]["enum"])
         self.assertNotIn("candidate_id", candidate["properties"])
+
+    def test_nim_frontier_parser_accepts_root_compact_candidate_array(self):
+        compact = {
+            "intent": "create_prep_block",
+            "action_type": "create_event",
+            "authority": 3,
+            "evidence_event_ids": ["evt_client_call"],
+            "parameters": {
+                "title": "Prep: renewal",
+                "start": "2026-07-01T14:30:00-07:00",
+                "end": "2026-07-01T15:00:00-07:00",
+                "calendar_id": "work",
+            },
+            "reasoning": "Prepare for the cited renewal call.",
+        }
+
+        parsed = NvidiaNIMPolicyClient._parse_frontier_payload(
+            json.dumps([compact]), self.observation, limit=1
+        )
+
+        self.assertEqual(parsed["candidates"][0].actions[0].action_type.value, "create_event")
+        self.assertEqual(parsed["policy_summary"], "")
+        self.assertIn("normalized_root_candidate_array", parsed["validation_errors"])
 
     def test_nim_frontier_parser_hydrates_compact_model_proposal(self):
         compact = {
             "intent": "create_prep_block",
             "action_type": "create_event",
             "authority": 3,
+            "evidence_event_ids": ["evt_client_call"],
             "parameters": {
                 "title": "Prep: renewal",
                 "start": "2026-07-01T14:30:00-07:00",
@@ -146,6 +170,46 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(candidate.required_authority_tier, 3)
         self.assertEqual(candidate.explanation, compact["reasoning"])
         self.assertIn("normalized_compact_candidate:0", parsed["validation_errors"])
+
+    def test_nim_frontier_parser_rejects_ungrounded_prep_block(self):
+        compact = {
+            "intent": "create_prep_block",
+            "action_type": "create_event",
+            "authority": 3,
+            "evidence_event_ids": [],
+            "parameters": {
+                "title": "Prep: invented",
+                "start": "2026-07-01T14:30:00-07:00",
+                "end": "2026-07-01T15:00:00-07:00",
+                "calendar_id": "work",
+            },
+            "reasoning": "No cited parent.",
+        }
+
+        with self.assertRaisesRegex(LiveDiffusionGemmaSchemaError, "missing_parent_event_evidence"):
+            NvidiaNIMPolicyClient._parse_frontier_payload(
+                json.dumps([compact]), self.observation, limit=1
+            )
+
+    def test_nim_frontier_parser_rejects_unknown_evidence_event_id(self):
+        compact = {
+            "intent": "create_prep_block",
+            "action_type": "create_event",
+            "authority": 3,
+            "evidence_event_ids": ["evt_invented"],
+            "parameters": {
+                "title": "Prep: invented",
+                "start": "2026-07-01T14:30:00-07:00",
+                "end": "2026-07-01T15:00:00-07:00",
+                "calendar_id": "work",
+            },
+            "reasoning": "Invented citation.",
+        }
+
+        with self.assertRaisesRegex(LiveDiffusionGemmaSchemaError, "unknown_evidence_event_ids"):
+            NvidiaNIMPolicyClient._parse_frontier_payload(
+                json.dumps([compact]), self.observation, limit=1
+            )
 
     def test_nim_frontier_parser_derives_stable_local_candidate_identity(self):
         candidate = DiffusionGemmaPolicy().generate_candidates(self.observation, self.biography)[0].to_dict()
