@@ -60,9 +60,16 @@ class DogfoodPredicateTests(unittest.TestCase):
         self.assert_pass_then_fail("identity", good, lambda row: row.__setitem__("cross_run_artifacts", ["replay.jsonl:2"]))
 
     def test_live_read_rejects_fixture_labeled_eventkit(self):
-        good = vector({"provider_read": [{"fact_ids": ["e1"], "provider_identity": "apple_eventkit", "uses_sample_fixtures": False, "fixture_rows": [], "permission_owner": "app"}], "rendered_view": [{"fact_ids": ["e1"]}]}, sources=("operator_truth", "provider_read", "rendered_view"))
-        good.update({"operator_truth": {"provider_identity": "apple_eventkit", "facts": [{"fact_id": "e1"}]}, "health": {"backends": {"provider": "apple_eventkit"}}})
+        window = {"time_min": "2026-07-12T00:00:00-07:00", "time_max": "2026-07-13T00:00:00-07:00"}
+        good = vector({"provider_read": [{"fact_ids": ["e1"], "provider_identity": "apple_eventkit", "uses_sample_fixtures": False, "fixture_rows": [], "permission_owner": "app", "read_window": window}], "rendered_view": [{"fact_ids": ["e1"]}]}, sources=("operator_truth", "provider_read", "rendered_view"))
+        good.update({"operator_truth": {"provider_identity": "apple_eventkit", "facts": [{"fact_id": "e1", "kind": "calendar_event"}, {"fact_id": "gap", "kind": "calendar_gap", "value": {**window, "event_count": 1}}]}, "health": {"backends": {"provider": "apple_eventkit"}}})
         self.assert_pass_then_fail("live_read", good, lambda row: row["records"]["provider_read"][0].__setitem__("uses_sample_fixtures", True))
+
+    def test_live_read_accepts_a_bounded_operator_confirmed_empty_window(self):
+        window = {"time_min": "2026-07-12T00:00:00-07:00", "time_max": "2026-07-13T00:00:00-07:00"}
+        good = vector({"provider_read": [{"fact_ids": [], "provider_identity": "apple_eventkit", "uses_sample_fixtures": False, "fixture_rows": [], "permission_owner": "app", "read_window": window}], "rendered_view": [{"fact_ids": []}]}, sources=("operator_truth", "provider_read", "rendered_view"))
+        good.update({"operator_truth": {"provider_identity": "apple_eventkit", "facts": [{"fact_id": "gap", "kind": "calendar_gap", "value": {**window, "event_count": 0}}]}, "health": {"backends": {"provider": "apple_eventkit"}}})
+        self.assert_pass_then_fail("live_read", good, lambda row: row["records"]["provider_read"][0]["read_window"].__setitem__("time_max", "2026-07-14T00:00:00-07:00"))
 
     def test_action_projection_rejects_omissions_and_model_prose(self):
         action = {field: f"value-{field}" for field in ACTION_FIELDS}

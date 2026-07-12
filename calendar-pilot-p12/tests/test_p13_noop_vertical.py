@@ -9,6 +9,26 @@ from calendar_pilot.frontend.session import DogfoodSessionState
 
 
 class P13NoopVerticalTests(unittest.TestCase):
+    def test_live_provider_uses_noop_fixture_as_isolated_shadow_only(self) -> None:
+        class RealProvider:
+            provider_id = "apple_eventkit"
+            real_provider = True
+
+        with tempfile.TemporaryDirectory() as td:
+            session = DogfoodSessionState(run_dir=Path(td))
+            try:
+                original_observation = session.observation
+                session.provider = RealProvider()
+                snapshot = session.create_plan("Use the fixture where every calendar change is dominated.")
+                self.assertIs(session.observation, original_observation)
+                self.assertEqual(snapshot["chat"]["candidate_cards"][0]["intent"], "do_nothing")
+                self.assertTrue(session.persistence.isolated_noop_plan_restore_allowed())
+                shadow_rows = [row for row in session.replay.records if row.record_type == "isolated_shadow_fixture"]
+                self.assertEqual(len(shadow_rows), 1)
+                self.assertFalse(shadow_rows[0].payload["provider_replaced"])
+            finally:
+                session.close()
+
     def test_bound_dominated_fixture_selects_only_noop_and_survives_restart(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             run_dir = Path(td)

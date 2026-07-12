@@ -318,8 +318,9 @@ class DogfoodSessionState:
         self._emit_trace(routed.turn_id, "router", "route_classified", payload=routed.replay_payload())
         if self.latest_plan is not None and conversation_message_requests_existing_plan_followup(normalize_conversation_message(goal)):
             return self._create_existing_plan_followup(goal, intent, routed.turn_id)
+        planning_observation = self.observation
         if conversation_message_requests_noop_fixture(normalize_conversation_message(goal)):
-            self._activate_noop_fixture()
+            planning_observation = self._activate_noop_fixture()
             intent = "calendar_goal"
         correction_command = None
         if self.latest_plan is not None and conversation_message_requests_candidate_correction(normalize_conversation_message(goal)):
@@ -383,10 +384,10 @@ class DogfoodSessionState:
             })
             self.persist()
             return self.snapshot()
-        plan = self.planner.plan_goal(goal, self.observation, self.biography, authority_tier=self.authority_tier, commit=commit)
+        plan = self.planner.plan_goal(goal, planning_observation, self.biography, authority_tier=self.authority_tier, commit=commit)
         self.latest_plan = plan
-        self.latest_plan_observation_id = self.observation.observation_id
-        self.latest_plan_observation_fingerprint = observation_fingerprint(self.observation)
+        self.latest_plan_observation_id = planning_observation.observation_id
+        self.latest_plan_observation_fingerprint = observation_fingerprint(planning_observation)
         self._record_frontier_rejections_from_plan(plan)
         self._record_product_core_read_side(plan)
         if correction_command is not None:
@@ -441,14 +442,30 @@ class DogfoodSessionState:
         self.persist()
         return self.snapshot()
 
-    def _activate_noop_fixture(self) -> None:
-        if str(getattr(self.provider, "provider_id", "")) != "deterministic_fixture_provider":
-            raise ValueError("the no-op fixture is available only with the deterministic fixture provider")
+    def _activate_noop_fixture(self) -> RawCalendarObservation:
         fixture_path = ROOT / "data" / "noop_dominates_calendar.json"
-        self.observation = RawCalendarObservation.from_dict(json.loads(fixture_path.read_text(encoding="utf-8")))
+        fixture_observation = RawCalendarObservation.from_dict(json.loads(fixture_path.read_text(encoding="utf-8")))
+        provider_id = str(getattr(self.provider, "provider_id", ""))
+        if provider_id != "deterministic_fixture_provider":
+            if not bool(getattr(self.provider, "real_provider", False)):
+                raise ValueError("the no-op fixture requires a deterministic or real provider")
+            self.replay.append_generic(
+                "isolated_shadow_fixture",
+                {
+                    "fixture_id": "noop_dominates",
+                    "observation_id": fixture_observation.observation_id,
+                    "active_provider_id": provider_id,
+                    "provider_replaced": False,
+                },
+                record_id=f"isolated_shadow_fixture:{self.state_version}",
+                signal_stream="world",
+            )
+            return fixture_observation
+        self.observation = fixture_observation
         reset_provider = getattr(self.provider, "reset", None)
         if callable(reset_provider):
             reset_provider(self.observation)
+        return self.observation
 
     def _create_existing_plan_followup(self, goal: str, intent: str, trace_id: str) -> dict[str, Any]:
         snapshot = self.snapshot()
@@ -636,9 +653,12 @@ class DogfoodSessionState:
             }
             for event in self.observation.events
         ]
+        provider_window_owner = getattr(self.provider, "incumbent", self.provider)
+        read_window = getattr(provider_window_owner, "last_read_window", None)
         observation_payload = {
             "observation_id": self.observation.observation_id,
             "timezone": self.observation.time_zone_id,
+            "read_window": dict(read_window) if isinstance(read_window, dict) else None,
             "fact_ids": [fact["fact_id"] for fact in facts],
             "citation_ids": [fact["citation_id"] for fact in facts],
             "facts": facts,

@@ -47,13 +47,19 @@ def health_matches_launch(launch_state: dict[str, Any], health: dict[str, Any]) 
     ))
 
 
-def launch(app_bundle: Path, run_dir: Path, runtime_mode: str) -> None:
-    subprocess.run([
+def launch(app_bundle: Path, run_dir: Path, runtime_mode: str, *, live_window: dict[str, str] | None = None) -> None:
+    command = [
         "open", "-n",
         "--env", f"CALENDAR_PILOT_RUNTIME_MODE={runtime_mode}",
         "--env", f"CALENDAR_PILOT_RUN_DIR={run_dir}",
-        str(app_bundle),
-    ], check=True)
+    ]
+    if live_window:
+        command.extend([
+            "--env", f"CALENDAR_PILOT_EVENTKIT_READ_TIME_MIN={live_window['time_min']}",
+            "--env", f"CALENDAR_PILOT_EVENTKIT_READ_TIME_MAX={live_window['time_max']}",
+        ])
+    command.append(str(app_bundle))
+    subprocess.run(command, check=True)
 
 
 def wait_for_launch(run_dir: Path, *, previous_launch_id: str | None = None, timeout: float = 15) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -118,16 +124,25 @@ def prepare_args(args: argparse.Namespace) -> argparse.Namespace:
         fixture=str(ROOT / "data/sample_calendar.json"),
         out_root=str(Path(args.out_root).resolve()),
         run_id=args.run_id,
+        live_window_start=args.live_window_start,
+        live_window_end=args.live_window_end,
+        live_timezone=args.live_timezone,
     )
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     run_dir = prepare(prepare_args(args))
     run_id = run_dir.name
+    truth = load_json(run_dir / "operator_truth.json")
+    gap = next((row for row in truth.get("facts", []) if row.get("kind") == "calendar_gap"), None)
+    live_window = None
+    if gap is not None:
+        value = gap.get("value", {})
+        live_window = {"time_min": str(value["time_min"]), "time_max": str(value["time_max"])}
     first_launch: dict[str, Any] = {}
     second_launch: dict[str, Any] = {}
     try:
-        launch(Path(args.app_bundle).resolve(), run_dir, args.runtime_mode)
+        launch(Path(args.app_bundle).resolve(), run_dir, args.runtime_mode, live_window=live_window)
         first_launch, health = wait_for_launch(run_dir)
         shutil.copy2(run_dir / "launch_state.json", run_dir / "launch_state.before.json")
         (run_dir / "health.json").write_text(json.dumps(health, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -136,7 +151,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         stop_launch(first_launch)
         first_launch = {}
 
-        launch(Path(args.app_bundle).resolve(), run_dir, args.runtime_mode)
+        launch(Path(args.app_bundle).resolve(), run_dir, args.runtime_mode, live_window=live_window)
         second_launch, second_health = wait_for_launch(run_dir, previous_launch_id=str(health.get("process", {}).get("launch_id") or ""))
         run_browser("after-restart", str(second_launch["base_url"]), run_dir)
         shutil.copy2(run_dir / "launch_state.json", run_dir / "launch_state.after.json")
@@ -168,17 +183,21 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-bundle", default=str(DEFAULT_APP))
-    parser.add_argument("--cell", default="D1", choices=("D1", "D2", "D3", "D4"))
-    parser.add_argument("--runtime-mode", default="fixture", choices=("fixture", "swift_ipc", "live_codex", "live_diffusiongemma"))
+    parser.add_argument("--cell", default="D1", choices=("D1", "D2", "D3", "D4", "D5"))
+    parser.add_argument("--runtime-mode", default="fixture", choices=("fixture", "swift_ipc", "live_codex", "live_diffusiongemma", "live_provider"))
     parser.add_argument("--architecture-report", default=str(DEFAULT_ARCHITECTURE_REPORT))
     parser.add_argument("--out-root", default=str(ROOT / "runs/dogfood"))
     parser.add_argument("--run-id", default="")
+    parser.add_argument("--live-window-start", default="")
+    parser.add_argument("--live-window-end", default="")
+    parser.add_argument("--live-timezone", default="America/Los_Angeles")
     args = parser.parse_args()
     expected_mode = {
         "D1": "fixture",
         "D2": "swift_ipc",
         "D3": "live_codex",
         "D4": "live_diffusiongemma",
+        "D5": "live_provider",
     }[args.cell]
     if args.runtime_mode != expected_mode:
         parser.error(f"{args.cell} requires --runtime-mode {expected_mode}")
