@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0-D3 are complete. Exact protected-main D3 build `1a1b5c6b5ab4` passes all 12 required product scenarios through live Codex with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D4 live DiffusionGemma is open: exact clean candidate `c80fcef590bf` passes the affected live NIM E2E with a compact cited-proposal boundary and fail-observable browser capture. Protected-main merge, exact release/signing, and the binding D4 product transaction remain before a D4 verdict. D5-D7 remain closed.**
+Current verdict: **Binding D0-D3 are complete. Exact protected-main D3 build `1a1b5c6b5ab4` passes all 12 required product scenarios through live Codex with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D4 live DiffusionGemma is active: exact protected-main run `20260712T005425Z-d4-live_diffusiongemma-2d4264672d32` is binding eligible and passes 10/12 with complete evidence and zero divergence; only explicit comparison against no change (`P-RECOMMEND`) and visible no-op binding constraint (`P-NOOP`) fail. The selected compact v4 contract adds that single semantic. D5-D7 remain closed.**
 
 ---
 
@@ -798,6 +798,18 @@ Append newest entries first. Never rewrite a failed run after a fix.
   adapter uses the smaller root array and the browser binds interaction to the completed
   post-submit state version. Protected-main merge, exact release/signing, the binding D4
   transaction, and the D4 verdict remain open.
+- The compact boundary merged on protected main `2d4264672d32`, passed release and
+  signed architecture manifest
+  `p13-dogfood-d3-d4-components:2d4264672d32:20260712T005359Z`, then completed binding
+  D4 run `20260712T005425Z-d4-live_diffusiongemma-2d4264672d32`. Ten of twelve
+  scenarios pass with completeness `1.0`, preservation 11/11, zero measured divergence,
+  and no stage/provider effect. `P-RECOMMEND` fails only because the compact proposal
+  left `counterfactual` empty; `P-NOOP` correctly selected `do_nothing` and hid all
+  write controls but left the visible `binding_constraint` empty. The selected v4
+  proposal adds one required `no_op_comparison`: it projects to `counterfactual` for
+  every candidate and to `binding_constraint=` when inaction wins. Focused live probes
+  demonstrate both outputs, and all 377 Python tests pass. Exact affected-live E2E,
+  protected-main merge, release/signing, and binding D4 rerun remain required.
 
 ### 2026-07-11 — D2 Swift IPC complete; D3/D4 component cells selected
 

@@ -81,7 +81,7 @@ class PolicyTests(unittest.TestCase):
         metadata = policy.policy_metadata_for_candidate(candidates[0].candidate_id)
         self.assertEqual(metadata["mode"], "model_generated_candidate_frontier")
         self.assertEqual(metadata["fallback_state"], "model_generated_frontier")
-        self.assertEqual(metadata["prompt_version"], "calendar_pilot_nim_compact_frontier_v3")
+        self.assertEqual(metadata["prompt_version"], "calendar_pilot_nim_compact_frontier_v4")
 
     def test_live_diffusiongemma_policy_forwards_user_goal_to_nim_generator(self):
         client = GoalCaptureNIMGeneratorClient()
@@ -117,7 +117,7 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(candidate["additionalProperties"])
         self.assertEqual(
             set(candidate["required"]),
-            {"intent", "action_type", "authority", "parameters", "evidence_event_ids", "reasoning"},
+            {"intent", "action_type", "authority", "parameters", "evidence_event_ids", "reasoning", "no_op_comparison"},
         )
         self.assertIn("create_event", candidate["properties"]["action_type"]["enum"])
         self.assertNotIn("candidate_id", candidate["properties"])
@@ -135,6 +135,7 @@ class PolicyTests(unittest.TestCase):
                 "calendar_id": "work",
             },
             "reasoning": "Prepare for the cited renewal call.",
+            "no_op_comparison": "Doing nothing leaves the cited call unprepared.",
         }
 
         parsed = NvidiaNIMPolicyClient._parse_frontier_payload(
@@ -158,6 +159,7 @@ class PolicyTests(unittest.TestCase):
                 "calendar_id": "work",
             },
             "reasoning": "Prepare for the cited renewal call.",
+            "no_op_comparison": "Doing nothing leaves the cited call unprepared.",
         }
 
         parsed = NvidiaNIMPolicyClient._parse_frontier_payload(
@@ -169,7 +171,28 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(candidate.actions[0].calendar_id, "work")
         self.assertEqual(candidate.required_authority_tier, 3)
         self.assertEqual(candidate.explanation, compact["reasoning"])
+        self.assertEqual(candidate.counterfactual, compact["no_op_comparison"])
         self.assertIn("normalized_compact_candidate:0", parsed["validation_errors"])
+
+    def test_nim_frontier_parser_projects_noop_comparison_as_binding_constraint(self):
+        comparison = "Protected recovery day makes every calendar change worse."
+        compact = {
+            "intent": "do_nothing",
+            "action_type": "do_nothing",
+            "authority": 0,
+            "evidence_event_ids": ["evt_client_call"],
+            "parameters": {},
+            "reasoning": "Leave the calendar unchanged.",
+            "no_op_comparison": comparison,
+        }
+
+        parsed = NvidiaNIMPolicyClient._parse_frontier_payload(
+            json.dumps([compact]), self.observation, limit=1
+        )
+
+        candidate = parsed["candidates"][0]
+        self.assertEqual(candidate.counterfactual, comparison)
+        self.assertIn("binding_constraint=" + comparison, candidate.control_notes)
 
     def test_nim_frontier_parser_rejects_ungrounded_prep_block(self):
         compact = {
@@ -184,6 +207,7 @@ class PolicyTests(unittest.TestCase):
                 "calendar_id": "work",
             },
             "reasoning": "No cited parent.",
+            "no_op_comparison": "Doing nothing is worse, but no parent is cited.",
         }
 
         with self.assertRaisesRegex(LiveDiffusionGemmaSchemaError, "missing_parent_event_evidence"):
@@ -204,6 +228,7 @@ class PolicyTests(unittest.TestCase):
                 "calendar_id": "work",
             },
             "reasoning": "Invented citation.",
+            "no_op_comparison": "Doing nothing is worse, but the citation is invented.",
         }
 
         with self.assertRaisesRegex(LiveDiffusionGemmaSchemaError, "unknown_evidence_event_ids"):
@@ -386,7 +411,7 @@ class FakeNIMGeneratorClient:
             metadata={
                 "backend": "nvidia_nim_diffusiongemma_policy",
                 "mode": "model_generated_candidate_frontier",
-                "prompt_version": "calendar_pilot_nim_compact_frontier_v3",
+                "prompt_version": "calendar_pilot_nim_compact_frontier_v4",
                 "model": self.model,
                 "base_url": "https://integrate.api.nvidia.com/v1",
                 "response_id": "nim_generate_test",
@@ -431,7 +456,7 @@ class TwoCandidateNIMGeneratorClient:
             metadata={
                 "backend": "nvidia_nim_diffusiongemma_policy",
                 "mode": "model_generated_candidate_frontier",
-                "prompt_version": "calendar_pilot_nim_compact_frontier_v3",
+                "prompt_version": "calendar_pilot_nim_compact_frontier_v4",
                 "model": self.model,
                 "base_url": "https://integrate.api.nvidia.com/v1",
                 "response_id": "nim_generate_test",
