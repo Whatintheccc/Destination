@@ -19,8 +19,8 @@ for path in (ROOT, ROOT / "src"):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from calendar_pilot.effect_kernel.eventkit_retirement import AppleEventKitManagedDriver, ManagedCalendarBinding
-from calendar_pilot.providers.apple_eventkit import AppleEventKitProvider
+from calendar_pilot.effect_kernel.eventkit_retirement import ManagedCalendarBinding
+from calendar_pilot.providers.apple_eventkit import AppleEventKitManagedDriver, AppleEventKitProvider
 from evals.dogfood.capture.normalize_d1 import normalize
 from evals.dogfood.run_dogfood_evals import build_report
 from scripts.prepare_p13_dogfood_run import DEFAULT_APP, DEFAULT_ARCHITECTURE_REPORT, prepare
