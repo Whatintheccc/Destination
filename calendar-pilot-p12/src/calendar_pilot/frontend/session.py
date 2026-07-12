@@ -622,6 +622,14 @@ class DogfoodSessionState:
             duration = int((end - start).total_seconds() // 60)
         except (TypeError, ValueError):
             duration = None
+        correction_applied = duration == command["replacement_minutes"]
+        if correction_applied:
+            for claim in reversed(self.biography.preference_claims):
+                if claim.get("command_id") != command["command_id"]:
+                    continue
+                claim["active"] = False
+                claim["status"] = "applied"
+                break
         self.replay.append_generic(
             "candidate_correction_application",
             {
@@ -632,7 +640,7 @@ class DogfoodSessionState:
                 "candidate_id": leading.get("candidate_id"),
                 "replacement_minutes": command["replacement_minutes"],
                 "actual_minutes": duration,
-                "new_plan_uses_correction": duration == command["replacement_minutes"],
+                "new_plan_uses_correction": correction_applied,
                 "citation_ids": command["citation_ids"],
                 "before_authority_digest": command["before_authority_digest"],
                 "after_authority_digest": self._authority_state_digest(),

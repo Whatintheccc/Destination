@@ -801,6 +801,22 @@ independent examples merely because the same candidate was exposed five times.
 
 Append newest entries first. Never rewrite a failed run after a fix.
 
+### 2026-07-11 — Corrected-object D6 rerun exposes one-shot claim lifecycle
+
+- Protected-main build `8c3717093cd4` passed release and signed architecture manifest
+  `p13-dogfood-d6-retain-correction:8c3717093cd4:20260712T022238Z`.
+- Run `20260712T022255Z-d6-auto-8c3717093cd4` retained a no-op-only initial Frontier;
+  the UI correctly rejected a duration correction against inaction and the harness
+  aborted. This is retained respondent-quality evidence, not a scored binding report.
+- Unchanged rerun `20260712T022520Z-d6-auto-8c3717093cd4` produced a timed incumbent and
+  proved corrected-object retention: `P-CORRECTION` passes even when the correction-turn
+  respondent changes alternatives. Eleven of thirteen scenarios pass with zero effects.
+  The applied correction claim, however, remained active and contaminated the subsequent
+  dominated no-op fixture, causing `P-NOOP` and restart continuity to fail.
+- Explicit card correction is a one-shot command. After its exact replacement duration
+  is observed in the new candidate, the biography claim is marked inactive/applied. It
+  remains in replay as cited history but cannot alter later independent scenarios.
+
 ### 2026-07-11 — Second binding D6 run makes correction object identity binding
 
 - Protected-main build `af1397116cf1` passed release and signed architecture manifest
