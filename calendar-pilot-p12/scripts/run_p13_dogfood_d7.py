@@ -106,6 +106,25 @@ def exact_confirmation(label: str, expected: str) -> None:
         raise RuntimeError(f"D7 {label.lower()} confirmation did not match the exact bound action")
 
 
+def cleanup_parent_fixture(fixture: dict[str, Any] | None) -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    cleanup = _cleanup_managed_parent_fixture(fixture, now=now)
+    if not fixture or cleanup.get("phase") == "verified":
+        return cleanup
+    gateway = fixture["gateway"]
+    fresh_grant = gateway.gate.issue_grant(
+        grant_id=f"grant:d7:parent:cleanup:{now.strftime('%Y%m%dT%H%M%S')}",
+        action_families=("create_prep_block",),
+        scopes=("compensate",),
+        issued_at=now,
+        expires_at=now + timedelta(minutes=30),
+        confirmed=True,
+    )
+    refreshed = dict(fixture)
+    refreshed["grant"] = fresh_grant
+    return _cleanup_managed_parent_fixture(refreshed, now=now + timedelta(seconds=1))
+
+
 def prepare_args(args: argparse.Namespace, *, event_path: Path, time_min: str, time_max: str) -> argparse.Namespace:
     return argparse.Namespace(
         cell="D7",
@@ -246,7 +265,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 stop_launch(first_launch)
             if second_launch:
                 stop_launch(second_launch)
-            cleanup = _cleanup_managed_parent_fixture(fixture, now=datetime.now(timezone.utc))
+            cleanup = cleanup_parent_fixture(fixture)
             if run_dir is not None:
                 summary_path = run_dir / "parent_fixture.json"
                 summary = load_json(summary_path) if summary_path.is_file() else {}

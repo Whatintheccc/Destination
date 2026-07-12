@@ -8,7 +8,9 @@
     "calendar-pilot-p12/scripts/browser_dogfood_d1.mjs",
     "calendar-pilot-p12/scripts/prepare_p13_dogfood_run.py",
     "calendar-pilot-p12/scripts/run_p13_dogfood_d7.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session.py",
     "calendar-pilot-p12/tests/test_dogfood_d1_capture.py",
+    "calendar-pilot-p12/tests/test_frontend_and_authority.py",
     "calendar-pilot-p12/tests/test_prepare_p13_dogfood_run.py",
     "p13-dogfood.md"
   ],
