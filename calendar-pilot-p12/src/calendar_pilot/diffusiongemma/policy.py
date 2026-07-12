@@ -63,17 +63,21 @@ def apply_policy_tuning(candidate: CandidateCalendarAction, tuning: PolicyTuning
         candidate.control_notes.append(f"offline_tuning=adversary_penalty:{penalty:+.2f}")
 
 
-def corrected_prep_minutes(biography: UserBiography, fallback: int) -> int:
+def corrected_action_minutes(biography: UserBiography, intent: str, fallback: int) -> int:
     for claim in reversed(biography.preference_claims):
         if claim.get("kind") != "explicit_candidate_correction" or claim.get("active") is not True:
             continue
-        if claim.get("applies_to_intent") != "create_prep_block":
+        if claim.get("applies_to_intent") != intent:
             continue
         try:
-            return min(45, max(5, int(claim["preferred_minutes"])))
+            return max(5, int(claim["preferred_minutes"]))
         except (KeyError, TypeError, ValueError):
             continue
     return fallback
+
+
+def corrected_prep_minutes(biography: UserBiography, fallback: int) -> int:
+    return min(45, corrected_action_minutes(biography, "create_prep_block", fallback))
 
 
 class DiffusionGemmaPolicy:
@@ -353,7 +357,12 @@ class DiffusionGemmaPolicy:
         if slot is None:
             return []
         start = slot.start
-        end = min(slot.end, start + timedelta(minutes=min(90, slot.minutes)))
+        requested_minutes = corrected_action_minutes(
+            biography,
+            "protect_deep_work",
+            min(90, slot.minutes),
+        )
+        end = min(slot.end, start + timedelta(minutes=requested_minutes))
         action = AtomicCalendarAction(
             action_type=AtomicActionType.CREATE_FOCUS_BLOCK,
             title="Focus block",
