@@ -390,6 +390,9 @@ class NvidiaNIMPolicyClient:
     @staticmethod
     def _frontier_action_errors(candidate: CandidateCalendarAction) -> list[str]:
         errors: list[str] = []
+        if candidate.intent == "create_prep_block":
+            if len(candidate.actions) != 1 or candidate.actions[0].action_type != AtomicActionType.CREATE_FOCUS_BLOCK:
+                errors.append("create_prep_block requires exactly one create_focus_block action")
         create_types = {
             AtomicActionType.CREATE_EVENT,
             AtomicActionType.CREATE_FOCUS_BLOCK,
@@ -501,6 +504,7 @@ class NvidiaNIMPolicyClient:
             normalized["reversibility"] = "none"
             validation_errors.append(f"normalized_reversibility_text:{idx}")
         actions = []
+        canonical_intent = normalize_intent(str(normalized.get("intent") or ""))["intent"]
         for action_idx, action in enumerate(normalized.get("actions", [])):
             if not isinstance(action, dict):
                 actions.append(action)
@@ -512,6 +516,9 @@ class NvidiaNIMPolicyClient:
             if "calendar_id" not in action_payload and "calendar" in action_payload:
                 action_payload["calendar_id"] = action_payload["calendar"]
                 validation_errors.append(f"normalized_calendar_alias:{idx}:{action_idx}")
+            if canonical_intent == "create_prep_block" and action_payload.get("action_type") == AtomicActionType.CREATE_EVENT.value:
+                action_payload["action_type"] = AtomicActionType.CREATE_FOCUS_BLOCK.value
+                validation_errors.append(f"normalized_prep_action_type:{idx}:{action_idx}")
             actions.append(action_payload)
         normalized["actions"] = actions
         if not normalized.get("target_calendars"):
@@ -561,7 +568,7 @@ class NvidiaNIMPolicyClient:
 
     def _frontier_prompt(self, goal: str, observation: RawCalendarObservation, biography: UserBiography, *, limit: int, retry: bool = False) -> str:
         return json.dumps({
-            "instruction": "Generate a JSON array of compact CalendarPilot proposals. Each proposal has intent, action_type, authority, parameters, evidence_event_ids, reasoning, and no_op_comparison. evidence_event_ids may contain only values from allowed_evidence_event_ids; task IDs are context only and are forbidden in that field. A prep block must cite its parent meeting event_id. no_op_comparison must say why this action is better than making no change; for do_nothing it must state the binding constraint that makes every change worse. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
+            "instruction": "Generate a JSON array of compact CalendarPilot proposals. Each proposal has intent, action_type, authority, parameters, evidence_event_ids, reasoning, and no_op_comparison. evidence_event_ids may contain only values from allowed_evidence_event_ids; task IDs are context only and are forbidden in that field. A create_prep_block proposal must use action_type=create_focus_block and cite its parent meeting event_id. no_op_comparison must say why this action is better than making no change; for do_nothing it must state the binding constraint that makes every change worse. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
             "strict_retry_instruction": "Previous output failed the typed action contract. Return a shorter JSON array with complete parameters, evidence_event_ids copied only from allowed_evidence_event_ids, and an explicit no_op_comparison. Never place a context_only_task_id in evidence_event_ids. Do not omit start/end for a mutating action and do not emit markdown or prose outside the array." if retry else None,
             "goal": goal,
             "limit": limit,

@@ -226,7 +226,7 @@ class DiffusionGemmaPolicy:
                 if self._is_slot_free(observation.events, start, end):
                     title = _title_join("Prep", event.title)
                     action = AtomicCalendarAction(
-                        action_type=AtomicActionType.CREATE_EVENT,
+                        action_type=AtomicActionType.CREATE_FOCUS_BLOCK,
                         title=title,
                         start=start,
                         end=end,

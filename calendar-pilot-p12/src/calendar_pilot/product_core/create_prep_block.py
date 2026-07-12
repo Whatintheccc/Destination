@@ -156,7 +156,7 @@ def _reduce_create_prep_block(
         action: dict[str, Any] = {}
     else:
         action = actions[0] if isinstance(actions[0], dict) else {}
-    if action.get("action_type") != AtomicActionType.CREATE_EVENT.value:
+    if action.get("action_type") != AtomicActionType.CREATE_FOCUS_BLOCK.value:
         reasons.append("prep_block_action_type")
     if candidate.get("affected_people_ids") or action.get("attendees"):
         reasons.append("prep_block_must_be_private")

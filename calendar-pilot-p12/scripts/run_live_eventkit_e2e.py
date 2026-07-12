@@ -434,7 +434,7 @@ def run_p13_eventkit_retirement_probe(provider: AppleEventKitProvider) -> dict[s
         candidate_id=f"candidate:p13.5:eventkit:{now.strftime('%Y%m%dT%H%M%S')}",
         intent="create_prep_block",
         actions=[AtomicCalendarAction(
-            action_type=AtomicActionType.CREATE_EVENT,
+            action_type=AtomicActionType.CREATE_FOCUS_BLOCK,
             title=f"Prep: {parent.title}",
             start=start,
             end=parent.start - timedelta(minutes=5),

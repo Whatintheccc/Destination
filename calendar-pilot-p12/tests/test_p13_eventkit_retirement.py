@@ -260,6 +260,7 @@ class ManagedEventKitRetirementTests(unittest.TestCase):
                 self.biography,
             )
             prep = next(row for row in receipt.output["candidates"] if row["intent"] == "create_prep_block")
+            self.assertTrue(all(action["action_type"] == "create_focus_block" for action in prep["actions"]))
             self.assertEqual(prep["target_calendars"], [self.binding.calendar_id])
             self.assertTrue(all(action["calendar_id"] == self.binding.calendar_id for action in prep["actions"]))
             self.assertTrue(all(action["metadata"]["calendarpilot_binding_id"] == self.binding.binding_id for action in prep["actions"]))

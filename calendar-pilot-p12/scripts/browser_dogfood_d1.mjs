@@ -154,7 +154,9 @@ async function runD7Phase(client) {
     const truth = JSON.parse(await readFile(path.join(runDir, 'operator_truth.json'), 'utf8'));
     const parent = truth.facts.find(row => row.kind === 'calendar_event')?.value || {};
     const failures = [];
+    if (view?.read_side?.status !== 'pass') failures.push(`read_side=${view?.read_side?.status}`);
     if (candidate?.intent !== 'create_prep_block') failures.push(`intent=${candidate?.intent}`);
+    if (candidate?.action?.action_type !== 'create_focus_block') failures.push(`action_type=${candidate?.action?.action_type}`);
     if ((candidate?.action?.attendees || []).length !== 0) failures.push('attendees_not_empty');
     if (candidate?.action?.calendar_id !== parent.calendar_id) failures.push(`calendar=${candidate?.action?.calendar_id}`);
     if (!String(candidate?.action?.title || '').startsWith('Prep:')) failures.push(`title=${candidate?.action?.title}`);

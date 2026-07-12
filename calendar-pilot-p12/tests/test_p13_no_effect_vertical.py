@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from copy import deepcopy
+from dataclasses import replace
 from datetime import timedelta
 import json
 from pathlib import Path
@@ -11,6 +12,7 @@ import unittest
 
 from calendar_pilot.diffusiongemma import DiffusionGemmaPolicy
 from calendar_pilot.product_core import AdmissionPreview, EvidenceJournal, run_create_prep_block_vertical
+from calendar_pilot.types import AtomicActionType
 from calendar_pilot.types import RawCalendarObservation, UserBiography
 from evals.p13_ruler.wave import compare_b_migrate_artifacts
 from scripts.produce_b_migrate_p13_1_new import build_artifact as build_new_artifact
@@ -98,6 +100,27 @@ class P13NoEffectVerticalTests(unittest.TestCase):
         )
         self.assertEqual(no_parent.preview.status, "denied")
         self.assertIn("missing_parent_event_evidence", no_parent.preview.denial_reasons)
+
+    def test_prep_block_requires_focus_block_action_type(self):
+        observation, candidate = _fixture()
+        accepted = run_create_prep_block_vertical(
+            observation,
+            candidate,
+            source_authenticated=True,
+            received_at=observation.observed_at,
+        )
+        self.assertEqual(accepted.preview.status, "preview")
+
+        legacy_event = deepcopy(candidate)
+        legacy_event.actions[0] = replace(legacy_event.actions[0], action_type=AtomicActionType.CREATE_EVENT)
+        denied = run_create_prep_block_vertical(
+            observation,
+            legacy_event,
+            source_authenticated=True,
+            received_at=observation.observed_at,
+        )
+        self.assertEqual(denied.preview.status, "denied")
+        self.assertIn("prep_block_action_type", denied.preview.denial_reasons)
 
     def test_product_core_has_no_effect_capable_import_or_constructor_surface(self):
         forbidden_imports = {
