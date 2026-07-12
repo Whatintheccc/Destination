@@ -11,13 +11,16 @@ import { fileURLToPath } from 'node:url';
 const mode = process.argv[2];
 const baseUrl = process.argv[3];
 const runDir = process.argv[4];
-if (!['before-restart', 'after-restart'].includes(mode) || !baseUrl || !runDir) {
-  throw new Error('usage: browser_dogfood_d1.mjs <before-restart|after-restart> <base-url> <run-dir>');
+const phases = ['before-restart', 'after-restart', 'd7-precommit', 'd7-commit', 'd7-undo'];
+if (!phases.includes(mode) || !baseUrl || !runDir) {
+  throw new Error(`usage: browser_dogfood_d1.mjs <${phases.join('|')}> <base-url> <run-dir>`);
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(runDir, 'run_manifest.json'), 'utf8'));
-if (!['D1', 'D2', 'D3', 'D4', 'D5', 'D6'].includes(manifest.cell)) throw new Error(`D1-D6 browser driver cannot execute cell ${manifest.cell}`);
+if (!['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'].includes(manifest.cell)) throw new Error(`D1-D7 browser driver cannot execute cell ${manifest.cell}`);
+if (manifest.cell === 'D7' && !mode.startsWith('d7-') && mode !== 'after-restart') throw new Error(`D7 cannot execute browser phase ${mode}`);
+if (manifest.cell !== 'D7' && mode.startsWith('d7-')) throw new Error(`${manifest.cell} cannot execute browser phase ${mode}`);
 const scenarioSet = JSON.parse(await readFile(path.join(root, manifest.scenario_set.path), 'utf8'));
 const stimuli = Object.fromEntries(scenarioSet.scenarios.map(row => [row.scenario_id, row.stimulus]));
 const expectedRuntimeLabel = {
@@ -27,6 +30,7 @@ const expectedRuntimeLabel = {
   D4: 'Live DiffusionGemma mode',
   D5: 'Live provider mode',
   D6: 'Auto assistant',
+  D7: 'Auto assistant',
 }[manifest.cell];
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const captureDir = path.join(runDir, 'ruler_capture');
@@ -62,6 +66,11 @@ async function main() {
 
     if (mode === 'after-restart') {
       await record(client, 'P-RESTART', 'after_restart');
+      return;
+    }
+
+    if (manifest.cell === 'D7') {
+      await runD7Phase(client);
       return;
     }
 
@@ -126,6 +135,56 @@ async function main() {
     await stopChrome(chrome);
     if (userDataDir) await rm(userDataDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   }
+}
+
+async function runD7Phase(client) {
+  if (mode === 'd7-precommit') {
+    await sendStimulus(client, 'P-EFFECT');
+    await waitFor(client, 'document.querySelector("[data-testid=\\"candidate-card\\"]") !== null');
+    const view = await getJson(`${baseUrl}/api/view`);
+    const candidate = view?.frontier?.candidates?.[0];
+    const truth = JSON.parse(await readFile(path.join(runDir, 'operator_truth.json'), 'utf8'));
+    const parent = truth.facts.find(row => row.kind === 'calendar_event')?.value || {};
+    const failures = [];
+    if (candidate?.intent !== 'create_prep_block') failures.push(`intent=${candidate?.intent}`);
+    if ((candidate?.action?.attendees || []).length !== 0) failures.push('attendees_not_empty');
+    if (candidate?.action?.calendar_id !== parent.calendar_id) failures.push(`calendar=${candidate?.action?.calendar_id}`);
+    if (!String(candidate?.action?.title || '').startsWith('Prep:')) failures.push(`title=${candidate?.action?.title}`);
+    if (!candidate?.candidate_id) failures.push('candidate_id_missing');
+    if (failures.length) throw new Error(`D7 precommit candidate is not the exact private prep action: ${failures.join(', ')}`);
+    await writeFile(path.join(runDir, 'd7_candidate.json'), `${JSON.stringify({candidate_id: candidate.candidate_id, candidate, parent_fact_id: parent.event_id}, null, 2)}\n`, 'utf8');
+    await record(client, 'P-ACTION-VISIBLE', 'candidate_inspection');
+    await record(client, 'P-TIMEZONE', 'timezone_inspection');
+    await record(client, 'P-LIVE-READ', 'bounded_live_read');
+    await click(client, `[data-testid="simulate-candidate"][data-candidate-id="${cssEscape(candidate.candidate_id)}"]`);
+    await waitFor(client, 'document.querySelectorAll("[data-testid=\\"receipt-card\\"]").length > 0');
+    await record(client, 'P-SIMULATE', 'after_simulate', {attempted: true, succeeded: true, action: 'simulate'});
+    await setAuthority(client, 0, 'recommend');
+    await click(client, `[data-testid="commit-candidate"][data-candidate-id="${cssEscape(candidate.candidate_id)}"]`);
+    await waitFor(client, 'document.querySelector("[data-testid=\\"denial-owner\\"]") !== null');
+    await record(client, 'P-DENIAL', 'after_denial', {attempted: true, succeeded: true, action: 'low_authority_commit_denied'});
+    await setAuthority(client, 3, 'recommend, stage, commit_private, undo');
+    await click(client, `[data-testid="candidate-accepted"][data-candidate-id="${cssEscape(candidate.candidate_id)}"]`);
+    await waitFor(client, 'document.body.innerText.includes("Recorded accepted") || document.body.innerText.includes("Recorded useful")');
+    await record(client, 'P-FEEDBACK', 'after_feedback', {attempted: true, succeeded: true, action: 'accepted'});
+    return;
+  }
+
+  const bound = JSON.parse(await readFile(path.join(runDir, 'd7_candidate.json'), 'utf8'));
+  if (mode === 'd7-commit') {
+    await click(client, `[data-testid="commit-candidate"][data-candidate-id="${cssEscape(bound.candidate_id)}"]`);
+    await waitFor(client, 'document.querySelector("[data-testid=\\"undo-action\\"]") !== null');
+    await record(client, 'P-EFFECT', 'after_commit', {attempted: true, succeeded: true, action: 'confirmed_private_create', candidate_id: bound.candidate_id});
+    return;
+  }
+  await click(client, '[data-testid="undo-action"]');
+  await waitFor(client, 'Array.from(document.querySelectorAll("[data-testid=\\"receipt-card\\"]")).some(node => node.innerText.includes("reverted"))');
+  await record(client, 'P-UNDO', 'after_undo', {attempted: true, succeeded: true, action: 'separately_confirmed_compensation'});
+  await record(client, 'P-RESTART', 'before_restart');
+}
+
+function cssEscape(value) {
+  return String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
 
 async function setAuthority(client, tier, scopes) {

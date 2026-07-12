@@ -14,6 +14,7 @@ from scripts.prepare_p13_dogfood_run import (
     SCENARIO_SET,
     TRUTH_SCHEMA,
     fixture_truth,
+    live_event_truth,
     live_gap_truth,
     required_artifacts,
     selected_scenarios,
@@ -88,6 +89,38 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         self.assertEqual(gap["kind"], "calendar_gap")
         self.assertEqual(gap["value"]["event_count"], 0)
         self.assertEqual(noop["value"]["execution_scope"], "isolated_shadow")
+
+    def test_d7_live_event_truth_binds_one_exact_parent_and_window(self) -> None:
+        truth = live_event_truth(
+            "run-d7",
+            datetime.now(timezone.utc).isoformat(),
+            timezone_name="America/Los_Angeles",
+            time_min="2026-07-18T07:00:00-07:00",
+            time_max="2026-07-18T12:00:00-07:00",
+            event={
+                "event_id": "event-parent",
+                "start": "2026-07-18T09:00:00-07:00",
+                "end": "2026-07-18T09:30:00-07:00",
+                "calendar_id": "sandbox-calendar",
+                "is_user_owned": True,
+                "is_flexible": False,
+                "category": "work",
+            },
+        )
+        schema = json.loads(TRUTH_SCHEMA.read_text(encoding="utf-8"))
+        Draft202012Validator(schema, format_checker=FormatChecker()).validate(truth)
+        event, window = truth["facts"]
+        self.assertEqual((event["kind"], event["fact_id"]), ("calendar_event", "event-parent"))
+        self.assertEqual(window["value"]["event_count"], 1)
+        self.assertEqual(window["value"]["verification_method"], "temporary_attendee_free_parent_fixture")
+
+    def test_d7_live_event_truth_rejects_parent_outside_window(self) -> None:
+        with self.assertRaisesRegex(ValueError, "fully contained"):
+            live_event_truth(
+                "run-d7", datetime.now(timezone.utc).isoformat(),
+                timezone_name="UTC", time_min="2026-07-18T08:00:00+00:00", time_max="2026-07-18T09:00:00+00:00",
+                event={"event_id": "outside", "start": "2026-07-18T10:00:00+00:00", "end": "2026-07-18T10:30:00+00:00", "calendar_id": "sandbox"},
+            )
 
 
 if __name__ == "__main__":

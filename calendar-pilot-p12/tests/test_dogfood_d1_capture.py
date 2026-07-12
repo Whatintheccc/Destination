@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
-from evals.dogfood.capture.normalize_d1 import effect_counts, extract_candidate_dom, ids_from_dom, internal_action, restart_digest, visible_action
+from evals.dogfood.capture.normalize_d1 import d7_effect_evidence, d7_undo_evidence, effect_counts, extract_candidate_dom, ids_from_dom, internal_action, latest_provider_transaction, latest_tool_receipt, restart_digest, visible_action
+from evals.dogfood.predicates.product import evaluate_predicate
 from scripts.run_p13_dogfood_d1 import health_matches_launch
 
 
@@ -62,6 +66,58 @@ class DogfoodD1CaptureTests(unittest.TestCase):
             "claims": 0,
             "outbox_dispatches": 0,
         })
+
+    def test_d7_receipt_extractors_select_exact_terminal_operations(self) -> None:
+        raw = {"replay_export": {"records": [
+            {"record_type": "codex_tool_receipt", "payload": {"receipt": {"tool_name": "request_commit", "status": "denied"}}},
+            {"record_type": "codex_tool_receipt", "payload": {"receipt": {"tool_name": "request_commit", "status": "committed", "output": {"effect_ticket": {"ticket_id": "t1"}}}}},
+            {"record_type": "provider_transaction", "payload": {"operation": "commit", "transaction": {"external_ids": ["e1"]}}},
+            {"record_type": "provider_transaction", "payload": {"operation": "rollback", "transaction": {"rollback_verified": True}}},
+        ]}}
+        self.assertEqual(latest_tool_receipt(raw, "request_commit", "committed")["output"]["effect_ticket"]["ticket_id"], "t1")
+        self.assertEqual(latest_provider_transaction(raw, "commit")["external_ids"], ["e1"])
+        self.assertTrue(latest_provider_transaction(raw, "rollback")["rollback_verified"])
+
+    def test_d7_ledger_derivation_satisfies_exact_effect_and_undo_predicates(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            run_dir = Path(name)
+            capture = run_dir / "ruler_capture"
+            capture.mkdir()
+            binding = {"binding_id": "binding-1", "epoch": 1}
+            candidate = {"candidate_id": "c1", "action": {"attendees": [], "calendar_id": "sandbox"}}
+            (run_dir / "managed-binding.json").write_text(json.dumps(binding))
+            (run_dir / "d7_candidate.json").write_text(json.dumps({"candidate": candidate}))
+            apply = {"ticket_id": "apply-1", "kind": "apply", "action_family": "create_prep_block", "grant_id": "grant-apply", "idempotency_key": "idem-1", "target_binding": {"binding_id": "binding-1", "binding_epoch": 1}}
+            compensate = {"ticket_id": "undo-1", "kind": "compensate", "grant_id": "grant-undo", "target_receipt_hash": "receipt-hash"}
+            after_commit = {
+                "tickets": {"apply-1": {"ticket": apply}},
+                "outbox": {"apply-1": {"facts": ["claim", "dispatch", "unknown", "verified"]}},
+                "receipts": {"apply-1": {"phase": "verified"}},
+                "adapter_state": {"mutation_count": 1, "compensation_mutation_count": 0},
+            }
+            final = {
+                "tickets": {"apply-1": {"ticket": apply}, "undo-1": {"ticket": compensate}},
+                "outbox": {"apply-1": {"facts": ["claim", "dispatch", "unknown", "verified"]}, "undo-1": {"facts": ["claim", "dispatch", "unknown", "verified"]}},
+                "receipts": {"apply-1": {"phase": "verified"}, "undo-1": {"phase": "verified"}},
+                "adapter_state": {"mutation_count": 1, "compensation_mutation_count": 1},
+            }
+            for filename, value in (("ledger.after_commit.raw.json", after_commit), ("ledger.after_undo.raw.json", final), ("ledger.after_restart.raw.json", final), ("provider.after.raw.json", {"events": [{"event_id": "event-1"}]}), ("provider.after_undo.raw.json", {"events": []})):
+                (capture / filename).write_text(json.dumps(value))
+            raw = {"replay_export": {"records": [
+                {"record_type": "codex_tool_receipt", "payload": {"receipt": {"tool_name": "request_commit", "status": "committed", "output": {"swift_receipt": {"generated_event_ids": ["event-1"]}, "retirement": {"owner": "effect_kernel"}}}}},
+                {"record_type": "provider_transaction", "payload": {"operation": "commit", "transaction": {"external_ids": ["event-1"], "effect_receipt_sha256": "receipt-hash"}}},
+                {"record_type": "provider_transaction", "payload": {"operation": "rollback", "transaction": {"rollback_verified": True}}},
+            ]}}
+            effect = d7_effect_evidence(run_dir, raw)
+            undo = d7_undo_evidence(run_dir, raw)
+            effect_vector = {"records": {"replay": [{"effect": effect}]}, "present_sources": ["replay", "ui_action", "provider_after"], "required_sources": ["replay", "ui_action", "provider_after"], "scenario_record_count": 1}
+            undo_vector = {"records": {"replay": [{"undo": undo}]}, "present_sources": ["replay", "ui_action", "provider_after_undo", "launch_state_after"], "required_sources": ["replay", "ui_action", "provider_after_undo", "launch_state_after"], "scenario_record_count": 1}
+            self.assertEqual(evaluate_predicate("effect", effect_vector)["status"], "pass")
+            self.assertEqual(evaluate_predicate("undo", undo_vector)["status"], "pass")
+
+            final["outbox"]["undo-1"]["facts"].append("dispatch")
+            (capture / "ledger.after_restart.raw.json").write_text(json.dumps(final))
+            self.assertEqual(d7_undo_evidence(run_dir, raw)["restart_redispatch_count"], 1)
 
     def test_packaged_health_readiness_is_identity_based_not_status_label_based(self) -> None:
         launch = {"base_url": "http://127.0.0.1:8787", "build_id": "abc", "runtime_mode": "fixture", "server_pid": 12, "launch_id": "launch-1", "port": 8787}

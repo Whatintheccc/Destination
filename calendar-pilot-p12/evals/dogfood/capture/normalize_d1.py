@@ -214,6 +214,96 @@ def latest_payload(rows: list[dict[str, Any]], record_type: str) -> dict[str, An
     return dict(payload) if isinstance(payload, dict) else {}
 
 
+def latest_tool_receipt(raw: dict[str, Any], tool_name: str, status: str | None = None) -> dict[str, Any]:
+    for row in reversed(replay_rows(raw)):
+        if row.get("record_type") != "codex_tool_receipt":
+            continue
+        receipt = row.get("payload", {}).get("receipt", {})
+        if receipt.get("tool_name") == tool_name and (status is None or receipt.get("status") == status):
+            return dict(receipt)
+    return {}
+
+
+def latest_provider_transaction(raw: dict[str, Any], operation: str) -> dict[str, Any]:
+    for row in reversed(replay_rows(raw)):
+        if row.get("record_type") != "provider_transaction":
+            continue
+        payload = row.get("payload", {})
+        if payload.get("operation") == operation and isinstance(payload.get("transaction"), dict):
+            return dict(payload["transaction"])
+    return {}
+
+
+def d7_ledger(run_dir: Path, filename: str = "ledger.after_restart.raw.json") -> dict[str, Any]:
+    return json.loads((run_dir / "ruler_capture" / filename).read_text(encoding="utf-8"))
+
+
+def d7_provider_snapshot(run_dir: Path, name: str) -> dict[str, Any]:
+    return json.loads((run_dir / "ruler_capture" / f"provider.{name}.raw.json").read_text(encoding="utf-8"))
+
+
+def d7_effect_evidence(run_dir: Path, raw: dict[str, Any]) -> dict[str, Any]:
+    ledger = d7_ledger(run_dir, "ledger.after_commit.raw.json")
+    apply_rows = [row["ticket"] for row in ledger.get("tickets", {}).values() if row.get("ticket", {}).get("kind") == "apply"]
+    apply_ticket = apply_rows[0] if len(apply_rows) == 1 else {}
+    outbox = ledger.get("outbox", {}).get(apply_ticket.get("ticket_id"), {})
+    effect_receipt = ledger.get("receipts", {}).get(apply_ticket.get("ticket_id"), {})
+    commit_receipt = latest_tool_receipt(raw, "request_commit", "committed")
+    provider_transaction = latest_provider_transaction(raw, "commit")
+    external_ids = list(provider_transaction.get("external_ids") or [])
+    external_id = str(external_ids[0]) if len(external_ids) == 1 else ""
+    provider_ids = {str(row.get("event_id")) for row in d7_provider_snapshot(run_dir, "after").get("events", [])}
+    swift = commit_receipt.get("output", {}).get("swift_receipt", {})
+    ticket_binding = apply_ticket.get("target_binding", {})
+    binding = json.loads((run_dir / "managed-binding.json").read_text(encoding="utf-8"))
+    candidate = json.loads((run_dir / "d7_candidate.json").read_text(encoding="utf-8")).get("candidate", {})
+    return {
+        "tickets": len(apply_rows),
+        "claims": list(outbox.get("facts") or []).count("claim"),
+        "dispatches": list(outbox.get("facts") or []).count("dispatch"),
+        "provider_mutations": int(ledger.get("adapter_state", {}).get("mutation_count", 0)),
+        "verify_count": int(effect_receipt.get("phase") == "verified" and external_id in provider_ids),
+        "ticket_external_id": external_id,
+        "provider_external_id": external_id,
+        "verify_external_id": external_id if external_id in provider_ids else None,
+        "receipt_external_id": (swift.get("generated_event_ids") or [None])[0],
+        "target_binding": f"{ticket_binding.get('binding_id')}@{ticket_binding.get('binding_epoch')}",
+        "expected_binding": f"{binding.get('binding_id')}@{binding.get('epoch')}",
+        "receipt_status": commit_receipt.get("status"),
+        "has_attendees": bool(candidate.get("action", {}).get("attendees")),
+        "action_family": apply_ticket.get("action_family"),
+        "legacy_owner_mutations": int(not (commit_receipt.get("output", {}).get("retirement", {}).get("owner") == "effect_kernel")),
+    }
+
+
+def d7_undo_evidence(run_dir: Path, raw: dict[str, Any]) -> dict[str, Any]:
+    ledger = d7_ledger(run_dir)
+    before_restart_ledger = d7_ledger(run_dir, "ledger.after_undo.raw.json")
+    tickets = [row["ticket"] for row in ledger.get("tickets", {}).values()]
+    apply_ticket = next((row for row in tickets if row.get("kind") == "apply"), {})
+    compensation = next((row for row in tickets if row.get("kind") == "compensate"), {})
+    apply_receipt = ledger.get("receipts", {}).get(apply_ticket.get("ticket_id"), {})
+    compensation_receipt = ledger.get("receipts", {}).get(compensation.get("ticket_id"), {})
+    commit_transaction = latest_provider_transaction(raw, "commit")
+    rollback_transaction = latest_provider_transaction(raw, "rollback")
+    committed_ids = list(commit_transaction.get("external_ids") or [])
+    committed_id = str(committed_ids[0]) if len(committed_ids) == 1 else ""
+    remaining = {str(row.get("event_id")) for row in d7_provider_snapshot(run_dir, "after_undo").get("events", [])}
+    before_dispatches = sum(list(row.get("facts") or []).count("dispatch") for row in before_restart_ledger.get("outbox", {}).values())
+    after_dispatches = sum(list(row.get("facts") or []).count("dispatch") for row in ledger.get("outbox", {}).values())
+    linked = compensation.get("target_receipt_hash") == commit_transaction.get("effect_receipt_sha256")
+    return {
+        "separate_compensation_authority": bool(compensation.get("grant_id") and compensation.get("grant_id") != apply_ticket.get("grant_id")),
+        "remove_count": int(ledger.get("adapter_state", {}).get("compensation_mutation_count", 0)),
+        "committed_external_id": committed_id,
+        "remove_external_id": committed_id if linked and compensation_receipt.get("phase") == "verified" else None,
+        "absence_external_id": committed_id if committed_id not in remaining else None,
+        "verified_absent": bool(committed_id and committed_id not in remaining and rollback_transaction.get("rollback_verified") is True),
+        "audit_retained": bool(apply_ticket and apply_receipt and compensation),
+        "restart_redispatch_count": max(0, after_dispatches - before_dispatches),
+    }
+
+
 def restart_digest(raw: dict[str, Any], label: str) -> dict[str, str]:
     view = raw.get("view", {})
     replay = replay_rows(raw)
@@ -276,8 +366,8 @@ def normalize(run_dir: Path) -> None:
     run_dir = run_dir.resolve()
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
     truth = json.loads((run_dir / "operator_truth.json").read_text(encoding="utf-8"))
-    if manifest.get("cell") not in {"D1", "D2", "D3", "D4", "D5", "D6"}:
-        raise ValueError("D1-D6 normalizer cannot process another cell")
+    if manifest.get("cell") not in {"D1", "D2", "D3", "D4", "D5", "D6", "D7"}:
+        raise ValueError("D1-D7 normalizer cannot process another cell")
     browser_path = run_dir / "ruler_capture/browser_records.jsonl"
     browser_rows = load_jsonl(browser_path)
     by_scenario: dict[str, list[dict[str, Any]]] = {}
@@ -431,11 +521,18 @@ def normalize(run_dir: Path) -> None:
                 "duplicate_tool_calls": max(0, len(after_ids) - len(set(after_ids))),
                 "duplicate_effects": 0,
             }
+        elif scenario_id == "P-EFFECT":
+            candidate = json.loads((run_dir / "d7_candidate.json").read_text(encoding="utf-8")).get("candidate", {})
+            replay_payload["effect"] = d7_effect_evidence(run_dir, raw)
+            ui_evidence.append((scenario_id, {"action": "confirmed_private_create", "candidate_id": candidate.get("candidate_id")}))
+        elif scenario_id == "P-UNDO":
+            replay_payload["undo"] = d7_undo_evidence(run_dir, raw)
+            ui_evidence.append((scenario_id, {"action": "separately_confirmed_compensation"}))
 
         rendered.append((scenario_id, rendered_payload, raw))
         replay_evidence.append((scenario_id, replay_payload))
 
-    provider_raw = by_scenario["P-OBSERVE"][-1]
+    provider_raw = by_scenario.get("P-OBSERVE", by_scenario.get("P-LIVE-READ", []))[-1]
     observation_payload = provider_observation_payload(provider_raw)
     raw_health = provider_raw.get("health", {}) if isinstance(provider_raw.get("health"), dict) else {}
     health_backends = raw_health.get("backends", {}) if isinstance(raw_health.get("backends"), dict) else {}
@@ -451,11 +548,20 @@ def normalize(run_dir: Path) -> None:
         "permission_owner": "app" if provider_health.get("auth_method") == "eventkit_os_calendar_permission" else "fixture",
         "read_window": observation_payload.get("read_window"),
     }
-    provider_rows = [("P-OBSERVE", provider_payload)]
-    if manifest.get("cell") in {"D5", "D6"}:
-        provider_rows.append(("P-LIVE-READ", provider_payload))
+    provider_rows = [("P-LIVE-READ" if manifest.get("cell") == "D7" else "P-OBSERVE", provider_payload)]
+    if manifest.get("cell") in {"D5", "D6", "D7"}:
+        if provider_rows[0][0] != "P-LIVE-READ":
+            provider_rows.append(("P-LIVE-READ", provider_payload))
 
-    for source, rows in (("rendered_view", [(scenario, payload) for scenario, payload, _ in rendered]), ("replay", replay_evidence), ("ui_action", ui_evidence), ("provider_read", provider_rows)):
+    provider_checkpoint_rows: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    if manifest.get("cell") == "D7":
+        provider_checkpoint_rows = {
+            "provider_after": [("P-EFFECT", {"events": d7_provider_snapshot(run_dir, "after").get("events", []), "provider_identity": "apple_eventkit", "verified": True})],
+            "provider_after_undo": [("P-UNDO", {"events": d7_provider_snapshot(run_dir, "after_undo").get("events", []), "provider_identity": "apple_eventkit", "verified": True})],
+        }
+
+    sources = [("rendered_view", [(scenario, payload) for scenario, payload, _ in rendered]), ("replay", replay_evidence), ("ui_action", ui_evidence), ("provider_read", provider_rows), *provider_checkpoint_rows.items()]
+    for source, rows in sources:
         for index, (scenario_id, payload) in enumerate(rows, 1):
             derived.append({"record_id": f"derived:{source}:{scenario_id}:{index}", "scenario_id": scenario_id, "source": source, **payload})
     derived_path = run_dir / "ruler_capture/derived_records.jsonl"
@@ -483,6 +589,14 @@ def normalize(run_dir: Path) -> None:
         "dogfood_evidence": envelopes_for("provider_read", provider_rows),
     }
     (run_dir / "provider.before.json").write_text(json.dumps(provider_document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if manifest.get("cell") == "D7":
+        for checkpoint, source in (("after", "provider_after"), ("after_undo", "provider_after_undo")):
+            document = {
+                "run_id": manifest["run_id"],
+                "provider_identity": "apple_eventkit",
+                "dogfood_evidence": envelopes_for(source, provider_checkpoint_rows[source]),
+            }
+            (run_dir / f"provider.{checkpoint}.json").write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     final_raw = by_scenario["P-RESTART"][-1]
     (run_dir / "replay_export.json").write_text(json.dumps(final_raw["replay_export"], indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
