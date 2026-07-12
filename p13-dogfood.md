@@ -819,6 +819,9 @@ Append newest entries first. Never rewrite a failed run after a fix.
   ranking and temporal control. This is not a new planner or fallback: it is deterministic
   hydration of explicit user evidence at the respondent boundary. D6 remains open pending
   protected-main rerun; the 12/13 run is retained unchanged.
+- Exact clean behavior commit `ce2e9f7be91c` passes the affected live DiffusionGemma
+  E2E, including NIM generation, local correction hydration, Swift IPC simulation,
+  browser interaction, replay provenance, and secret inspection.
 
 ### 2026-07-11 — D5 complete; D6 all-live read integration opened
 
