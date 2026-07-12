@@ -119,10 +119,13 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         )
         schema = json.loads(TRUTH_SCHEMA.read_text(encoding="utf-8"))
         Draft202012Validator(schema, format_checker=FormatChecker()).validate(truth)
-        event, window = truth["facts"]
+        event, window, noop = truth["facts"]
         self.assertEqual((event["kind"], event["fact_id"]), ("calendar_event", "event-parent"))
         self.assertEqual(window["value"]["event_count"], 1)
         self.assertEqual(window["value"]["verification_method"], "temporary_attendee_free_parent_fixture")
+        self.assertEqual(noop["fact_id"], "fixture:noop_dominates")
+        self.assertTrue(noop["value"]["noop_dominates"])
+        self.assertEqual(noop["value"]["execution_scope"], "isolated_shadow")
 
     def test_d7_live_event_truth_rejects_parent_outside_window(self) -> None:
         with self.assertRaisesRegex(ValueError, "fully contained"):
