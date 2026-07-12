@@ -170,6 +170,21 @@ def visible_action(semantic: dict[str, str]) -> dict[str, Any]:
     return action
 
 
+def visible_fact_ids(dom_html: str) -> list[str]:
+    fact_ids = set(ids_from_dom(dom_html, "data-fact-id"))
+    for candidate in extract_candidate_dom(dom_html):
+        encoded = candidate.get("fields", {}).get("candidate-affected-ids")
+        if not encoded:
+            continue
+        try:
+            values = json.loads(encoded)
+        except json.JSONDecodeError:
+            values = []
+        if isinstance(values, list):
+            fact_ids.update(str(value) for value in values if value)
+    return sorted(fact_ids)
+
+
 def effect_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
     counts = {field: 0 for field in ZERO_FIELDS}
     for row in rows:
@@ -433,7 +448,7 @@ def normalize(run_dir: Path) -> None:
             })
         elif scenario_id == "P-LIVE-READ":
             rendered_payload.update({
-                "fact_ids": ids_from_dom(raw["dom_html"], "data-fact-id"),
+                "fact_ids": visible_fact_ids(raw["dom_html"]),
                 "citation_ids": ids_from_dom(raw["dom_html"], "data-citation-id"),
                 "captured_from_ui": True,
             })
