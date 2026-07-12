@@ -2097,11 +2097,13 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
    `68c32e163d04`: the compact respondent boundary is locally hydrated and validated,
    its v4 contract requires an explicit no-op comparison, and binding run
    `20260712T010920Z-d4-live_diffusiongemma-68c32e163d04` passed 12/12 with complete
-   evidence and zero measured divergence. D5 live EventKit read is the active gate.
-   Freeze one independently inspected, offset-aware Calendar window before launch;
-   make EventKit read those exact endpoints; require operator truth, provider evidence,
-   and visible projection to agree; and keep the dominated no-op fixture in an isolated
-   shadow that cannot replace or relabel the live provider. D5 remains strictly no-write.
+   evidence and zero measured divergence. D5 is DONE on protected main `7468d83d6bfd`:
+   binding run `20260712T014343Z-d5-live_provider-7468d83d6bfd` passed 13/13 against an
+   independently inspected, offset-aware Calendar window with exact operator/provider/UI
+   agreement, isolated no-op truth, and zero writes, stages, claims, or dispatches. D6
+   all-live read integration is the active gate. Reuse the frozen read-only transaction
+   and require `auto` to resolve simultaneously to live Codex, live DiffusionGemma,
+   Swift IPC, and EventKit with no fallback, blocker, or setup note.
 
 10. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.

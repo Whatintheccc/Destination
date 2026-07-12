@@ -297,12 +297,12 @@ def prepare(args: argparse.Namespace) -> Path:
             "operator_checkpoints": (
                 ["confirm_one_private_create", "confirm_compensation"]
                 if args.cell == "D7"
-                else (["confirm_live_read_window"] if args.cell == "D5" else [])
+                else (["confirm_live_read_window"] if args.cell in {"D5", "D6"} else [])
             ),
         }
-        if args.cell == "D5":
+        if args.cell in {"D5", "D6"}:
             if not args.live_window_start or not args.live_window_end:
-                raise ValueError("D5 requires a pre-confirmed bounded live EventKit window")
+                raise ValueError(f"{args.cell} requires a pre-confirmed bounded live EventKit window")
             truth = live_gap_truth(
                 run_id,
                 created_at,
@@ -310,7 +310,7 @@ def prepare(args: argparse.Namespace) -> Path:
                 time_min=args.live_window_start,
                 time_max=args.live_window_end,
             )
-        elif args.cell in {"D6", "D7"}:
+        elif args.cell == "D7":
             raise ValueError(f"{args.cell} live operator-truth preparation is not implemented")
         else:
             truth = fixture_truth(run_id, created_at, Path(args.fixture).resolve())

@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0-D4 are complete. Exact protected-main D4 run `20260712T010920Z-d4-live_diffusiongemma-68c32e163d04` passes all 12 required product scenarios with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, or continuity divergence. D5 real EventKit read is active. Its access path now binds one operator-verified calendar window before launch, makes EventKit read exactly that window, grades a visible empty interval as evidence rather than missing truth, and runs the dominated no-op fixture only as an isolated shadow without replacing EventKit. D6-D7 remain closed.**
+Current verdict: **Binding D0-D5 are complete. Exact protected-main D5 run `20260712T014343Z-d5-live_provider-7468d83d6bfd` passes all 13 required product scenarios with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider-truth, effect-ceiling, projection, or continuity divergence. It proves an operator-verified real EventKit gap through the visible UI without staging or writing. D6 all-live read integration is active; D7 remains closed.**
 
 ---
 
@@ -603,6 +603,18 @@ make p13-dogfood-d5 \
   LIVE_TIMEZONE='America/Los_Angeles'
 ```
 
+After D5 passes on an exact build, D6 uses the same independently confirmed interval:
+
+```bash
+make p13-dogfood-d6 \
+  LIVE_WINDOW_START='2026-07-12T00:00:00-07:00' \
+  LIVE_WINDOW_END='2026-07-13T00:00:00-07:00' \
+  LIVE_TIMEZONE='America/Los_Angeles'
+```
+
+D6 fails unless the captured backends are exactly `live_codex_app_server`,
+`nvidia_nim_diffusiongemma_policy`, `SwiftKernelIPCClient`, and `apple_eventkit`.
+
 The manifest-adjacent operator truth records a hashed `calendar_gap`; the same endpoints
 are injected into the owned app process and must reappear in provider evidence. An empty
 set passes only when operator truth, EventKit, and the visible cited read all agree. The
@@ -772,8 +784,9 @@ scenario failures into independent tickets. Execute this order:
 
 [x] Close D4 on exact protected main with the compact respondent boundary and required
     no-op comparison. `20260712T010920Z-d4-live_diffusiongemma-68c32e163d04` passes 12/12.
-[ ] Pass D5 through a frozen operator-verified EventKit read window with zero writes,
-    fixture leakage, stage calls, claims, or outbox dispatches.
+[x] Pass D5 through a frozen operator-verified EventKit read window with zero writes,
+    fixture leakage, stage calls, claims, or outbox dispatches. Exact run
+    `20260712T014343Z-d5-live_provider-7468d83d6bfd` passes 13/13.
 [ ] Pass D6 all-live integration, then perform the one explicitly confirmed D7 effect
     and compensation.
 
@@ -787,6 +800,25 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — D5 complete; D6 all-live read integration opened
+
+- Generic timed-candidate correction merged on protected main `7468d83d6bfd` after both
+  deterministic rulers passed. A fresh release passed all 18 checks; the opt-in mutating
+  EventKit probe remained skipped.
+- Signed manifest
+  `p13-dogfood-d5-generic-correction:7468d83d6bfd:20260712T014318Z` passed architecture
+  preservation 11/11 and every manifest-required target.
+- Binding run `20260712T014343Z-d5-live_provider-7468d83d6bfd` passes all 13 required
+  scenarios with `binding_eligible=true` and evidence completeness `1.0`. All four
+  distance measures are zero. The app used Swift IPC and app-owned EventKit with
+  `full_access`, no fixture fallback, no blockers, and exact agreement on the frozen
+  empty Calendar window. No stage, effect, provider mutation, claim, or outbox dispatch
+  occurred. D5 is closed.
+- D6 reuses this exact read-only transaction but requires `auto` to resolve to all four
+  live backends simultaneously: live Codex, live DiffusionGemma, Swift IPC, and EventKit.
+  Any fallback, setup note, provider substitution, or missing live-read evidence fails
+  identity or product conformance.
 
 ### 2026-07-11 — First binding D5 run localizes correction to the wrong intent
 

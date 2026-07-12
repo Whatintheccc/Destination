@@ -276,8 +276,8 @@ def normalize(run_dir: Path) -> None:
     run_dir = run_dir.resolve()
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
     truth = json.loads((run_dir / "operator_truth.json").read_text(encoding="utf-8"))
-    if manifest.get("cell") not in {"D1", "D2", "D3", "D4", "D5"}:
-        raise ValueError("D1-D5 normalizer cannot process another cell")
+    if manifest.get("cell") not in {"D1", "D2", "D3", "D4", "D5", "D6"}:
+        raise ValueError("D1-D6 normalizer cannot process another cell")
     browser_path = run_dir / "ruler_capture/browser_records.jsonl"
     browser_rows = load_jsonl(browser_path)
     by_scenario: dict[str, list[dict[str, Any]]] = {}
@@ -452,7 +452,7 @@ def normalize(run_dir: Path) -> None:
         "read_window": observation_payload.get("read_window"),
     }
     provider_rows = [("P-OBSERVE", provider_payload)]
-    if manifest.get("cell") == "D5":
+    if manifest.get("cell") in {"D5", "D6"}:
         provider_rows.append(("P-LIVE-READ", provider_payload))
 
     for source, rows in (("rendered_view", [(scenario, payload) for scenario, payload, _ in rendered]), ("replay", replay_evidence), ("ui_action", ui_evidence), ("provider_read", provider_rows)):
