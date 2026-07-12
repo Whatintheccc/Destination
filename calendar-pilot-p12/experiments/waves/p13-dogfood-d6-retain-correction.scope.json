@@ -1,0 +1,57 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/experiments/waves/p13-dogfood-d6-retain-correction.scope.json",
+    "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/live.py",
+    "calendar-pilot-p12/src/calendar_pilot/diffusiongemma/policy.py",
+    "calendar-pilot-p12/src/calendar_pilot/frontend/session.py",
+    "calendar-pilot-p12/tests/test_policy.py",
+    "p13-dogfood.md"
+  ],
+  "declared": {
+    "actions": [],
+    "backends": ["live_diffusiongemma"],
+    "surfaces": ["frontend", "replay"],
+    "instruments": ["tests"],
+    "control_planes": []
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_signature",
+    "target.cited_required_projection",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": [
+    {
+      "leg": "live-diffusiongemma-e2e",
+      "status": "ran",
+      "reason": {
+        "basis": "ran",
+        "detail": "Exact clean behavior commit 19fc8ac08cea passed live NIM generation, corrected-incumbent retention, Swift IPC simulation, browser interaction, replay provenance, and secret inspection."
+      },
+      "artifact": {
+        "path": "calendar-pilot-p12/runs/live_diffusiongemma_e2e/artifacts/live_policy_state.json",
+        "sha256": "bccaf9d79e89191289ad8ee8a38f25bb1061273b67d80ba7f062915e934d4321"
+      },
+      "owner": "repository-owner",
+      "sign_off": "automated affected live leg passed on exact clean behavior commit",
+      "affected_by_wave": true,
+      "expires_at": "2026-07-13T03:00:00Z",
+      "next_unblock_action": "Rerun live-diffusiongemma-e2e before changing corrected-candidate retention, live Frontier hydration, NIM generation, or browser synchronization."
+    }
+  ]
+}

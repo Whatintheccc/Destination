@@ -801,6 +801,24 @@ independent examples merely because the same candidate was exposed five times.
 
 Append newest entries first. Never rewrite a failed run after a fix.
 
+### 2026-07-11 — Second binding D6 run makes correction object identity binding
+
+- Protected-main build `af1397116cf1` passed release and signed architecture manifest
+  `p13-dogfood-d6-local-correction:af1397116cf1:20260712T020800Z`.
+- Binding run `20260712T020843Z-d6-auto-af1397116cf1` again proves the exact all-live
+  composition, frozen EventKit gap, complete evidence, and zero effects. On its
+  correction turn, NIM validly preferred `do_nothing`; the corrected 120-minute
+  incumbent vanished, so `P-CORRECTION`, then dependent simulation and denial, failed.
+- This is not repaired by forcing a model to propose an action. A correction is an edit
+  to a specific rendered typed candidate. The correction command now carries that
+  candidate payload as cited evidence; local Frontier hydration retains it, applies the
+  requested duration, and places that corrected object first even when the respondent
+  proposes only no-op. Model alternatives remain visible, but cannot erase the object
+  the user just edited. D6 remains open pending protected-main rerun.
+- Exact clean behavior commit `19fc8ac08cea` passes the affected live DiffusionGemma
+  E2E with corrected-incumbent retention, Swift IPC simulation, browser interaction,
+  replay provenance, and secret inspection.
+
 ### 2026-07-11 — First binding D6 run localizes correction across the model boundary
 
 - Protected-main build `112cd3aa667e` passed release and signed architecture manifest

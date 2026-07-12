@@ -95,6 +95,40 @@ def apply_explicit_duration_correction(candidate: CandidateCalendarAction, biogr
     candidate.control_notes.append(f"explicit_duration_correction={current_minutes}->{preferred_minutes}")
 
 
+def retain_explicitly_corrected_candidate(
+    candidates: list[CandidateCalendarAction],
+    biography: UserBiography,
+) -> tuple[list[CandidateCalendarAction], CandidateCalendarAction | None, bool]:
+    claim = next((
+        row for row in reversed(biography.preference_claims)
+        if row.get("kind") == "explicit_candidate_correction"
+        and row.get("active") is True
+        and isinstance(row.get("candidate"), dict)
+    ), None)
+    if claim is None:
+        return candidates, None, False
+    intent = str(claim.get("applies_to_intent") or "")
+    target = next((
+        candidate for candidate in candidates
+        if candidate.intent == intent
+        and candidate.actions
+        and candidate.actions[0].start is not None
+        and candidate.actions[0].end is not None
+    ), None)
+    retained = False
+    if target is None:
+        try:
+            target = CandidateCalendarAction.from_dict(dict(claim["candidate"]))
+        except (KeyError, TypeError, ValueError):
+            return candidates, None, False
+        target.candidate_id = target.candidate_id + "_corrected"
+        retained = True
+        candidates = [target, *candidates]
+    apply_explicit_duration_correction(target, biography)
+    target.control_notes.append("explicit_correction_target=retained_incumbent" if retained else "explicit_correction_target=model_candidate")
+    return [target, *(candidate for candidate in candidates if candidate is not target)], target, retained
+
+
 class DiffusionGemmaPolicy:
     """Reference DiffusionGemma policy for an agentic calendar optimizer.
 

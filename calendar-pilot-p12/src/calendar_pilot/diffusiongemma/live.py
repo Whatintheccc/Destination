@@ -15,7 +15,12 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from calendar_pilot.env import load_local_env
-from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy, apply_explicit_duration_correction, apply_policy_tuning
+from calendar_pilot.diffusiongemma.policy import (
+    DiffusionGemmaPolicy,
+    apply_explicit_duration_correction,
+    apply_policy_tuning,
+    retain_explicitly_corrected_candidate,
+)
 from calendar_pilot.diffusiongemma.temporal_controller import RightMomentTemporalController
 from calendar_pilot.environment.taxonomy import CanonicalIntent, normalize_intent
 from calendar_pilot.redaction import redact_env_secret_values
@@ -964,7 +969,19 @@ class LiveDiffusionGemmaPolicy:
                     fallback_state="model_generated_frontier",
                     ranked_by_model=True,
                 )
-            return sorted(result.candidates, key=lambda c: (c.expected_reward, c.right_moment_score), reverse=True)
+            ranked = sorted(result.candidates, key=lambda c: (c.expected_reward, c.right_moment_score), reverse=True)
+            ranked, correction_target, retained = retain_explicitly_corrected_candidate(ranked, biography)
+            if correction_target is not None:
+                self._policy_metadata_by_candidate[correction_target.candidate_id] = self._candidate_policy_metadata(
+                    result.metadata,
+                    candidate_id=correction_target.candidate_id,
+                    rank=1,
+                    score_delta=0.0,
+                    reason="Explicit user correction retained and hydrated the selected typed candidate.",
+                    fallback_state="explicit_correction_incumbent_retained" if retained else "explicit_correction_applied_to_model_candidate",
+                    ranked_by_model=not retained,
+                )
+            return ranked
 
         # Compatibility for old tests/injected clients: if a fake client exposes
         # only rank_candidates, keep that path alive. The production client above
