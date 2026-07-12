@@ -2090,7 +2090,14 @@ empty-baseline pointer migration are complete; positive-learning promotion remai
    D3 live Codex and D4 live DiffusionGemma are sibling component experiments; D5/D6
    remain read-only; D7 is the one explicit verified-and-compensated effect. Preserve
    `P-FEEDBACK`, `P-RESTART`, zero unrequested effects, and the architecture rails.
-   Binding D0 is DONE on protected main `c9124c5de48a`; D1 is the active gate.
+   Binding D0-D3 are DONE. D1 passed 11/11 on protected main `f2f8cc06fbfd`;
+   D2 passed 12/12 through Swift IPC on `182347705737`; D3 passed 12/12 through
+   live Codex on `1a1b5c6b5ab4`, each binding-eligible with complete evidence,
+   preservation 11/11, and zero measured divergence. D4 live DiffusionGemma is the
+   active gate. Its first complete attempt exposed an over-wide respondent contract:
+   NIM returned compact semantic actions while the adapter demanded internal identity
+   and bookkeeping. Keep the smaller proposal boundary, hydrate and validate locally,
+   and require an exact protected-main D4 rerun before D5 opens.
 
 10. Contract duplicated architecture under certificates.
    Frontier, runtime, schema, provider respondents, scripts.

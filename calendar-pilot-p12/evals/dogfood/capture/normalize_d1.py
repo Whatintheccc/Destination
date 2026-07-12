@@ -302,7 +302,10 @@ def normalize(run_dir: Path) -> None:
         visible = semantic
         counts = deltas.get(raw["record_id"], {field: 0 for field in ZERO_FIELDS})
         replay_payload: dict[str, Any] = dict(counts)
-        rendered_payload: dict[str, Any] = {"visible": visible}
+        rendered_payload: dict[str, Any] = {
+            "visible": visible,
+            "driver_interaction": raw.get("driver_interaction"),
+        }
 
         if scenario_id == "P-OBSERVE":
             rendered_payload.update({
@@ -358,7 +361,8 @@ def normalize(run_dir: Path) -> None:
                 "before_authority_digest": semantic.get("correction-before-authority-digest"),
                 "after_authority_digest": semantic.get("correction-after-authority-digest"),
             }
-            ui_evidence.append((scenario_id, {"action": "candidate_corrected_then_reasked"}))
+            if (raw.get("driver_interaction") or {}).get("succeeded"):
+                ui_evidence.append((scenario_id, {"action": "candidate_corrected_then_reasked"}))
         elif scenario_id == "P-SIMULATE":
             preview: dict[str, Any] = {}
             for field in ("action", "provider_result", "conflict_result", "uncertainty", "denial_or_hold_reason"):
@@ -369,7 +373,8 @@ def normalize(run_dir: Path) -> None:
                     except json.JSONDecodeError:
                         preview[field] = value
             rendered_payload["preview"] = preview
-            ui_evidence.append((scenario_id, {"action": "simulate"}))
+            if (raw.get("driver_interaction") or {}).get("succeeded"):
+                ui_evidence.append((scenario_id, {"action": "simulate"}))
         elif scenario_id == "P-DENIAL":
             rendered_payload["denial"] = {
                 "owner": semantic.get("denial-owner"),
@@ -402,7 +407,8 @@ def normalize(run_dir: Path) -> None:
                 "candidate_id": outcome.get("candidate_id"),
                 "terminal_count": len(same_outcomes),
             }
-            ui_evidence.append((scenario_id, {"action": "dismissed"}))
+            if (raw.get("driver_interaction") or {}).get("succeeded"):
+                ui_evidence.append((scenario_id, {"action": "dismissed"}))
         elif scenario_id == "P-RESTART":
             before = next(row for row in by_scenario[scenario_id] if row["phase"] == "before_restart")
             after = next(row for row in by_scenario[scenario_id] if row["phase"] == "after_restart")

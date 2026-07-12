@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0, D1, and D2 are complete. Exact protected-main D2 build `182347705737` passes all 12 required product scenarios through real Swift IPC with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D3 live Codex and D4 live DiffusionGemma are now open as sibling component cells; D5-D7 remain closed.**
+Current verdict: **Binding D0-D3 are complete. Exact protected-main D3 build `1a1b5c6b5ab4` passes all 12 required product scenarios through live Codex with `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider, effect-ceiling, projection, and continuity divergence. D4 live DiffusionGemma is open: exact clean candidate `c80fcef590bf` passes the affected live NIM E2E with a compact cited-proposal boundary and fail-observable browser capture. Protected-main merge, exact release/signing, and the binding D4 product transaction remain before a D4 verdict. D5-D7 remain closed.**
 
 ---
 
@@ -762,6 +762,42 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-11 — D3 live Codex complete; D4 compact Frontier boundary selected
+
+- Exact protected-main build `1a1b5c6b5ab4` passed all 18 release checks and signed
+  architecture manifest `p13-dogfood-d3-d4-components:1a1b5c6b5ab4:20260711T182859Z`.
+- Binding D3 run `20260711T183020Z-d3-live_codex-1a1b5c6b5ab4` passes 12/12 required
+  scenarios with `binding_eligible=true`, completeness `1.0`, preservation 11/11, and
+  zero provider-truth, effect-ceiling, visible-projection, and continuity divergence.
+  The restart projection repair is therefore closed on the exact protected commit.
+- D4 run `20260711T183327Z-d4-live_diffusiongemma-1a1b5c6b5ab4` reached healthy NIM
+  and made zero provider mutations, but both frontier attempts rejected every candidate.
+  The UI consequently had no correction control and the browser aborted before
+  normalization. This directory is retained component and harness evidence, not a
+  binding D4 verdict.
+- A raw request using only the public sample fixture showed that DiffusionGemma emits a
+  useful compact proposal (`intent`, `action_type`, `authority`, `parameters`,
+  `reasoning`) while the old adapter demanded that the respondent reconstruct the full
+  internal `CandidateCalendarAction`, including system-owned identity and bookkeeping.
+  The selected boundary makes the model propose only semantic action content; the local
+  Frontier adapter deterministically derives identity, resolves cited event/calendar
+  references, hydrates the executable type, and retains strict action validation.
+- The browser capture now records absent correction/simulation/denial/feedback controls
+  as explicit failed prerequisites and emits no UI-action row unless a real DOM action
+  succeeded. Product failure can therefore complete as a scored report rather than
+  crashing the ruler. Focused policy/capture tests and all 373 Python tests pass locally.
+  The external live-call window was unavailable after the first candidate was built.
+- Exact clean behavior commit `c80fcef590bf` then passed `make live-diffusiongemma-e2e`.
+  The retained artifact proves live NIM generation, exact observation-event citations,
+  local identity/contract hydration, ProductCore admission, Swift IPC simulation, the
+  complete generic browser interaction, replay provenance, and secret inspection. Two
+  instrument defects found en route remain preserved in the history: NIM naturally
+  returned a root proposal array rather than the unused wrapper, and the generic browser
+  clicked a preloaded stale candidate before a slower live plan completed. The final
+  adapter uses the smaller root array and the browser binds interaction to the completed
+  post-submit state version. Protected-main merge, exact release/signing, the binding D4
+  transaction, and the D4 verdict remain open.
 
 ### 2026-07-11 — D2 Swift IPC complete; D3/D4 component cells selected
 

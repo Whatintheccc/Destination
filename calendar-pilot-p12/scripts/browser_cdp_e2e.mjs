@@ -54,8 +54,12 @@ async function main() {
   await waitFor(client, 'document.querySelector("[data-testid=\\"chat-transcript\\"]") !== null');
   await waitFor(client, `document.querySelector("[data-testid=\\"runtime-chip\\"]")?.textContent.includes(${JSON.stringify(expectedRuntimeLabel)})`);
 
+  const stateVersionBeforeGoal = await evaluate(client, 'document.querySelector("#state-version")?.textContent || ""');
+  const userMessagesBeforeGoal = await evaluate(client, 'document.querySelectorAll("[data-testid=\\"message-user\\"]").length');
   await fill(client, '#goal-input', 'Make next week less chaotic');
   await click(client, '#send-goal');
+  await waitFor(client, `document.querySelectorAll('[data-testid="message-user"]').length > ${userMessagesBeforeGoal}`);
+  await waitFor(client, `document.querySelector('#state-version')?.textContent !== ${JSON.stringify(stateVersionBeforeGoal)}`);
   await waitFor(client, 'document.querySelectorAll("[data-testid=\\"candidate-card\\"]").length > 0');
   await click(client, '[data-testid="simulate-candidate"]');
   await waitFor(client, 'document.querySelector("[data-testid=\\"simulation-preview\\"]") !== null');
