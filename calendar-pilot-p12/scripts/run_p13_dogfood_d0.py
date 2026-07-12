@@ -16,7 +16,6 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from evals.dogfood.capture.normalize_d1 import normalize
 from evals.dogfood.run_dogfood_evals import build_report
 from scripts.prepare_p13_dogfood_run import DEFAULT_APP, DEFAULT_ARCHITECTURE_REPORT, prepare
 from scripts.run_p13_dogfood_d1 import launch, process_snapshot, stop_launch, wait_for_launch
@@ -67,7 +66,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         stop_launch(second_launch)
         second_launch = {}
 
-        normalize(run_dir)
         report = build_report(run_dir=run_dir)
         report["run_dir"] = str(run_dir)
         print(json.dumps({

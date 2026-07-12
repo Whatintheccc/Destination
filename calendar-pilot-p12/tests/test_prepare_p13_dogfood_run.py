@@ -72,6 +72,9 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
         self.assertEqual(prepared.runtime_mode, "fixture")
         self.assertEqual(prepared.live_window_start, "")
         self.assertEqual(prepared.live_event_json, "")
+        driver = (ROOT / "scripts/run_p13_dogfood_d0.py").read_text(encoding="utf-8")
+        self.assertNotIn("normalize_d1", driver)
+        self.assertNotIn("run_browser", driver)
 
     def test_d6_reuses_live_read_scenarios_without_effect_or_undo(self) -> None:
         scenario_ids = [row["scenario_id"] for row in selected_scenarios(self.scenario_set, "D6")]
