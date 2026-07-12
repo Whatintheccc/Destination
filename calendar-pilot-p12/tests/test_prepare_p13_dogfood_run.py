@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import argparse
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator, FormatChecker
 
@@ -19,6 +21,9 @@ from scripts.prepare_p13_dogfood_run import (
     required_artifacts,
     selected_scenarios,
 )
+from scripts.run_p13_dogfood_d1 import prepare_args as d1_prepare_args
+from scripts.run_p13_dogfood_d56 import cell_args as d56_cell_args
+from scripts.run_p13_dogfood_d56 import run as run_d56
 
 
 class PrepareP13DogfoodRunTests(unittest.TestCase):
@@ -126,6 +131,46 @@ class PrepareP13DogfoodRunTests(unittest.TestCase):
                 timezone_name="UTC", time_min="2026-07-18T08:00:00+00:00", time_max="2026-07-18T09:00:00+00:00",
                 event={"event_id": "outside", "start": "2026-07-18T10:00:00+00:00", "end": "2026-07-18T10:30:00+00:00", "calendar_id": "sandbox"},
             )
+
+    def test_d56_propagates_exact_parent_and_window_into_each_cell(self) -> None:
+        common = argparse.Namespace(
+            app_bundle=str(ROOT / "dist/CalendarPilot.app"),
+            architecture_report=str(ROOT / "runs/architecture_evals/architecture_eval_report_v2.json"),
+            out_root=str(ROOT / "runs/dogfood"),
+            live_timezone="America/Los_Angeles",
+        )
+        event_path = ROOT / "parent-event.json"
+        for cell, mode in (("D5", "live_provider"), ("D6", "auto")):
+            args = d56_cell_args(
+                common,
+                cell=cell,
+                event_path=event_path,
+                time_min="2026-07-18T14:00:00-07:00",
+                time_max="2026-07-18T18:30:00-07:00",
+                external_setup={"setup_outside_scored_cells": True},
+            )
+            prepared = d1_prepare_args(args)
+            self.assertEqual(prepared.cell, cell)
+            self.assertEqual(prepared.runtime_mode, mode)
+            self.assertEqual(prepared.live_event_json, str(event_path))
+            self.assertEqual(prepared.live_window_start, "2026-07-18T14:00:00-07:00")
+            self.assertEqual(prepared.live_window_end, "2026-07-18T18:30:00-07:00")
+
+    def test_d56_rejects_non_protected_source_before_external_setup(self) -> None:
+        args = argparse.Namespace(
+            app_bundle=str(ROOT / "dist/CalendarPilot.app"),
+            architecture_report=str(ROOT / "runs/architecture_evals/architecture_eval_report_v2.json"),
+            out_root=str(ROOT / "runs/dogfood"),
+            calendar_id="sandbox-calendar",
+            live_timezone="America/Los_Angeles",
+        )
+        with (
+            patch("scripts.run_p13_dogfood_d56.process_identity", side_effect=RuntimeError("requires main")),
+            patch("scripts.run_p13_dogfood_d56._create_managed_parent_fixture") as create_fixture,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "requires main"):
+                run_d56(args)
+        create_fixture.assert_not_called()
 
 
 if __name__ == "__main__":

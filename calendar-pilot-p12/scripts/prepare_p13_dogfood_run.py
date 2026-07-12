@@ -227,11 +227,11 @@ def live_event_truth(
         raise ValueError("live EventKit truth requires an offset-aware, increasing read window")
     required = ("event_id", "start", "end", "calendar_id")
     if any(not str(event.get(field) or "").strip() for field in required):
-        raise ValueError("D7 live EventKit truth requires an exact event id, interval, and calendar")
+        raise ValueError("live EventKit truth requires an exact event id, interval, and calendar")
     start = datetime.fromisoformat(str(event["start"]).replace("Z", "+00:00"))
     end = datetime.fromisoformat(str(event["end"]).replace("Z", "+00:00"))
     if start.tzinfo is None or end.tzinfo is None or not (lower <= start < end <= upper):
-        raise ValueError("D7 parent event must be fully contained in the preregistered read window")
+        raise ValueError("live parent event must be fully contained in the preregistered read window")
     value = {
         "event_id": str(event["event_id"]),
         "start": start.isoformat(),
@@ -353,13 +353,24 @@ def prepare(args: argparse.Namespace) -> Path:
         if args.cell in {"D5", "D6"}:
             if not args.live_window_start or not args.live_window_end:
                 raise ValueError(f"{args.cell} requires a pre-confirmed bounded live EventKit window")
-            truth = live_gap_truth(
-                run_id,
-                created_at,
-                timezone_name=args.live_timezone,
-                time_min=args.live_window_start,
-                time_max=args.live_window_end,
-            )
+            event_path = Path(str(getattr(args, "live_event_json", ""))).resolve()
+            if event_path.is_file():
+                truth = live_event_truth(
+                    run_id,
+                    created_at,
+                    timezone_name=args.live_timezone,
+                    time_min=args.live_window_start,
+                    time_max=args.live_window_end,
+                    event=json.loads(event_path.read_text(encoding="utf-8")),
+                )
+            else:
+                truth = live_gap_truth(
+                    run_id,
+                    created_at,
+                    timezone_name=args.live_timezone,
+                    time_min=args.live_window_start,
+                    time_max=args.live_window_end,
+                )
         elif args.cell == "D7":
             event_path = Path(str(getattr(args, "live_event_json", ""))).resolve()
             if not args.live_window_start or not args.live_window_end or not event_path.is_file():
