@@ -1,0 +1,80 @@
+{
+  "wave_scope_schema_version": "p13_wave_scope.v1",
+  "declared_paths": [
+    "calendar-pilot-p12/Makefile",
+    "calendar-pilot-p12/README.md",
+    "calendar-pilot-p12/evals/dogfood/capture/normalize_d1.py",
+    "calendar-pilot-p12/experiments/waves/p13-dogfood-d7-live-effect.scope.json",
+    "calendar-pilot-p12/scripts/browser_dogfood_d1.mjs",
+    "calendar-pilot-p12/scripts/prepare_p13_dogfood_run.py",
+    "calendar-pilot-p12/scripts/run_p13_dogfood_d7.py",
+    "calendar-pilot-p12/tests/test_dogfood_d1_capture.py",
+    "calendar-pilot-p12/tests/test_prepare_p13_dogfood_run.py",
+    "p13-dogfood.md"
+  ],
+  "declared": {
+    "actions": [
+      "create_prep_block"
+    ],
+    "backends": [
+      "apple_eventkit",
+      "codex",
+      "diffusiongemma",
+      "swift_ipc"
+    ],
+    "surfaces": [
+      "app_access",
+      "browser",
+      "docs",
+      "frontend",
+      "provider",
+      "replay",
+      "ruler_scripts",
+      "tests",
+      "wave_scope"
+    ],
+    "instruments": [
+      "access_point_docs",
+      "binding_manifest",
+      "dogfood_capture_driver",
+      "dogfood_normalizer",
+      "dogfood_operator_truth",
+      "tests"
+    ],
+    "control_planes": [
+      "effect_tcb",
+      "eventkit_permission",
+      "evaluator"
+    ]
+  },
+  "required_scenarios": [
+    "preservation.action_reward",
+    "preservation.authority_belief_denial",
+    "preservation.expired_authority",
+    "preservation.explanation_trace",
+    "preservation.frontier_normal",
+    "preservation.frontier_timeout",
+    "preservation.missing_belief_evidence",
+    "preservation.provider_commit",
+    "preservation.provider_conflict",
+    "preservation.provider_rollback",
+    "preservation.restart_restore",
+    "target.binding_manifest_affectedness",
+    "target.binding_manifest_signature",
+    "target.cited_required_projection",
+    "target.eventkit_compensation_binding",
+    "target.eventkit_effect_lifecycle",
+    "target.eventkit_identity_target_binding",
+    "target.eventkit_managed_durable_owner",
+    "target.eventkit_managed_ownership",
+    "target.eventkit_managed_runtime_commit",
+    "target.eventkit_managed_runtime_undo",
+    "target.eventkit_no_learning_effect_path",
+    "target.eventkit_ticket_binding",
+    "target.product_core_no_effect_reachability",
+    "target.reducer_determinism"
+  ],
+  "old_producer": null,
+  "new_producer": null,
+  "live_legs": []
+}
