@@ -9,9 +9,13 @@ import unittest
 from evals.dogfood.capture.normalize_d1 import d7_effect_evidence, d7_undo_evidence, effect_counts, extract_candidate_dom, ids_from_dom, internal_action, latest_provider_transaction, latest_tool_receipt, restart_digest, visible_action
 from evals.dogfood.predicates.product import evaluate_predicate
 from scripts.run_p13_dogfood_d1 import health_matches_launch
+from scripts.run_p13_dogfood_d7 import event_payload
 
 
 class DogfoodD1CaptureTests(unittest.TestCase):
+    def test_d7_runner_imports_canonical_managed_eventkit_driver(self) -> None:
+        self.assertTrue(callable(event_payload))
+
     def test_internal_action_projects_frozen_twelve_field_contract(self) -> None:
         raw = {"replay_export": {"records": [{
             "record_type": "learning_decision",
