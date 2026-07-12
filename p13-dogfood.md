@@ -6,7 +6,7 @@ Architecture authority: [compression-roadmap.md](compression-roadmap.md)
 
 Ground-zero product build: repository `a460991805a0f0388a184e93c9a8e951b1cb5467`, app tree `432fb2909b969546f1b7c29f652a7e081784b859`
 
-Current verdict: **Binding D0-D6 are complete. Exact protected-main D6 run `20260712T023617Z-d6-auto-c53c94e0a8ec` passes all 13 required product scenarios with the exact all-live composition, `binding_eligible=true`, evidence completeness `1.0`, architecture preservation 11/11, and zero provider-truth, effect-ceiling, projection, or continuity divergence. D7 is the sole remaining cell and the first intentional real-calendar write: one exact confirmed private prep block, provider verification, separately authorized undo, verified absence, and restart safety.**
+Current verdict: **The product semantics have passed D0-D6, but the literal one-build MVP gate is open. Subsequent D4/D6 defect repairs changed the protected-main app identity. On the latest fully swept build, D1-D5 passed and D6 correctly exposed that an empty real-calendar window cannot exercise a timed correction. The final pass therefore uses one separately ticketed, attendee-free parent fixture for both read-only D5 and D6, cleans it outside the scored cells, then reruns D0-D7 on one exact protected-main build. D7 remains the only scored cell allowed to write.**
 
 ---
 
@@ -141,6 +141,7 @@ Implemented access points:
 make p13-dogfood-eval-test
 make p13-dogfood-prepare CELL=D1 RUNTIME_MODE=fixture
 make p13-dogfood-d1
+make p13-dogfood-d56 CALENDAR_ID=<exact-attendee-free-sandbox-calendar-id>
 make p13-dogfood-d7 CALENDAR_ID=<exact-attendee-free-sandbox-calendar-id>
 make p13-dogfood-evals DOGFOOD_RUN=<content-addressed-run-dir>
 ```
@@ -153,7 +154,9 @@ operator truth before launch. `make p13-dogfood-d1` is the complete D1 access po
 preregisters, launches the packaged app, performs real browser clicks, captures every
 frozen scenario boundary, restarts the same run, normalizes only from retained raw
 records, and evaluates the report. `make p13-dogfood-d7` is the only write-capable product
-access point: it creates and later cleans a separately ticketed parent fixture, rejects
+access point. `make p13-dogfood-d56` is the binding read-only D5/D6 wrapper: it uses one
+separately ticketed parent as shared truth, preserves both zero-effect ceilings, and
+verifies external cleanup. The D7 access point creates and later cleans its own parent, rejects
 any candidate other than the exact attendee-free private prep action, and hard-pauses for
 an exact action-time commit line followed by a different exact undo line. It independently
 reads EventKit after both transitions and derives cardinality from the durable EffectKernel
@@ -599,35 +602,33 @@ live_blockers                              []
 The absence of a visible Connect Calendar control is itself a product access-point fail;
 the API only enables evaluation.
 
-For the current privacy-preserving D5 pass, first inspect Mac Calendar independently and
-choose one bounded local interval with zero Calendar events. Do not infer emptiness from
-the app under test. Freeze the offset-aware endpoints, then run:
+An independently confirmed empty interval remains a valid read-path diagnostic, but it
+cannot prove the timed-candidate correction contract: honest recommendation logic should
+choose no-op when there is no work to schedule. The binding same-build pass therefore
+uses one separately ticketed attendee-free parent event as shared D5/D6 truth:
 
 ```bash
-make p13-dogfood-d5 \
-  LIVE_WINDOW_START='2026-07-12T00:00:00-07:00' \
-  LIVE_WINDOW_END='2026-07-13T00:00:00-07:00' \
+make p13-dogfood-d56 \
+  CALENDAR_ID=09B50C6A-826E-4030-9908-D25DC900AC59 \
   LIVE_TIMEZONE='America/Los_Angeles'
 ```
 
-After D5 passes on an exact build, D6 uses the same independently confirmed interval:
-
-```bash
-make p13-dogfood-d6 \
-  LIVE_WINDOW_START='2026-07-12T00:00:00-07:00' \
-  LIVE_WINDOW_END='2026-07-13T00:00:00-07:00' \
-  LIVE_TIMEZONE='America/Los_Angeles'
-```
+The wrapper creates the parent through its own sandbox authority ticket, independently
+reads back its exact identifier/calendar/interval, freezes one minimal redacted truth
+document, runs D5 and D6 serially against that same truth, and then compensates the
+parent and independently verifies absence. Setup and cleanup are retained as explicit
+external artifacts; they are not attributed to either scored app cell. Each D5/D6
+manifest keeps provider mutations, effect attempts, stages, claims, and dispatches at
+zero. A setup or cleanup hold fails the wrapper.
 
 D6 fails unless the captured backends are exactly `live_codex_app_server`,
 `nvidia_nim_diffusiongemma_policy`, `SwiftKernelIPCClient`, and `apple_eventkit`.
 
-The manifest-adjacent operator truth records a hashed `calendar_gap`; the same endpoints
-are injected into the owned app process and must reappear in provider evidence. An empty
-set passes only when operator truth, EventKit, and the visible cited read all agree. The
-`P-NOOP` fixture remains required, but in D5 it executes as an explicitly recorded shadow
-observation: it cannot reset the provider, change provider identity, or leak into
-`P-LIVE-READ`.
+The manifest-adjacent operator truth records only the exact parent fields needed by the
+predicates plus the bounded read window; the same endpoints are injected into the owned
+app process and must reappear in provider evidence. The `P-NOOP` fixture remains required
+as an explicitly isolated shadow observation: it cannot reset the provider, change
+provider identity, or leak into `P-LIVE-READ`.
 
 ### 9.5 D7 current-build binding
 
@@ -792,8 +793,10 @@ scenario failures into independent tickets. Execute this order:
     `20260712T014343Z-d5-live_provider-7468d83d6bfd` passes 13/13.
 [x] Pass D6 all-live integration. Exact run
     `20260712T023617Z-d6-auto-c53c94e0a8ec` passes 13/13 with no fallback or setup note.
-[ ] Perform the one explicitly confirmed D7 effect
-    and compensation.
+[ ] Re-establish the literal one-build gate on current protected main: D0-D4, shared-parent
+    D5/D6 with zero scored writes and verified external cleanup, then the release gate.
+[ ] Perform the one explicitly confirmed D7 effect and separately confirmed compensation
+    on that same build.
 
 Do not start EventKit writes, positive-learning promotion, or recursive harness
 optimization while D2-D6 are open. Preserve D1's raw trace as
@@ -805,6 +808,22 @@ independent examples merely because the same candidate was exposed five times.
 ## 13. Updates
 
 Append newest entries first. Never rewrite a failed run after a fix.
+
+### 2026-07-12 — Empty-window D6 localized the final read-only access-point defect
+
+- The same-build sweep passed D1-D5 on protected main `7c6d2e3cafe8`. D6 then honestly
+  chose no-op for the independently verified empty live window. That exposed a UI/server
+  defect: no-op candidates offered a timed correction control and recorded a terminal
+  outcome before rejecting the correction. Protected main `a97cb8e` now makes that
+  control structurally unreachable and validates the target before reward ingress.
+- This is not a model-quality problem to paper over. P-CORRECTION requires a real timed
+  candidate, while an empty calendar gives the planner no grounded reason to invent one.
+  The canonical D5/D6 access point now creates one separately authorized attendee-free
+  parent fixture, binds both read-only cells to its exact minimal truth, and compensates
+  it after both runs. Fixture setup/cleanup never relax either cell's zero-effect ceiling.
+- Because the repairs changed app identity after earlier passing cells, historical cell
+  reports remain valid diagnostics but do not close the one-build MVP gate. The next
+  binding action is a clean protected-main rebuild and sequential D0-D7 sweep.
 
 ### 2026-07-11 — D6 complete; D7 is the sole remaining external boundary
 

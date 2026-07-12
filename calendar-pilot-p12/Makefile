@@ -1,6 +1,6 @@
 
 
-.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote learning-propose learning-evaluate architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-dogfood-prepare p13-dogfood-d1 p13-dogfood-d2 p13-dogfood-d3 p13-dogfood-d4 p13-dogfood-d5 p13-dogfood-d6 p13-dogfood-d7 p13-dogfood-eval-test p13-dogfood-evals p13-ruler-test p13-learning-ruler-test p13-learning-evidence-test p13-attestation-scaffold-test p13-no-effect-test p13-cited-read-side-test p13-deterministic-sandbox-test p13-eventkit-sandbox-test p13-deterministic-retirement-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
+.PHONY: test py-test swift-test swift-ipc-test browser-e2e live-codex-e2e live-diffusiongemma-e2e live-eventkit-e2e replay-offline-tuning-loop frontier-diff scorecard contract-vectors ml-ladder check-invariants evidence-bundle lab-validate-seeds lab-run lab-compare lab-promote learning-propose learning-evaluate architecture-evals architecture-eval-test architecture-evals-v2 architecture-eval-v2-test p13-dogfood-prepare p13-dogfood-d1 p13-dogfood-d2 p13-dogfood-d3 p13-dogfood-d4 p13-dogfood-d5 p13-dogfood-d6 p13-dogfood-d56 p13-dogfood-d7 p13-dogfood-eval-test p13-dogfood-evals p13-ruler-test p13-learning-ruler-test p13-learning-evidence-test p13-attestation-scaffold-test p13-no-effect-test p13-cited-read-side-test p13-deterministic-sandbox-test p13-eventkit-sandbox-test p13-deterministic-retirement-test p13-loc-report p13-instrument wave-bind binding-manifest-verify cvar-report cvar-report-v2 b-migrate b-migrate-v2 wave-harness p12-measurement p12-signals p12-calibration p12-provider-capabilities p12-release mac-app-build desktop-shortcut dogfood-release demo zip
 .NOTPARALLEL: wave-harness
 
 py-test:
@@ -115,12 +115,16 @@ p13-dogfood-d4:
 p13-dogfood-d5:
 	@test -n "$(LIVE_WINDOW_START)" || (echo "LIVE_WINDOW_START is required" >&2; exit 2)
 	@test -n "$(LIVE_WINDOW_END)" || (echo "LIVE_WINDOW_END is required" >&2; exit 2)
-	PYTHONPATH=src:. python3 scripts/run_p13_dogfood_d1.py --cell D5 --runtime-mode live_provider --live-window-start "$(LIVE_WINDOW_START)" --live-window-end "$(LIVE_WINDOW_END)" $(if $(LIVE_TIMEZONE),--live-timezone "$(LIVE_TIMEZONE)",) $(if $(ARCHITECTURE_REPORT),--architecture-report "$(ARCHITECTURE_REPORT)",)
+	PYTHONPATH=src:. python3 scripts/run_p13_dogfood_d1.py --cell D5 --runtime-mode live_provider --live-window-start "$(LIVE_WINDOW_START)" --live-window-end "$(LIVE_WINDOW_END)" $(if $(LIVE_TIMEZONE),--live-timezone "$(LIVE_TIMEZONE)",) $(if $(LIVE_EVENT_JSON),--live-event-json "$(LIVE_EVENT_JSON)",) $(if $(ARCHITECTURE_REPORT),--architecture-report "$(ARCHITECTURE_REPORT)",)
 
 p13-dogfood-d6:
 	@test -n "$(LIVE_WINDOW_START)" || (echo "LIVE_WINDOW_START is required" >&2; exit 2)
 	@test -n "$(LIVE_WINDOW_END)" || (echo "LIVE_WINDOW_END is required" >&2; exit 2)
-	PYTHONPATH=src:. python3 scripts/run_p13_dogfood_d1.py --cell D6 --runtime-mode auto --live-window-start "$(LIVE_WINDOW_START)" --live-window-end "$(LIVE_WINDOW_END)" $(if $(LIVE_TIMEZONE),--live-timezone "$(LIVE_TIMEZONE)",) $(if $(ARCHITECTURE_REPORT),--architecture-report "$(ARCHITECTURE_REPORT)",)
+	PYTHONPATH=src:. python3 scripts/run_p13_dogfood_d1.py --cell D6 --runtime-mode auto --live-window-start "$(LIVE_WINDOW_START)" --live-window-end "$(LIVE_WINDOW_END)" $(if $(LIVE_TIMEZONE),--live-timezone "$(LIVE_TIMEZONE)",) $(if $(LIVE_EVENT_JSON),--live-event-json "$(LIVE_EVENT_JSON)",) $(if $(ARCHITECTURE_REPORT),--architecture-report "$(ARCHITECTURE_REPORT)",)
+
+p13-dogfood-d56:
+	@test -n "$(CALENDAR_ID)" || (echo "CALENDAR_ID is required" >&2; exit 2)
+	PYTHONPATH=src:. python3 scripts/run_p13_dogfood_d56.py --calendar-id "$(CALENDAR_ID)" $(if $(LIVE_TIMEZONE),--live-timezone "$(LIVE_TIMEZONE)",) $(if $(ARCHITECTURE_REPORT),--architecture-report "$(ARCHITECTURE_REPORT)",)
 
 p13-dogfood-d7:
 	PYTHONPATH=src:. python3 scripts/run_p13_dogfood_d7.py $(if $(CALENDAR_ID),--calendar-id "$(CALENDAR_ID)",) $(if $(LIVE_TIMEZONE),--live-timezone "$(LIVE_TIMEZONE)",) $(if $(ARCHITECTURE_REPORT),--architecture-report "$(ARCHITECTURE_REPORT)",)

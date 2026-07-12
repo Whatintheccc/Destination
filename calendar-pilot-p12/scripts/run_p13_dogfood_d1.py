@@ -127,12 +127,19 @@ def prepare_args(args: argparse.Namespace) -> argparse.Namespace:
         live_window_start=args.live_window_start,
         live_window_end=args.live_window_end,
         live_timezone=args.live_timezone,
+        live_event_json=getattr(args, "live_event_json", ""),
     )
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     run_dir = prepare(prepare_args(args))
     run_id = run_dir.name
+    external_setup = getattr(args, "external_setup", None)
+    if isinstance(external_setup, dict):
+        (run_dir / "external_setup.json").write_text(
+            json.dumps(external_setup, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     truth = load_json(run_dir / "operator_truth.json")
     gap = next((row for row in truth.get("facts", []) if row.get("kind") == "calendar_gap"), None)
     live_window = None
@@ -161,6 +168,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
         normalize(run_dir)
         report = build_report(run_dir=run_dir)
+        report["run_dir"] = str(run_dir)
         print(json.dumps({
             "run_dir": str(run_dir),
             "decision": report["decision"],
@@ -191,6 +199,7 @@ def main() -> None:
     parser.add_argument("--live-window-start", default="")
     parser.add_argument("--live-window-end", default="")
     parser.add_argument("--live-timezone", default="America/Los_Angeles")
+    parser.add_argument("--live-event-json", default="")
     args = parser.parse_args()
     expected_mode = {
         "D1": "fixture",
