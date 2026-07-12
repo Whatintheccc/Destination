@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta
 import hashlib
 from typing import Callable, Iterable
@@ -78,6 +79,20 @@ def corrected_action_minutes(biography: UserBiography, intent: str, fallback: in
 
 def corrected_prep_minutes(biography: UserBiography, fallback: int) -> int:
     return min(45, corrected_action_minutes(biography, "create_prep_block", fallback))
+
+
+def apply_explicit_duration_correction(candidate: CandidateCalendarAction, biography: UserBiography) -> None:
+    if not candidate.actions:
+        return
+    action = candidate.actions[0]
+    if action.start is None or action.end is None:
+        return
+    current_minutes = max(5, int((action.end - action.start).total_seconds() // 60))
+    preferred_minutes = corrected_action_minutes(biography, candidate.intent, current_minutes)
+    if preferred_minutes == current_minutes:
+        return
+    candidate.actions[0] = replace(action, end=action.start + timedelta(minutes=preferred_minutes))
+    candidate.control_notes.append(f"explicit_duration_correction={current_minutes}->{preferred_minutes}")
 
 
 class DiffusionGemmaPolicy:

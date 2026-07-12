@@ -15,7 +15,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from calendar_pilot.env import load_local_env
-from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy, apply_policy_tuning
+from calendar_pilot.diffusiongemma.policy import DiffusionGemmaPolicy, apply_explicit_duration_correction, apply_policy_tuning
 from calendar_pilot.diffusiongemma.temporal_controller import RightMomentTemporalController
 from calendar_pilot.environment.taxonomy import CanonicalIntent, normalize_intent
 from calendar_pilot.redaction import redact_env_secret_values
@@ -945,6 +945,7 @@ class LiveDiffusionGemmaPolicy:
                 limit=max(1, frontier_limit),
             )
             for idx, candidate in enumerate(result.candidates, start=1):
+                apply_explicit_duration_correction(candidate, biography)
                 candidate.control_notes.extend([
                     f"policy_backend={LIVE_DIFFUSIONGEMMA_BACKEND}",
                     f"nim_model={self.client.model}",
