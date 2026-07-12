@@ -25,7 +25,7 @@ from calendar_pilot.types import AtomicActionType, CandidateCalendarAction, Poli
 load_local_env()
 LIVE_DIFFUSIONGEMMA_BACKEND = "nvidia_nim_diffusiongemma_policy"
 PROMPT_VERSION = "frontier_v1"
-LIVE_DIFFUSIONGEMMA_PROMPT_VERSION = "calendar_pilot_nim_compact_frontier_v3"
+LIVE_DIFFUSIONGEMMA_PROMPT_VERSION = "calendar_pilot_nim_compact_frontier_v4"
 NVIDIA_NIM_DOC_URL = "https://docs.api.nvidia.com/nim/reference/diffusiongemma-26b-a4b-it-infer"
 DEFAULT_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 DEFAULT_NIM_MODEL = "google/diffusiongemma-26b-a4b-it"
@@ -458,8 +458,14 @@ class NvidiaNIMPolicyClient:
             normalized.setdefault("required_authority_tier", int(normalized.get("authority") or (0 if action_type in {"do_nothing", "notify", "ask_clarification", "draft_schedule_plan"} else 3)))
             normalized.setdefault("reversibility", "none" if action_type in {"do_nothing", "notify", "ask_clarification"} else "high")
             reasoning = str(normalized.get("reasoning") or "")
+            no_op_comparison = str(normalized.get("no_op_comparison") or "")
             normalized.setdefault("explanation", reasoning)
             normalized.setdefault("model_story", [reasoning] if reasoning else [])
+            normalized.setdefault("counterfactual", no_op_comparison)
+            if action_type == "do_nothing" and no_op_comparison:
+                control_notes = list(normalized.get("control_notes") or [])
+                control_notes.append("binding_constraint=" + no_op_comparison)
+                normalized["control_notes"] = control_notes
             validation_errors.append(f"normalized_compact_candidate:{idx}")
         if not normalized.get("candidate_id"):
             identity_payload = json.dumps(normalized, sort_keys=True, separators=(",", ":"), default=str)
@@ -550,8 +556,8 @@ class NvidiaNIMPolicyClient:
 
     def _frontier_prompt(self, goal: str, observation: RawCalendarObservation, biography: UserBiography, *, limit: int, retry: bool = False) -> str:
         return json.dumps({
-            "instruction": "Generate a JSON array of compact CalendarPilot proposals. Each proposal has intent, action_type, authority, parameters, evidence_event_ids, and reasoning. evidence_event_ids must contain the exact event_id values from the observation that justify the proposal; a prep block must cite its parent meeting. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
-            "strict_retry_instruction": "Previous output failed the typed action contract. Return a shorter JSON array with complete parameters and exact evidence_event_ids copied from the observation. Do not omit start/end for a mutating action and do not emit markdown or prose outside the array." if retry else None,
+            "instruction": "Generate a JSON array of compact CalendarPilot proposals. Each proposal has intent, action_type, authority, parameters, evidence_event_ids, reasoning, and no_op_comparison. evidence_event_ids must contain the exact event_id values from the observation that justify the proposal; a prep block must cite its parent meeting. no_op_comparison must say why this action is better than making no change; for do_nothing it must state the binding constraint that makes every change worse. The local adapter—not the model—owns candidate identity and hydrates proposals into the executable contract. Prefer concrete, reversible calendar actions grounded in the observation. Every create/add/focus/batch action requires ISO-8601 start and end in parameters; every move/resize action also requires an existing event_id. Include do_nothing when no safe useful change dominates. Do not invent event IDs, people, calendars, or times outside the supplied evidence.",
+            "strict_retry_instruction": "Previous output failed the typed action contract. Return a shorter JSON array with complete parameters, exact evidence_event_ids copied from the observation, and an explicit no_op_comparison. Do not omit start/end for a mutating action and do not emit markdown or prose outside the array." if retry else None,
             "goal": goal,
             "limit": limit,
             "observation": to_jsonable(observation),
@@ -585,7 +591,7 @@ class NvidiaNIMPolicyClient:
                     "items": {
                         "type": "object",
                         "additionalProperties": False,
-                        "required": ["intent", "action_type", "authority", "parameters", "evidence_event_ids", "reasoning"],
+                        "required": ["intent", "action_type", "authority", "parameters", "evidence_event_ids", "reasoning", "no_op_comparison"],
                         "properties": {
                             "intent": {"type": "string", "enum": [intent.value for intent in CanonicalIntent]},
                             "action_type": {
@@ -599,6 +605,7 @@ class NvidiaNIMPolicyClient:
                             },
                             "authority": {"type": "integer", "minimum": 0, "maximum": 6},
                             "evidence_event_ids": {"type": "array", "items": {"type": "string"}},
+                            "no_op_comparison": {"type": "string"},
                             "parameters": {
                                 "type": "object",
                                 "additionalProperties": False,

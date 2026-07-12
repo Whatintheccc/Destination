@@ -47,11 +47,11 @@
       "status": "ran",
       "reason": {
         "basis": "ran",
-        "detail": "Exact clean behavior commit c80fcef590bf passed live NIM generation, cited compact-proposal validation, Swift IPC simulation, browser interaction, replay provenance, and secret inspection."
+        "detail": "Exact clean behavior commit 92fc378010fd passed live NIM generation, cited compact-proposal and no-op-comparison validation, Swift IPC simulation, browser interaction, replay provenance, and secret inspection."
       },
       "artifact": {
         "path": "calendar-pilot-p12/runs/live_diffusiongemma_e2e/artifacts/live_policy_state.json",
-        "sha256": "1147c6649108bb77bec26c3d938bf34da05869b7653548c3ae42f67a0f7b8a5b"
+        "sha256": "afe0df89999dfba2553974a23ee8b62945c456eed1ee5898073453973788fa9a"
       },
       "owner": "repository-owner",
       "sign_off": "automated affected live leg passed on exact clean behavior commit",
